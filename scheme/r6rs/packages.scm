@@ -29,6 +29,21 @@
     (define (char-general-category c)
       (general-category-symbol (s48:char-general-category c)))))
 
+(define-interface r6rs-lists-interface
+  (export find
+	  for-all exists
+	  filter partition
+	  fold-left fold-right
+	  remp remove remv remq
+	  memp member memv memq
+	  assp assoc assv assq
+	  cons*))
+
+(define-structure r6rs-lists r6rs-lists-interface
+  (open scheme
+	exceptions)
+  (files list))
+
 (define-interface r6rs-enums-interface
   (export make-enumeration
 	  enum-set-universe
@@ -56,5 +71,3 @@
 	code-quote)
   (files enum))
 
-  
-	  

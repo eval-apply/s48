@@ -519,6 +519,7 @@
 	    ; R6RS packages
 
 	    r6rs-unicode
+	    r6rs-lists
 	    r6rs-enums
 
 	    ; POSIX packages (see scheme/posix/packages.scm)
