@@ -213,6 +213,8 @@
 
 (define-structures ((debugging		;additional exports in future
 		      (export breakpoint))
+		    (previews
+		     (export display-preview))
 		    (debug-commands debug-commands-interface))
   (open scheme-level-2
         command-processor       ; define-command, etc.
