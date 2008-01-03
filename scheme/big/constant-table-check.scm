@@ -16,10 +16,14 @@
 (define-test-case not-present constant-tables-tests
   (let ((table (make-constant-table '((foo . 1) (bar . 2) (baz . 3) (bala . 4)) 
 				    symbol-hash)))
-    (check (not (constant-table-lookup table 'yellow)))
-    (check (not (constant-table-lookup table 'balab)))
-    (check (not (constant-table-lookup table 'foobar)))
-    (check (not (constant-table-lookup table 'foobarbaz)))))
+    (check-that (constant-table-lookup table 'yellow)
+		(is-false))
+    (check-that (constant-table-lookup table 'balab)
+		(is-false))
+    (check-that (constant-table-lookup table 'foobar)
+		(is-false))
+    (check-that (constant-table-lookup table 'foobarbaz)
+		(is-false))))
 
 (define-test-case bigger constant-tables-tests
   (let loop ((i 0) (entries '()))

@@ -37,9 +37,8 @@
     (let loop ((count 0)
 	       (values '()))
       (if (= count 2000)
-	  (check values
-		 (=> lset=)
-		 (iota 2000))
+	  (check-that values
+		      (is lset= (iota 2000)))
 	  (loop (+ 1 count)
 		(cons (receive channel) values))))))
 
@@ -66,9 +65,7 @@
     (let loop ((count 0)
 	       (values '()))
       (if (= count 2000)
-	  (check values
-		 (=> lset=)
-		 (iota 2000))
+	  (check-that values (is lset= (iota 2000)))
 	  (loop (+ 1 count)
 		(cons (select (receive-rv channel-1)
 			      (receive-rv channel-2))
@@ -97,9 +94,7 @@
     (let loop ((count 0)
 	       (values '()))
       (if (= count 2000)
-	  (check values
-		 (=> lset=)
-		 (iota 2000))
+	  (check-that values (is lset= (iota 2000)))
 	  (let* ((val
 		  (select (wrap (receive-rv channel-1)
 				(lambda (n)
@@ -225,12 +220,13 @@
 	  (res-2 (receive result-channel))
 	  (ensure
 	   (lambda (res)
-	     (check (member res '((1 . 17)
-				  (2 .  17)
-				  (3 . 17)
-				  (1 . 23)
-				  (2 . 23)
-				  (3 . 23)))))))
+	     (check-that res
+			 (member-of '((1 . 17)
+				      (2 .  17)
+				      (3 . 17)
+				      (1 . 23)
+				      (2 . 23)
+				      (3 . 23)))))))
       ;; kill off remaining thread
       (jar-put! jar-1 #f)
       (receive result-channel)
@@ -333,7 +329,7 @@
 	   (lambda (value)
 	     (check value => 23))))
     (sleep 500)
-    (check (not no))))
+    (check-that no (is-false))))
 
 (define-test-case no-nack-2 with-nack-tests
   (let ((ch (make-channel))
@@ -386,8 +382,7 @@
     (sleep 10)
     (send ch 10)
     (let ((vals (list (receive results) (receive results) (receive results))))
-      (check vals
-	     (=> lset=) '(1 2 3)))))
+      (check-that vals (is lset= '(1 2 3))))))
 
 (define-test-case no-nack-3 with-nack-tests
   (let ((ch (make-channel))
@@ -409,10 +404,10 @@
 	(send-rv ch 'dudel-di-dudel))))
 
     (sleep 10)
-    (check (memq (receive ch) '(tralala dudel-di-dudel)))
+    (check-that (receive ch) (member-of '(tralala dudel-di-dudel)))
     (sleep 200)
-    (check (list (receive results) (receive results))
-	   (=> lset=) '(1 2))))
+    (check-that (list (receive results) (receive results))
+		(is lset= '(1 2)))))
 
 (define-test-case nack-2 with-nack-tests
   (let* ((ch-1 (make-channel))
@@ -443,9 +438,9 @@
     (sleep 10)
     (send ch-1 'jo)
     (sleep 200)
-    (check
+    (check-that
      (list (receive results) (receive results) (receive results))
-     (=> lset=) '(nack-1 nack-2 rv-1))))
+     (is lset= '(nack-1 nack-2 rv-1)))))
  	   
 (define (make-channels channels)
   (let loop ((res '()) (i channels))

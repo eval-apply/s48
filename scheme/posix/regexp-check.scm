@@ -24,7 +24,7 @@
 (define-test-case match regexp-tests
   (check (pair-match (text "abc") "abc")
 	 => '((0 3)))
-  (check (not (pair-match (text "abc") "abx")))
+  (check-that (pair-match (text "abc") "abx") (is-false))
   (check (pair-match (text "abc") "xxabcxx")
 	 => '((2 5)))
   (check (pair-match (sequence (text "ab")

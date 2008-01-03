@@ -1,16 +1,16 @@
 (define-structure srfi-13-test (export srfi-13-tests)
-  (open scheme test-suites
+  (open scheme test-suites matchers
 	srfi-13)
   (files srfi-13-check))
 
-(define-structure srfi-14-test (export srfi-14-tests srfi-14-slow-tests)
-  (open scheme test-suites
+(define-structure srfi-14-test (export srfi-14-tests)
+  (open scheme test-suites matchers
 	unicode
 	srfi-14)
   (files srfi-14-check))
 
 (define-structure srfi-19-test (export srfi-19-tests)
-  (open scheme 
+  (open scheme matchers
 	srfi-9 ; DEFINE-RECORD-PROCEDURES
         srfi-19
 	test-suites

@@ -47,8 +47,8 @@
 	(t2 (make-time 'time-utc 0 1000))
 	(t3 (make-time 'time-duration 0 2000))
 	(t4 (make-time 'time-duration 0 -2000)))
-    (check (time=? t3 (time-difference t1 t2)))
-    (check (time=? t4 (time-difference t2 t1)))))
+    (check-that t3 (is time=? (time-difference t1 t2)))
+    (check-that t4 (is time=? (time-difference t2 t1)))))
 
 (define-test-case tai-utc-conversions srfi-19-tests
   (test-one-utc-tai-edge 915148800  32 31)
@@ -80,34 +80,34 @@
   )
    
 (define-test-case tai-date-conversions srfi-19-tests
-  (check (tm:date= (time-tai->date (make-time time-tai 0 (+ 915148800 29)) 0)
-		   (make-date 0 58 59 23 31 12 1998 0)))
-  (check (tm:date= (time-tai->date (make-time time-tai 0 (+ 915148800 30)) 0)
-		   (make-date 0 59 59 23 31 12 1998 0)))
-  (check (tm:date= (time-tai->date (make-time time-tai 0 (+ 915148800 31)) 0)
-		   (make-date 0 60 59 23 31 12 1998 0)))
-  (check (tm:date= (time-tai->date (make-time time-tai 0 (+ 915148800 32)) 0)
-		   (make-date 0 0 0 0 1 1 1999 0))))
+  (check-that (time-tai->date (make-time time-tai 0 (+ 915148800 29)) 0)
+	      (is tm:date= (make-date 0 58 59 23 31 12 1998 0)))
+  (check-that (time-tai->date (make-time time-tai 0 (+ 915148800 30)) 0)
+	      (is tm:date= (make-date 0 59 59 23 31 12 1998 0)))
+  (check-that (time-tai->date (make-time time-tai 0 (+ 915148800 31)) 0)
+	      (is tm:date= (make-date 0 60 59 23 31 12 1998 0)))
+  (check-that (time-tai->date (make-time time-tai 0 (+ 915148800 32)) 0)
+	      (is tm:date= (make-date 0 0 0 0 1 1 1999 0))))
    
 (define-test-case date-utc-conversions srfi-19-tests
-  (check (time=? (make-time time-utc 0 (- 915148800 2))
-		 (date->time-utc (make-date 0 58 59 23 31 12 1998 0))))
-  (check (time=? (make-time time-utc 0 (- 915148800 1))
-		 (date->time-utc (make-date 0 59 59 23 31 12 1998 0))))
+  (check-that (make-time time-utc 0 (- 915148800 2))
+	      (is time=? (date->time-utc (make-date 0 58 59 23 31 12 1998 0))))
+  (check-that (make-time time-utc 0 (- 915148800 1))
+	      (is time=? (date->time-utc (make-date 0 59 59 23 31 12 1998 0))))
   ;; yes, I think this is acutally right.
-  (check (time=? (make-time time-utc 0 (- 915148800 0))
-		 (date->time-utc (make-date 0 60 59 23 31 12 1998 0))))
-  (check (time=? (make-time time-utc 0 (- 915148800 0))
-		 (date->time-utc (make-date 0 0 0 0 1 1 1999 0))))
-  (check (time=? (make-time time-utc 0 (+ 915148800 1))
-		 (date->time-utc (make-date 0 1 0 0 1 1 1999 0)))))
+  (check-that (make-time time-utc 0 (- 915148800 0))
+	      (is time=? (date->time-utc (make-date 0 60 59 23 31 12 1998 0))))
+  (check-that (make-time time-utc 0 (- 915148800 0))
+	      (is time=? (date->time-utc (make-date 0 0 0 0 1 1 1999 0))))
+  (check-that (make-time time-utc 0 (+ 915148800 1))
+	      (is time=? (date->time-utc (make-date 0 1 0 0 1 1 1999 0)))))
    
 (define-test-case tz-offset-conversions srfi-19-tests
   (let ((ct-utc (make-time time-utc 6320000 1045944859))
 	(ct-tai (make-time time-tai 6320000 1045944891))
 	(cd (make-date 6320000 19 14 15 22 2 2003 -18000)))
-    (check (time=? ct-utc (date->time-utc cd)))
-    (check (time=? ct-tai (date->time-tai cd)))))
+    (check-that ct-utc (is time=? (date->time-utc cd)))
+    (check-that ct-tai (is time=? (date->time-tai cd)))))
 
 (define-test-case date->string-conversions srfi-19-tests
   (check (date->string (make-date 1000 2 3 4 5 6 2007 -120)
@@ -121,14 +121,16 @@
 	    (date->julian-day (make-date 0 0 0 0 1 1 2003 0)))
 	 => 365)
   (let ((test-date (make-date 0 0 0 0 1 1 2003 -7200)))
-    (check (tm:date= test-date (julian-day->date (date->julian-day test-date) -7200)))))
+    (check-that test-date
+		(is tm:date= (julian-day->date (date->julian-day test-date) -7200)))))
    
 (define-test-case date->modified-julian-day-conversion srfi-19-tests
   (check (- (date->modified-julian-day (make-date 0 0 0 0 1 1 2004 0))
 	    (date->modified-julian-day (make-date 0 0 0 0 1 1 2003 0))) 
 	 => 365)
   (let ((test-date (make-date 0 0 0 0 1 1 2003 -7200)))
-    (check (tm:date= test-date (modified-julian-day->date (date->modified-julian-day test-date) -7200)))))
+    (check-that test-date
+		(is tm:date= (modified-julian-day->date (date->modified-julian-day test-date) -7200)))))
 
 (define (test-one-utc-tai-edge utc tai-diff tai-last-diff)
   (let* ( ;; right on the edge they should be the same
@@ -158,14 +160,14 @@
 	 (utc->tai-basic+2 (time-utc->time-tai utc-basic+2))
 	 (tai->utc-basic+2 (time-tai->time-utc tai-basic+2)))
     
-    (check (time=? utc-basic tai->utc-basic))
-    (check (time=? tai-basic utc->tai-basic))
-    (check (time=? utc-basic-1 tai->utc-basic-1))
-    (check (time=? tai-basic-1 utc->tai-basic-1))
-    (check (time=? utc-basic+1 tai->utc-basic+1))
-    (check (time=? tai-basic+1 utc->tai-basic+1))
-    (check (time=? utc-basic+2 tai->utc-basic+2))
-    (check (time=? tai-basic+2 utc->tai-basic+2))))
+    (check-that utc-basic (is time=? tai->utc-basic))
+    (check-that tai-basic (is time=? utc->tai-basic))
+    (check-that utc-basic-1 (is time=? tai->utc-basic-1))
+    (check-that tai-basic-1 (is time=? utc->tai-basic-1))
+    (check-that utc-basic+1 (is time=? tai->utc-basic+1))
+    (check-that tai-basic+1 (is time=? utc->tai-basic+1))
+    (check-that utc-basic+2 (is time=? tai->utc-basic+2))
+    (check-that tai-basic+2 (is time=? utc->tai-basic+2))))
 
 
 (define (tm:date= d1 d2)

@@ -4,7 +4,7 @@
 				   with-nack-tests
 				   cml-tests ; all combined
 				   )
-  (open scheme test-suites
+  (open scheme test-suites matchers
 	threads
 	srfi-1
 	rendezvous rendezvous-channels

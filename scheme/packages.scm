@@ -545,6 +545,7 @@
 
             libscheme48
 	    test-suites
+	    matchers
 	    )
 	   :structure)
 	  ((define-signature define-package) :syntax)))

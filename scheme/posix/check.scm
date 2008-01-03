@@ -170,14 +170,14 @@
       (read-char in)
       (close-input-port in))
     (let ((new-info (get-file-info "file0")))
-      (check (time=? (file-info-last-modification old-info)
-		     (file-info-last-modification new-info)))
-      ;; On Linux, file-systems may be mounted using the "noatime"
+      (check-that (file-info-last-modification old-info)
+		  (is time=? (file-info-last-modification new-info)))
+      ;; On Linux, file-systems may be mounted using the "noatime" 
       ;; option.  That is, just reading the file does not necessarily
       ;; update the access time.  Hence, we use TIME<=? instead of
       ;; TIME<? (which makes this test less useful).
-      (check (time<=? (file-info-last-access old-info)
-		      (file-info-last-access new-info))))))
+      (check-that (file-info-last-access old-info)
+		  (is time<=? (file-info-last-access new-info))))))
 
 (define-test-case link posix-core-tests
   (let ((old-link-count (file-info-link-count (get-file-info "file0"))))
@@ -235,34 +235,32 @@
 	  (root-group (group-id->group-info (file-info-group root-info))))
       (let ((my-other-user (name->user-info (user-info-name my-user)))
 	    (my-other-group (name->group-info (group-info-name my-group))))
-	(check (user-id=? (file-info-owner my-info)
-			  (user-info-id my-user)))
-	(check (not (user-id=? (file-info-owner root-info)
-			       (user-info-id my-user))))
-	(check (group-id=? (file-info-group my-info)
-			   (group-info-id my-group)))
+	(check-that (file-info-owner my-info)
+		    (is user-id=? (user-info-id my-user)))
+	(check-that (file-info-owner root-info)
+		    (opposite (is user-id=? (user-info-id my-user))))
+	(check-that (file-info-group my-info)
+		    (is group-id=? (group-info-id my-group)))
 	;; doesn't work reliably
 	;; (specifically, if the user is member of wheel)
 	;; (check (not (group-id=? (file-info-group root-info)
 	;;		(group-info-id my-group))))
-	(check (member (os-string->string (user-info-name root-user))
-		       '("root"
-			 "bin" ; AIX
-			 )))))))
+	(check-that (os-string->string (user-info-name root-user))
+		    (member-of '("root"
+				 "bin" ; AIX
+				 )))))))
 
 (define-test-case environment posix-core-tests
   (let ((env (reverse (environment-alist))))
-    (check (if (null? env)
-	       #t
-	       (string=? (os-string->string (cdar env))
-			 (lookup-environment-variable->string (caar env)))))
+    (if (not (null? env))
+	(check-that (lookup-environment-variable->string (caar env))
+		    (is (os-string->string (cdar env)))))
     (for-each (lambda (x)
-		(check
-		 (and (pair? x)
-		      (os-string? (car x))
-		      (os-string? (cdr x)))))
+		(check-that x (is pair?))
+		(check-that (car x) (is os-string?))
+		(check-that (cdr x) (is os-string?)))
 	      env))
-  (check (not (lookup-environment-variable->string "="))))
+  (check-that (lookup-environment-variable->string "=") (is-false)))
 
 ; This should be last, because it removes the directory.
 

@@ -1,5 +1,5 @@
 (define-structure posix-core-test (export posix-core-tests)
-  (open scheme test-suites sort threads
+  (open scheme test-suites matchers sort threads
 	util		; every
 	posix-files
 	posix-time
@@ -11,7 +11,7 @@
   (files check))
 
 (define-structure regexp-test (export regexp-tests)
-  (open scheme test-suites
+  (open scheme test-suites matchers
 	regexps)
   (files regexp-check))
 
