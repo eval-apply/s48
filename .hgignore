@@ -3,12 +3,14 @@ syntax: regexp
 (^|/)\.hg($|/)
 (^|/)\.hgtags($|/)
 .*~$
+\.DS_Store$
 ^autom4te\.cache
 ^config\.status$
 ^config\.log$
 ^configure$
 ^Makefile$
 ^c/.*\.(o|a|exp|so)$
+^c/\.gdb_history$
 ^go$
 ^scheme48\.image$
 ^scheme48vm$
