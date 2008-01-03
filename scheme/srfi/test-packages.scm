@@ -1,3 +1,8 @@
+(define-structure srfi-13-test (export srfi-13-tests)
+  (open scheme test-suites
+	srfi-13)
+  (files srfi-13-check))
+
 (define-structure srfi-14-test (export srfi-14-tests srfi-14-slow-tests)
   (open scheme test-suites
 	unicode
@@ -14,9 +19,9 @@
 
 (define-structure portable-srfi-test (export portable-srfi-tests)
   (open scheme test-suites
-	srfi-14-test)
+	srfi-13-test srfi-14-test)
   (begin
-    (define-test-suite portable-srfi-tests (srfi-14-tests))))
+    (define-test-suite portable-srfi-tests (srfi-13-tests srfi-14-tests))))
 
 (define-structure srfi-test (export portable-srfi-tests posix-srfi-tests srfi-tests)
   (open scheme test-suites
