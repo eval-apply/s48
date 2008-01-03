@@ -160,7 +160,7 @@
 	(check (current-row p1) => 3)
 	(check (current-column p1) => 5)
 	(close-input-port p1)
-	(check (open-input-port? p1) => #f)))
+	(check-that (open-input-port? p1) (is-false))))
 
 (define-test-case byte-sink-input-ports misc-big-tests
 
@@ -303,14 +303,14 @@
 	  (m2 (list->mask type '())))
 
       (check (mask-type? type))
-      (check (not (mask-type? m0)))
-      (check (not (mask? type)))
+      (check-that (mask-type? m0) (is-false))
+      (check-that (mask? type) (is-false))
       (check (mask? m0))
 
       (check (mask-type m0) (=> eq?) type)
       (check (mask-has-type? m0 type))
       (check (mask-member? m0 (color black)))
-      (check (not (mask-member? m0 (color maroon))))
+      (check-that (mask-member? m0 (color maroon)) (is-false))
 
       (check (map color-name (mask->list m0))
 	     => '(black white purple))
@@ -345,7 +345,7 @@
 	(three (exact->inexact 3))
 	(third (/ one three))
 	(xthird (inexact->exact third)))
-   (check (= 1/3 xthird) => #f)
+   (check-that (= 1/3 xthird) (is-false))
    (check (exact->inexact xthird) => third)))
 
 (define-test-case float-comparisons misc-big-tests

@@ -5,5 +5,5 @@
   (check (string-contains "xabc" "ab") => 1)
   (check (string-contains "aabc" "ab") => 1)
   (check (string-contains "abaabaaabaaaa" "aaa") => 5)
-  (check (not (string-contains "abcdef" "cdf"))))
+  (check-that (string-contains "abcdef" "cdf") (is-false)))
 

@@ -443,10 +443,17 @@
 
 ; test suites
 
+(define-structure matchers matchers-interface
+  (open scheme
+	define-record-types
+	big-util)
+  (files (big matcher)))
+
 (define-structure test-suites test-suites-interface
   (open scheme
 	cells
 	big-util
+	matchers
 	exceptions
 	define-record-types
 	exceptions conditions

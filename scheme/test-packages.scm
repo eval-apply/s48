@@ -1,7 +1,7 @@
 ; Random tests, mostly for stuff in scheme/big
 
 (define-structure misc-big-test (export misc-big-tests)
-  (open scheme test-suites
+  (open scheme test-suites matchers
 	;assembler
 	byte-vectors
 	ports
@@ -24,28 +24,33 @@
   (files (big check)))
 
 (define-structure inversion-lists-test (export inversion-lists-tests)
-  (open scheme test-suites
+  (open scheme test-suites matchers
 	inversion-lists)
   (files (big inversion-list-check)))
 
 (define-structure constant-tables-test (export constant-tables-tests)
-  (open scheme test-suites
+  (open scheme test-suites matchers
 	constant-tables
 	(subset tables (symbol-hash)))
   (files (big constant-table-check)))
 
+(define-structure matchers-test (export matchers-tests)
+  (open scheme test-suites matchers)
+  (files (big matcher-check)))
+
 (define-structure big-test (export big-tests)
   (open scheme test-suites
-	misc-big-test inversion-lists-test constant-tables-test)
+	misc-big-test inversion-lists-test constant-tables-test matchers-test)
   (begin
     (define-test-suite big-tests
       (misc-big-tests
        inversion-lists-tests
-       constant-tables-tests))))
+       constant-tables-tests
+       matchers-tests))))
 
 (define-structure sockets-test (export tcp-sockets-tests
 				       udp-sockets-tests)
-  (open scheme test-suites
+  (open scheme test-suites matchers
 	byte-vectors threads
 	sockets udp-sockets)
   (files (net socket-check)))
