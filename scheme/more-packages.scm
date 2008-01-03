@@ -451,6 +451,7 @@
 	define-record-types
 	exceptions conditions
 	display-conditions
+	escapes continuations previews
 	(subset i/o (current-error-port))
 	fluids)
   (files (big test-suite)))

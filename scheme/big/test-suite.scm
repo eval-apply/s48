@@ -91,18 +91,22 @@
      (let ((expected ?expected)
 	   (equal? ?equal?))
 
-       (guard 
-	(c
-	 (else
-	  (register-failure!
-	   (make-check-failure (fluid $test-case)
-			       '?actual #f c '?expected expected equal?))))
-
-	(let ((actual ?actual))
-	  (if (not (equal? actual expected))
-	      (register-failure!
-	       (make-check-failure (fluid $test-case)
-				   '?actual actual #f '?expected expected equal?)))))))))
+       (call-with-current-continuation
+	(lambda (exit)
+	  (with-exception-handler
+	   (lambda (c)
+	     (primitive-cwcc
+	      (lambda (cont)
+		(register-failure!
+		 (make-check-failure (fluid $test-case)
+				     '?actual #f c cont '?expected expected equal?))))
+	     (exit))
+	   (lambda ()
+	     (let ((actual ?actual))
+	       (if (not (equal? actual expected))
+		   (register-failure!
+		    (make-check-failure (fluid $test-case)
+					'?actual actual #f #f '?expected expected equal?))))))))))))
 
 (define (always-true _)
   #t)
@@ -141,7 +145,8 @@
 
 (define-record-type check-failure :check-failure
   (make-check-failure test-case
-		      actual-expr actual-val actual-condition expected-expr expected-val
+		      actual-expr actual-val actual-condition continuation
+		      expected-expr expected-val
 		      equal?-proc)
   check-failure?
   (test-case check-failure-test-case)
@@ -149,9 +154,19 @@
   (actual-val check-failure-actual-val)
   ;; may be #f
   (actual-condition check-failure-actual-condition)
+  ;; #f when ACTUAL-CONDITION is #f, otherwise continuation (not escape procedure!)
+  (continuation check-failure-continuation)
   (expected-expr check-failure-expected-expr)
   (expected-val check-failure-expected-val)
   (equal?-proc check-failure-equal?-proc))
+
+; is EXPR a literal whose value is VAL?
+(define (literal-of? expr val)
+  (or (equal? val expr)
+      (and (pair? expr)
+	   (eq? 'quote (car expr))
+	   (pair? (cdr expr))
+	   (equal? val (cadr expr)))))
 
 (define-record-discloser :check-failure
   (lambda (f)
@@ -161,9 +176,12 @@
 		(check-failure-actual-expr f)
 		(or (check-failure-actual-condition f)
 		    (check-failure-actual-val f)))
-	  (list 'expected
-		(check-failure-expected-expr f)
-		(check-failure-expected-val f))
+	  (cons 'expected
+		(let ((val (check-failure-expected-val f))
+		      (expr (check-failure-expected-expr f)))
+		  (if (literal-of? expr val)
+		      (list val)
+		      (list expr val))))
 	  (check-failure-equal?-proc f))))
 
 (define-record-type check-exception-failure :check-exception-failure
@@ -248,17 +266,23 @@
        ((check-failure? f)
 	(display "From expression " p)
 	(write (check-failure-actual-expr f) p)
-	(display " EXPECTED value " p)
-	(display (check-failure-expected-val f) p)
-	(display " of " p)
-	(write (check-failure-expected-expr f) p)
+	(let ((val (check-failure-expected-val f))
+	      (expr (check-failure-expected-expr f)))
+	  (display " EXPECTED value " p)
+	  (display val p)
+	  (if (not (literal-of? expr val))
+	      (begin
+		(display " of " p)
+		(write expr p))))
 	(newline p)
 	(display "INSTEAD got " p)
 	(cond
 	 ((check-failure-actual-condition f)
 	  => (lambda (con)
 	       (display "exception with condition:" p)
-	       (display-condition con p)))
+	       (display-condition con p)
+	       (display "PREVIEW:" p) (newline p)
+	       (display-preview (continuation-preview (check-failure-continuation f)) p)))
 	 (else
 	  (write (check-failure-actual-val f) p)
 	  (newline p))))

@@ -457,6 +457,7 @@
             parse-bytecode
 	    placeholders
 	    pp
+	    previews
 	    ;profile
 	    queues
 	    shared-objects
