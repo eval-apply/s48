@@ -659,7 +659,7 @@ link/linker-in-lucid: build/lucid-script.lisp $(linker-files) \
 # Scheme, the byte-code compiler, and a minimal command processor, but
 # no debugging environment to speak of.
 
-$(INITIAL)-32: $(CONFIG_FILES) build/initial.scm $(initial-files) $(linker-files)
+$(INITIAL)-32: $(CONFIG_FILES) build/initial.scm scheme/rts-packages-32.scm $(initial-files) $(linker-files)
 	cd $(srcdir) &&							\
 	($(START_LINKER-32);						\
 		echo '(load-configuration "scheme/platform-interfaces.scm")'; \
@@ -673,7 +673,7 @@ $(INITIAL)-32: $(CONFIG_FILES) build/initial.scm $(initial-files) $(linker-files
 	) | $(LINKER_RUNNABLE)
 	mv $(INITIAL) $@
 
-$(INITIAL)-64: $(CONFIG_FILES) build/initial.scm $(initial-files) $(linker-files)
+$(INITIAL)-64: $(CONFIG_FILES) build/initial.scm scheme/rts-packages-64.scm $(initial-files) $(linker-files)
 	cd $(srcdir) &&							\
 	($(START_LINKER-64);						\
 		echo '(load-configuration "scheme/platform-interfaces.scm")'; \
