@@ -18,8 +18,8 @@
 (define list-stable-sort  list-merge-sort)
 (define list-stable-sort! list-merge-sort!)
 
-(define vector-sort  vector-heap-sort)
-(define vector-sort! vector-heap-sort!)
+(define vector-sort  vector-quick-sort)
+(define vector-sort! vector-quick-sort!)
 
 (define vector-stable-sort  vector-merge-sort)
 (define vector-stable-sort! vector-merge-sort!)

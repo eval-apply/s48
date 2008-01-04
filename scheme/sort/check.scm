@@ -1,17 +1,28 @@
 ;;; Little test harness, 'cause I'm paraoid about tricky code.
-;;; ,open srfi-27 vector-heap-sort list-merge-sort vector-merge-sort vector-insertion-sort sorted
 
 (define-test-suite sort-tests)
 
+;; Three-way comparison for numbers
+(define (my-c x y)
+  (cond ((= x y) 0)
+	((< x y) -1)
+	(else 1)))
+  
 ;;; For testing stable sort -- 3 & -3 compare the same.
 (define (my< x y) (< (abs x) (abs y)))
 
 (define (unstable-sort-test v) ; quick & heap vs simple insert
   (let ((v1 (vector-copy v))
-	(v2 (vector-copy v)))
+	(v2 (vector-copy v))
+	(v3 (vector-copy v))
+	(v4 (vector-copy v)))
     (vector-heap-sort!    < v1)
     (vector-insert-sort!  < v2)
+    (vector-quick-sort!   < v3)
+    (vector-quick-sort3!  my-c v4)
     (check-that v2 (is v1))
+    (check-that v3 (is v1))
+    (check-that v4 (is v1))
     (check-that v1 (is (lambda (v) (vector-sorted? < v))))))
 
 (define (stable-sort-test v) ; insert, list & vector merge sorts
@@ -34,10 +45,10 @@
 	  (loop (+ 1 i))))))
 
 (define-test-case stable-sort sort-tests
-  (run-sort-test stable-sort-test 20 4096))
+  (run-sort-test stable-sort-test 10 4096))
 
 (define-test-case unstable-sort sort-tests
-  (run-sort-test unstable-sort-test 20 4096))
+  (run-sort-test unstable-sort-test 10 4096))
 
 (define (random-vector size)
   (let ((v (make-vector size)))

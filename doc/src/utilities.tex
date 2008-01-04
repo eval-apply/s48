@@ -1419,21 +1419,12 @@ The macro expander could do the substitution for \code{continue} when there
 (This section, as the libraries it describes, was written mostly by
 Olin Shivers for the draft of SRFI~32.)
 
-%% Olin Shivers
-%% First draft: 1998/10/19
-%% Last update: 2002/7/21
-
-%% [Todo: del-list-neighbor-dups!
-%%        vector-copy -> subvector
-%%        use srfi-23 for reporting errors
-%%        use srfi-16 for n-aries?
-
 The sort libraries in Scheme~48 include
 %
 \begin{itemize}
 \item vector insert sort (stable)
 \item vector heap sort
-%    - Vector quick sort (with median-of-3 pivot picking)
+\item vector quick sort (with regular comparisons and with median-of-3 pivot picking)
 \item vector merge sort (stable)
 \item pure and destructive list merge sort (stable)
 \item stable vector and list merge
@@ -1646,7 +1637,8 @@ Structure name & Functionality\\\hline
 \code{list-merge-sort}& List merge sort\\
 \code{vector-merge-sort} & Vector merge sort\\
 \code{vector-heap-sort} & Vector heap sort\\
-%\code{vector-quick-sort} & Vector quick sort\\
+\code{vector-quick-sort} & Vector quick sort\\
+\code{vector-quick-sort3} & Vector quick sort with 3-way comparisons\\
 \code{vector-insert-sort} & Vector insertion sort\\
 \code{delete-neighbor-duplicates} & List and vector delete neighbor duplicates\\
 \code{binary-searches} & Vector binary search
@@ -1747,7 +1739,7 @@ Procedure &Suggested algorithm
 \code{list-stable-sort} & vector merge sort\\
 \code{list-stable-sort!} & list merge sort\\
 \code{vector-sort} & heap or quick sort\\
-\code{vector-sort!} or quick sort\\
+\code{vector-sort!} & heap or quick sort\\
 \code{vector-stable-sort} & vector merge sort\\
 \code{vector-stable-sort!} merge sort
 \end{tabular}
@@ -1975,48 +1967,47 @@ which is not a stable sorting algorithm.
 \code{Vector-heap-sort!} is in-place, leaving its result in
 \(\var{vector}[\var{start},\var{end})\).
 
-%% vector-quick-sort-lib - vector quick sort
-%%     quick-sort   < v [start end] -> vector
-%%     quick-sort!  < v [start end] -> unspecified
-%%     quick-sort3! c v [start end] -> unspecified
+\paragraph{\code{vector-quick-sort}---vector quick sort}
 
-%%     These procedures sort their data using quick sort, 
-%%     which is not a stable sorting algorithm.
+\begin{protos}
+\proto{vector-quick-sort}{ $<$ vector [start [end]]}{vector}
+\protonoresultnoindex{vector-quick-sort!}{ $<$ vector [start [end]]}\mainschindex{vector-quick-sort"!}
+\end{protos}
+%
+These procedures sort their data using quick sort, 
+which is not a stable sorting algorithm.
     
-%%     QUICK-SORT returns a vector of length END-START. 
-%%     QUICK-SORT! is in-place, leaving its result in V[start,end).
+\code{Vector-quick-sort} returns a vector of length \(\var{end}-\var{start}\). 
+\code{Vector-quick-sort!} is in-place, leaving its result in
+\(\var{vector}[\var{start},\var{end})\).
 
-%%     QUICK-SORT3! is a variant of quick-sort that takes a three-way
-%%     comparison procedure C. C compares a pair of elements and returns
-%%     an exact integer whose sign indicates their relationship:
-%%       (c x y) < 0   =>   x<y
-%%       (c x y) = 0   =>   x=y
-%%       (c x y) > 0   =>   x>y
-%%     To help remember the relationship between the sign of the result and
-%%     the relation, use the procedure - as the model for C: (- x y) < 0
-%%     means that x < y; (- x y) > 0 means that x > y.
+\paragraph{\code{vector-quick-sort3}---vector quick sort with 3-way comparisons}
 
-%%     The extra discrimination provided by the three-way comparison can
-%%     provide significant speedups when sorting data sets with many duplicates,
-%%     especially when the comparison procedure is relatively expensive (e.g.,
-%%     comparing long strings).
+\begin{protos}
+\proto{vector-quick-sort3}{ comp vector [start [end]]}{vector}
+\protonoresultnoindex{vector-quick-sort3!}{ comp vector [start [end]]}\mainschindex{vector-quick-sort3"!}
+\end{protos}
+%
+These procedures sort their data using quick sort, 
+which is not a stable sorting algorithm.
+    
+\code{Vector-quick-sort3} returns a vector of length \(\var{end}-\var{start}\). 
+\code{Vector-quick-sort3!} is in-place, leaving its result in
+\(\var{vector}[\var{start},\var{end})\).
 
-%%     WARNING: Some sort algorithms, such as insertion sort or heap sort,
-%%     can tolerate being passed a <= comparison procedure when they expect a < 
-%%     procedure---insertion and merge sort may simply invert stability; and
-%%     heap sort will run a bit slower, but otherwise produce a correct answer.
+These procedures implement a variant of quick-sort that takes a three-way
+comparison procedure $C$. $C$ compares a pair of elements and returns
+an exact integer whose sign indicates their relationship:
+%
+\begin{eqnarray*}
+  (C x y) < 0   &\Rightarrow&   x<y\\
+  (C x y) = 0   &\Rightarrow&   x=y\\
+  (C x y) > 0   &\Rightarrow&   x>y
+\end{eqnarray*}
 
-%%     Quicksort, however, is much more critically sensitive to the distinction
-%%     between a < and a <= comparison. If QUICK-SORT or QUICK-SORT! expect a <
-%%     comparison procedure, and are erroneously given a <= procedure, they may,
-%%     depending on implementation, produce an unsorted result, go into an 
-%%     infinite loop, cause a run-time error, occasionally produce a correct
-%%     result, or do some fifth thing.
-
-%%     Implementors may wish to write QUICKSORT3! so that it (a) tests the
-%%     comparison procedure (by checking that (c v[start] v[start]) produces
-%%     false), or (b) is tolerant of an erroneous <= procedure, or (c) both.
-%%     Clients of this procedure, however, should not count on this.
+To help remember the relationship between the sign of the result and
+the relation, use the procedure $-$ as the model for $C$: $(- x y) < 0$
+means that $x < y$; $(- x y) > 0$ means that $x > y$.
 
 \paragraph{\code{vector-insert-sort}---vector insertion sort}
 
@@ -2200,11 +2191,11 @@ Choose the algorithm that matches your needs:
 \begin{description}
 \item[Vector insert sort]
   Stable, but only suitable for small vectors---$O(n^2)$.
-%% \item[Vector quick sort]
-%%   Not stable. Is fast on average---$O(n\log(n))$---but has bad worst-case
-%%   behaviour. Has good memory locality for big vectors (unlike heap sort). 
-%%   A clever pivot-picking trick (median of three samples) helps avoid 
-%%   worst-case behaviour, but pathological cases can still blow up.
+\item[Vector quick sort]
+  Not stable. Is fast on average---$O(n\log(n))$---but has bad worst-case
+  behaviour. Has good memory locality for big vectors (unlike heap sort). 
+  A clever pivot-picking trick (median of three samples) helps avoid 
+  worst-case behaviour, but pathological cases can still blow up.
 \item[Vector heap sort]
   Not stable. Guaranteed fast---$O(n\log(n))$ \emph{worst} case. Poor
   locality on large vectors. A very reliable workhorse.
