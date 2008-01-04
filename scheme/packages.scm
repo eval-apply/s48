@@ -477,6 +477,7 @@
 	    vector-merge-sort
 	    vector-heap-sort
 	    vector-insertion-sort
+	    vector-quick-sort vector-quick-sort3
 	    sorting
 	    sort
 

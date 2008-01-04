@@ -125,6 +125,26 @@
 				       :exact-integer :exact-integer)
 				      :unspecific))))
 
+(define-interface vector-quick-sort-interface
+  (export (vector-quick-sort (proc ((proc (:value :value) :boolean)
+				    :vector 
+				    &opt :exact-integer :exact-integer)
+				   :vector))
+	  (vector-quick-sort! (proc ((proc (:value :value) :boolean)
+				     :vector 
+				     &opt :exact-integer :exact-integer)
+				    :unspecific))))
+
+(define-interface vector-quick-sort3-interface
+  (export (vector-quick-sort3 (proc ((proc (:value :value) :exact-integer)
+				     :vector 
+				     &opt :exact-integer :exact-integer)
+				    :vector))
+	  (vector-quick-sort3! (proc ((proc (:value :value) :exact-integer)
+				      :vector 
+				      &opt :exact-integer :exact-integer)
+				     :unspecific))))
+
 ;;; The general sort interface:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; list-sorted? < l      -> boolean

@@ -6,8 +6,8 @@
 (define-structure sorting sorting-interface
   (open scheme
 	list-merge-sort
-	vector-heap-sort
 	vector-merge-sort
+	vector-quick-sort
 	sorted
 	delete-neighbor-duplicates)
   (files sort)
@@ -57,6 +57,18 @@
   (files visort)
   (optimize auto-integrate))
 
+(define-structure vector-quick-sort vector-quick-sort-interface
+  (open scheme
+	vector-utils
+	vector-insertion-sort-internal)
+  (files vqsort2))
+
+(define-structure vector-quick-sort3 vector-quick-sort3-interface
+  (open scheme
+	vector-utils
+	vector-insertion-sort-internal)
+  (files vqsort3))
+
 (define-structure vector-utils (export vector-copy
 				       vector-portion-copy
 				       vector-portion-copy!
@@ -64,3 +76,4 @@
 				       vectors-start+end-2)
   (open scheme)
   (files vector-util))
+
