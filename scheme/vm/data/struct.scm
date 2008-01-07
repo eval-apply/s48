@@ -243,23 +243,17 @@
 
 ; Hashing
 
-; The hash function used here is to take the sum of the ascii values
-; of the characters in the string, modulo the symbol table size.
-;
-; This hash function was also compared against some others, e.g.
-; adding in the length as well, and taking only the odd or only the
-; even characters.  It fared about the same as adding the length, and
-; much better than examining only every other character.
-;
-; Perhaps a hash function that is sensitive to the positions of the
-; characters should be tried?  (Consider CADDR, CDADR, CDDAR.)
-;
-; Of course, if we switched to rehashing, a prime modulus would be
-; important.
+; The hash function used here is taken from srfi-13.
 
 (define (vm-string-hash s)
-  (let ((n (vm-string-length s)))
-    (do ((i 0 (+ i 1))
-         (h 0 (+ h (vm-string-ref s i))))
-        ((>= i n) h))))
-
+  (let* ((bound 4194304)
+	 (end (vm-string-length s))
+	 (mask (let lp ((i #x10000))
+		 (if (>= i bound) 
+		     (- i 1)
+		     (lp (+ i i))))))
+    (let lp ((i 0) (ans 0))
+      (if (>= i end)
+	  (remainder ans bound)
+	  (lp (+ i 1)
+	      (bitwise-and mask (+ (* 37 ans) (vm-string-ref s i))))))))
