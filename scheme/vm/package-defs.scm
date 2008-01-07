@@ -15,7 +15,7 @@
 	arithmetic-opcodes
 	external-opcodes
 	external-events
-	shared-bindings
+	shared-bindings shared-bindings-access
 	symbols
 	io-opcodes
 	external-gc-roots
@@ -105,7 +105,7 @@
 	integer-arithmetic)
   (files (arith integer-op)))
 
-(define-structure external-opcodes external-opcodes-interface
+(define-structure external-opcodes external-call-interface
   (open prescheme vm-architecture ps-receive
 	interpreter-internal stack
 	memory data struct
@@ -113,7 +113,7 @@
 	heap ; S48-GATHER-OBJECTS
 	string-tables
 	external
-	shared-bindings)
+	shared-bindings shared-bindings-access)
   (files (interp external-call)))
 
 (define-structure external-events external-events-interface
@@ -123,7 +123,8 @@
 	shared-bindings)
   (files (interp external-event)))
 
-(define-structure shared-bindings shared-bindings-interface
+(define-structures ((shared-bindings shared-bindings-interface)
+		    (shared-bindings-access shared-bindings-access-interface))
   (open prescheme
 	vm-architecture data struct
 	string-tables
@@ -414,7 +415,7 @@
 	write-image-util
 	string-tables
 	symbols				;s48-symbol-table
-	external-opcodes  ;s48-imported-bindings s48-exported-bindings
+	shared-bindings-access
 	ps-record-types			;define-record-type
 	write-image-gc-specific
 	)

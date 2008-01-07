@@ -333,6 +333,9 @@
   (set! *cont* (stack-cont-continuation *cont*))
   (integer->address (pop)))
 
+(define (set-cont-to-stack!)
+  (set! *cont* *stack*))
+
 ; Pushing exception data.  We do this in a chunk to ensure that we agree
 ; with the VM as to which value is where.
 

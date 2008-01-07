@@ -2,20 +2,21 @@
 ; Copyright (c) 1993-2007 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; To load the VM into Scheme 48:
+;   ,config ,load ../platform-interfaces.scm
+; then
+;   ,config ,load ps-platform-32-packages.scm
+;      - or -
+;   ,config ,load ps-platform-64-packages.scm
+; (ignoring the warning) and then:
 ;   ,exec ,load load-vm.scm
 ;
 ; Then, for example,
-;  (start-vm "=scheme48/../build/initial.image" 4000000 20000 '#())
+;  (start-vm "=scheme48/../build/initial.image" 2000000 20000 '#())
 ; in the user package will start up the VM with the initial image.
-; Be patient.  It will take a while.  Running the initial image as
-; above on a SGI Indy (100 mhz R4000) it took over 70 minutes to
-; get the - prompt.  scheme48.image starts up faster as it does little
-; in the way of initialization.  See below for a way to build a small
-; image that will start up quickly.
+; Be patient.  It will take a while.
 ;
-; You will need to have a large heap to start with. -h 12000000 works
-; for loading the initial image in version 0.35, smaller heaps may also
-; work.
+; You will need to have a large heap to start with. Using a BIBOP
+; build with -h 0 works best.
 ;
 ; To send input to the VM, do the following:
 ;
@@ -32,7 +33,7 @@
 ;  Breakpoint: Waiting
 ;  1>                                  ; prompt by the base S48
 ;
-; There can't be a pause between the `,proceed 0' and the input for
+; There can't be a pause between the `,proceed' and the input for
 ; the loaded VM.  This is easy to accomplish running under Emacs.
 ; If there is a pause you will hit the breakpoint again and the
 ; `(+ 2 3)' or whatever will be read by the base system.
@@ -47,20 +48,6 @@
 ; it starts up much faster than the larger images.  Here is a transcript:
 ;
 ;    % make scheme/debug/tiny.image
-;    (echo ',batch' && echo ',bench on'; \
-;     echo \(load-configuration \"scheme/debug/tiny-packages.scm\"\); \
-;     echo \(link-simple-system \'\(scheme/debug tiny\) \'start tiny-system\)) \
-;    | ./scheme48vm -h 5000000 -i build/linker.image
-;    Welcome to Scheme 48 0.53 (suspended image).
-;    Copyright (c) 1993-2007 by Richard Kelsey and Jonathan Rees.
-;    Please report bugs to scheme-48-bugs@martigny.ai.mit.edu.
-;    Type ,? (comma question-mark) for help.
-;    > Will exit on errors
-;    Will compile some calls in line
-;    scheme/debug/tiny-packages.scm
-;    [tiny-system scheme/debug/tiny.scm]
-;    Writing scheme/debug/tiny.debug
-;    
 ;    % ./scheme48vm -i scheme/debug/tiny.image -a the-argument
 ;    Correcting byte order of resumed image.
 ;    Hello the-argument

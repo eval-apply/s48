@@ -96,8 +96,10 @@
           c-useful-bits-per-word)
       tag-field-width))
 
-(define    least-fixnum-value (- 0 (shift-left 1 (- bits-per-fixnum 1))))
-(define greatest-fixnum-value (-   (shift-left 1 (- bits-per-fixnum 1)) 1))
+; Be careful not to get intermediate bignums
+(define greatest-fixnum-value (+ (* (- (shift-left 1 (- bits-per-fixnum 2)) 1) 2)
+				 1))
+(define least-fixnum-value (- (- greatest-fixnum-value) 1))
 
 (define (too-big-for-fixnum? n)
   (> n greatest-fixnum-value))
