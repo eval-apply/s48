@@ -27,8 +27,7 @@
     (define s48-channel-count
       (external "s48_channel_count" (=> () integer)))))
 
-(define-structure external-opcodes (export s48-imported-bindings
-					   s48-exported-bindings)
+(define-structure shared-bindings-access shared-bindings-access-interface
   (open prescheme)
   (begin
     (define s48-imported-bindings

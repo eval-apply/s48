@@ -5,3 +5,7 @@
 (define-structure low-test-system (export start)
   (define-all-operators)
   (files low-test))
+
+(define-structure bignum-test-system (export start)
+  (define-all-operators)
+  (files bignum-test))

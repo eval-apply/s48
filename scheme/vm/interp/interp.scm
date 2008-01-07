@@ -450,7 +450,7 @@
 				       (enter-fixnum instruction-size)))
       (receive (bc-code bc-pc) (current-code+pc)
 	(push *native-exception-cont*)
-	(set! *cont* *stack*)
+	(set-cont-to-stack!)
 	(write-string "handling exception for nc " (current-error-port))
 	(write-integer *native-exception-cont* (current-error-port))
 	(write-string " return code pc is " (current-error-port))

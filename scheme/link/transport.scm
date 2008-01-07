@@ -24,7 +24,7 @@
 
 (define (transport thing . stuff)
   (let transport ((thing thing))
-    (cond ((immediate-value? thing)
+    (cond ((immediate? thing)
            (transport-immediate thing))
           ((closure? thing)
            (transport-closure thing))

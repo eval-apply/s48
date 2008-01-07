@@ -139,10 +139,11 @@
           s48-gc-run-time
 	  ))
 
-(define external-opcodes-interface
-  (export s48-setup-external-exception
-	  s48-resetup-external-exception))
-
+(define shared-bindings-access-interface
+  (export ;; for writing images
+          s48-imported-bindings
+	  s48-exported-bindings))
+  
 (define shared-bindings-interface
   (export ;; called from outside	
           s48-define-exported-binding
@@ -151,10 +152,6 @@
 	  ;; called on startup
 	  install-shared-bindings!+gc
 	  
-	  ;; for writing images
-	  s48-imported-bindings
-	  s48-exported-bindings
-
 	  ;; for external events
 	  get-imported-binding
 
@@ -337,6 +334,7 @@
 	  make-continuation-on-stack
 	  push-continuation!
 	  push-adlib-continuation!
+	  set-cont-to-stack!
 	  push-exception-continuation!
 	  push-native-exception-continuation!
 	  pop-continuation-from-stack
@@ -464,14 +462,11 @@
 
 	  ; called on startup
 	  install-shared-bindings!+gc
-	  
-	  ; for writing images
-	  s48-cleaned-imported-bindings
-	  s48-exported-bindings
 	  ))
 
 (define external-events-interface
   (export initialize-external-events
+	  s48-permanent-external-event-uid
 	  s48-external-event-uid s48-unregister-external-event-uid
 	  s48-external-event-ready?/unsafe s48-external-event-pending?/unsafe
 	  s48-note-external-event!/unsafe
@@ -593,7 +588,6 @@
 	  *native-exception-cont*
 	  *val*
           s48-*nc-template*
-          s48-*nc-environment*
 	  ))
 
 ; What the external world can call.  Because of C's flat namespace we have
@@ -665,7 +659,6 @@
 	  *last-code-called*
 	  *native-exception-cont*
           s48-*nc-template*
-          s48-*nc-environment*
 	  s48-*stack-limit*
 	  s48-*native-protocol*
 	  s48-set-native-protocol!

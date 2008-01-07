@@ -1,8 +1,8 @@
 ; Copyright (c) 1993-2007 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
-(define-structures ((vm-utilities vm-utilities-interface))
-  (open scheme)
+(define-structure vm-utilities vm-utilities-interface
+  (open scheme prescheme)
   (files (util vm-utilities))
   (begin
 ;    (define-syntax assert
@@ -13,12 +13,8 @@
     	  (error "assertion failed")))
     ))
 
-(define-structures ((external external-interface))
-  (open scheme bitwise ps-memory
-        bignum-low ; for s48-allocate-bignum
-        (subset stob (b-vector-set! b-vector-ref b-vector-length))
-        (subset memory (address->stob-descriptor address-after-header))
-        (subset data (least-fixnum-value greatest-fixnum-value)))
+(define-structure external external-interface
+  (open scheme bitwise ps-memory)
   (for-syntax (open scheme)) ; for error
   (files (util external)))
 
