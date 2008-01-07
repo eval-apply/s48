@@ -115,7 +115,7 @@
 	write-image-util
 	string-tables
 	symbols				;s48-symbol-table
-	external-opcodes  ;s48-imported-bindings s48-exported-bindings
+	shared-bindings-access
 	)
   (files (gc-twospace write-image)))
 
