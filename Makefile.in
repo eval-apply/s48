@@ -712,6 +712,14 @@ scheme/debug/low-test.image: scheme/debug/low-test-packages.scm \
 	 echo \(link-simple-system \'\(scheme/debug low-test\) \'start low-test-system\)) \
 	| $(LINKER_RUNNABLE)
 
+scheme/debug/bignum-test.image: scheme/debug/low-test-packages.scm \
+		  scheme/debug/bignum-test.scm
+	cd $(srcdir) && \
+	($(START_LINKER-32); \
+	 echo \(load-configuration \"scheme/debug/low-test-packages.scm\"\); \
+	 echo \(link-simple-system \'\(scheme/debug bignum-test\) \'start bignum-test-system\)) \
+	| $(LINKER_RUNNABLE)
+
 scheme/debug/little.image: $(CONFIG_FILES) scheme/debug-packages.scm
 	cd $(srcdir) &&					\
 	($(LOAD_DEBUG); echo \(link-little-system\))	\

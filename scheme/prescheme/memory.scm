@@ -61,7 +61,7 @@
 ; Memory
 
 (define *memory* (make-vector 16 #f))    ; vector of pages
-(define log-max-size 24)                 ; log of page size
+(define log-max-size 25)                 ; log of page size
 (define address-shift (- log-max-size))  ; turns addresses into page indices
 
 (define max-size (arithmetic-shift 1 log-max-size))  ; page size
@@ -131,19 +131,19 @@
 	  (byte-address (address->vector-index address)))
       (if (not (= 0 (bitwise-and byte-address (- bytes-per-cell 1))))
 	  (assertion-violation 'word-ref "unaligned address error" address)
-	  (let ((word 0))
-	    (do ((byte-offset 0 (+ byte-offset 1))
-		 (shift-offset (- bits-per-cell bits-per-byte) 
-			       (- shift-offset bits-per-byte)))
-		((or (>= byte-offset bytes-per-cell) (< shift-offset 0)))
-	      (set! word 
-		    (+ word
-		       (arithmetic-shift ((if (= 0 byte-offset)
-					      signed-code-vector-ref
-					      code-vector-ref)
-					  vector
-					  (+ byte-address byte-offset))
-					 shift-offset)))))))))
+	  (do ((byte-offset 0 (+ byte-offset 1))
+	       (shift-offset (- bits-per-cell bits-per-byte) 
+			     (- shift-offset bits-per-byte))
+	       (word 0
+		     (+ word
+			(arithmetic-shift ((if (= 0 byte-offset)
+					       signed-code-vector-ref
+					       code-vector-ref)
+					   vector
+					   (+ byte-address byte-offset))
+					  shift-offset))))
+		((or (>= byte-offset bytes-per-cell) (< shift-offset 0))
+		 word))))))
 
 (define (unsigned-byte-set! address value)
   (let ((address (address-index address)))
