@@ -7,6 +7,8 @@ echo ,exec ,load =scheme48/debug/check.scm >> check.input
 echo ,config ,load =scheme48/test-packages.scm >> check.input
 echo ,open big-test >> check.input
 echo ,open sockets-test >> check.input
+echo ,config ,load =scheme48/sort/test-packages.scm >> check.input
+echo ,open sort-test >> check.input
 echo ,config ,load =scheme48/misc/packages.scm >> check.input
 echo ,config ,load =scheme48/misc/test-packages.scm >> check.input
 echo ,open misc-test >> check.input
