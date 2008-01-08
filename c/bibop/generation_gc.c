@@ -1018,6 +1018,8 @@ inline static void call_internal_write_barrier2(Area* maybe_area, s48_address ad
 static void append_tconc(s48_value tconc, s48_value value) {
   /* a tconc is a pair, whose cdr points the the last pair of a list */
 
+  s48_value newpair;
+
   if (S48_PAIR_P(tconc) && (S48_PAIR_P(S48_UNSAFE_CDR(tconc)))) {
     /* We have to use the usual allocation functions, cause we might
        need a new area, but another gc must not be triggered of
@@ -1026,7 +1028,7 @@ static void append_tconc(s48_value tconc, s48_value value) {
 
     /* create the new pair */
     /* No other way to know the size of a pair? This is not nice. */
-    s48_value newpair = s48_allocate_stob(S48_STOBTYPE_PAIR, S48_CELLS_TO_BYTES(2));
+    newpair = s48_allocate_stob(S48_STOBTYPE_PAIR, S48_CELLS_TO_BYTES(2));
     S48_UNSAFE_SET_CAR(newpair, value);
     S48_UNSAFE_SET_CDR(newpair, S48_NULL);
 
@@ -1045,10 +1047,12 @@ static void append_tconc(s48_value tconc, s48_value value) {
 }
 
 static void forwarding_transport_link_cell(s48_value tlc) {
+  s48_value tconc;
+
   assert(S48_TRANSPORT_LINK_CELL_P(tlc));
 
   /* if the tconc field is non-null (false) */
-  s48_value tconc = S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc);
+  tconc = S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc);
   if (S48_FALSE_P(tconc)) {
     /* tlc aready seen */
   }
