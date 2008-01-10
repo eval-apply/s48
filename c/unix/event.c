@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2007 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 #include <signal.h> /* for sigaction(), pthread_sigmask() / sigprocmask() (POSIX.1) */

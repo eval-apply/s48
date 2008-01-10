@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2007 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ;; The following tests are not very extensive but should cover all
 ;; operations. See the structure test-bignum in debug-package.scm

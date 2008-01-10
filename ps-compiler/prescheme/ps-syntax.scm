@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2007 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 ; Redefine CASE so that it doesn't call MEMV
 

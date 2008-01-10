@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2007 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 (config '(load "../scheme/vm/macro-package-defs.scm"))
 (load-package 'vm-architecture)
