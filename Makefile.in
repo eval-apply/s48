@@ -535,7 +535,8 @@ tags:
 
 # DISTFILES should include all sources.
 DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
-		configure acconfig.h configure.in Makefile.in 		\
+		configure configure.in config.sub config.guess 		\
+		acconfig.h Makefile.in 					\
 		scheme48.sln scheme48.vcproj				\
 		mkinstalldirs install-sh				\
 		doc/*.ps doc/*.pdf doc/*.txt 				\
@@ -550,9 +551,10 @@ DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		build/*.bat build/*.sh build/*.rc			\
 		build/dummy build/*.wxs 				\
 		build/*.bmp build/*.ico					\
-		c/*.[ch] c/*/*.[ch] c/*/*.ci				\
+		build/scheme48-config.in				\
+		c/*.[ch] c/*/*.[ch] c/*/*.ci c/*.exp			\
 		c/scheme48.h.in						\
-		c/scheme48write-barrier.h.in c/scheme48arch.h		\
+		c/scheme48write-barrier.h.in c/scheme48arch.h.in	\
 		emacs/*.el gdbinit					\
 		scheme/*.scm scheme/*/*.scm scheme/vm/*/*.scm		\
 		ps-compiler/minor-version-number			\
