@@ -49,6 +49,10 @@ non-tail recursion will grow the heap indefinitely.
 works only on Apple Macs and means that Scheme 48 will be built as a
 Universal Binary that can run on both PowerPC and Intel Macs.
 
+--enable-force-32bit
+
+forces configuration for a 32-bit executable on a 64-bit system.
+
 For more information on how to customize an installation of Scheme 48,
 see doc/install.txt.
 
