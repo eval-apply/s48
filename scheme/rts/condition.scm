@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2007 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Sort-of the R6RS condition library: We'll need record inheritance to
 ; do the real thing.

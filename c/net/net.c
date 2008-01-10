@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2007 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 extern void s48_init_net_addresses(void);

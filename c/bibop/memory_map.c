@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2007 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 /* The Boehm collector also has a link to the next entry in ascending
