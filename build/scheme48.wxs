@@ -100,9 +100,14 @@
                       src="c/scheme48.h"
                       DiskId="1" Vital="yes" />
 
-                <File Id="include_scheme48write.barrier.h"
+                <File Id="include_scheme48write_barrier.h"
                       Name="S48-WB.H" LongName="scheme48write-barrier.h"
                       src="c/win32/scheme48write-barrier.h"
+                      DiskId="1" Vital="yes" />
+
+                <File Id="include_scheme48write_barrier_bibop.h"
+                      Name="S48-WB.H" LongName="scheme48write-barrier-bibop.h"
+                      src="c/scheme48write-barrier-bibop.h"
                       DiskId="1" Vital="yes" />
 
                 <File Id="include_scheme48arch.h"
@@ -112,9 +117,9 @@
               </Component>
             </Directory>
 
-            <Directory Id="external" Name="external" LongName="external" >
+            <Directory Id="external" Name="EXTERNAL" LongName="external" >
               <Component Id="external_component" Guid="CAAA27A9-D56B-4EE3-AF02-02227F020C75">
-                <File Id="external_srfi-27.dll"
+                <File Id="external_srfi_27.dll"
                       Name="srfi-27.dll" LongName="srfi-27.dll"
                       src="srfi-27.dll"
                       DiskId="1" Vital="yes" />
@@ -124,8 +129,8 @@
             <Directory Id="build" Name="BUILD" LongName="build" >
               <Component Id="build_component" Guid="7d78a564-df2e-11d9-817f-00111175eb9e">
 
-                <File Id="build_initial.image" Name="INITIAL.IMA" LongName="initial.image" DiskId="1"
-                      src="build/initial.image" Vital="yes" />
+                <File Id="build_initial.image" Name="INITIAL.IMA" LongName="initial.image-32" DiskId="1"
+                      src="build/initial.image-32" Vital="yes" />
                 <File Id="build_initial.debug" Name="INITIAL.DEB" LongName="initial.debug" DiskId="1"
                       src="build/initial.debug" Vital="yes" />
                 <File Id="build_initial.scm" Name="INITIAL.SCM" LongName="initial.scm" DiskId="1"
@@ -165,7 +170,7 @@
     <!-- /v:off needed to avoid mangling !s on some systems -->
     <CustomAction Id="build_usual_image"
                   Directory="INSTALLDIR"
-                  ExeCommand='[SystemFolder]cmd.exe /v:off /c build\build-usual-image.bat "[INSTALLDIR]" "[INSTALLDIR]scheme" "[INSTALLDIR]external" "[INSTALLDIR]scheme48.image" "[INSTALLDIR]scheme48vm.exe" "[INSTALLDIR]build\initial.image"'
+                  ExeCommand='[SystemFolder]cmd.exe /v:off /c build\build-usual-image.bat "[INSTALLDIR]" "[INSTALLDIR]scheme" "[INSTALLDIR]external" "[INSTALLDIR]scheme48.image" "[INSTALLDIR]scheme48vm.exe" "[INSTALLDIR]build\initial.image-32"'
 		  Execute="deferred" Impersonate="no"
                   Return="check" />
 
@@ -195,6 +200,8 @@
       <ComponentRef Id="scheme_srfi_component" />
       <ComponentRef Id="scheme_rts_component" />
       <ComponentRef Id="scheme_posix_component" />
+
+      <ComponentRef Id="external_component" />
 
       <ComponentRef Id="doc_component" />
       <ComponentRef Id="doc_html_component" />
