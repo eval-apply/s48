@@ -245,13 +245,29 @@
 
 ; The hash function used here is taken from srfi-13.
 
+;; biggest Unicode scalar value
+(define greatest-character-code #x10FFFF)
+
+;; BOUND has to be the biggest power of two that fulfils the following
+;; equation to make sure that the intermediate calculations of
+;; STRING-HASH are always fixnums:
+;;
+;;     (<= (+ greatest-character-code (* 37 (- BOUND 1))) 
+;;         greatest-fixnum-value)
+(define bound
+  (let ((x (+ (quotient (- greatest-fixnum-value 
+			   greatest-character-code) 37) 1)))
+    (let lp ((i #x10000))
+      (if (>= i x)
+	  i
+	  (lp (+ i i))))))
+
+;; bitmask to cover (- BOUND 1)
+(define mask (- bound 1))
+
+;; string hash
 (define (vm-string-hash s)
-  (let* ((bound 4194304)
-	 (end (vm-string-length s))
-	 (mask (let lp ((i #x10000))
-		 (if (>= i bound) 
-		     (- i 1)
-		     (lp (+ i i))))))
+  (let ((end (vm-string-length s)))
     (let lp ((i 0) (ans 0))
       (if (>= i end)
 	  (remainder ans bound)
