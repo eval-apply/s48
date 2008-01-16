@@ -628,15 +628,12 @@ generic_interrupt_catcher(int signum)
 
   switch (signum) {
   case SIGINT: {
-    extern void		s48_when_keyboard_interrupt(int ign);
     s48_when_keyboard_interrupt(0);
     break; }
   case SIGALRM: {
-    extern void		s48_when_alarm_interrupt(int ign);
     s48_when_alarm_interrupt(0);
     break; }
   case SIG_EXTERNAL_EVENT: {
-    extern void		s48_when_external_event_interrupt(int ign);
     s48_when_external_event_interrupt(0);
     break; }
   default:

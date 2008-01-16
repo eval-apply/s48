@@ -458,9 +458,9 @@ go:
 
 # Exports file for AIX
 
-c/scheme48.exp: c/scheme48.h
+c/scheme48.exp: c/scheme48.h c/fd-io.h c/event.h
 	echo '#!..' > $(srcdir)/c/scheme48.exp &&			\
-	egrep ^S48_EXTERN $(srcdir)/c/scheme48.h | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\)(.*$$,\1,' >> $(srcdir)/c/scheme48.exp
+	cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\).*$$,\1,' >> $(srcdir)/c/scheme48.exp
 
 dirs:
 	for dir in $(libdir) $(bindir) $(incdir) $(datadir); do			 \
