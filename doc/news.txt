@@ -22,7 +22,8 @@ Recent changes to Scheme 48.
            On Unix, the central event loop uses poll() instead of select() on
             systems that have it (thanks to Marcus Crestani)
            The external code for the POSIX libraries and SRFI 27 was
-            moved to dynamically-loaded externals.
+            moved to dynamically-loaded externals.  (Cygwin support
+            for this thanks to Harald Glab-Plhak)
           Bug fixes:
             A bug in the division simplifier of the PreScheme compiler
              was fixed.
