@@ -414,6 +414,12 @@ define(S48_DYNAMIC_EXTERNALS, [dnl
 				DYNAMIC_EXTERNALS_LDFLAGS="-shared $GCC_LDFLAGS"
 			fi
 		;;
+		cygwin* )
+			LD="$CC"
+			DYNAMIC_EXTERNALS_CFLAGS=""
+			DYNAMIC_EXTERNALS_LDFLAGS='-shared $(bindir)/scheme48vm.a'
+			DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE='-shared $(srcdir)/scheme48vm.a'
+		;;
 		* )
 			DYNAMIC_EXTERNALS_CFLAGS="$PIC"
 			DYNAMIC_EXTERNALS_LDFLAGS='-shared'

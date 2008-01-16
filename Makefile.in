@@ -212,7 +212,7 @@ POSIX_OBJECTS = $(posix_dir)/user.o     $(posix_dir)/regexp.o	\
 		$(posix_dir)/posix.o
 
 $(POSIX_EXTERNAL) : $(POSIX_OBJECTS)
-	$(LD) -o $@ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) $(POSIX_OBJECTS)
+	$(LD) -o $@ $(POSIX_OBJECTS) $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) 
 
 
 # End of POSIX rules
@@ -221,7 +221,7 @@ c/srfi-27.o: c/srfi-27.c $(SCHEM48HS)
 	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
 
 $(SRFI_27_EXTERNAL) : c/srfi-27.o
-	$(LD) -o $@ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) $^
+	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
 
 # Native-code glue rules
 
@@ -298,11 +298,16 @@ c/bibop/remset.o: c/bibop/remset.h c/bibop/memory.h c/scheme48.h	       \
 
 # End of BIBOP GC rules
 
-$(VM): c/main.o $(OBJS) $(GC_OBJS) $(UNIX_OBJS) $(LIBOBJS) $(EXTERNAL_OBJECTS) c/scheme48.exp
+$(VM): c/main.o $(OBJS) $(GC_OBJS) $(UNIX_OBJS) $(LIBOBJS) $(EXTERNAL_OBJECTS) \
+	c/scheme48.exp c/scheme48.def
 	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) -o $@ c/main.o		\
 		$(OBJS) $(GC_OBJS) $(UNIX_OBJS)				\
 		$(LIBOBJS) $(LIBS)					\
 		$(EXTERNAL_OBJECTS)
+	# Cygwin
+	if test -x /usr/bin/dlltool; then \
+		dlltool --dllname $(VM).exe --output-lib $(VM).a --def $(srcdir)/c/scheme48.def; \
+	fi
 
 $(LIBSCHEME48): $(OBJS) $(GC_OBJS) $(UNIX_OBJS) $(LIBOBJS) $(EXTERNAL_OBJECTS)
 	rm -f $@;							\
@@ -381,6 +386,7 @@ install: enough dirs \
 
 inst-vm:
 	$(INSTALL_PROGRAM) $(VM) $(DESTDIR)$(LIB)
+	if [-e $(VM).a]; then $(INSTALL_PROGRAM) $(VM).a $(DESTDIR)$(LIB); fi
 
 inst-image:
 	rm -f '/tmp/$(IMAGE)'
@@ -397,7 +403,7 @@ inst-man:
 	$(INSTALL_DATA) $(MANPAGE) $(DESTDIR)$(mandir)
 	rm $(MANPAGE)
 
-inst-inc: c/scheme48.exp
+inst-inc: c/scheme48.exp c/scheme48.def
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) c/scheme48write-barrier.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) c/scheme48arch.h $(DESTDIR)$(incdir)
@@ -456,11 +462,17 @@ go:
 				>>$@ &&					\
 	chmod +x $@
 
-# Exports file for AIX
+# Exports file for AIX and Cygwin
+
+CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\).*$$,\1,' >> $(srcdir)/c/scheme48.exp
 
 c/scheme48.exp: c/scheme48.h c/fd-io.h c/event.h
 	echo '#!..' > $(srcdir)/c/scheme48.exp &&			\
-	cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\).*$$,\1,' >> $(srcdir)/c/scheme48.exp
+	$(CAT_EXPORTS) >> $(srcdir)/c/scheme48.exp
+
+c/scheme48.def: c/scheme48.h
+	echo 'EXPORTS' > $(srcdir)/c/scheme48.def &&			\
+	$(CAT_EXPORTS) >> $(srcdir)/c/scheme48.def
 
 dirs:
 	for dir in $(libdir) $(bindir) $(incdir) $(datadir); do			 \
