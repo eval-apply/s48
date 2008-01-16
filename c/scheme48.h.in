@@ -11,7 +11,7 @@
  * we're compiling something external against it.
  */
 
-#ifdef _WIN32
+#if defined(__CYGWIN__) || defined(_WIN32)
 #  ifdef __COMPILING_SCHEME48_ITSELF__
 #    define S48_EXTERN_ADD_ONS __declspec(dllexport)
 #  else
