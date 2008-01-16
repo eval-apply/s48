@@ -29,7 +29,7 @@ extern long s48_current_time;
 #define CHEAP_TIME()  (s48_current_time * TICKS_PER_POLL)
 
 S48_EXTERN char s48_Spending_interruptPS;
-S48_EXTERN char s48_Spending_eventsPS;
+S48_EXTERN char s48_Sstack_limitS;
 
 /*
  * Fix (HCC) NOTE_EVENT so that it will act like a single
