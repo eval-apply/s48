@@ -9,10 +9,12 @@ S48_EXTERN long s48_schedule_alarm_interrupt(long delta);
 S48_EXTERN void s48_start_alarm_interrupts(void);
 S48_EXTERN void s48_stop_alarm_interrupts(void);
 
+#ifndef _WIN32
 S48_EXTERN void s48_add_os_signal(long);
 S48_EXTERN void s48_when_keyboard_interrupt(int ign);
 S48_EXTERN void s48_when_alarm_interrupt(int ign);
 S48_EXTERN void s48_when_external_event_interrupt(int ign);
+#endif
 
 extern long s48_run_time(long *mseconds);
 extern long s48_real_time(long *mseconds);
@@ -28,9 +30,11 @@ extern long s48_dequeue_external_event(char *pendingp);
 extern long s48_current_time;
 #define CHEAP_TIME()  (s48_current_time * TICKS_PER_POLL)
 
+#ifndef _WIN32
 S48_EXTERN char s48_Spending_interruptPS;
 S48_EXTERN char s48_Spending_eventsPS;
 S48_EXTERN char *s48_Sstack_limitS;
+#endif
 
 /*
  * Fix (HCC) NOTE_EVENT so that it will act like a single
