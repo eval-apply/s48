@@ -30,6 +30,7 @@ Recent changes to Scheme 48.
             The PreScheme compiler can now emit code for unsigned longs.
             The implementations of SRFI 19 and SRFI 42 now include the
              latest fixes from the reference implementations.
+	    A race condition in the implementation of queues was fixed.
 
 09/06/07 (version 1.7)
 	 Additions:
