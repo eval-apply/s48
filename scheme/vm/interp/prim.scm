@@ -278,27 +278,35 @@
 (let ((proc (make-byte-setter code-vector-set! code-vector-length enter-fixnum)))
   (define-primitive byte-vector-set! (code-vector-> fixnum-> fixnum->) proc))
 
-(define (byte-vector-maker size bytes type initialize setter enter-elt)
+(define (byte-vector-maker size bytes type initialize setter enter-elt
+			   unmovable?)
   (lambda (len init)
-    (let ((size (size len)))
-      (if (or (< len 0)
-	      (> size max-stob-size-in-cells))
-	  (raise-exception wrong-type-argument
-			   0
-			   (enter-fixnum len)
-			   (enter-elt init))
-	  (let ((vector (maybe-make-b-vector+gc type (bytes len))))
-	    (if (false? vector)
-		(raise-exception heap-overflow
-				 0
-				 (enter-fixnum len)
-				 (enter-elt init))
-		(begin
-		  (initialize vector len)
-		  (do ((i (- len 1) (- i 1)))
-		      ((< i 0))
-		    (setter vector i init))
-		  (goto return vector))))))))
+    ;; this test would be better placed in
+    ;; maybe-make-unmovable-b-vector+gc, but that would introduce a
+    ;; circular dependency:
+    (if (and unmovable? (not (s48-gc-can-allocate-untraced-unmovable?)))
+	(raise-exception unimplemented-instruction 0)
+	(let ((size (size len)))
+	  (if (or (< len 0)
+		  (> size max-stob-size-in-cells))
+	      (raise-exception wrong-type-argument
+			       0
+			       (enter-fixnum len)
+			       (enter-elt init))
+	      (let ((vector (if unmovable?
+				(maybe-make-unmovable-b-vector+gc type (bytes len))
+				(maybe-make-b-vector+gc type (bytes len)))))
+		(if (false? vector)
+		    (raise-exception heap-overflow
+				     0
+				     (enter-fixnum len)
+				     (enter-elt init))
+		    (begin
+		      (initialize vector len)
+		      (do ((i (- len 1) (- i 1)))
+			  ((< i 0))
+			(setter vector i init))
+		      (goto return vector)))))))))
 
 (let ((proc (byte-vector-maker vm-string-size
 			       scalar-value-units->bytes
@@ -306,16 +314,20 @@
 			       (lambda (string length)
 				 0)
 			       vm-string-set!
-			       scalar-value->char)))
+			       scalar-value->char
+			       #f)))
   (define-primitive make-string (fixnum-> char-scalar-value->) proc))
   
-(let ((proc (byte-vector-maker code-vector-size
-			       (lambda (len) len)
-			       (enum stob byte-vector)
-			       (lambda (byte-vector length) 0)
-			       code-vector-set!
-			       enter-fixnum)))
-  (define-primitive make-byte-vector (fixnum-> fixnum->) proc))
+(let ((proc (lambda (unmovable?)
+	      (byte-vector-maker code-vector-size
+				 (lambda (len) len)
+				 (enum stob byte-vector)
+				 (lambda (byte-vector length) 0)
+				 code-vector-set!
+				 enter-fixnum
+				 unmovable?))))
+  (define-primitive make-byte-vector (fixnum-> fixnum->) (proc #f))
+  (define-primitive make-unmovable-byte-vector (fixnum-> fixnum->) (proc #t)))
 
 (define-primitive copy-string-chars! (string-> fixnum-> string-> fixnum-> fixnum->)
   (lambda (from from-index to to-index count)

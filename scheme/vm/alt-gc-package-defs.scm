@@ -17,6 +17,8 @@
       (external "s48_allocate_tracedAgc" (=> (integer) address)))
     (define s48-allocate-untraced+gc
       (external "s48_allocate_untracedAgc" (=> (integer) address)))
+    (define s48-gc-can-allocate-untraced-unmovable?
+      (external "s48_gc_can_allocate_untraced_unmovableP" (=> () boolean)))
     (define s48-allocate-untraced-unmovable+gc
       (external "s48_allocate_untraced_unmovableAgc" (=> (integer) address)))
     ))

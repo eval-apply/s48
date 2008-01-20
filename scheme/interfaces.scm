@@ -166,6 +166,11 @@
 	  byte-vector-set!
 	  make-byte-vector
 
+	  ;; creates a byte-vector that will never be moved in a
+	  ;; garbage collection or raises an exception if the GC does
+	  ;; not support this feature.
+	  make-unmovable-byte-vector
+
 	  byte-vector))
 
 ; Same again, but with old names for compatibility.
