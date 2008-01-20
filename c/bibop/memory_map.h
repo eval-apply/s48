@@ -27,8 +27,6 @@ extern void s48_memory_map_setB(s48_address address, Area* value);
 #elif _WIN64
 #define ADDRESS_LENGTH 64
 #else
-
-#include <stdint.h>
 #include <limits.h>
 #define ADDRESS_LENGTH WORDSIZE
 
