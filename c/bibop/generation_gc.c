@@ -1646,8 +1646,10 @@ s48_address s48_allocate_untracedAgc(long len_in_bytes) {
   return allocate_mixedAgc(len_in_bytes);
 }
 
-/* Unmovable Objects are going into the large area which is collected
-   with the non-copy algorithmus */
+/* Unmovable objects are allocated directly in a new large area, which
+   are never moved in a collection. */
+psbool s48_gc_can_allocate_untraced_unmovableP() { return PSTRUE; }
+
 s48_address s48_allocate_untraced_unmovableAgc(long len_in_bytes) {
     s48_make_large_availableAgc(len_in_bytes);
     return s48_allocate_large(len_in_bytes);

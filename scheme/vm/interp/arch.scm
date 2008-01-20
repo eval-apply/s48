@@ -209,6 +209,7 @@
   (byte-vector-length 1)
   (byte-vector-ref 2)
   (byte-vector-set! 3)
+  (make-unmovable-byte-vector 2)
 
   (make-string 2)
   (string-length 1)

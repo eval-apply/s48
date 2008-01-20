@@ -75,20 +75,24 @@
 ; objects.  These may trigger a GC and will return false if insufficient
 ; space is available after the GC.
 
-(define (maybe-make-b-vector+gc type len)
-  (let ((addr (s48-allocate-untraced+gc (+ len
-					   (cells->bytes stob-overhead)))))
+(define (maybe-make-stob type len-in-bytes allocator)
+  (let ((addr (allocator (+ len-in-bytes (cells->bytes stob-overhead)))))
     (if (null-address? addr)
 	false
-	(initialize-stob addr type len))))
+	(initialize-stob addr type len-in-bytes))))
+
+(define (maybe-make-b-vector+gc type len)
+  (maybe-make-stob type len s48-allocate-untraced+gc))
+
+;; Hint: considder looking at s48-gc-can-allocate-untraced-unmovable? 
+;; before calling maybe-make-unmovable-b-vector+gc because the
+;; twospace-gc version of s48-allocate-untraced-unmovable+gc will stop
+;; the program with an error message.
+(define (maybe-make-unmovable-b-vector+gc type len)
+  (maybe-make-stob type len s48-allocate-untraced-unmovable+gc))
 
 (define (maybe-make-d-vector+gc type len)
-  (let* ((len (cells->bytes len))
-	 (addr (s48-allocate-traced+gc (+ len
-					  (cells->bytes stob-overhead)))))
-    (if (null-address? addr)
-	false
-	(initialize-stob addr type len))))
+  (maybe-make-stob type (cells->bytes len) s48-allocate-traced+gc))
 
 (define (make-weak-pointer init weak-pointer-size)
   (let* ((addr (s48-allocate-weak+gc (cells->bytes weak-pointer-size)))

@@ -42,11 +42,13 @@
 (define (s48-allocate-untraced+gc len)
   (s48-allocate-traced+gc len))
 
-; allocate an unmovable object (allocation uses the large area
-; discarding the size of the object. The large area is collected with
-; the non-copy algorithmus). GCing to get room if necessary
+; unmovable objects are not supported.
+(define (s48-gc-can-allocate-untraced-unmovable?) #f)
 (define (s48-allocate-untraced-unmovable+gc len)
-  (s48-allocate-traced+gc len))
+  (= len 0) ;; for the type-checker
+  (error "twospace gc does not support unmovable objects")
+  null-address ;; for the correct signature
+  )
 
 ;; For allocation done outside the VM.
 
