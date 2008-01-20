@@ -410,6 +410,7 @@ inst-inc: c/scheme48.exp c/scheme48.def
 	$(INSTALL_DATA) $(srcdir)/c/scheme48write-barrier-twospace.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48write-barrier-bibop.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.exp $(DESTDIR)$(incdir)
+	$(INSTALL_DATA) $(srcdir)/c/scheme48.def $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48-external.exp $(DESTDIR)$(incdir)
 
 inst-misc:
@@ -464,13 +465,13 @@ go:
 
 # Exports file for AIX and Cygwin
 
-CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\).*$$,\1,' >> $(srcdir)/c/scheme48.exp
+CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\).*$$,\1,'
 
 c/scheme48.exp: c/scheme48.h c/fd-io.h c/event.h
 	echo '#!..' > $(srcdir)/c/scheme48.exp &&			\
 	$(CAT_EXPORTS) >> $(srcdir)/c/scheme48.exp
 
-c/scheme48.def: c/scheme48.h
+c/scheme48.def: c/scheme48.h c/fd-io.h c/event.h
 	echo 'EXPORTS' > $(srcdir)/c/scheme48.def &&			\
 	$(CAT_EXPORTS) >> $(srcdir)/c/scheme48.def
 
