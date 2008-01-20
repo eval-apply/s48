@@ -17,30 +17,32 @@
     (check (receive channel) => 'message)))
 
 (define-test-case channel-3 rendezvous-channels-tests
-  (let ((channel (make-channel)))
-    (spawn
-     (lambda ()
-       (let loop ((i 0))
-	 (if (not (= i 1000))
-	     (begin
-	       (send channel i)
-	       (loop (+ 1 i)))))))
-    (spawn
-     (lambda ()
-       ;; (sleep 500)
-       (let loop ((i 1000))
-	 (if (not (= i 2000))
-	     (begin
-	       (send channel i)
-	       (loop (+ 1 i)))))))
+  (do ((i 0 (+ 1 i)))
+      ((= i 100)) ; detect races more reliably
+    (let ((channel (make-channel)))
+      (spawn
+       (lambda ()
+	 (let loop ((i 0))
+	   (if (not (= i 1000))
+	       (begin
+		 (send channel i)
+		 (loop (+ 1 i)))))))
+      (spawn
+       (lambda ()
+	 ;; (sleep 500)
+	 (let loop ((i 1000))
+	   (if (not (= i 2000))
+	       (begin
+		 (send channel i)
+		 (loop (+ 1 i)))))))
     
-    (let loop ((count 0)
-	       (values '()))
-      (if (= count 2000)
-	  (check-that values
-		      (is lset= (iota 2000)))
-	  (loop (+ 1 count)
-		(cons (receive channel) values))))))
+      (let loop ((count 0)
+		 (values '()))
+	(if (= count 2000)
+	    (check-that values
+			(is lset= (iota 2000)))
+	    (loop (+ 1 count)
+		  (cons (receive channel) values)))))))
 
 (define-test-case select-1 rendezvous-channels-tests
   (let ((channel-1 (make-channel))

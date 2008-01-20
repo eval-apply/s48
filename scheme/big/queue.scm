@@ -43,7 +43,7 @@
 	    ((null? (queue-tail q))		; someone got in first
 	     (invalidate-current-proposal!))
 	    (else
-	     (set-cdr! (queue-tail q) p)))
+	     (provisional-set-cdr! (queue-tail q) p)))
       (set-queue-tail! q p))))
 
 (define (queue-head q)
@@ -58,6 +58,7 @@
       (cond ((null? pair)	;(queue-empty? q)
 	     (assertion-violation 'dequeue! "empty queue" q))
 	    (else
+	     (queue-tail q) ; touch
 	     (let ((value (car pair))
 		   (next  (cdr pair)))
 	       (set-queue-head! q next)
@@ -75,6 +76,7 @@
       (cond ((null? pair)	;(queue-empty? q)
 	     #f)
 	    (else
+	     (queue-tail q) ; touch
 	     (let ((value (car pair))
 		   (next  (cdr pair)))
 	       (set-queue-head! q next)
@@ -119,7 +121,7 @@
 		(cond ((null? tail)
 		       #f)
 		      ((pred (car tail))
-		       (set-cdr! list (cdr tail))
+		       (provisional-set-cdr! list (cdr tail))
 		       ;; force proposal check
 		       (set-queue-head! q (cons (car head) (cdr head)))
 		       (set-queue-tail! q (if (null? (cdr tail))
