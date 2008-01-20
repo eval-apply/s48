@@ -642,13 +642,16 @@
 ; Enqueue a RUNNABLE event for THREAD's scheduler.
 
 (define (make-ready thread . args)
-  (clear-thread-cell! thread)
-  (set-thread-arguments! thread args)
-  (if (thread-scheduler thread)
-      (schedule-event (thread-scheduler thread)
-		      (enum event-type runnable)
-		      thread)
-      (assertion-violation 'make-ready "MAKE-READY thread has no scheduler" thread)))
+  (if (thread-cell thread)
+      (begin
+	(clear-thread-cell! thread)
+	(set-thread-arguments! thread args)
+	(if (thread-scheduler thread)
+	    (schedule-event (thread-scheduler thread)
+			    (enum event-type runnable)
+			    thread)
+	    (assertion-violation 'make-ready
+				 "MAKE-READY thread has no scheduler" thread)))))
 
 (define (clear-thread-cell! thread)
   (let ((cell (thread-cell thread)))
