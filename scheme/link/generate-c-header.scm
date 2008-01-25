@@ -50,7 +50,7 @@
 	    (format #t "#ifndef _H_SCHEME48~%")
 	    (format #t "#define _H_SCHEME48~%")
 	    (newline)
-	    (format #t "#include \"scheme48arch.h\"~%")
+	    (format #t "#include <scheme48arch.h>~%")
 	    (newline)
 	    (format #t "#ifdef __cplusplus~%")
 	    (format #t "extern \"C\"~%")
@@ -73,7 +73,8 @@
 	    (enumeration-stuff channel-status-list
 		       "S48_CHANNEL_STATUS_~A S48_UNSAFE_ENTER_FIXNUM(~D)")
 	    (newline)
-	    (format #t "#include \"scheme48write-barrier.h\"~%")
+	    (format #t "#include <scheme48write-barrier.h>")
+	    (newline)
 	    (format #t "#ifdef __cplusplus~%")
 	    (format #t "/* closing brace for extern \"C\" */~%")
 	    (format #t "}~%")

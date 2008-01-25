@@ -4,6 +4,12 @@
 #ifndef __S48_MEMORY_MAP_H
 #define __S48_MEMORY_MAP_H
 
+#include "sysdep.h"
+
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
 #include "memory.h"
 #include "areas.h"
 #include "page_constants.h"

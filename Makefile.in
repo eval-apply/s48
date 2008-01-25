@@ -148,7 +148,7 @@ OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
 FAKEHS	= c/fake/dlfcn.h c/fake/sigact.h c/fake/strerror.h \
 		c/fake/sys-select.h c/fake/langinfo.h
 
-SCHEME48HS = c/scheme48.h c/scheme48write-barrier.h c/scheme48arch.h
+SCHEME48HS = c/scheme48.h c/scheme48arch.h c/scheme48write-barrier.h
 
 # Sources:
 
@@ -264,7 +264,7 @@ GC_BIBOP_OBJS =  c/scheme48-bibop-heap-$(BIT_SUFFIX).o \
 bibop: $(GC_BIBOP_OBJS)
 
 c/scheme48-bibop-heap-$(BIT_SUFFIX).o: c/prescheme.h c/scheme48vm.h c/scheme48heap.h \
-			c/scheme48vm-prelude.h c/scheme48write-barrier.h \
+			c/scheme48vm-prelude.h \
 			c/bibop/bibop.h \
 			c/c-mods.h c/event.h c/io.h c/fd-io.h
 
@@ -405,10 +405,8 @@ inst-man:
 
 inst-inc: c/scheme48.exp c/scheme48.def
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.h $(DESTDIR)$(incdir)
-	$(INSTALL_DATA) c/scheme48write-barrier.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) c/scheme48arch.h $(DESTDIR)$(incdir)
-	$(INSTALL_DATA) $(srcdir)/c/scheme48write-barrier-twospace.h $(DESTDIR)$(incdir)
-	$(INSTALL_DATA) $(srcdir)/c/scheme48write-barrier-bibop.h $(DESTDIR)$(incdir)
+	$(INSTALL_DATA) $(srcdir)/c/scheme48write-barrier.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.exp $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.def $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48-external.exp $(DESTDIR)$(incdir)
@@ -503,7 +501,7 @@ clean:
 
 distclean: clean
 	rm -f Makefile config.log config.status config-cache \
-		c/sysdep.h c/scheme48write-barrier.h c/scheme48arch.h
+		c/sysdep.h c/scheme48arch.h
 
 check:	$(VM) $(IMAGE) scheme/debug/check.scm
 	(								\
@@ -568,7 +566,7 @@ DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		build/scheme48-config.in				\
 		c/*.[ch] c/*/*.[ch] c/*/*.ci c/*.exp			\
 		c/scheme48.h.in						\
-		c/scheme48write-barrier.h.in c/scheme48arch.h.in	\
+		c/scheme48write-barrier.h c/scheme48arch.h.in		\
 		emacs/*.el gdbinit					\
 		scheme/*.scm scheme/*/*.scm scheme/vm/*/*.scm		\
 		ps-compiler/minor-version-number			\

@@ -36,7 +36,6 @@
 /*
  * We define this (as 'unsigned int') if the OS doesn't.
  */
-
 #undef socklen_t
 
 @BOTTOM@
