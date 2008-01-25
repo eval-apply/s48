@@ -4,7 +4,7 @@
 #ifndef __S48_MEMORY_MAP_H
 #define __S48_MEMORY_MAP_H
 
-#include "sysdep.h"
+#include "scheme48arch.h"
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
