@@ -497,7 +497,6 @@ dnl
 dnl
 AC_INIT(c/prescheme.h)
      AC_CONFIG_HEADER(c/sysdep.h)
-     AC_CONFIG_HEADER(c/scheme48write-barrier.h)
      AC_CONFIG_HEADER(c/scheme48arch.h)
      AC_CANONICAL_HOST
      dnl set the cross-compile flag before we try anything.
@@ -542,6 +541,8 @@ AC_INIT(c/prescheme.h)
 				    [AC_MSG_RESULT(int)
                                      AC_DEFINE(socklen_t,int)])])
      AC_RETSIGTYPE
+     AC_TYPE_UINTPTR_T
+     AC_TYPE_UINT16_T
      AC_CHECK_HEADERS(libgen.h sys/timeb.h posix/time.h)
      AC_CHECK_HEADERS(sys/select.h)
      AC_CHECK_HEADERS(sysexits.h)
