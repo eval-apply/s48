@@ -503,7 +503,7 @@ distclean: clean
 	rm -f Makefile config.log config.status config-cache \
 		c/sysdep.h c/scheme48arch.h
 
-check:	$(VM) $(IMAGE) scheme/debug/check.scm
+check:	$(VM) $(IMAGE) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) scheme/debug/check.scm
 	(								\
 		echo ',batch';						\
 		echo ',exec ,load =scheme48/debug/check.scm';		\
