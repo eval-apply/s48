@@ -14,6 +14,14 @@
 	exceptions)	; error
   (files (rts env)))
 
+; WITH-LOAD-FILENAME, CURRENT-LOAD-FILENAME
+
+(define-structure load-filename load-filename-interface
+  (open  scheme-level-2
+	 cells
+	 fluids)
+  (files (rts loadfn)))
+
 ; EVAL and LOAD
 
 (define-structure evaluation evaluation-interface
@@ -27,6 +35,7 @@
 	closures		;make-closure
 	vm-exposure		;invoke-closure
 	features		;current-noise-port force-output
+	load-filename		; with-load-filename
 	exceptions fluids)
   (files (rts eval)))
 

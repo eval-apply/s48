@@ -55,8 +55,10 @@
 				  maybe-filename
 				  (package-uid package))))
     (link! template package note-undefined?)
-    (invoke-closure
-      (make-closure template
-		    (package-uid package)))))
+    (with-load-filename maybe-filename
+      (lambda ()
+	(invoke-closure
+	 (make-closure template
+		       (package-uid package)))))))
 
 
