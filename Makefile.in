@@ -161,7 +161,12 @@ CONFIG_FILES = scheme/interfaces.scm scheme/packages.scm \
 
 # The following is the first rule and therefore the "make" command's
 # default target.
-enough: vm $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(LIBSCHEME48) $(IMAGE) script-interpreter go
+enough: Makefile vm $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(LIBSCHEME48) $(IMAGE) script-interpreter go
+
+Makefile: ${srcdir}/Makefile.in config.status
+	./config.status
+	$(MAKE) clean
+	$(MAKE)
 
 # --------------------
 # External code to include in the VM
