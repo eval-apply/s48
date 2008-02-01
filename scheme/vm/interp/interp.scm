@@ -500,7 +500,8 @@
 
 (define (okay-to-proceed? opcode)
   (or (<= (enum op eq?) opcode)
-      (= opcode (enum op global))))
+      (= opcode (enum op global))
+      (= opcode (enum op set-global!))))
 	      
 (define no-exceptions? #f)
 
