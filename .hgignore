@@ -4,13 +4,14 @@ syntax: regexp
 (^|/)\.hgtags($|/)
 .*~$
 \.DS_Store$
+^aclocal\.m4$
 ^autom4te\.cache
 ^config\.status$
 ^config\.log$
 ^configure$
 ^Makefile$
 ^c/.*\.(o|a|exp|so)$
-^c/\.gdb_history$
+\.gdb_history$
 ^go$
 ^scheme48\.image$
 ^scheme48vm$
@@ -29,6 +30,7 @@ syntax: regexp
 ^scheme/rts/syntax-info\.scm$
 ^scheme/big/unicode-normalization-info\.scm$
 ^scheme/srfi/srfi-14-base-char-sets\.scm$
+^c/scheme48\.def$
 ^c/scheme48\.h$
 ^c/scheme48arch\.h$
 ^c/scheme48vm-32\.c$
