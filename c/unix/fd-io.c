@@ -94,7 +94,7 @@ psbool ps_check_fd(long fd_as_long, psbool is_read, long *status)
   int fd = (int)fd_as_long;
   int ready;
 
-#ifdef HAVE_POLL
+#if defined HAVE_GLIB
   struct pollfd pollfds[1];
   pollfds[0].fd = fd;
   pollfds[0].events = is_read? POLLIN : POLLOUT;
@@ -103,7 +103,16 @@ psbool ps_check_fd(long fd_as_long, psbool is_read, long *status)
 
   while(1) {
     ready = poll(pollfds, 1, 0);
-#else /* not HAVE_POLL */
+#elif defined HAVE_POLL
+  struct pollfd pollfds[1];
+  pollfds[0].fd = fd;
+  pollfds[0].events = is_read? POLLIN : POLLOUT;
+
+  *status = NO_ERRORS;
+
+  while(1) {
+    ready = poll(pollfds, 1, 0);
+#elif defined HAVE_SELECT
   struct timeval timeout;
   fd_set fds;
 
@@ -119,7 +128,7 @@ psbool ps_check_fd(long fd_as_long, psbool is_read, long *status)
 		   is_read ? NULL : &fds,
 		   &fds,
 		   &timeout);
-#endif /* not HAVE_POLL */
+#endif /* HAVE_SELECT */
     if (ready == 0)
 	return PSFALSE;
     /* Mike has witnessed it return 2 on Mac OS X. */
@@ -138,7 +147,7 @@ ps_read_fd(long fd_as_long, char *buffer, long max, psbool waitp,
   void *buf = (void *)buffer;
   int fd = (int)fd_as_long;
 
-#ifdef HAVE_POLL
+#if defined HAVE_GLIB
   struct pollfd pollfds[1];
   pollfds[0].fd = fd;
   pollfds[0].events = POLLIN;
@@ -150,7 +159,19 @@ ps_read_fd(long fd_as_long, char *buffer, long max, psbool waitp,
 
   while(1) {
     ready = poll(pollfds, 1, 0);
-#else /* not HAVE_POLL */
+#elif defined HAVE_POLL
+  struct pollfd pollfds[1];
+  pollfds[0].fd = fd;
+  pollfds[0].events = POLLIN;
+
+  /* for the normal return */
+  *eofp = PSFALSE;
+  *pending = PSFALSE;
+  *status = NO_ERRORS;
+
+  while(1) {
+    ready = poll(pollfds, 1, 0);
+#elif HAVE_SELECT
   struct timeval timeout;
   fd_set readfds;
 
@@ -165,7 +186,7 @@ ps_read_fd(long fd_as_long, char *buffer, long max, psbool waitp,
 
   while(1) {
     ready = select(fd + 1, &readfds, NULL, &readfds, &timeout);
-#endif /* not HAVE_POLL */
+#endif /* HAVE_SELECT */
     if (ready == 0) {
       if (!waitp)
 	return 0;
