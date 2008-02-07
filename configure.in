@@ -495,6 +495,23 @@ define(S48_MISALIGNED_DOUBLES, [dnl
 dnl
 dnl
 dnl
+define(S48_GLIB, [dnl
+AC_ARG_ENABLE([glib],
+[AC_HELP_STRING([--enable-glib],
+                [Use the glib event loop])],
+	[dnl Check for glib-2.0
+  	 PKG_CHECK_MODULES(GLIB, glib-2.0, AC_DEFINE(HAVE_GLIB), AC_MSG_WARN(glib-2.0 not found))
+	 dnl Set GLIB flags
+         LIBS="$LIBS $GLIB_LIBS"
+         CFLAGS="$CFLAGS $GLIB_CFLAGS"
+         dnl Check if we still are able to compile, link, and run with glib's build options
+	 AC_MSG_CHECKING([whether the GLIB flags work])
+	 AC_TRY_RUN([int main() { return 0;}], [AC_MSG_RESULT([yes])], [AC_MSG_ERROR(Failed to compile with GLIB flags.)], [])
+	])
+       ])
+dnl
+dnl
+dnl
 AC_INIT(c/prescheme.h)
      AC_CONFIG_HEADER(c/sysdep.h)
      AC_CONFIG_HEADER(c/scheme48arch.h)
@@ -551,6 +568,7 @@ AC_INIT(c/prescheme.h)
      AC_CHECK_FUNCS(gettimeofday ftime select setitimer sigaction)
      AC_CHECK_HEADERS(poll.h)
      AC_CHECK_FUNCS(poll)
+     S48_GLIB
      AC_CHECK_FUNC(dlopen, [AC_DEFINE(HAVE_DLOPEN, 
 				1, [Define to 1 if the interface to the dynamic linker exists])])
      AC_CHECK_FUNCS(socket chroot)

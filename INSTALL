@@ -53,6 +53,10 @@ Universal Binary that can run on both PowerPC and Intel Macs.
 
 forces configuration for a 32-bit executable on a 64-bit system.
 
+--enable-glib
+
+configures Scheme 48 to use the glib event loop.
+
 For more information on how to customize an installation of Scheme 48,
 see doc/install.txt.
 

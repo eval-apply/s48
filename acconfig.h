@@ -34,6 +34,11 @@
 #undef ENVIRON_NAME
 
 /*
+ * HAVE_GLIB is defined iff glib is available.
+ */
+#undef HAVE_GLIB
+
+/*
  * We define this (as 'unsigned int') if the OS doesn't.
  */
 #undef socklen_t
