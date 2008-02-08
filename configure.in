@@ -573,8 +573,11 @@ AC_INIT(c/prescheme.h)
      AC_CHECK_FUNC(dlopen, [AC_DEFINE(HAVE_DLOPEN, 
 				1, [Define to 1 if the interface to the dynamic linker exists])])
      AC_CHECK_FUNCS(socket chroot)
-     AC_CHECK_FUNC(strerror, AC_DEFINE(HAVE_STRERROR),
-			      [AC_LIBOBJ([c/fake/strerror.o])])
+     AC_CHECK_FUNC(strerror,
+                   [AC_DEFINE(HAVE_STRERROR, 1,
+                              [Define to 1 if you have the `strerror'
+                               function.])],
+                   [AC_LIBOBJ([c/fake/strerror.o])])
 dnl Some idiot renamed `environ' as `__environ' in some versions of Linux.
 dnl POSIX says it's `environ'.
      AC_MSG_CHECKING([environ])
@@ -609,7 +612,9 @@ fail
 #endif
 ],
 		CC="$CC -posix"
-		AC_DEFINE(HAVE_SIGACTION)
+		AC_DEFINE(HAVE_SIGACTION, 1,
+                          [Define to 1 if you have the `sigaction'
+                           function.])
 		AC_MSG_RESULT([yes]),
 		AC_MSG_RESULT([no]))
      S48_IEEE_ENDIANNESS($S48_BUILD_UNIVERSAL_P)
@@ -630,4 +635,19 @@ fail
      AC_SUBST(S48_GC_TWOSPACE)
      AC_SUBST(S48_GC_BIBOP)
      AC_SUBST(BIT_SUFFIX)
+     dnl More payload for Autoheader
+     AH_TEMPLATE([ENVIRON_NAME],
+                 [Define to the name of the `environ' variable.])
+     AH_TEMPLATE([HAVE_GLIB],
+                 [Define to 1 if you have the `glib' library.])
+     AH_TEMPLATE([socklen_t],
+                 [Define to the type to be used instead of `socklen_t'
+                  if the system does not define the latter.])
+     AH_BOTTOM([
+#include "fake/sigact.h"
+#include "fake/strerror.h"
+#include "fake/sys-select.h"
+#include "fake/environ.h"
+#include "fake/sysexits.h"
+#include "fake/langinfo.h"])
 AC_OUTPUT(Makefile)
