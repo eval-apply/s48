@@ -141,7 +141,7 @@
 	                  ; entire procedure
 	(let recur ((package-or-structure package))
 	  (let ((package (if (package? package-or-structure)
-			     package
+			     package-or-structure
 			     (structure-package package-or-structure))))
 	    (if (and (not (memq package losers))
 		     (not (table-ref (package-definitions package) name)))
