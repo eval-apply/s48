@@ -97,20 +97,6 @@ dnl POSIX says it's `environ'.
                            dnl Do not have `__environ'
                                [AC_MSG_WARN([no environ variable found])
                                 AC_LIBOBJ([c/fake/environ.o])])])
-     AC_MSG_CHECKING([__NEXT__])
-     AC_TRY_LINK(,[
-#ifdef	__NeXT__
-return 0;
-#else
-fail
-#endif
-],
-		CC="$CC -posix"
-		AC_DEFINE(HAVE_SIGACTION, 1,
-                          [Define to 1 if you have the `sigaction'
-                           function.])
-		AC_MSG_RESULT([yes]),
-		AC_MSG_RESULT([no]))
      S48_IEEE_ENDIANNESS($S48_BUILD_UNIVERSAL_P)
      S48_NATIVE_CODE
      S48_DYNAMIC_EXTERNALS
