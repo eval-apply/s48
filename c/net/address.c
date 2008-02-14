@@ -21,11 +21,12 @@
 #define DECLARE_THREAD_PROC(name, param_name) \
        DWORD WINAPI name(LPVOID param_name)
 #define EXIT_THREAD_PROC() do { ExitThread(0); return 0; } while (0)
-typedef HANDLE thread_t;
+typedef HANDLE thread_type;
 #define START_THREAD(desc, name, arg) \
   ((desc = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE) name, (LPVOID) arg, 0, NULL)) == NULL)
 #define DETACH_THREAD(desc) ;
 #else
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -40,7 +41,7 @@ typedef HANDLE thread_t;
 #define DECLARE_THREAD_PROC(name, param_name) \
        void* name(void* param_name)
 #define EXIT_THREAD_PROC() do { return NULL; } while (0)
-typedef pthread_t thread_t;
+typedef pthread_t thread_type;
 #define START_THREAD(desc, name, arg) \
   pthread_create(&desc, NULL, name, (void*) arg)
 #define DETACH_THREAD(desc) pthread_detach(desc)
@@ -656,7 +657,7 @@ s48_getaddrinfo(s48_value sch_nodename, s48_value sch_servname,
 {
   struct getaddrinfo_handshake *handshake;
 #ifdef HAVE_THREADS
-  thread_t t;
+  thread_type t;
 #endif
 
   handshake = malloc(sizeof(struct getaddrinfo_handshake));
@@ -821,7 +822,7 @@ s48_getnameinfo(s48_value sch_saddr, s48_value sch_flags)
     = S48_EXTRACT_VALUE_POINTER(sch_saddr, const struct sockaddr);
   socklen_t salen = S48_VALUE_SIZE(sch_saddr);
 #ifdef HAVE_THREADS
-  thread_t t;
+  thread_type t;
 #endif
 
   struct getnameinfo_handshake *handshake
