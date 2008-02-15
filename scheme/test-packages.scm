@@ -54,3 +54,16 @@
 	byte-vectors threads
 	sockets udp-sockets)
   (files (net socket-check)))
+
+(define-structure package-mutation-test (export package-mutation-tests)
+  (open scheme test-suites
+	packages compiler built-in-structures handle conditions
+	interfaces defpackage package-mutation)
+  (files (env package-mutation-check)))
+
+(define-structure env-test (export env-tests)
+  (open scheme test-suites
+	package-mutation-test)
+  (begin
+    (define-test-suite env-tests
+      (package-mutation-tests))))
