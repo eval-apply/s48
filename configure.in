@@ -1,6 +1,6 @@
-dnl Process this file with autoconf to produce a configure script.
+dnl Process this file with autoconf >= 2.60 to produce a configure script.
 dnl
-dnl
+AC_PREREQ([2.60])dnl
 dnl
 dnl On AIX, we need xlc_r or cc_r if not explicitly set
 AC_DEFUN([S48_CC], [dnl
