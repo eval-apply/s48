@@ -3,7 +3,8 @@
 ; Package definitions for various test suites.
 
 (define-structure base-test (export base-tests)
-  (open scheme test-suites)
+  (open scheme test-suites
+	fluids)
   (files (debug base-check)))
 
 ; Random tests, mostly for stuff in scheme/big
