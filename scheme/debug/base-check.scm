@@ -36,3 +36,46 @@
 	   `(a `(b ,,name1 ,',name2 d) e))
 	 => '(a `(b ,x ,'y d) e)))
 
+
+(define-test-case dynamic-wind base-tests
+  (let* ((f (make-fluid 'top))
+	 (log '())
+	 (report (lambda (foo)
+		   (set! log (cons (cons foo (fluid f)) log)))))
+    ((call-with-current-continuation
+       (lambda (k1)
+	 (let-fluid f 1
+	   (lambda ()
+	     (dynamic-wind
+	      (lambda () (report 'wind-1))
+	      (lambda ()
+		(let-fluid f 2
+		  (lambda ()
+		    (dynamic-wind
+		     (lambda () (report 'wind-2))
+		     (lambda ()
+		       (let-fluid f 3
+			 (lambda ()
+			   (report 'before-throw-out)
+			   (call-with-current-continuation
+			     (lambda (k2)
+			       (k1 (lambda ()
+				     (report 'after-throw-out)
+				     (k2 #f)))))
+			   (report 'after-throw-in)
+			   (lambda () (report 'done)))))
+		     (lambda () (report 'unwind-2))))))
+	      (lambda () (report 'unwind-1))))))))
+    (check log
+	   => '((done . top)
+		(unwind-1 . 1)
+		(unwind-2 . 2)
+		(after-throw-in . 3)
+		(wind-2 . 1)
+		(wind-1 . top)
+		(after-throw-out . top)
+		(unwind-1 . 1)
+		(unwind-2 . 2)
+		(before-throw-out . 3)
+		(wind-2 . 2)
+		(wind-1 . 1)))))
