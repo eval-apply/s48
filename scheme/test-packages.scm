@@ -1,3 +1,11 @@
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+
+; Package definitions for various test suites.
+
+(define-structure base-test (export base-tests)
+  (open scheme test-suites)
+  (files (debug base-check)))
+
 ; Random tests, mostly for stuff in scheme/big
 
 (define-structure misc-big-test (export misc-big-tests)
