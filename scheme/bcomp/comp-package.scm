@@ -83,11 +83,6 @@
   (let ((all-operators-node (expand 'all-operators env))
 	(vector-set!-node (make-node operator/literal (get-primop 'vector-set!)))
 	(procs '())
-	(primop-count
-	 (let ((count 0))
-	   (walk-primops (lambda (name type primop)
-			   (set! count (+ 1 count))))
-	   count))
 	(index 0))
 
     (define (make-define-primitive-node name env)
@@ -121,7 +116,7 @@
 			   (cons (make-node operator/literal 
 					    (get-primop 'make-vector))
 				 (list (make-node operator/literal
-						  primop-count))))))
+						  index))))))
 	   procs))
 
     procs))

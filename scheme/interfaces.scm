@@ -792,7 +792,8 @@
   (compound-interface (export with-exception-handler
 			      raise
 			      (guard :syntax)
-			      syntax-violation)
+			      syntax-violation
+			      (assert :syntax))
 		      low-exceptions-interface))
 
 (define-interface exceptions-internal-interface

@@ -161,7 +161,12 @@ CONFIG_FILES = scheme/interfaces.scm scheme/packages.scm \
 
 # The following is the first rule and therefore the "make" command's
 # default target.
-enough: vm $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(LIBSCHEME48) $(IMAGE) script-interpreter go
+enough: Makefile vm $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(LIBSCHEME48) $(IMAGE) script-interpreter go
+
+Makefile: ${srcdir}/Makefile.in config.status
+	./config.status
+	$(MAKE) clean
+	$(MAKE)
 
 # --------------------
 # External code to include in the VM
@@ -503,13 +508,15 @@ distclean: clean
 	rm -f Makefile config.log config.status config-cache \
 		c/sysdep.h c/scheme48arch.h
 
-check:	$(VM) $(IMAGE) scheme/debug/check.scm
+check:	$(VM) $(IMAGE) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) scheme/debug/check.scm
 	(								\
 		echo ',batch';						\
 		echo ',exec ,load =scheme48/debug/check.scm';		\
 		echo ',config ,load =scheme48/test-packages.scm';	\
+		echo ',open base-test';					\
 		echo ',open big-test';					\
 		echo ',open sockets-test';				\
+		echo ',open env-test';					\
 		echo ',config ,load =scheme48/sort/test-packages.scm';	\
 		echo ',open sort-test';					\
 		echo ',config ,load =scheme48/misc/packages.scm';	\
@@ -524,7 +531,7 @@ check:	$(VM) $(IMAGE) scheme/debug/check.scm
 		echo ',config ,load =scheme48/posix/test-packages.scm';	\
 		echo ',open posix-test';				\
 		echo ',open test-suites';				\
-		echo '(define-test-suite all-tests (compiler-tests big-tests tcp-sockets-tests sort-tests misc-tests r6rs-tests cml-tests srfi-tests posix-tests))'; \
+		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests))'; \
 		echo '(run-test-suite all-tests)'			\
 	) | ./$(VM) -i $(IMAGE) -h 8000000
 

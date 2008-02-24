@@ -8,8 +8,8 @@ file to your /tmp directory, and then issue the following shell
 commands:
 
   cd /usr/local/src
-  gunzip </tmp/scheme48-1.7.tgz | tar xf -
-  cd scheme48-1.7
+  gunzip </tmp/scheme48-1.9T.tgz | tar xf -
+  cd scheme48-1.9T
   ./configure
   make install
 
@@ -52,6 +52,10 @@ Universal Binary that can run on both PowerPC and Intel Macs.
 --enable-force-32bit
 
 forces configuration for a 32-bit executable on a 64-bit system.
+
+--enable-glib
+
+configures Scheme 48 to use the glib event loop.
 
 For more information on how to customize an installation of Scheme 48,
 see doc/install.txt.
