@@ -61,4 +61,11 @@
 	 (make-closure template
 		       (package-uid package)))))))
 
+(define $load-filename (make-fluid (make-cell #f)))
 
+(define (with-load-filename filename thunk)
+  (let-fluid $load-filename (make-cell filename)
+	     thunk))
+
+(define (current-load-filename)
+  (fluid-cell-ref $load-filename))
