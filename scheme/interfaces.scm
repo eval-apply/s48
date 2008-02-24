@@ -1437,7 +1437,7 @@
 	  ; eval-scanned-forms
 	  ))
 
-(define-interface load-filename-interface
+(define-interface load-filenames-interface
   (export with-load-filename
 	  current-load-filename))
 

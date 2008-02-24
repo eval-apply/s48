@@ -360,7 +360,7 @@
 
 (define-interface initial-structures-interface
   (export ((environments
-	    load-filename
+	    load-filenames
 	    evaluation
 	    ensures-loaded
 	    ;; for-reification is in there, but shouldn't get reified.
