@@ -218,6 +218,12 @@
   (raise-general-trouble (make-assertion-violation)
 			 who message irritants))
 
+(define-syntax assert
+  (syntax-rules ()
+    ((assert ?exp)
+     (or ?exp
+	 (assertion-violation 'assert "assertion returned #f" '?exp)))))
+
 (define (implementation-restriction-violation who message . irritants)
   (raise-general-trouble (make-implementation-restriction-violation)
 			 who message irritants))

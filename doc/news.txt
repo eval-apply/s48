@@ -2,6 +2,36 @@
 
 Recent changes to Scheme 48.
 
+01/20/08 (version 1.8)
+         Additions:
+           An experimental framework for asynchronous events from
+            external code was added.  It's now used for asynchronous
+            host-name lookups on systems with pthreads.
+           Support for 64-bit architectures was added (thanks to
+            Taylor Campbell, Marcus Crestani, and David Frese)
+           The installation now includes an (experimental)
+            "scheme48-config" script that reports C compiler and
+            linker and associated flags that may be used for compiling
+            dynamic externals.
+         Changes:
+           The layout of the installed system now conforms to FHS.
+           The old dynamic-loading code was removed; correspondingly,
+            the -o flag for scheme48vm was removed.
+           The filename translations apply to dynamic externals as
+            well.
+           On Unix, the central event loop uses poll() instead of select() on
+            systems that have it (thanks to Marcus Crestani)
+           The external code for the POSIX libraries and SRFI 27 was
+            moved to dynamically-loaded externals.  (Cygwin support
+            for this thanks to Harald Glab-Plhak)
+          Bug fixes:
+            A bug in the division simplifier of the PreScheme compiler
+             was fixed.
+            The PreScheme compiler can now emit code for unsigned longs.
+            The implementations of SRFI 19 and SRFI 42 now include the
+             latest fixes from the reference implementations.
+	    A race condition in the implementation of queues was fixed.
+
 09/06/07 (version 1.7)
 	 Additions:
 	   A new, experimental garbage collector written by David

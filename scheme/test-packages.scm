@@ -1,3 +1,12 @@
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+
+; Package definitions for various test suites.
+
+(define-structure base-test (export base-tests)
+  (open scheme test-suites
+	fluids)
+  (files (debug base-check)))
+
 ; Random tests, mostly for stuff in scheme/big
 
 (define-structure misc-big-test (export misc-big-tests)
@@ -54,3 +63,16 @@
 	byte-vectors threads
 	sockets udp-sockets)
   (files (net socket-check)))
+
+(define-structure package-mutation-test (export package-mutation-tests)
+  (open scheme test-suites
+	packages compiler built-in-structures handle conditions
+	interfaces defpackage package-mutation)
+  (files (env package-mutation-check)))
+
+(define-structure env-test (export env-tests)
+  (open scheme test-suites
+	package-mutation-test)
+  (begin
+    (define-test-suite env-tests
+      (package-mutation-tests))))

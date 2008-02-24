@@ -7,7 +7,7 @@ autoheader &&
 autoconf &&
 ./configure &&
 rm -rf autom4te.cache &&
-rm -f scheme48.image build/initial.image c/scheme48.h &&
+rm -f scheme48.image build/initial.image-32 build/initial.image-64 c/scheme48.h &&
 make build/filenames.make &&
 make i-know-what-i-am-doing &&
 make c/scheme48.h &&

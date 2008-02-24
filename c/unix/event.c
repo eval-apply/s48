@@ -17,6 +17,9 @@
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
+#ifdef HAVE_GLIB
+#include <glib.h>
+#endif
 #include "c-mods.h"
 #include "scheme48vm.h"
 #include "event.h"
@@ -630,8 +633,136 @@ s48_wait_for_event(long max_wait, psbool is_minutes)
   return (status);
 }
 
+#if defined HAVE_GLIB
+static GMainContext     *g_main_context;
+typedef struct S48_GSource {
+  GSource g_source;
+  psbool  wait;
+  long    seconds;
+  long    ticks;
+} S48_GSource;
+static S48_GSource      *g_source;
+static guint            g_source_id;
+static GPollFD          *g_pollfds;
+static long             g_pollfds_size;
 
-#ifdef HAVE_POLL
+static gboolean
+s48_g_source_prepare(GSource *source, gint *timeout_) {
+  fd_struct	*fdp,
+    		**fdpp;
+  int           g_npollfds;
+  S48_GSource   *src = (S48_GSource *) source;
+
+  if ((! src->wait)
+      &&  (pending.first == NULL))
+    return TRUE;
+
+  if (pending.count > g_pollfds_size) {
+    g_pollfds_size *= 2;
+    g_pollfds = (GPollFD *) realloc (g_pollfds, 
+				     sizeof (GPollFD) * g_pollfds_size);
+    if (g_pollfds == NULL) {
+      fprintf(stderr,
+	      "Failed to realloc array of file descriptors to poll, errno = %d\n",
+	      errno);
+      exit(1);
+    }
+  }
+
+  for (fdp = pending.first, g_npollfds = 0; 
+       fdp != NULL; 
+       fdp = fdp->next, g_npollfds++) {
+    g_pollfds[g_npollfds].fd = fdp->fd;
+    g_pollfds[g_npollfds].events = fdp->is_input?
+      (G_IO_IN | G_IO_HUP | G_IO_ERR) : (G_IO_OUT | G_IO_ERR);
+    g_source_add_poll(source, &g_pollfds[g_npollfds]);
+  }
+
+  if (src->wait && timeout_)
+    if (src->seconds == -1)
+      *timeout_ = -1;
+    else
+      *timeout_ = (gint) src->seconds;
+  else
+    *timeout_ = 0;
+
+  return FALSE;
+}
+
+static gboolean
+s48_g_source_check(GSource *source) {
+  fd_struct	*fdp,
+    		**fdpp;
+  int           g_npollfds;
+
+  fdpp = &pending.first;
+  for (fdp = *fdpp, g_npollfds = 0;
+       (fdp != NULL);
+       fdp = *fdpp, g_npollfds++) {
+    if ((g_pollfds[g_npollfds].revents 
+	 & (fdp->is_input? G_IO_IN : G_IO_OUT))
+	| G_IO_HUP | G_IO_ERR)
+      return TRUE;
+    else
+      fdpp = &fdp->next;
+  }
+
+  return FALSE;
+}
+
+static gboolean
+s48_g_source_dispatch(GSource *source, GSourceFunc callback, gpointer user_data) {
+  fd_struct	*fdp,
+    		**fdpp;
+  int           g_npollfds;
+
+  fdpp = &pending.first;
+  for (fdp = *fdpp, g_npollfds = 0;
+       (fdp != NULL);
+       fdp = *fdpp, g_npollfds++) {
+    if ((g_pollfds[g_npollfds].revents 
+	 & (fdp->is_input? G_IO_IN : G_IO_OUT))
+	| G_IO_HUP | G_IO_ERR) {
+      g_source_remove_poll(source, &g_pollfds[g_npollfds]);
+      rmque(fdpp, &pending);
+      fdp->status = FD_READY;
+      addque(fdp, &ready);
+    }
+    else
+      fdpp = &fdp->next;
+  }
+
+  if (pending.first == NULL)
+    poll_time = -1;
+
+  return TRUE;
+}
+
+static GSourceFuncs     s48_g_source_funcs = {
+  s48_g_source_prepare,
+  s48_g_source_check,
+  s48_g_source_dispatch,
+  NULL,
+  NULL,
+  NULL
+};
+
+
+/*
+ * Use the glib event loop.
+ */
+static int
+queue_ready_ports(psbool wait, long seconds, long ticks)
+{
+  g_source->wait = wait;
+  g_source->seconds = seconds;
+  g_source->ticks = ticks;
+
+  g_main_context_iteration(g_main_context, wait);
+
+  return NO_ERRORS;
+}
+#elif defined HAVE_POLL
 static struct pollfd    *pollfds;
 static long             pollfds_size;
 
@@ -710,7 +841,7 @@ queue_ready_ports(psbool wait, long seconds, long ticks)
       return errno;
   }
 }
-#else /* not HAVE_POLL */
+#elif defined HAVE_SIGNAL
 /*
  * Call select() on the pending ports and move any ready ones to the ready
  * queue.  If wait is true, seconds is either -1 (wait forever) or the
@@ -782,7 +913,7 @@ queue_ready_ports(psbool wait, long seconds, long ticks)
       return errno;
   }
 }
-#endif /* not HAVE_POLL */
+#endif /* HAVE_SELECT */
 
 void
 s48_sysdep_init(void)
@@ -807,7 +938,23 @@ s48_sysdep_init(void)
 	    errno);
 #endif
 
-#ifdef HAVE_POLL
+#if defined HAVE_GLIB
+  g_main_context = g_main_context_default();
+  g_main_context_ref(g_main_context);
+  g_source = (S48_GSource *) g_source_new(&s48_g_source_funcs, sizeof (S48_GSource));
+  g_source_id = g_source_attach((GSource *) g_source, g_main_context);
+
+  g_pollfds_size = FD_SETSIZE;
+  g_pollfds = (GPollFD *) calloc (sizeof (GPollFD), g_pollfds_size);
+
+  if (g_pollfds == NULL) {
+    fprintf(stderr,
+	    "Failed to alloc array of file descriptors to poll with %d elements, errno = %d\n",
+	    g_pollfds_size,
+	    errno);
+    exit(1);
+  }
+#elif defined HAVE_POLL
   pollfds_size = FD_SETSIZE;
   pollfds = (struct pollfd *) calloc (sizeof (struct pollfd), pollfds_size);
 
