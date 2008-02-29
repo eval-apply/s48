@@ -395,7 +395,7 @@
 	  unspecific
 	  symbol-append
 
-	  (mvlet :syntax)))
+	  (receive :syntax)))
 
 ; Level 2 consists of harder things built on level 1.
 

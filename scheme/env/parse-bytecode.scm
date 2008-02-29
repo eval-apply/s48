@@ -526,10 +526,3 @@
 	byte-limit)
      (code-vector-ref code (+ pc 1))))
 
-; Should this be in its own spot?
-
-(define-syntax receive
-  (syntax-rules ()
-    ((receive ?vars ?producer . ?body)
-     (call-with-values (lambda () ?producer)
-       (lambda ?vars . ?body)))))

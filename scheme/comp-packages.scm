@@ -226,7 +226,7 @@
 (define-structure interfaces interfaces-interface
   (open scheme-level-2
 	define-record-types tables
-	util			;filter every mvlet symbol-append
+	util			;filter every receive symbol-append
 	low-exceptions		;error
 	weak			;populations
 	meta-types)
