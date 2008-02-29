@@ -128,10 +128,8 @@
      (handler condition))
    thunk))
 
-;; no tail recursive call to the handler here
 (define (raise obj)
-  (let* ((cell (make-cell (fluid-cell-ref $exception-handlers)))
-	 (last-handler #f))
+  (let* ((cell (make-cell (fluid-cell-ref $exception-handlers))))
     (let-fluid
      $exception-handlers cell
      (lambda ()
@@ -143,8 +141,22 @@
 	    (if (null? maybe-obj)
 		(loop (cdr handlers) obj)
 		(loop (cdr handlers) (car maybe-obj)))))
-	 (set! last-handler (car handlers)))))
-    (assertion-violation 'raise "exception handler returned" last-handler obj)))
+	 (assertion-violation 'raise "exception handler returned"
+			      (car handlers) obj))))))
+
+(define (raise-continuable obj)
+  (let* ((cell (make-cell (fluid-cell-ref $exception-handlers))))
+    (let-fluid
+     $exception-handlers cell
+     (lambda ()
+       (let loop ((handlers (fluid-cell-ref $exception-handlers))
+		  (obj obj))
+	 (cell-set! cell (cdr handlers))
+	 ((car handlers) obj
+	  (lambda maybe-obj
+	    (if (null? maybe-obj)
+		(loop (cdr handlers) obj)
+		(loop (cdr handlers) (car maybe-obj))))))))))
 
 (define-syntax guard
   (syntax-rules ()
