@@ -17,9 +17,6 @@ AC_ARG_ENABLE([force-32bit],
 		x86_64-*-linux-gnu )
 	         CFLAGS="${CFLAGS} -m32";
 		 LDFLAGS="${LDFLAGS} -m32";
-		 dnl This is needed if 'gcc' resp. 'ld' is used to link a dynamic external below
-		 GCC_LDFLAGS="${GCC_LDFLAGS} -m32";
-		 LD_LDFLAGS="${LD_LDFLAGS} -melf_i386";
 		;;
                 *darwin* ) dnl AC_MSG_RESULT([Found Darwin, will check later.])
                 ;;
