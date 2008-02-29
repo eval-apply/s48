@@ -71,3 +71,17 @@
 	code-quote)
   (files enum))
 
+(define-interface r6rs-sorting-interface
+  (export list-sort
+	  vector-sort
+	  vector-sort!))
+
+(define-structure r6rs-sorting r6rs-sorting-interface
+  (open scheme
+	(modify sorting (prefix olin:)))
+  (begin
+    (define list-sort olin:list-stable-sort)
+    (define vector-sort olin:vector-stable-sort)
+    (define vector-sort! olin:vector-sort!)))
+
+-
