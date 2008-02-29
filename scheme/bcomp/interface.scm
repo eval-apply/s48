@@ -40,8 +40,8 @@
   ((ref-method int) name))
 
 (define (interface-member? int name)
-  (mvlet (((base-name type)
-	     (interface-ref int name)))
+  (receive (base-name type)
+      (interface-ref int name)
     base-name))
 
 ; The generic walk function.
@@ -111,11 +111,11 @@
 			       (let loop ((ints ints))
 				 (if (null? ints)
 				     (values #f #f)
-				     (mvlet (((new-name type)
-					      (interface-ref (car ints) name)))
-					    (if new-name
-						(values new-name type)
-						(loop (cdr ints)))))))
+				     (receive (new-name type)
+					 (interface-ref (car ints) name)
+				       (if new-name
+					   (values new-name type)
+					   (loop (cdr ints)))))))
 			     (lambda (proc)
 			       (for-each (lambda (int)
 					   (for-each-declaration proc int))
@@ -155,8 +155,8 @@
 (define (make-modified-interface-maker commands)
   (if (and (proper-list? commands)
 	   (every okay-command? commands))
-      (mvlet (((alist hidden default)
-	         (process-commands commands)))
+      (receive (alist hidden default)
+	  (process-commands commands)
 	(lambda (interface)
 	  (let ((lookup (make-lookup alist hidden default interface))
 		(walker (make-interface-walker alist hidden default interface)))
@@ -188,14 +188,14 @@
 			alist)
 		hidden
 		default)
-	(mvlet (((alist hidden default)
-		   (let ((proc (case (caar commands)
-				 ((prefix) process-prefix)
-				 ((expose) process-expose)
-				 ((hide)   process-hide)
-				 ((alias)  process-alias)
-				 ((rename) process-rename))))
-		     (proc (cdar commands) alist hidden default))))
+	(receive (alist hidden default)
+	    (let ((proc (case (caar commands)
+			  ((prefix) process-prefix)
+			  ((expose) process-expose)
+			  ((hide)   process-hide)
+			  ((alias)  process-alias)
+			  ((rename) process-rename))))
+	      (proc (cdar commands) alist hidden default))
 	  (loop alist hidden default (cdr commands))))))
 
 ; Checks that COMMAND is properly formed.
@@ -385,8 +385,8 @@
 
 (define (walk-alist proc alist hidden interface)
   (for-each (lambda (pair)
-	      (mvlet (((base-name type)
-		       (interface-ref interface (cdr pair))))
+	      (receive (base-name type)
+		  (interface-ref interface (cdr pair))
 		(let ((new-name (car pair)))
 		  (if (and base-name (not (memq new-name hidden)))
 		      (proc new-name

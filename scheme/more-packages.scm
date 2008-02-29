@@ -223,8 +223,8 @@
   (files (big constant-table)))
 
 (define-structure receiving (export (receive :syntax))
-  (open scheme-level-2)
-  (files (big receive)))
+  (open scheme-level-2
+	util))
 
 (define-structure defrecord defrecord-interface
   (open scheme-level-1 records record-types loopholes

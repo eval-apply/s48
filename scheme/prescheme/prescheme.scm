@@ -129,10 +129,3 @@
 
 (define current-error-port current-output-port)
 
-; RECEIVE (from big-scheme)
-
-(define-syntax receive
-  (syntax-rules ()
-    ((receive ?vars ?producer . ?body)
-     (call-with-values (lambda () ?producer)
-		       (lambda ?vars . ?body)))))

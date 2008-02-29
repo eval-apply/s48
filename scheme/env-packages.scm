@@ -343,6 +343,7 @@
 
 (define-structure parse-bytecode parse-bytecode-interface
   (open scheme
+	(subset util (receive))
 	bitwise
         templates
         code-vectors byte-vectors

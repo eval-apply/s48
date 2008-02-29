@@ -769,10 +769,3 @@
   (lambda (node depth frame cont)
     (compile (caddr (node-form node)) depth frame cont)))
 
-; Should this be in its own spot?
-
-(define-syntax receive
-  (syntax-rules ()
-    ((receive ?vars ?producer . ?body)
-     (call-with-values (lambda () ?producer)
-       (lambda ?vars . ?body)))))

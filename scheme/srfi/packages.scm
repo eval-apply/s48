@@ -161,16 +161,11 @@
   (files srfi-7))
 
 ; receive: Binding to multiple values
-; Taken directly from the SRFI document (or from `receiving', take your pick).
+; Identical to the version in UTIL
 
 (define-structure srfi-8 (export (receive :syntax))
-  (open scheme-level-2)
-  (begin
-    (define-syntax receive
-      (syntax-rules ()
-	((receive formals expression body ...)
-	 (call-with-values (lambda () expression)
-			   (lambda formals body ...)))))))
+  (open scheme-level-2
+	util))
 
 ; Defining Record Types
 ; SRFI-9 is a slight modification of DEFINE-RECORD-TYPE.
