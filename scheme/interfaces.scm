@@ -792,7 +792,8 @@
   (compound-interface (export with-exception-handler
 			      raise
 			      (guard :syntax)
-			      syntax-violation)
+			      syntax-violation
+			      (assert :syntax))
 		      low-exceptions-interface))
 
 (define-interface exceptions-internal-interface
@@ -1435,6 +1436,10 @@
   (export eval load load-into load-script-into eval-from-file
 	  ; eval-scanned-forms
 	  ))
+
+(define-interface load-filenames-interface
+  (export with-load-filename
+	  current-load-filename))
 
 ; Bindings needed by the form composed by REIFY-STRUCTURES.
 

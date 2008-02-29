@@ -16,7 +16,8 @@
 
 ; EVAL and LOAD
 
-(define-structure evaluation evaluation-interface
+(define-structures ((evaluation evaluation-interface)
+		    (load-filenames load-filenames-interface))
   (open scheme-level-2
 	packages        	;package-uid package->environment link!
 	environments		;package-for-load
@@ -27,7 +28,7 @@
 	closures		;make-closure
 	vm-exposure		;invoke-closure
 	features		;current-noise-port force-output
-	exceptions fluids)
+	exceptions fluids cells)
   (files (rts eval)))
 
 ; Scheme = scheme-level-2 plus EVAL and friends

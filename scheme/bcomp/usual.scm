@@ -226,6 +226,7 @@
     (define %unquote-splicing (r 'unquote-splicing))
     (define %append (r 'append))
     (define %cons (r 'cons))
+    (define %list (r 'list))
     (define %list->vector (r 'list->vector))
 
     (define (expand-quasiquote x level)
@@ -233,7 +234,11 @@
 
     (define (finalize-quasiquote mode arg)
       (cond ((eq? mode 'quote) `(,%quote ,arg))
-	    ((eq? mode 'unquote) arg)
+	    ((eq? mode 'unquote)
+	     (if (and (pair? arg)
+		      (null? (cdr arg)))
+		 (car arg)
+		 (syntax-violation 'quasiquote ", in invalid context" arg)))
 	    ((eq? mode 'unquote-splicing)
 	     (syntax-violation 'quasiquote ",@ in invalid context" arg))
 	    (else `(,mode ,@arg))))
@@ -247,17 +252,20 @@
 	     (descend-quasiquote-pair x (+ level 1) return))
 	    ((interesting-to-quasiquote? x %unquote)
 	     (cond ((= level 0)
-		    (return 'unquote (cadr x)))
+		    (return 'unquote (cdr x)))
 		   (else
 		    (descend-quasiquote-pair x (- level 1) return))))
 	    ((interesting-to-quasiquote? x %unquote-splicing)
 	     (cond ((= level 0)
-		    (return 'unquote-splicing (cadr x)))
+		    (return 'unquote-splicing (cdr x)))
 		   (else
 		    (descend-quasiquote-pair x (- level 1) return))))
 	    (else
 	     (descend-quasiquote-pair x level return))))
 
+    ;; RETURN gets called with two arguments: an operator and an "arg":
+    ;; If the operator is UNQUOTE or UNQUOTE-SPLICING, the "arg"
+    ;; is the list of operands of the UNQUOTE resp. UNQUOTE-SPLICING form.
     (define (descend-quasiquote-pair x level return)
       (descend-quasiquote (car x) level
 	(lambda (car-mode car-arg)
@@ -266,15 +274,25 @@
 	      (cond ((and (eq? car-mode 'quote)
 			  (eq? cdr-mode 'quote))
 		     (return 'quote x))
+		    ((eq? car-mode 'unquote)
+		     (if (and (pair? car-arg)
+			      (null? (cdr car-arg)))
+			 (return %cons	; +++
+				 (list (car car-arg)
+				       (finalize-quasiquote cdr-mode cdr-arg)))
+			 (return %append
+				 (list (cons %list car-arg)
+				       (finalize-quasiquote cdr-mode cdr-arg)))))
+		     
 		    ((eq? car-mode 'unquote-splicing)
 		     ;; (,@mumble ...)
-		     (cond ((and (eq? cdr-mode 'quote) (null? cdr-arg))
-			    (return 'unquote
-				    car-arg))
-			   (else
-			    (return %append
-				    (list car-arg (finalize-quasiquote
-						     cdr-mode cdr-arg))))))
+		     (if (and (eq? cdr-mode 'quote) (null? cdr-arg) ; +++
+			      (pair? car-arg) (null? (cdr car-arg)))
+			 (return 'unquote car-arg)
+			 (return %append
+				 (append car-arg
+					 (list (finalize-quasiquote
+						cdr-mode cdr-arg))))))
 		    (else
 		     (return %cons
 			     (list (finalize-quasiquote car-mode car-arg)

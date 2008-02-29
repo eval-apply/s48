@@ -33,18 +33,22 @@
 ; the bogus one (see env/pedit.scm).
 
 (define (get-location binding cenv name want-type)
-  (if (binding? binding)
-      (let ((place (binding-place binding)))
-	(cond ((compatible-types? (binding-type binding) want-type)
-	       (note-caching! cenv name place)
-	       place)
-	      ((variable-type? want-type)
-	       (get-location-for-unassignable cenv name))
-	      (else
-	       (warning 'get-location "invalid variable reference" name cenv)
-	       (note-caching! cenv name place)
-	       place)))
-      (get-location-for-undefined cenv name)))
+  (cond
+   ((binding? binding)
+    (let ((place (binding-place binding)))
+      (cond ((compatible-types? (binding-type binding) want-type)
+	     (note-caching! cenv name place)
+	     place)
+	    ((variable-type? want-type)
+	     (get-location-for-unassignable cenv name))
+	    (else
+	     (warning 'get-location "invalid variable reference" name cenv)
+	     (note-caching! cenv name place)
+	     place))))
+    ((variable-type? want-type)
+     (get-location-for-undefined cenv name location-for-assignment))
+    (else
+     (get-location-for-undefined cenv name location-for-reference))))
 
 ; Packages have three tables used by env/pedit.scm:
 ;   undefineds
@@ -68,7 +72,7 @@
 (define get-undefined
   (location-on-demand package-undefineds))
 
-(define location-for-assignment
+(define get-undefined-but-assigned
   (location-on-demand package-undefined-but-assigneds))
 
 ; If this package is mutable and it gets NAME from some other structure
@@ -112,22 +116,23 @@
       (let ((package (cenv->package cenv)))
 	(warning 'get-location-for-unassignable "invalid assignment" name)
 	(if (package? package)
-	    (lambda () (location-for-assignment package name))
+	    (lambda () (get-undefined-but-assigned package name))
 	    (lambda () (make-undefined-location name))))))
 
 ; Get a location for NAME, which is undefined.
 
-(define (get-location-for-undefined cenv name)
+(define (get-location-for-undefined cenv name get-location)
   (if (generated? name)
       (get-location-for-undefined (generated-env name)
-				  (generated-name name))
+				  (generated-name name)
+				  get-location)
       (let ((package (cenv->package cenv)))
 	((or (fluid $note-undefined)
 	     (lambda (cenv name) (values)))
 	   cenv
 	   name)
         (if (package? package)
-	    (let ((place (location-for-reference package name)))
+	    (let ((place (get-location package name)))
 	      (package-note-caching! package name place)
 	      place)
 	    (make-undefined-location name)))))
@@ -149,18 +154,31 @@
 ; Exported for env/pedit.scm.
 
 (define (location-for-reference package name)
-  (let loop ((opens (package-opens package)))
-    (if (null? opens)
-	(get-undefined package name)
-	(call-with-values
-	    (lambda ()
-	      (interface-ref (structure-interface (car opens))
-			     name))
-	  (lambda (internal-name type)
-	    (if internal-name
-		(location-for-reference (structure-package (car opens))
-					internal-name)
-		(loop (cdr opens))))))))
+  (get-undefined-location package name get-undefined #f))
+
+(define (location-for-assignment package name)
+  (get-undefined-location package name get-undefined-but-assigned #t))
+
+(define (get-undefined-location package name get-undefined warn-assignment?)
+  (let location ((package package)
+		 (name name)
+		 (warn? warn-assignment?))
+    (let loop ((opens (package-opens package)))
+      (if (null? opens)
+	  (get-undefined package name)
+	  (call-with-values
+	      (lambda ()
+		(interface-ref (structure-interface (car opens))
+			       name))
+	    (lambda (internal-name type)
+	      (if internal-name
+		  (begin
+		    (if warn?
+			(warning 'location-for-assignment "invalid assignment" name))
+		    (location (structure-package (car opens))
+			      internal-name
+			      #f))
+		  (loop (cdr opens)))))))))
 
 ;----------------
 ; Maintain and display a list of undefined names.

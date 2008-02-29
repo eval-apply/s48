@@ -1,5 +1,6 @@
-dnl Process this file with autoconf to produce a configure script.
+dnl Process this file with autoconf >= 2.60 to produce a configure script.
 dnl
+AC_PREREQ([2.60])dnl
 dnl
 dnl We might want AC_WORDS_BIGENDIAN in the future.
 dnl We might want AC_CHAR_UNSIGNED in the future.
