@@ -524,6 +524,7 @@
 	    r6rs-unicode
 	    r6rs-lists
 	    r6rs-enums
+	    r6rs-sorting
 
 	    ; POSIX packages (see scheme/posix/packages.scm)
 	    posix-files
