@@ -35,12 +35,11 @@ AC_DEFUN([S48_DYNAMIC_EXTERNALS], [dnl
 			LD="$CC"
 		;;
 		linux* )
+			dnl various Linuxen link in strange stuff we don't know about,
+			dnl but gcc does
+			LD="$CC"
 			DYNAMIC_EXTERNALS_CFLAGS="$PIC"
-			if test "$LD" = "ld"; then
-				DYNAMIC_EXTERNALS_LDFLAGS="-shared $LD_LDFLAGS"
-			else
-				DYNAMIC_EXTERNALS_LDFLAGS="-shared $GCC_LDFLAGS"
-			fi
+			DYNAMIC_EXTERNALS_LDFLAGS="-shared $LDFLAGS"
 		;;
 		cygwin* )
 			LD="$CC"
