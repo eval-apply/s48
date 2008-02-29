@@ -6,6 +6,7 @@
 (define-structure sorting sorting-interface
   (open scheme
 	list-merge-sort
+	vector-heap-sort
 	vector-merge-sort
 	vector-quick-sort
 	sorted
