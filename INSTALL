@@ -179,4 +179,6 @@ Makefile(s), the header file containing system-dependent definitions
 
    The file `configure.in' is used to create `configure' by a program
 called `autoconf'.  You only need it if you want to regenerate
-`configure' using a newer version of `autoconf'.
+`configure' using a newer version of `autoconf'.  To do this, run:
+
+env ACLOCAL="aclocal -I m4" autoreconf -v -i

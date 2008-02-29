@@ -488,7 +488,7 @@ dirs:
 	done
 
 configure: configure.in
-	autoheader && autoconf
+	ACLOCAL="aclocal -I m4" autoreconf -v -i
 
 clean:
 	-rm -f $(VM) script-interpreter					\

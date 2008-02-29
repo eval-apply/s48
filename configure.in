@@ -1,4 +1,6 @@
 dnl Process this file with autoconf >= 2.60 to produce a configure script.
+dnl To do this, run:
+dnl   env ACLOCAL="aclocal -I m4" autoreconf -v -i
 dnl
 AC_PREREQ([2.60])dnl
 dnl
