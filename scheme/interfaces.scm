@@ -790,7 +790,7 @@
 
 (define-interface exceptions-interface
   (compound-interface (export with-exception-handler
-			      raise
+			      raise raise-continuable
 			      (guard :syntax)
 			      syntax-violation
 			      (assert :syntax))
