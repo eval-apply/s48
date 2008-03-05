@@ -386,37 +386,30 @@ $(IMAGE): $(VM) scheme/env/init-defpackage.scm scheme/more-interfaces.scm \
 ### Fake targets:  all clean install man dist
 
 install: enough dirs \
-	 inst-script inst-vm inst-misc inst-man inst-inc inst-image \
-	 inst-script-interpreters inst-config-script inst-externals
-
-inst-vm:
+# install the VM
 	$(INSTALL_PROGRAM) $(VM) $(DESTDIR)$(LIB)
-	if [-e $(VM).a]; then $(INSTALL_PROGRAM) $(VM).a $(DESTDIR)$(LIB); fi
-
-inst-image:
+	if test -e $(VM).a; then $(INSTALL_PROGRAM) $(VM).a $(DESTDIR)$(LIB); fi
+# build and install the image
 	rm -f '/tmp/$(IMAGE)'
 	$(srcdir)/build/build-usual-image $(srcdir) "$(SHARE)" "$(LIB)" \
 		"/tmp/$(IMAGE)" "./$(VM)" "$(INITIAL)-$(BIT_SUFFIX)"
 	$(INSTALL_DATA) /tmp/$(IMAGE) $(DESTDIR)$(LIB)
 	rm /tmp/$(IMAGE)
-
-inst-man:
+# install the man pages
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(mandir)
 	sed 's=LBIN=$(bindir)=g' $(srcdir)/doc/scheme48.man |	   \
 		sed "s=LLIB=$(LIB)=g" |				   \
 		sed "s=LS48=$(RUNNABLE)=g" >$(MANPAGE)
 	$(INSTALL_DATA) $(MANPAGE) $(DESTDIR)$(mandir)
 	rm $(MANPAGE)
-
-inst-inc: c/scheme48.exp c/scheme48.def
+# install the include files
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) c/scheme48arch.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48write-barrier.h $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.exp $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.def $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48-external.exp $(DESTDIR)$(incdir)
-
-inst-misc:
+# install Scheme source files
 	for stub in env big sort opt misc link posix cml srfi; do	\
 		for f in $(srcdir)/scheme/$$stub/*.scm; do		\
 			$(INSTALL_DATA) $$f $(DESTDIR)$(SHARE)/$$stub || exit 1;	\
@@ -426,8 +419,7 @@ inst-misc:
 		 $(srcdir)/scheme/rts/jar-defrecord.scm; do		\
 		$(INSTALL_DATA) $$f $(DESTDIR)$(SHARE)/rts || exit 1;	\
 	done
-
-inst-script:
+# install the scheme48 script
 	script=$(DESTDIR)$(bindir)/$(RUNNABLE) &&			\
 	LIB=$(LIB) &&							\
 	echo "#!/bin/sh"	>$$script &&				\
@@ -436,14 +428,12 @@ inst-script:
 	echo 'exec $$lib/$(VM) -i $$lib/$(IMAGE) "$$@"'			\
 				>>$$script &&				\
 	chmod +x $$script
-
-inst-script-interpreters:
+# install the script interpreter front end
 	for dialect in r5rs srfi-7; do					\
 		$(INSTALL_PROGRAM) script-interpreter			\
 			$(DESTDIR)$(bindir)/scheme-$$dialect;		\
 	done
-
-inst-config-script:
+# install the scheme48-config script
 	config_script=$(DESTDIR)$(bindir)/$(CONFIG_SCRIPT) &&		\
 	sed -e 's,@incdir\@,$(incdir),g'				\
 	    -e 's,@libdir\@,$(libdir),g'				\
@@ -453,8 +443,7 @@ inst-config-script:
 	    -e 's,@DYNAMIC_EXTERNALS_LDFLAGS\@,$(DYNAMIC_EXTERNALS_LDFLAGS),g' \
 	< $(srcdir)/build/$(CONFIG_SCRIPT).in > $$config_script &&	\
 	chmod +x $$config_script
-
-inst-externals:
+# install the external modules
 	$(INSTALL_PROGRAM) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(DESTDIR)$(LIB)/
 
 # Script to run scheme48 in this directory.
