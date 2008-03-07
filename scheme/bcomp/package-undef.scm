@@ -19,33 +19,38 @@
 			    (get-location (thingie-binding x)
 					  package
 					  (thingie-name x)
-					  (thingie-want-type x))))
+					  (thingie-assigned? x))))
 	    ((template? x)
 	     (really-link! x package))))))
 
-; GET-LOCATION returns a location to be stored away in a template.  If the
-; wanted meta-type, which is either `value-type' or `usual-variable-type'
-; (for SET!), matches that in the binding, then we just return the binding's
-; location after noting that we are doing so.
+; GET-LOCATION returns a location to be stored away in a template.  If
+; ASSGINED? (which is #t if the variable is SET!) matches the type of
+; the binding, then we just return the binding's location after noting
+; that we are doing so.
 ;
 ; If the type doesn't match then we make a location and remember that we
 ; have done so.  If correct location becomes available later we will replace
 ; the bogus one (see env/pedit.scm).
 
-(define (get-location binding cenv name want-type)
+(define (get-location binding cenv name assigned?)
   (cond
    ((binding? binding)
-    (let ((place (binding-place binding)))
-      (cond ((compatible-types? (binding-type binding) want-type)
-	     (note-caching! cenv name place)
-	     place)
-	    ((variable-type? want-type)
-	     (get-location-for-unassignable cenv name))
-	    (else
-	     (warning 'get-location "invalid variable reference" name cenv)
-	     (note-caching! cenv name place)
-	     place))))
-    ((variable-type? want-type)
+    (let ((place (binding-place binding))
+	  (type (binding-type binding)))
+      (cond
+       ((variable-type? type)
+	(note-caching! cenv name place)
+	place)
+       (assigned?
+	(get-location-for-unassignable cenv name))
+       ((value-type? type)
+	(note-caching! cenv name place)
+	place)
+       (else
+	(warning 'get-location "invalid variable reference" name cenv)
+	(note-caching! cenv name place)
+	place))))
+    (assigned?
      (get-location-for-undefined cenv name location-for-assignment))
     (else
      (get-location-for-undefined cenv name location-for-reference))))

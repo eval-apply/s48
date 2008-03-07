@@ -8,9 +8,9 @@
 ; by flatload, which can't handle them.
 
 (define-record-type thingie :thingie
-  (make-thingie binding name want-type)
+  (make-thingie binding name assigned?)
   thingie?
   (binding thingie-binding)
   (name thingie-name)
-  (want-type thingie-want-type))
+  (assigned? thingie-assigned? set-thingie-assigned?!))
 

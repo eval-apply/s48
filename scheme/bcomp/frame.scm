@@ -93,13 +93,27 @@
 ; to go in the template.  They're added if not already present.  The returned
 ; index is that of template, not the frame's list.
 
-(define (binding->index frame binding name want-type)
-  (literal->index frame
-		  (make-thingie binding name want-type)))
+(define (binding->index frame binding name assigned?)
+  (let loop ((i 0) (l (frame-literals frame)))
+    (cond ((null? l)
+	   (really-literal->index frame 
+				  (make-thingie binding name assigned?)
+				  #f))
+	  ((and (thingie? (car l))
+		(equal? name
+			(thingie-name (car l))))
+	   (if assigned?
+	       (set-thingie-assigned?! (car l) #t))
+	   (really-literal->index frame #f i))
+	  (else
+	   (loop (+ i 1) (cdr l))))))
 
 (define (literal->index frame thing)
-  (let ((probe (literal-position thing (frame-literals frame)))
-	(count (frame-count frame)))
+  (really-literal->index frame thing
+			 (position thing (frame-literals frame))))
+
+(define (really-literal->index frame thing probe)
+  (let ((count (frame-count frame)))
     (if probe
 	;; +++  Eliminate duplicate entries.
 	;; Not necessary, just a modest space saver [how much?].
@@ -119,21 +133,11 @@
 	  ;; when 1st thing, count = 0, want 2
 	  (+ count template-overhead)))))
 
-(define (literal-position thing literals)
-  (position (if (thingie? thing)
-		(lambda (thing other-thing)
-		  (and (thingie? other-thing)
-		       (equal? (thingie-name thing)
-			       (thingie-name other-thing))))
-		equal?)
-	    thing
-	    literals))
-
-(define (position pred elt list)
+(define (position elt list)
   (let loop ((i 0) (l list))
     (cond ((null? l)
 	   #f)
-	  ((pred elt (car l))
+	  ((equal? elt (car l))
 	   i)
 	  (else
 	   (loop (+ i 1) (cdr l))))))

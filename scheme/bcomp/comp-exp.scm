@@ -90,7 +90,7 @@
         (if (pair? binding)
 	    (compile-local-name node name binding depth)
 	    (let ((offset (template-offset frame depth))
-		  (index (binding->index frame binding name value-type)))
+		  (index (binding->index frame binding name #f)))
 	      (instruction (enum op global)
 			   (high-byte offset)
 			   (low-byte offset)
@@ -202,7 +202,7 @@
 		    (index (binding->index frame
 					   binding
 					   name
-					   usual-variable-type)))
+					   #t)))
 		(instruction (enum op set-global!)
 			     (high-byte offset)
 			     (low-byte offset)

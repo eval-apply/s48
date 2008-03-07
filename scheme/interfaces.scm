@@ -963,7 +963,7 @@
 	  syntax-type
 	  any-values-type
 	  any-arguments-type
-	  value-type
+	  value-type value-type?
 	  error-type
 
 	  make-some-values-type
