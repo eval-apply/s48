@@ -83,7 +83,7 @@
 		    (binding->index frame
 				    (node-ref name 'binding)
 				    (node-form name)
-				    value-type))
+				    #f))
 		  (begin (depth-check! frame 2)
 			 (instruction (enum op push)))
 		  (compile-expression (caddr form)

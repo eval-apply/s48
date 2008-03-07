@@ -47,7 +47,8 @@
 				   thingie?
 				   thingie-binding
 				   thingie-name
-				   thingie-want-type)
+				   thingie-assigned?
+				   set-thingie-assigned?!)
   (open scheme-level-2 define-record-types)
   (optimize auto-integrate)
   (files (bcomp thingie)))
