@@ -259,9 +259,7 @@
 		      (begin (display ": " port)
 			     (write-carefully (car item) port)))
 		  (display "] " port)
-		  (write-carefully
-		   (value->expression (cadr item))
-		   port)
+		  (write-carefully (cadr item) port)
 		  (newline port)
 		  (loop (+ i 1) (cdr items))))))))))
 

@@ -14,7 +14,6 @@
 	  command-loop
 	  command-level-condition
 	  command-processor
-	  error-form ;foo
 	  execute-command
 	  exit-command-processor
 	  evaluate-and-select
@@ -29,7 +28,6 @@
 	  set-command-results!
 	  start-command-processor
 	  restart-command-processor
-	  value->expression		;foo
 	  y-or-n?
 	  help
 	  define-command-syntax
