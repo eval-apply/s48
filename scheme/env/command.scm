@@ -322,8 +322,7 @@
 	 with-limited-output
 	 (lambda (p) (p)))
      (lambda ()
-       (write-carefully (value->expression result)
-			out)
+       (write-carefully result out)
        (newline out)))))
 
 ;----------------
@@ -576,22 +575,6 @@
              (newline o-port)
              (loop (cdr s1) (if (null? s2) s2 (cdr s2))))))))
                    
-;----------------
-; Utilities
-
-(define (error-form proc args)
-  (cons proc (map value->expression args)))
-
-; Print non-self-evaluating value X as 'X.
-
-(define (value->expression obj)         ;mumble
-  (if (or (symbol? obj)
-	  (pair? obj)
-	  (null? obj)
-	  (vector? obj))
-      `',obj
-      obj))
-
 (define (write-spaces count o-port)
   (do ((count count (- count 1)))
       ((<= count 0))

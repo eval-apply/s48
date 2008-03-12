@@ -163,7 +163,12 @@
 (define (error-form proc args)
   (cons proc (map value->expression args)))
 
-(define (value->expression obj)
-  (if (or (number? obj) (char? obj) (string? obj) (boolean? obj))
-      obj
-      `',obj))
+; Print non-self-evaluating value X as 'X.
+
+(define (value->expression obj)         ;mumble
+  (if (or (symbol? obj)
+	  (pair? obj)
+	  (null? obj)
+	  (vector? obj))
+      `',obj
+      obj))
