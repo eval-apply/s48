@@ -149,7 +149,7 @@
   (cond ((disclose obj)
 	 => (lambda (l)
 	      (write-string "#{" port)
-	      (display-type-name (car l) port)
+	      (display (car l) port)
 	      (for-each (lambda (x)
 			  (write-char #\space port)
 			  (recur x))
@@ -167,21 +167,6 @@
 	((eq? obj (if #f #f)) (write-string "#{Unspecific}" port))
 	(else
 	 (write-string "#{Random object}" port))))
-
-; Display the symbol WHO-CARES as Who-cares.
-
-(define (display-type-name name port)
-  (if (symbol? name)
-      (let* ((s (symbol->string name))
-	     (len (string-length s)))
-	(if (and (> len 0)
-		 (char-alphabetic? (string-ref s 0)))
-	    (begin (write-char (char-upcase (string-ref s 0)) port)
-		   (do ((i 1 (+ i 1)))
-		       ((>= i len))
-		     (write-char (char-downcase (string-ref s i)) port)))
-	    (display name port)))
-      (display name port)))
 
 ;(define (write-string s port)
 ;  (do ((i 0 (+ i 1)))
