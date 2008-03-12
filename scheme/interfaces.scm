@@ -838,7 +838,6 @@
 (define-interface writing-interface
   (export write
 	  display
-	  display-type-name
 	  recurring-write))
 
 (define-interface reading-interface

@@ -24,7 +24,7 @@
   (call-with-values
       (lambda () (decode-condition c))
     (lambda (type who message stuff)
-      (display-type-name type port)
+      (display type port)
       (display ": " port)
       (if (string? message)
 	  (display message port)
