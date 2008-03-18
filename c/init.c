@@ -73,7 +73,7 @@ s48_main(int argc, char *argv[])
       case 'h':
 	argc--; argv++;
 	if (argc == 0) { errors++; break; }
-	heap_size = atoi(*argv);
+	heap_size = atol(*argv);
 	if (heap_size < 0) errors++;  /* 0 means now no limit */
 	break;
       case 's':
