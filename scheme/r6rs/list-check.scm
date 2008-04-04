@@ -24,7 +24,8 @@
   (check-exception (exists even? '(3 1 1 5 9 . 2)))
   (check (exists (lambda (n) (and (even? n) n)) '(2 1 4 14)) => 2)
   (check (exists < '(1 2 4) '(2 3 4)))
-  (check (exists > '(1 2 3) '(2 3 4)) => #f))
+  (check (exists > '(1 2 3) '(2 3 4)) => #f)
+  (check (not (exists even? '()))))
 
 (define-test-case filter r6rs-lists-tests
   (check (filter even? '(3 1 4 1 5 9 2 6)) => '(4 2 6)))
