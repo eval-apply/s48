@@ -418,6 +418,7 @@
 	    command-levels
 	    command-processor
 	    command-state
+	    usual-commands
 	    compact-tables
 	    constant-tables
 	    conditions
