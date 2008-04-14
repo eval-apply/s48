@@ -246,7 +246,14 @@
 						  char-set:letter))
     (lambda (d i)
       (check-that d (is char-set= (x->char-set "0123456789")))
-      (check-that i (is char-set= (x->char-set "abcdefABCDEF"))))))
+      (check-that i (is char-set= (x->char-set "abcdefABCDEF")))))
+  (call-with-values (lambda ()
+		      (char-set-diff+intersection (char-set-union char-set:letter
+								  char-set:digit)
+						  char-set:letter))
+    (lambda (d i)
+      (check-that d (is char-set= char-set:digit))
+      (check-that i (is char-set= char-set:letter)))))
 
 (define-test-case char-set-diff+intersection! srfi-14-tests
   (call-with-values (lambda ()
@@ -254,7 +261,14 @@
 						   (char-set-copy char-set:letter)))
     (lambda (d i)
       (check-that d (is char-set= (x->char-set "0123456789")))
-      (check-that i (is char-set= (x->char-set "abcdefABCDEF"))))))
+      (check-that i (is char-set= (x->char-set "abcdefABCDEF")))))
+  (call-with-values (lambda ()
+		      (char-set-diff+intersection! (char-set-union char-set:letter
+								   char-set:digit)
+						   (char-set-copy char-set:letter)))
+    (lambda (d i)
+      (check-that d (is char-set= char-set:digit))
+      (check-that i (is char-set= char-set:letter)))))
 
 ; The following stuff was adapted from the suite Matthew Flatt wrote
 ; for PLT Scheme

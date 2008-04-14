@@ -295,6 +295,7 @@
 	(subset primitives (copy-bytes! unspecific))
 	inversion-lists
 	srfi-9
+	(subset define-record-types (define-record-discloser))
 	variable-argument-lists
 	(subset big-util (partition-list))
 	(subset features (make-immutable!))
