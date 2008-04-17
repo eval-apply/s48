@@ -200,7 +200,7 @@ The modifiers are applied from right to left.  Thus
 \begin{example}
 (modify scheme (prefix foo/) (rename (car bus))))
 \end{example}
- makes \code{car} available as \code{foo/bus}..
+ makes \code{car} available as \code{foo/bus}.
 
 % Use modify instead of structure-ref.
 %
@@ -653,7 +653,7 @@ The environment's tower is used at compile time for
  evaluating the \cvar{macro-source} in
 \begin{example}
 (define-syntax \cvar{name} \cvar{macro-source})
-(let-syntax ((\cvar{name} \cvar{macro-source}) \cvar{...}) \cvar{body})
+(let-syntax ((\cvar{name} \cvar{macro-source}) \ldots) \cvar{body})
 \end{example}
  and so forth.
 It is a ``tower'' because that environment, in turn, has to say what environment
