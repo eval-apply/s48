@@ -140,6 +140,7 @@ VM = scheme48vm
 LIBSCHEME48 = c/libscheme48.a
 POSIX_EXTERNAL = c/posix.so
 SRFI_27_EXTERNAL = c/srfi-27.so
+EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL)
 UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o
 OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
 	c/extension.o c/free.o c/double_to_string.o c/bignum.o \
@@ -161,7 +162,8 @@ CONFIG_FILES = scheme/interfaces.scm scheme/packages.scm \
 
 # The following is the first rule and therefore the "make" command's
 # default target.
-enough: Makefile vm $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(LIBSCHEME48) $(IMAGE) script-interpreter go
+enough: Makefile vm $(LIBSCHEME48) $(IMAGE) script-interpreter go
+enough: $(EXTERNALS)
 
 Makefile: ${srcdir}/Makefile.in config.status
 	./config.status
@@ -444,7 +446,7 @@ install: enough dirs \
 	< $(srcdir)/build/$(CONFIG_SCRIPT).in > $$config_script &&	\
 	chmod +x $$config_script
 # install the external modules
-	$(INSTALL_PROGRAM) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(DESTDIR)$(LIB)/
+	$(INSTALL_PROGRAM) $(EXTERNALS) $(DESTDIR)$(LIB)/
 
 # Script to run scheme48 in this directory.
 go:
@@ -482,7 +484,7 @@ configure: configure.in
 clean:
 	-rm -f $(VM) script-interpreter					\
 		*.o c/unix/*.o c/posix/*.o c/net/*.o c/*.o 		\
-		$(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL)			\
+		$(EXTERNALS)						\
 		c/fake/*.o c/bibop/*.o					\
 		c/*.a c/glue_gnu.s c/glue_darwin.s c/scheme48.exp 	\
 		TAGS $(IMAGE)						\
@@ -497,7 +499,8 @@ distclean: clean
 	rm -f Makefile config.log config.status config-cache \
 		c/sysdep.h c/scheme48arch.h
 
-check:	$(VM) $(IMAGE) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) scheme/debug/check.scm
+check: $(EXTERNALS)
+check: $(VM) $(IMAGE) scheme/debug/check.scm
 	(								\
 		echo ',batch';						\
 		echo ',exec ,load =scheme48/debug/check.scm';		\
