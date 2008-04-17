@@ -317,7 +317,7 @@
 		(display "THAT " p)
 		(write (matcher-sexpr expr) p))
 	      (begin
-		(display val p)
+		(write val p)
 		(if (not (literal-of? expr val))
 		    (begin
 		      (display " of " p)

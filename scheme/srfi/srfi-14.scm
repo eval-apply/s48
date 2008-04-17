@@ -43,6 +43,11 @@
   (i-list char-set-i-list
 	  set-char-set-i-list!))
 
+(define-record-discloser :char-set
+  (lambda (cs)
+    (list 'char-set
+	  (char-set-size cs))))
+
 (define (make-char-set-immutable! char-set)
   (make-immutable! char-set)
   (make-immutable! (char-set-simple char-set)))
@@ -743,17 +748,20 @@
     (lambda (simple-diff simple-intersection)
       (set-char-set-simple! cs1 simple-diff)
       (set-char-set-simple! cs2 simple-intersection)
-      (set-char-set-i-list! cs1
-			    (apply inversion-list-difference
-				   (char-set-i-list cs1)
-				   (char-set-i-list cs2)
-				   (map char-set-i-list csets)))
-      (set-char-set-i-list! cs2 (inversion-list-intersection
-				 (char-set-i-list cs1)
-				 (apply inversion-list-union
-					(char-set-i-list cs2)
-					(map char-set-i-list csets))))
-      (values cs1 cs2))))
+      (let ((i-list-1 (char-set-i-list cs1))
+	    (i-list-2 (char-set-i-list cs2))
+	    (i-list-rest (map char-set-i-list csets)))
+	(set-char-set-i-list! cs1
+			      (apply inversion-list-difference
+				     i-list-1 i-list-2
+				     i-list-rest))
+	(set-char-set-i-list! cs2
+			      (inversion-list-intersection
+			       i-list-1
+			       (apply inversion-list-union
+				      i-list-2
+				      i-list-rest)))
+	(values cs1 cs2)))))
 
 (define (char-set-diff+intersection cs1 . csets)
   (apply char-set-diff+intersection!
