@@ -28,5 +28,6 @@ AC_DEFUN([S48_LDFLAGS], [dnl
 		;;
 	esac
  	AC_MSG_RESULT([$LDFLAGS_VM])
+	AC_SUBST(LDFLAGS_VM)
 ])dnl
 ### s48_ldflags.m4 ends here
