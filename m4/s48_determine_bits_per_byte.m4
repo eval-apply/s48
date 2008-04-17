@@ -5,7 +5,7 @@ dnl
 dnl Determines the number of bits per byte
 AC_DEFUN([S48_DETERMINE_BITS_PER_BYTE], [dnl
 AC_MSG_CHECKING(bits per byte)
-AC_CACHE_VAL(ac_cv_sizeof_void_p,
+AC_CACHE_VAL(ac_cv_bits_per_byte,
 	[AC_TRY_RUN([#include <stdio.h>
 		#include <stdlib.h>
 		main()
