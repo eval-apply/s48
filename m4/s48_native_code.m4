@@ -41,5 +41,8 @@ AC_ARG_ENABLE([native-code],
 	 AC_MSG_RESULT([no])
 	 ASM_OBJECTS='${FAKE_ASM_OBJECTS}'
         ]
-)])dnl
+)
+AC_SUBST(ASM_OBJECTS)
+AC_SUBST(ASM_STYLE)
+])dnl
 ### s48_native_code.m4 ends here
