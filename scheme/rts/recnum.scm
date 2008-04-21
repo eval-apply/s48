@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Rectangular complex arithmetic built on real arithmetic.
 
@@ -63,6 +63,15 @@
 (define-method &real-part ((z :recnum)) (recnum-real-part z))
 (define-method &imag-part ((z :recnum)) (recnum-imag-part z))
 
+(define-method &magnitude ((z :recnum))
+  (let ((r (recnum-real-part z))
+	(i (recnum-imag-part z)))
+    (sqrt (+ (* r r) (* i i)))))
+
+(define-method &angle ((z :recnum))
+  (atan (recnum-imag-part z)
+	(recnum-real-part z)))
+
 ; Methods on complexes in terms of real-part and imag-part
 
 (define-method &exact? ((z :recnum))
@@ -90,6 +99,64 @@
   (if (< n 0)
       (make-rectangular 0 (sqrt (- 0 n)))
       (next-method)))			; not that we have to
+
+(define-method &sqrt ((z :recnum))
+  (exp (/ (log z) 2)))
+
+(define plus-i (make-recnum 0 1)) ; we can't read +i yet
+(define minus-i (make-recnum 0 -1))
+
+(define-method &exp ((z :recnum))
+  (let ((i (imag-part z)))
+    (* (exp (real-part z))
+       (+ (cos i) (* plus-i (sin i))))))
+
+(define-method &log ((z :recnum))
+  (+ (log (magnitude z)) (* plus-i (angle z))))
+
+(define pi (delay (* 2 (asin 1)))) ; can't compute at build time
+
+(define-method &log ((n :real))
+  (if (< n 0)
+      (make-rectangular (log (- 0 n)) (force pi))
+      (next-method)))
+
+(define-method &sin ((c :recnum))
+  (let ((i-c (* c plus-i)))
+    (/ (- (exp i-c)
+	  (exp (- 0 i-c)))
+       (* 2 plus-i))))
+
+(define-method &cos ((c :recnum))
+  (let ((i-c (* c plus-i)))
+    (/ (+ (exp i-c)
+	  (exp (- 0 i-c)))
+       2)))
+
+(define-method &tan ((c :recnum))
+  (/ (sin c) (cos c)))
+
+(define-method &asin ((c :recnum))
+  (* minus-i
+     (log (+ (* c plus-i)
+	     (sqrt (- 1 (* c c)))))))
+
+(define-method &acos ((c :recnum))
+  (* minus-i
+     (log (+ c
+	     (* plus-i (sqrt (- 1 (* c c))))))))
+
+; kludge; we can't read floating point yet
+(define infinity (delay (expt (exact->inexact 2) (exact->inexact 1500))))
+
+(define-method &atan1 ((c :recnum))
+  (if (or (= c plus-i)
+	  (= c minus-i))
+      (- 0 (force infinity))
+      (* plus-i
+	 (/ (log (/ (+ plus-i c)
+		    (+ plus-i (- 0 c))))
+	    2))))
 
 ; Gleep!  Can we do quotient and remainder on Gaussian integers?
 ; Can we do numerator and denominator on complex rationals?

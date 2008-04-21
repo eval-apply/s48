@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ;Need to fix the byte-code compiler to make jump etc. offsets from the
 ;beginning of the instruction.  (Later: why?)
@@ -27,6 +27,8 @@
 (define *finalizer-alist*)	; list of (<thing> . <procedure>) pairs
 (define *finalize-these*)	; list of such pairs that should be executed
 
+(define *gc-in-trouble?* #f)	; says whether the GC is running out of space
+
 ; Interrupts
 
 (define *enabled-interrupts*)	; bitmask of enabled interrupts
@@ -35,9 +37,9 @@
 (define *interrupted-template*) ; template in place when the most recent
 				; interrupt occured - for profiling
 
-(define *interrupted-byte-call-return-code*)	; used to return from interrupts
+(define *interrupted-byte-opcode-return-code*)	; used to return from interrupts
 (define *interrupted-native-call-return-code*)	; used to return from interrupts
-(define *poll-interrupt-return-code*)           ; used to return from interrupts
+(define *native-poll-return-code*)              ; used to return from interrupts
 (define *exception-return-code*)	; used to mark exception continuations
 (define *native-exception-return-code*)	; used to mark native exception continuations
 (define *call-with-values-return-code*)	; for call-with-values opcode
@@ -60,15 +62,14 @@
 ; For saving native code registers accross a GC
 
 (define s48-*nc-template*)
-(define s48-*nc-environment*)
 
 ;----------------
 
 (define (clear-registers)
   (reset-stack-pointer false)
-  (set-code-pointer! *interrupted-byte-call-return-code* 0)
+  (set-code-pointer! *interrupted-byte-opcode-return-code* 0)
   (set-code-pointer! *interrupted-native-call-return-code* 0)
-  (set-code-pointer! *poll-interrupt-return-code* 0)
+  (set-code-pointer! *native-poll-return-code* 0)
   (set! *last-code-pointer-resumed* *code-pointer*)
   (set! *val*                unspecific-value)
   (set! *current-thread*     null)
@@ -81,10 +82,11 @@
 
   (pending-interrupts-clear!)
   (set! s48-*pending-interrupt?* #f)
-  (set! *os-signal-list* null)
+  (set! *os-signal-ring-start* 0)
+  (set! *os-signal-ring-ready* 0)
+  (set! *os-signal-ring-end* 0)
   (set! *interrupted-template* false)
   (set! s48-*nc-template* false)
-  (set! s48-*nc-environment* false)
   unspecific-value)
 
 (define (s48-initialize-shared-registers! s-d e-h i-h f-a)
@@ -105,20 +107,18 @@
 
     (set! *val*                   (s48-trace-value *val*))
     (set! *current-thread*        (s48-trace-value *current-thread*))
-    (set! *interrupted-byte-call-return-code*
-          (s48-trace-value *interrupted-byte-call-return-code*))
+    (set! *interrupted-byte-opcode-return-code*
+          (s48-trace-value *interrupted-byte-opcode-return-code*))
     (set! *interrupted-native-call-return-code*
           (s48-trace-value *interrupted-native-call-return-code*))
-    (set! *poll-interrupt-return-code*
-          (s48-trace-value *poll-interrupt-return-code*))
+    (set! *native-poll-return-code*
+          (s48-trace-value *native-poll-return-code*))
     (set! *exception-return-code* (s48-trace-value *exception-return-code*))
     (set! *native-exception-return-code* (s48-trace-value *native-exception-return-code*))
     (set! *call-with-values-return-code*
 	  (s48-trace-value *call-with-values-return-code*))
     (set! *interrupted-template*  (s48-trace-value *interrupted-template*))
-    (set! *os-signal-list*        (s48-trace-value *os-signal-list*))
     (set! s48-*nc-template*       (s48-trace-value s48-*nc-template*))
-    (set! s48-*nc-environment*    (s48-trace-value s48-*nc-environment*))
 
     (shared-set! *session-data*
 		 (s48-trace-value (shared-ref *session-data*)))
@@ -132,16 +132,19 @@
     (trace-finalizer-alist!)
     
     ; These could be moved to the appropriate modules.
-    (trace-io s48-trace-value)
-    (trace-channel-names s48-trace-value)))
+    (trace-io s48-trace-value)))
 
 (add-post-gc-cleanup!
-  (lambda ()
+  (lambda (major? in-trouble?)
     (set-code-pointer! *last-code-called* *saved-pc*)
     (set! *last-code-pointer-resumed* *code-pointer*)
     (partition-finalizer-alist!)
     (close-untraced-channels! s48-extant? s48-trace-value)
-    (note-interrupt! (enum interrupt post-gc))))
+    (trace-channel-names s48-trace-value)
+    (set! *gc-in-trouble?* in-trouble?)
+    (note-interrupt! (if major?
+			 (enum interrupt post-major-gc)
+			 (enum interrupt post-minor-gc)))))
 
 ;----------------
 ; Dealing with the list of finalizers.
@@ -235,7 +238,10 @@
       (let ((code (code-pointer->code *last-code-pointer-resumed*)))
 	(if (within-code? *code-pointer* code)
 	    code
-	    (error "VM error: unable to locate current code vector")))))
+	    (error "VM error: unable to locate current code vector"
+                   (address->integer *code-pointer*)
+                   *last-code-called*
+                   (address->integer *last-code-pointer-resumed*))))))
 
 (define (code-pointer->code code-pointer)
   (let ((pc (fetch-two-bytes (address- code-pointer 5))))
@@ -259,10 +265,10 @@
 
 (define (initialize-interpreter+gc)          ;Used only at startup
   (let ((key (ensure-space (* 6 return-code-size))))
-    (set! *interrupted-byte-call-return-code*
+    (set! *interrupted-byte-opcode-return-code*
 	  (make-return-code ignore-values-protocol
                             #xffff              ; dummy template offset
-			    (enum op resume-interrupted-call-to-byte-code)
+			    (enum op resume-interrupted-opcode-to-byte-code)
 			    #xFFFF		; escape value
 			    key))
     (set! *interrupted-native-call-return-code*
@@ -271,10 +277,10 @@
 			    (enum op resume-interrupted-call-to-native-code)
 			    #xFFFF		; escape value
 			    key))
-    (set! *poll-interrupt-return-code*
+    (set! *native-poll-return-code*
 	  (make-return-code ignore-values-protocol
                             #xffff              ; dummy template offset
-			    (enum op return-from-poll-interrupt)
+			    (enum op resume-native-poll)
 			    #xFFFF		; escape value
 			    key))
     (set! *exception-return-code*
@@ -444,7 +450,7 @@
 				       (enter-fixnum instruction-size)))
       (receive (bc-code bc-pc) (current-code+pc)
 	(push *native-exception-cont*)
-	(set! *cont* *stack*)
+	(set-cont-to-stack!)
 	(write-string "handling exception for nc " (current-error-port))
 	(write-integer *native-exception-cont* (current-error-port))
 	(write-string " return code pc is " (current-error-port))
@@ -494,7 +500,8 @@
 
 (define (okay-to-proceed? opcode)
   (or (<= (enum op eq?) opcode)
-      (= opcode (enum op global))))
+      (= opcode (enum op global))
+      (= opcode (enum op set-global!))))
 	      
 (define no-exceptions? #f)
 
@@ -525,6 +532,7 @@
     (set! *val* (vm-vector-ref handlers opcode))
     (if (not (closure? *val*))
 	(lose "exception handler is not a closure"))
+    ;; We add 2, one for the opcode, one for the exception itself
     (goto call-exception-handler (+ nargs 2) opcode)))
 
 ;----------------
@@ -537,6 +545,19 @@
 	(d-vector-ref (stack-ref (code-byte 0))
 		      (code-byte 1))
 	2))
+
+; same as stack-indirect, but serves as annotation for native-code
+; compiler
+(define-opcode template-ref
+  (goto continue-with-value
+	(d-vector-ref (stack-ref (code-byte 0))
+		      (code-byte 1))
+	2))
+(define-opcode big-template-ref
+  (goto continue-with-value
+	(d-vector-ref (stack-ref (code-offset 0))
+		      (code-offset 2))
+	4))
 
 (define-opcode push+stack-indirect
   (push *val*)
@@ -808,6 +829,12 @@
 	(else
 	 (goto continue 2))))
 
+; Peephole instruction for the sake of the native code. As the
+; operands are the original instructions, we here may simple execute
+; them.
+(define-opcode test-op+jump-if-false
+  (goto continue 2))
+
 ; Unconditional jumps
 
 (define-opcode jump
@@ -855,3 +882,16 @@
 	unspecific-value
 	0))
 
+(define-opcode op-with-cell-literal
+  (push *val*)
+  (set! *val*
+        (let lp ((arity (- bytes-per-cell 1))
+                 (index 0)
+                 (x 0))
+          (if (= index bytes-per-cell)
+              x
+              (lp (- arity 1)
+                  (+ index 1)
+                  (+ x (shift-left (code-byte index)
+                                   (* bits-used-per-byte arity)))))))
+  (goto continue bytes-per-cell))

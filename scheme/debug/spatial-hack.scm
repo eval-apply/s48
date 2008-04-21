@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; load into initial image
@@ -10,7 +10,7 @@
 
 (define-structures ((assembler (export (lap syntax))))
   (open scheme-level-2 compiler architecture
-	signals				;error
+	simple-signals			;error
 	enumerated			;name->enumerand
 	code-vectors
 	locations)			;location?
@@ -37,7 +37,7 @@
   (export make-queue enqueue! dequeue! queue-empty?
 	  queue? queue->list queue-length delete-from-queue!))
 (define-structures ((queues queue-interface))
-  (open scheme-level-1 define-record-types signals)
+  (open scheme-level-1 define-record-types simple-signals)
   (files (big queue))
   (optimize auto-integrate))
 (define-structure traverse

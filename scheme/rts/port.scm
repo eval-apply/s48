@@ -1,32 +1,37 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Ports and port handlers
-
-; See doc/io.txt for a description of the i/o system, including ports,
-; port handlers, and so forth.
 
 ;  (discloser <port>) -> (<symbol> <value> ...)
 ;  (close <port>) -> whatever
 ;
 ; Input ports
-;  (char <port>) -> <char>
-;  (block <port> <buffer> <start> <count>) -> <char count>
-;  (char-ready? <port>) -> <boolean>
+;  (byte <port> <read?>) -> <byte>
+;  (char <port> <mode>) -> <char>
+;     <mode> says whether we're doing ...
+;     - #t: a PEEK
+;     - #f: a READ
+;     - (): CHAR-READY? 
+;  (block <port> <buffer> <start> <count>) -> <byte count>
+;  (ready? <port>) -> <boolean>
 ;
 ; Output ports
+;  (byte <port> <byte>) -> whatever
 ;  (char <port> <char>) -> whatever
 ;  (block <port> <buffer> <start> <count>) -> whatever
+;  (ready? <port>) -> <boolean>
 ;  (force-output <port>) -> whatever
 
 (define-record-type port-handler :port-handler
-  (make-port-handler discloser close char block ready? force)
+  (make-port-handler discloser close byte char block ready? force)
   port-handler?
   (discloser port-handler-discloser)
   (close     port-handler-close)
-  (char      port-handler-char)
+  (byte      port-handler-byte)
+  (char	     port-handler-char)
   (block     port-handler-block)
   (ready?    port-handler-ready?)
-  (force     port-handler-force))		; only used for output
+  (force     port-handler-force))	; only used for output
 
 ;----------------
 ; Disclosing ports by calling the disclose handler.
@@ -42,63 +47,87 @@
   (disclose-port port))
 
 ;----------------
-; Set up exception handlers for the three unnecessary I/O primitives,
-; READ-CHAR, PEEK-CHAR, and WRITE-CHAR.  These do the right thing in
+; Set up VM exception handlers for the three unnecessary I/O primitives,
+; READ-BYTE, PEEK-BYTE, and WRITE-BYTE.  These do the right thing in
 ; the case of unbuffered ports or buffer overflow or underflow.
 ;
 ; This is abstracted to avoid a circular module dependency.
 
-(define (initialize-i/o-handlers! define-exception-handler signal-exception)
-  (define-exception-handler (enum op read-char)
+(define (initialize-i/o-handlers! define-vm-exception-handler signal-exception)
+  (define-vm-exception-handler (enum op read-byte)
     (one-arg-proc->handler (lambda (port)
-			     ((port-handler-char (port-handler port))
-			       port
-			       #t))
-			   signal-exception))
+			     ((port-handler-byte (port-handler port))
+			      port
+			      #t))))
     
-  (define-exception-handler (enum op peek-char)
+  (define-vm-exception-handler (enum op peek-byte)
+    (one-arg-proc->handler (lambda (port)
+			     ((port-handler-byte (port-handler port))
+			      port
+			      #f))))
+
+  (define-vm-exception-handler (enum op read-char)
     (one-arg-proc->handler (lambda (port)
 			     ((port-handler-char (port-handler port))
-			       port
-			       #f))
-			   signal-exception))
-  
-  (define-exception-handler (enum op write-char)
-    (two-arg-proc->handler (lambda (char port)
+			      port
+			      #f))))
+    
+  (define-vm-exception-handler (enum op peek-char)
+    (one-arg-proc->handler (lambda (port)
 			     ((port-handler-char (port-handler port))
-			       port
-			       char))
-			   signal-exception)))
+			      port
+			      #t))))
+  
+  (define-vm-exception-handler (enum op write-byte)
+    (two-arg-proc->handler (lambda (byte port)
+			     ((port-handler-byte (port-handler port))
+			      port
+			      byte))))
 
-; Check the exception and then lock the port.
+  (define-vm-exception-handler (enum op write-char)
+    (two-arg-proc->handler (lambda (ch port)
+			     ((port-handler-char (port-handler port))
+			      port
+			      ch)))))
 
-(define (one-arg-proc->handler proc signal-exception)
+; Check the VM exception and then lock the port.
+
+(define (one-arg-proc->handler proc)
   (lambda (opcode reason port)
     (if (= reason (enum exception buffer-full/empty))
 	(proc port)
-	(signal-exception opcode reason port))))
+	;; note this must be an assertion violation---these only look at the buffer
+	(signal-vm-exception opcode reason port))))
 
 ; This could combined with on-arg-... if the port were the first argument.
 
-(define (two-arg-proc->handler proc signal-exception)
+(define (two-arg-proc->handler proc)
   (lambda (opcode reason arg port)
     (if (= reason (enum exception buffer-full/empty))
 	(proc arg port)
-	(signal-exception opcode reason arg port))))
+	;; note this must be an assertion violation---these only look at the buffer
+	(signal-vm-exception opcode reason arg port))))
 
 ;----------------
 ; Wrappers for the various port operations.  These check types and arguments
 ; and then call the appropriate handler procedure.
 
-; See if there is a character available.  CHAR-READY? itself is defined
+(define (real-char-ready? port)
+  (cond
+   ((open-input-port? port)
+    ((port-handler-char (port-handler port)) port '()))
+   (else
+    (assertion-violation 'char-ready? "invalid argument" port))))
+
+; See if there is a character available.  BYTE-READY? itself is defined
 ; in current-ports.scm as it needs CURRENT-INPUT-PORT when called with
 ; no arguments.
 
-(define (real-char-ready? port)
+(define (real-byte-ready? port)
   (if (open-input-port? port)
       ((port-handler-ready? (port-handler port))
          port)
-      (call-error "invalid argument" char-ready? port)))
+      (assertion-violation 'real-byte-ready? "invalid argument" port)))
 
 ; Reading in a block of characters at once.
 
@@ -117,7 +146,7 @@
 	    count
 	    (or (null? maybe-wait?)
 		(car maybe-wait?))))
-      (call-error "invalid argument" read-block buffer start count port)))
+      (assertion-violation 'read-block "invalid argument" buffer start count port)))
 
 ; Write the COUNT bytes beginning at START from BUFFER to PORT.
 
@@ -131,20 +160,21 @@
 	     buffer
 	     start
 	     count))
-      (call-error "invalid argument" write-block buffer start count port)))
-
-; WRITE-STRING is a front for WRITE-BLOCK.
+      (assertion-violation 'write-block "invalid argument" buffer start count port)))
 
 (define (write-string string port)
-  (write-block string 0 (string-length string) port))
+  (do ((size (string-length string))
+       (i 0 (+ 1 i)))
+      ((>= i size) (unspecific))
+    (write-char (string-ref string i) port)))
 
-; CHAR-READY? for output ports.
+; BYTE-READY? for output ports.
 
 (define (output-port-ready? port)
   (if (open-output-port? port)
       ((port-handler-ready? (port-handler port))
          port)
-      (call-error "invalid argument" output-port-ready? port)))
+      (assertion-violation 'output-port-ready? "invalid argument" port)))
 
 ; Forcing output.
 
@@ -153,7 +183,7 @@
       ((port-handler-force (port-handler port))
          port
 	 #t)			; raise error if PORT is not open
-      (call-error "invalid argument" force-output port)))
+      (assertion-violation 'force-output "invalid argument" port)))
 
 (define (force-output-if-open port)
   (if (open-output-port? port)
@@ -171,7 +201,7 @@
 	    ((port-handler-close (port-handler port))
 	       port))
 	(unspecific))
-      (call-error "invalid argument" close-input-port port)))
+      (assertion-violation 'close-input-port "invalid argument" port)))
 
 (define (close-output-port port)
   (if (output-port? port)
@@ -180,7 +210,15 @@
 	    ((port-handler-close (port-handler port))
 	       port))
 	(unspecific))
-      (call-error "invalid argument" close-output-port port)))
+      (assertion-violation 'close-output-port "invalid argument" port)))
+
+;----------------
+
+(define (port-text-codec p)
+  (spec->text-codec (port-text-codec-spec p)))
+
+(define (set-port-text-codec! p codec)
+  (set-port-text-codec-spec! p (text-codec->spec codec)))
 
 ;----------------
 ; Check that BUFFER contains COUNT characters starting from START.
@@ -193,9 +231,7 @@
        (exact? count)
        (<= 0 count)
        (<= (+ start count)
-	   (cond ((string? buffer)
-		  (string-length buffer))
-		 ((byte-vector? buffer)
+	   (cond ((byte-vector? buffer)
 		  (byte-vector-length buffer))
 		 (else
 		  -1)))))
@@ -234,19 +270,6 @@
 				(bitwise-and (provisional-port-status port)
 					     (bitwise-not open-input-port-mask))))
 
-(define (make-unbuffered-input-port handler data)
-  (if (port-handler? handler)
-      (make-port handler
-		 (bitwise-ior input-port-mask open-input-port-mask)
-		 #f		; timestamp (not used for unbuffered ports)
-		 data
-		 #f		; buffer
-		 #f		; index
-		 #f		; limit
-		 #f)            ; pending-eof?
-      (call-error "invalid argument"
-		  make-unbuffered-input-port handler data)))
-
 ;----------------
 ; Output ports
 
@@ -274,15 +297,95 @@
 (define (make-unbuffered-output-port handler data)
   (if (port-handler? handler)
       (make-port handler
+		 (enum text-encoding-option latin-1)
+		 #f
 		 open-output-port-status
 		 #f		; lock     (not used in unbuffered ports)
 		 data
-		 #f		; buffer
+		 (make-byte-vector 128 0) ; buffer
 		 #f		; index
 		 #f		; limit
+		 #f             ; pending-cr?
 		 #f)            ; pending-eof?
-      (call-error "invalid argument"
-		  make-unbuffered-output-port handler data)))
+      (assertion-violation 'make-unbuffered-output-port "invalid argument"
+			   handler data)))
+
+(define (make-one-byte-handler write-block)
+  (lambda (port byte)
+    (let ((buffer (port-buffer port)))
+      (byte-vector-set! buffer 0 byte)
+      (let loop ()
+	(if (= 0 (write-block port buffer 0 1))
+	    (loop))))))
+
+(define (make-one-char-handler write-block)
+  (lambda (port ch)
+    (let ((buffer (port-buffer port))
+	  (encode-char
+	   (text-codec-encode-char-proc (port-text-codec port))))
+      (let ((encode-count
+	     (if (and (port-crlf? port)
+		      (char=? ch #\newline))
+		 (atomically
+		  (call-with-values
+		      (lambda ()
+			(encode-char cr
+				     buffer 0 (byte-vector-length buffer)))
+		    (lambda (ok? encode-count-cr)
+		      ;; OK? must be true
+		      (call-with-values
+			  (lambda ()
+			    (encode-char #\newline
+					 buffer 
+					 encode-count-cr
+					 (- (byte-vector-length buffer) encode-count-cr)))
+			(lambda (ok? encode-count-lf)
+			  ;; OK? must be true
+			  (+ encode-count-cr encode-count-lf))))))
+		 (atomically
+		  (call-with-values
+		      (lambda ()
+			(encode-char ch
+				     buffer 0 (byte-vector-length buffer)))
+		    (lambda (ok? encode-count)
+		      (if ok?
+			  encode-count
+			  ;; hrmpfl ...
+			  (call-with-values
+			      (lambda ()
+				(encode-char #\?
+					     buffer 0 (byte-vector-length buffer)))
+			    (lambda (ok? encode-count)
+			      encode-count)))))))))
+	(let loop ((index 0))
+	  (let* ((to-write (- encode-count index))
+		 (written
+		  (write-block port buffer index to-write)))
+	    (if (< written to-write)
+		(loop (+ index written)))))))))
+
+(define cr (ascii->char 13))
+
+(define (make-write-block-handler write-block)
+  (lambda (port buffer start count)
+    (let loop ((sent 0))
+      (let ((sent (+ sent
+		     (write-block port
+				  buffer
+				  (+ start sent)
+				  (- count sent)))))
+	(if (< sent count)
+	    (loop sent))))))
+
+(define (make-unbuffered-output-port-handler discloser closer! write-block ready?)
+  (make-port-handler discloser
+		     closer!
+		     (make-one-byte-handler write-block)
+		     (make-one-char-handler write-block)
+		     (make-write-block-handler write-block)
+		     ready?
+		     (lambda (port error-if-closed?)	; output forcer
+		       (unspecific))))
 
 ;----------------
 ; Output ports that just discard any output.
@@ -292,7 +395,9 @@
     (lambda (ignore)			; disclose
       (list 'null-output-port))
     make-output-port-closed!		; close
-    (lambda (port char)			; one-char (we just empty the buffer)
+    (lambda (port byte)			; one-byte (we just empty the buffer)
+      (set-port-index! port 0))
+    (lambda (port char)                 ; one-char (we just empty the buffer)
       (set-port-index! port 0))
     (lambda (port buffer start count)	; write-block
       count)
@@ -301,7 +406,7 @@
     (lambda (port error-if-closed?)	; force-output
       (unspecific))))
 
-; They can all share a buffer.  The buffer is needed because the WRITE-CHAR
+; They can all share a buffer.  The buffer is needed because the WRITE-BYTE
 ; byte code actually wants to put characters somewhere.
 
 (define null-output-buffer
@@ -309,10 +414,13 @@
 
 (define (make-null-output-port)
   (make-port null-output-port-handler
+	     null-text-codec
+	     #f
 	     open-output-port-status
 	     #f		; timestamp
 	     #f		; data
 	     null-output-buffer
 	     0		; index
 	     (byte-vector-length null-output-buffer)	; limit
+	     #f         ; pending-cr?
 	     #f))	; pending-eof?

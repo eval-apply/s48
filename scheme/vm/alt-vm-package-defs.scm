@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; These are used to compile the GC separately from the VM.  It has new
 ; definitions of the VM structures that the GC uses, with all of the values
@@ -11,7 +11,7 @@
     (define s48-gc-root
       (external "s48_gc_root" (=> () null)))
     (define s48-post-gc-cleanup
-      (external "s48_post_gc_cleanup" (=> () null)))))
+      (external "s48_post_gc_cleanup" (=> (boolean boolean) null)))))
 
 (define-structure symbols (export s48-symbol-table)
   (open prescheme)
@@ -27,8 +27,7 @@
     (define s48-channel-count
       (external "s48_channel_count" (=> () integer)))))
 
-(define-structure external-opcodes (export s48-imported-bindings
-					   s48-exported-bindings)
+(define-structure shared-bindings-access shared-bindings-access-interface
   (open prescheme)
   (begin
     (define s48-imported-bindings

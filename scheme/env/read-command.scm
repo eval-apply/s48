@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Read a command.  No command name completion, yet.
@@ -26,7 +26,7 @@
 		 (prompt-loop))
                 ((char=? c #\))      ;Erroneous right paren
 		 (read-char i-port)
-		 (warn "discarding extraneous right parenthesis")
+		 (warning 'read-command "discarding extraneous right parenthesis")
 		 (loop))
                 ((char=? c command-prefix)
                  (read-char i-port)
@@ -46,14 +46,16 @@
         (lambda (c punt)
 	  (cond ((batch-mode?)
 		 (punt))
-		((or (read-error? c)
-		     (read-command-error? c))
-		 (let ((port (last (condition-stuff c))))
+		((and (i/o-port-error? c)
+		      (or (i/o-error? c) ; should really be i/o-read-error?
+			  (read-command-error? c)))
+		 (let ((port (i/o-error-port c)))
 		   (if (eq? port i-port)
 		       (eat-until-newline i-port))
-		   (display-condition c (command-output))
+		   (display-condition c (command-output)
+				      (condition-writing-depth) (condition-writing-length))
 		   (k #f)))
-		((reset-command-input? c)
+		((reset-command-input-condition? c)
 		 (k #f))
 		(else
 		 (punt))))
@@ -131,7 +133,8 @@
 	       (cons arg (recur ds #f))))
 	    ((eq? (car ds) 'command)	; must be the last argument
 	     (if (not (null? (cdr ds)))
-		 (error "invalid argument descriptions" ds))
+		 (assertion-violation 'read-command-arguments
+				      "invalid argument descriptions" ds))
 	     (list (really-read-command #f form-preferred? port)))
 	    (else
 	     (let ((arg (read-command-argument (car ds) port)))
@@ -150,13 +153,16 @@
 	   (if (symbol? thing)
 	       thing
 	       (read-command-error port "invalid name" thing))))
+	((literal)
+	 (read port))
 	((selection-command)
 	 (let ((x (read port)))
 	   (if (selection-command? x)
 	       x
 	       (read-command-error port "invalid selection command" x))))
 	(else
-	 (error "invalid argument description" d)))))
+	 (assertion-violation 'read-command-argument
+			      "invalid argument description" d)))))
 
 
 (define (read-filename port)
@@ -166,12 +172,15 @@
 	(read port)
 	(read-string port char-whitespace?))))
 
-(define-condition-type 'read-command-error '(error))
-(define read-command-error? (condition-predicate 'read-command-error))
+
+(define-condition-type &read-command-error &error
+  make-read-command-error read-command-error?)
 
 (define (read-command-error port message . rest)
-  (apply signal 'read-command-error message (append rest (list port))))
-
+  (signal-condition (condition (make-read-command-error)
+			       (make-irritants-condition (cons port rest))
+			       (make-i/o-port-error port)
+			       (make-message-condition message))))
 
 ; Utilities.
 

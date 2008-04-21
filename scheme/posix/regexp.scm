@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Exports:
 ;   make-regexp
@@ -9,13 +9,17 @@
 ;   regexp-match-end
 ;   regexp-option
 
+(import-dynamic-externals "=scheme48external/posix")
+
 ; The compiled version of the expression is produced when needed.
 
 (define-record-type regexp :regexp
-  (really-make-regexp pattern compiled
+  (really-make-regexp pattern pattern-byte-string
+		      compiled
 		      extended? ignore-case? submatches? newline?)
   regexp?
   (pattern regexp-pattern)                             ; immutable string
+  (pattern-byte-string regexp-pattern-byte-string)
   (compiled real-regexp-compiled set-regexp-compiled!) ; #f or a c-record
   (extended?    regexp-extended?)		       ; four flags
   (ignore-case? regexp-ignore-case?)
@@ -69,12 +73,13 @@
 					 regexp-option-index)))
     (if (and (string? pattern)
 	     (pair? options))
-	(let* ((pattern (immutable-copy-string pattern))
-	       (regexp (apply really-make-regexp pattern #f options)))
+	(let* ((pattern (string->immutable-string pattern))
+	       (pattern-byte-string (string->byte-vector pattern))
+	       (regexp (apply really-make-regexp pattern pattern-byte-string #f options)))
 	  (add-finalizer! regexp free-compiled-regexp)
 	  regexp)
-	(apply call-error "invalid argument(s)"
-	                  make-regexp
+	(apply assertion-violation 'make-regexp
+	                  "invalid argument(s)"
 		          pattern
 			  options))))
 
@@ -91,7 +96,7 @@
 (define (regexp-compiled regexp)
   (or (real-regexp-compiled regexp)
       (let ((compiled (call-imported-binding posix-compile-regexp
-					     (regexp-pattern regexp)
+					     (regexp-pattern-byte-string regexp)
 					     (regexp-extended? regexp)
 					     (regexp-ignore-case? regexp)
 					     (regexp-submatches? regexp)
@@ -101,12 +106,13 @@
 	      (set-regexp-compiled! regexp compiled)
 	      compiled)
 	    (let ((message (call-imported-binding posix-regexp-error-message
-						  (regexp-pattern regexp)
+						  (regexp-pattern-byte-string regexp)
 						  (regexp-extended? regexp)
 						  (regexp-ignore-case? regexp)
 						  (regexp-submatches? regexp)
 						  (regexp-newline? regexp))))
-	      (error (if message
+	      (error 'regexo.compiled
+		     (if message
 			 (string-append "Posix regexp: " message)
 			 "inconsistent results from Posix regexp compiler")
 		     regexp))))))
@@ -116,18 +122,33 @@
 ; of SUBMATCHES?.
 
 (define (regexp-match regexp string start submatches? starts-line? ends-line?)
-  (if (and (regexp? regexp)
-	   (string? string))
-      (call-imported-binding posix-regexp-match
-			     (regexp-compiled regexp)
-			     string
-			     start
-			     submatches?
-			     starts-line?
-			     ends-line?)
-      (call-error "invalid argument"
-		  regexp-match
-		  regexp string start starts-line? ends-line?)))
+  (cond
+   ((not (and (regexp? regexp)
+	      (string? string)))
+      (assertion-violation 'regexp-match
+			   "invalid argument"
+			   regexp string start starts-line? ends-line?))
+   ((and submatches?
+	 (not (regexp-submatches? regexp)))
+    (assertion-violation 'regexp-match
+			 "regexp not compiled for submatches"
+			 regexp string start starts-line? ends-line?))
+   (else
+    (call-imported-binding posix-regexp-match
+			   (regexp-compiled regexp)
+			   (string->byte-vector string)
+			   start
+			   submatches?
+			   starts-line?
+			   ends-line?))))
+
+; we can't do any better with POSIX, Mike thinks
+(define (string->byte-vector s)
+  (os-string->byte-vector
+   (call-with-os-string-text-codec
+    latin-1-codec
+    (lambda ()
+      (string->os-string s)))))
   
 ; These are made by the C code.  The SUBMATCHES field is not used by us,
 ; but is used by the functional interface.

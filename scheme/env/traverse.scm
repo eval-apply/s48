@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Utility for tracking down storage leaks.
@@ -15,7 +15,6 @@
 (define *traverse-count* 0)
 
 (define (start-over)		
-  (flush-the-symbol-table!)
   (set! *mark-table* (make-table hash))
   (set! *interesting-table* (make-table))
   (set! *traverse-count* 0))
@@ -83,7 +82,9 @@
 (define (template-info tem) (template-ref tem 1))
 
 (define first-interesting-template-info
-  (template-info (closure-template read))) ;foo
+  (template-info
+   (closure-template 
+    (loophole :closure read)))) ;foo
   
 ;(define (interesting? obj)
 ;  (if (pair? obj)

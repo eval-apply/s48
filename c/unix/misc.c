@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 #include <stdio.h>
@@ -8,11 +8,10 @@
 #include <unistd.h>		/* for sysconf(), etc.  (POSIX.1/.2)*/
 #include <errno.h>
 #include <sys/stat.h>
+#include <locale.h>		/* ISO C99 */
 #include "sysdep.h"
+#include "c-mods.h"
 
-
-#define TRUE  (0 == 0)
-#define FALSE (0 == 1)
 
 /*
    Expanding Unix filenames
@@ -26,15 +25,12 @@
    Note: strncpy(x, y, n) copies from y to x.
 */
 
-char *s48_expand_file_name (name, buffer, buffer_len)
-  char *name, *buffer;
-  int buffer_len;
+char *s48_expand_file_name (char *name, char *buffer, int buffer_len)
 {
 #define USER_NAME_SIZE 256
   char *dir, *p, user_name[USER_NAME_SIZE];
   struct passwd *user_data;
   int dir_len, i;
-  extern char *getenv();
   int name_len = strlen(name);
 
   dir = 0;
@@ -137,10 +133,37 @@ s48_get_file_size(unsigned char *name)
   struct stat file_data;
   int status;
   
-  if (-1 == stat(name, &file_data) ||
+  if (-1 == stat((char*)name, &file_data) ||
       ! S_ISREG(file_data.st_mode))
     return -1;
   else
     return file_data.st_size;
 }
-  
+
+/* encoding of argv */
+
+char*
+s48_get_os_string_encoding(void)
+{
+  static char setlocale_called = PSFALSE;
+  char *codeset;
+  static char* encoding = NULL;
+
+  /* Mike has no clue what the rationale for needing this is. */
+  if (!setlocale_called)
+    {
+      setlocale(LC_CTYPE, "");
+      setlocale_called = PSTRUE;
+    }
+
+  if (encoding == NULL)
+    {
+      codeset = nl_langinfo(CODESET); /* this ain't reentrant */
+      encoding = malloc(strlen(codeset) + 1);
+      if (encoding == NULL)
+	return NULL;
+      strcpy(encoding, codeset);
+    }
+
+  return encoding;
+}

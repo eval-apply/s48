@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; --------------------
@@ -43,24 +43,25 @@
       (list 'uninitialized-cell)
       (list 'cell)))
 
+;; this overwrites the method defined in rts/continuation.scm
+
 (define-method &disclose ((obj :continuation))
-  (list (if (exception-continuation? obj)
-	    'exception-continuation
+  (list (if (vm-exception-continuation? obj)
+	    'vm-exception-continuation
 	    'continuation)
 	(list 'pc (continuation-pc obj))
 	(let ((tem (continuation-template obj)))
 	  (if tem
-	      (or (template-print-name tem)
+	      (or (template-print-name tem) ; <-- the original method doesn't have this
 		  (template-id tem))
 	      '?))))
   
 (define-method &disclose ((obj :code-vector))
-  (list 'byte-vector (code-vector-length obj))
-; (cons 'code-vector
-;       (let ((z (code-vector-length obj)))
-;         (do ((i (- z 1) (- i 1))
-;              (l '() (cons (code-vector-ref obj i) l)))
-;             ((< i 0) l))))
+ (cons 'byte-vector
+       (let ((z (code-vector-length obj)))
+         (do ((i (- z 1) (- i 1))
+              (l '() (cons (code-vector-ref obj i) l)))
+             ((< i 0) l))))
   )
 
 (define-method &disclose ((obj :channel))
@@ -75,7 +76,8 @@
 		 'output-channel)
 		(else	; shouldn't happen unless we get out of sync
 		 'unknown-channel))
-	  (channel-id obj))))
+	  (channel-id obj)
+	  (channel-os-index obj))))
 
 (define-method &disclose ((obj :port))
   (disclose-port obj))
@@ -124,211 +126,6 @@
         (table-ref package-name-table (cdr probe))
         #f)))
 
-
-; --------------------
-; Condition disclosers
-
-(define *condition-disclosers* '())
-
-(define (define-condition-discloser pred proc)
-  (set! *condition-disclosers*
-        (cons (cons pred proc) *condition-disclosers*)))
-
-(define-method &disclose-condition ((c :pair))
-  (let loop ((l *condition-disclosers*))
-    (if (null? l)
-        (cons (cond ((error? c) 'error)
-                    ((warning? c) 'warning)
-                    (else (car c)))
-              (condition-stuff c))
-        (if ((caar l) c)
-            ((cdar l) c)
-            (loop (cdr l))))))
-
-(define-condition-discloser interrupt?
-  (lambda (c)
-    (list 'interrupt (enumerand->name (cadr c) interrupt))))
-        
-
-; Make prettier error messages for exceptions
-
-(define-condition-discloser exception?
-  (lambda (c)
-    (let ((opcode (exception-opcode c))
-	  (reason (exception-reason c))
-          (args   (exception-arguments c)))
-      ((vector-ref exception-disclosers opcode)
-       opcode
-       reason
-       args))))
-
-(define exception-disclosers
-  (make-vector op-count
-               (lambda (opcode reason args)
-                 (list 'error
-                       "exception"
-		       reason
-                       (let ((name (enumerand->name opcode op)))
-                         (if (>= opcode (enum op eq?))
-                             (error-form name args)
-                             (cons name args)))))))
-
-(define (define-exception-discloser opcode discloser)
-  (vector-set! exception-disclosers opcode discloser))
-
-(let ((disc (lambda (opcode reason args)
-              (let ((loc (car args)))
-                (cons 'error
-                      (cons (if (location-defined? loc)
-                                "unassigned variable"
-                                "undefined variable")
-                            (cons (or (location-name loc) loc)
-                                  (let ((pack
-                                         (location-package-name loc)))
-                                    (if pack
-                                        (list (list 'package pack))
-                                        '())))))))))
-  (define-exception-discloser (enum op global) disc)
-  (define-exception-discloser (enum op set-global!) disc))
-
-(define-exception-discloser (enum op unassigned-check)
-  (lambda (opcode reason args)
-    (list 'error
-	  "LETREC variable used before its value has been produced")))
-
-(let ((disc (lambda (opcode reason args)
-	      (list 'error
-		    (case reason
-		      ((bad-procedure)
-		       "attempt to call a non-procedure")
-		      ((wrong-number-of-arguments)
-		       "wrong number of arguments")
-		      ((wrong-type-argument)
-		       "wrong type argument")
-		      (else
-		       (symbol->string reason)))
-		    (map value->expression (cons (car args) (cadr args)))))))
-  (define-exception-discloser (enum op call) disc)
-  (define-exception-discloser (enum op tail-call) disc)
-  (define-exception-discloser (enum op big-call) disc))
-
-(let ((disc (lambda (opcode reason args)
-	      (list 'error
-		    (case reason
-		      ((bad-procedure)
-		       "with-continuation passed a non-procedure")
-		      ((wrong-number-of-arguments)
-		       "with-continuation passed a non-nullary procedure")
-		      (else
-		       (string-append "with-continuation: "
-				      (symbol->string reason))))
-		    (value->expression (car args))))))
-  (define-exception-discloser (enum op with-continuation) disc))
-
-(let ((disc (lambda (opcode reason args)
-	      (list 'error
-		    (symbol->string reason)
-		    (cons 'apply (map value->expression args))))))
-  (define-exception-discloser (enum op apply) disc)
-  (define-exception-discloser (enum op closed-apply) disc))
-
-(let ((disc (lambda (opcode reason args)
-	      (let ((proc (car args))
-		    (args (cadr args)))
-		(cond (proc
-		       (list 'error
-			     "returning wrong number of values"
-			     (cons proc args)))
-		      ((null? args)
-		       (list 'error
-			     "returning zero values when one is expected"
-			     '(values)))
-		      (else
-		       (list 'error
-			     "returning wrong number of values"
-			     (error-form 'values args))))))))
-  (define-exception-discloser (enum op return) disc)
-  (define-exception-discloser (enum op values) disc)
-  (define-exception-discloser (enum op closed-values) disc))
-
-(let ((disc (lambda (opcode reason args)
-              (let ((thing     (car args))
-                    (type-byte (cadr args))
-                    (offset    (caddr args))
-                    (rest      (cdddr args)))
-                (let ((data (assq (enumerand->name type-byte stob)
-                                  stob-data)))
-                  (list 'error
-                        "exception"
-                        (error-form ((if (= opcode
-					    (enum op stored-object-ref))
-                                         car
-                                         cadr)
-                                     (list-ref data (+ offset 3)))
-                                    (cons thing rest))))))))
-  (define-exception-discloser (enum op stored-object-ref) disc)
-  (define-exception-discloser (enum op stored-object-set!) disc))
-
-(let ((disc (lambda (opcode reason args)
-              (let ((type (enumerand->name (car args) stob)))
-                (list 'error
-                      "exception"
-                      (error-form (string->symbol
-                                   ;; Don't simplify this to "make-"  --JAR
-                                   (string-append (symbol->string 'make-)
-                                                  (symbol->string type)))
-                                  (cdr args)))))))
-  (define-exception-discloser (enum op make-vector-object) disc))
-
-(define (vector-exception-discloser suffix)
-  (lambda (opcode reason args)
-    (let ((type (enumerand->name (cadr args) stob)))
-      (list 'error
-            "exception"
-            (error-form (string->symbol
-                         (string-append (symbol->string type)
-                                        "-"
-                                        (symbol->string suffix)))
-                        (cons (car args) (cddr args)))))))
-
-(define-exception-discloser (enum op stored-object-length)
-  (vector-exception-discloser 'length))
-
-(define-exception-discloser (enum op stored-object-indexed-ref)
-  (vector-exception-discloser 'ref))
-
-(define-exception-discloser (enum op stored-object-indexed-set!)
-  (vector-exception-discloser 'set!))
-
-;(define-exception-discloser (enum op get-cont-from-heap)
-;  (lambda (opcode reason args)
-;    (let ((value (car args))
-;          (continuation (cadr args)))
-;      (if (not continuation)
-;          (list 'error
-;                "exit status is not a small integer"
-;                (value->expression value))
-;          (list 'error
-;                "returning to a non-continuation"
-;                (value->expression continuation))))))
-
-(define-exception-discloser (enum op ascii->char)
-  (lambda (opcode reason args)
-    (let ((value (car args)))
-      `(error
-	"exception"
-	"wrong-type-argument"
-	(ascii->char ,(value->expression value))
-	,@(if (integer? value)
-	      '("note: INTEGER->CHAR doesn't use ASCII; open ASCII and use ASCII->CHAR")
-	      '())))))
-
-; Call-errors should print as (proc 'arg1 'arg2 ...)
-
-(define-condition-discloser call-error?
-  (lambda (c)
-    (list 'error (cadr c) (error-form (caddr c) (cdddr c)))))
-
 ; --------------------
 ; Associating names with templates
 
@@ -366,7 +163,12 @@
 (define (error-form proc args)
   (cons proc (map value->expression args)))
 
-(define (value->expression obj)
-  (if (or (number? obj) (char? obj) (string? obj) (boolean? obj))
-      obj
-      `',obj))
+; Print non-self-evaluating value X as 'X.
+
+(define (value->expression obj)         ;mumble
+  (if (or (symbol? obj)
+	  (pair? obj)
+	  (null? obj)
+	  (vector? obj))
+      `',obj
+      obj))

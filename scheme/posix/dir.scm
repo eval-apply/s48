@@ -1,6 +1,8 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; 5.1 Directories
+
+(import-dynamic-externals "=scheme48external/posix")
 
 ; A record for directory streams.  It just has the name and a byte vector
 ; containing the C directory object.  The name is used only for printing.
@@ -23,12 +25,16 @@
 
 (define (open-directory-stream name)
   (let ((dir (make-directory-box name
-				 (call-imported-binding posix-opendir name))))
+				 (call-imported-binding posix-opendir
+							(os-string->byte-vector (x->os-string name))))))
     (add-finalizer! dir close-directory-stream)
     dir))
 
 (define (read-directory-stream directory)
-  (call-imported-binding posix-readdir (directory-c-dir directory)))
+  (cond
+   ((call-imported-binding posix-readdir (directory-c-dir directory))
+    => x->os-string)
+   (else #f)))
 
 (define (close-directory-stream directory)
   (let ((c-dir (directory-c-dir directory)))
@@ -59,10 +65,12 @@
 ; 5.2 Working Directory
 
 (define (working-directory)
-  (call-imported-binding posix-working-directory #f))
+  (x->os-string
+   (call-imported-binding posix-working-directory #f)))
 
 (define (set-working-directory! name)
-  (call-imported-binding posix-working-directory name))
+  (call-imported-binding posix-working-directory 
+			 (os-string->byte-vector (x->os-string name))))
 
 (import-definition posix-working-directory)
 
@@ -76,13 +84,16 @@
 ; the file doesn't already exist.
 
 (define (open-file path options . mode)
-  (let ((channel (call-imported-binding posix-open
-					path
-					options
-					(if (null? mode)
-					    #f
-					    (car mode)))))
-    (if (file-options-on? options (file-options read-only))
+  (let* ((input? (file-options-on? options (file-options read-only)))
+	 (channel (call-imported-binding posix-open
+					 (os-string->byte-vector
+					  (x->os-string path))
+					 options
+					 (if (null? mode)
+					     #f
+					     (car mode))
+					 input?)))
+    (if input?
 	(input-channel->port channel)
 	(output-channel->port channel))))
 
@@ -100,7 +111,9 @@
 ; Makes `new' be a link to `existing'.
 
 (define (link existing new)
-  (file-stuff 1 existing new))
+  (file-stuff 1
+	      (os-string->byte-vector (x->os-string existing))
+	      (os-string->byte-vector (x->os-string new))))
 
 (import-lambda-definition file-stuff (op arg1 arg2) "posix_file_stuff")
 
@@ -111,10 +124,10 @@
 ; int mkfifo(char path, mode_t mode)
 
 (define (make-directory path mode)
-  (file-stuff 2 path mode))
+  (file-stuff 2 (os-string->byte-vector (x->os-string path)) mode))
 
 (define (make-fifo path mode)
-  (file-stuff 3 path mode))
+  (file-stuff 3 (os-string->byte-vector (x->os-string path)) mode))
 
 ;----------------
 ; 5.5 File Removal
@@ -122,17 +135,19 @@
 ; int unlink(char *path)
 
 (define (unlink path)
-  (file-stuff 4 path #f))
+  (file-stuff 4 (os-string->byte-vector (x->os-string path)) #f))
 
 ; int rmdir(char *path)
 
 (define (remove-directory path)
-  (file-stuff 5 path #f))
+  (file-stuff 5 (os-string->byte-vector (x->os-string path)) #f))
 
 ; int rename(char *old, char *new)
 
 (define (rename old new)
-  (file-stuff 6 old new))
+  (file-stuff 6
+	      (os-string->byte-vector (x->os-string old))
+	      (os-string->byte-vector (x->os-string new))))
 
 ;----------------
 ; The C function posix_file_info() knows the offsets of these fields.
@@ -179,16 +194,20 @@
 ; The following are stat(), lstat(), and fstat().
 
 (define (get-file-info name)
-  (call-imported-binding posix-file-info name #t file-types))
+  (call-imported-binding posix-file-info
+			 (os-string->byte-vector (x->os-string name))
+			 #t file-types))
 
 (define (get-file/link-info name)
-  (call-imported-binding posix-file-info name #f file-types))
+  (call-imported-binding posix-file-info
+			 (os-string->byte-vector (x->os-string name))
+			 #f file-types))
 
 (define (get-port-info port)
   (let ((channel (port->channel port)))
     (if channel
 	(call-imported-binding posix-file-info channel #f file-types)
-	(call-error get-port-info (list port)))))
+	(assertion-violation 'get-port-info "port without channel" port))))
 
 ;----------------
 ; Modes
@@ -219,7 +238,7 @@
 	      (<= stuff #o7777))
 	 (really-make-file-mode stuff))
 	(else
-	 (call-error integer->file-mode stuff))))
+	 (assertion-violation 'integer->file-mode "argument type error" stuff))))
 
 ; Arithmetic
 
@@ -378,25 +397,38 @@
 ; We need to make these in the outside world.
 (define-exported-binding "posix-user-id-type" :user-id)
 
-; These are only made from C code.
-
 (define-record-type user-info :user-info
-  (really-make-user-info)
+  (really-make-user-info name uid group home-directory shell)
   user-info?
   (name user-info-name)
   (uid user-info-id)
+  ;; this is misnamed: it should be called group-id
   (group user-info-group)
   (home-directory user-info-home-directory)
   (shell user-info-shell))
 
+(define (make-user-info name uid gid home-directory shell)
+  (really-make-user-info (x->os-string name)
+			 uid gid
+			 (x->os-string home-directory)
+			 (x->os-string shell)))
+     
 (define-record-discloser :user-info
   (lambda (user-info)
     (list 'user-info (user-info-name user-info))))
 
-(define-exported-binding "posix-user-info-type" :user-info)
+(define (user-id->user-info user-id)
+  (apply make-user-info
+	 (external-user-id->user-info user-id)))
 
-(import-lambda-definition user-id->user-info (user-id) "posix_getpwuid")
-(import-lambda-definition name->user-info (name) "posix_getpwnam")
+(define (name->user-info name)
+  (apply make-user-info
+	 (external-name->user-info
+	  (os-string->byte-vector
+	   (x->os-string name)))))
+
+(import-lambda-definition external-user-id->user-info (user-id) "posix_getpwuid")
+(import-lambda-definition external-name->user-info (name) "posix_getpwnam")
 
 ;----------------
 ; Groups
@@ -416,23 +448,36 @@
   (= (group-id->integer g1)
      (group-id->integer g2)))
 
-; These are only made from C code.
-
 (define-record-type group-info :group-info
-  (really-make-group-info)
+  (really-make-group-info name uid members)
   group-info?
   (name group-info-name)
   (uid group-info-id)
   (members group-info-members))
 
+(define (make-group-info name uid members)
+  (really-make-group-info (x->os-string name)
+			  uid
+			  ;; #### this is in conflict with the docs,
+			  ;; which say we have uids here
+			  (map x->os-string (vector->list members))))
+
 (define-record-discloser :group-info
   (lambda (group-info)
     (list 'group-info (group-info-name group-info))))
 
-(define-exported-binding "posix-group-info-type" :group-info)
+(define (group-id->group-info group-id)
+  (apply make-group-info
+	 (external-group-id->group-info group-id)))
 
-(import-lambda-definition group-id->group-info (group-id) "posix_getgrgid")
-(import-lambda-definition name->group-info (name) "posix_getgrnam")
+(define (name->group-info name)
+  (apply make-group-info
+	 (external-name->group-info
+	  (os-string->byte-vector
+	   (x->os-string name)))))
+
+(import-lambda-definition external-group-id->group-info (group-id) "posix_getgrgid")
+(import-lambda-definition external-name->group-info (name) "posix_getgrnam")
 
 ;----------------
 ; Rest of 5.6
@@ -456,10 +501,12 @@
    (exists	#o0010)))
 
 (define (accessible? path mode0 . more-modes)
-  (file-stuff 7 path (if (null? more-modes)
-			 (access-mode-mask mode0)
-			 (apply + (map access-mode-mask
-				       (cons mode0 more-modes))))))
+  (file-stuff 7
+	      (os-string->byte-vector (x->os-string path))
+	      (if (null? more-modes)
+		  (access-mode-mask mode0)
+		  (apply + (map access-mode-mask
+				(cons mode0 more-modes))))))
 
 ; int chmod(char *path, mode_t mode)
 ; int fchmod(int fd, mode_t mode)

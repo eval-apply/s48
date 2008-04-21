@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Queues
 ; Richard's code with Jonathan's names.
@@ -43,21 +43,22 @@
 	    ((null? (queue-tail q))		; someone got in first
 	     (invalidate-current-proposal!))
 	    (else
-	     (set-cdr! (queue-tail q) p)))
+	     (provisional-set-cdr! (queue-tail q) p)))
       (set-queue-tail! q p))))
 
 (define (queue-head q)
   (ensure-atomicity
     (if (queue-empty? q)
-	(error "queue is empty" q)
+	(assertion-violation 'queue-head "queue is empty" q)
 	(car (real-queue-head q)))))
 
 (define (dequeue! q)
   (ensure-atomicity
     (let ((pair (real-queue-head q)))
       (cond ((null? pair)	;(queue-empty? q)
-	     (error "empty queue" q))
+	     (assertion-violation 'dequeue! "empty queue" q))
 	    (else
+	     (queue-tail q) ; touch
 	     (let ((value (car pair))
 		   (next  (cdr pair)))
 	       (set-queue-head! q next)
@@ -75,6 +76,7 @@
       (cond ((null? pair)	;(queue-empty? q)
 	     #f)
 	    (else
+	     (queue-tail q) ; touch
 	     (let ((value (car pair))
 		   (next  (cdr pair)))
 	       (set-queue-head! q next)
@@ -100,28 +102,35 @@
 
 (define (delete-from-queue-if! q pred)
   (ensure-atomicity
-    (let ((list (real-queue-head q)))
-      (cond ((null? list)
-	     #f)
-	    ((pred (car list))
-	     (set-queue-head! q (cdr list))
-	     (if (null? (cdr list))
-		 (set-queue-tail! q '()))   ; don't retain pointers
-	     #t)
-	    ((null? (cdr list))
-	     #f)
-	    (else
-	     (let loop ((list list))
-	       (let ((tail (cdr list)))
-		 (cond ((null? tail)
-			#f)
-		       ((pred (car tail))
-			(set-cdr! list (cdr tail))
-			(if (null? (cdr tail))
-			    (set-queue-tail! q list))
-			#t)
-		       (else
-			(loop tail))))))))))
+   (let ((head (real-queue-head q)))
+     (cond ((null? head)
+	    #f)
+	   ((pred (car head))
+	    (set-queue-head! q (cdr head))
+	    ;; force proposal check
+	    (set-queue-tail! q (if (null? (cdr head))
+				   '()
+				   (let ((p (queue-tail q))) 
+				     (cons (car p) (cdr p)))))
+	    #t)
+	   ((null? (cdr head))
+	    #f)
+	   (else
+	    (let loop ((list head))
+	      (let ((tail (cdr list)))
+		(cond ((null? tail)
+		       #f)
+		      ((pred (car tail))
+		       (provisional-set-cdr! list (cdr tail))
+		       ;; force proposal check
+		       (set-queue-head! q (cons (car head) (cdr head)))
+		       (set-queue-tail! q (if (null? (cdr tail))
+					      list
+					      (let ((p (queue-tail q)))
+						(cons (car p) (cdr p)))))
+		       #t)
+		      (else
+		       (loop tail))))))))))
 
 (define (queue->list q)
   (ensure-atomicity

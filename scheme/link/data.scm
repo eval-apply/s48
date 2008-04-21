@@ -1,10 +1,10 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Scheme 48's data representations, for writing heap images.
 ; Defines things needed by TRANSPORT (which is called by WRITE-IMAGE, which
 ; is called by the static linker).
-; Adapted from vm/util.scm and vm/data.scm.
+; Adapted from vm/util/vm-utilities.scm and vm/data/data.scm.
 
 
 (define (low-bits n k)
@@ -16,28 +16,6 @@
 (define (adjoin-bits high low width)
   (bitwise-ior (arithmetic-shift high width) low))
 
-
-; Essential constants
-
-(define level          17)
-(define little-endian? #t)
-(define bits-per-byte  8)
-(define bytes-per-cell 4)
-(define bits-per-cell  (* bits-per-byte bytes-per-cell))
-(define addressing-units-per-cell 4)
-
-; This is actually the mimimum for the different PreScheme implementations.
-; The Scheme version of PreScheme leaves 30 bits for PreScheme's fixnums.
-; There have to be enough bits to represent the largest fixnum in the system.
-; USEFUL-BITS-PER-WORD is not written in the image.
-(define useful-bits-per-word      30)
-
-(define unused-field-width 2)
-
-(define tag-field-width 2)
-
-(define immediate-type-field-width
-  (- 8 tag-field-width))
 
 ; Data descriptions copied from DATA.SCM
 
@@ -57,9 +35,9 @@
    null))
 
 (define bits-per-fixnum
-  (- (if (< bits-per-cell useful-bits-per-word)
+  (- (if (< bits-per-cell s48-useful-bits-per-word)
 	 bits-per-cell
-	 useful-bits-per-word)
+	 s48-useful-bits-per-word)
      tag-field-width))
 
 (define	   least-fixnum-value (- 0 (arithmetic-shift 1 (- bits-per-fixnum 1))))
@@ -88,7 +66,6 @@
 (define closure-template-offset 0)
 (define closure-env-offset	1)
 
-(define location-contents-offset 1)
 (define location-id-offset     0)
 
 ; Procedures for manipulating bits
@@ -119,7 +96,7 @@
 					     header-type-field-width))))
 
 (define (make-stob-descriptor addr)
-  (make-descriptor (enum tag stob) (a-units->cells addr)))
+  (bitwise-ior (enum tag stob) addr))
 
 (define (bytes->cells bytes)
   (quotient (+ bytes (- bytes-per-cell 1))
@@ -137,3 +114,11 @@
 (define (bytes->a-units byte-count)
   (cells->a-units (bytes->cells byte-count)))
 
+;; Unicode code points
+(define bytes-per-scalar-value-unit 4) ; must be >= 3
+
+(define (bytes->scalar-value-units byte-count)
+  (quotient byte-count bytes-per-scalar-value-unit))
+
+(define (scalar-value-units->bytes units)
+  (* units bytes-per-scalar-value-unit))

@@ -1,43 +1,153 @@
 
 % Still to do:
-%  list utilities
-%  rest of big-util
 %  destructure
 %  format (?)
 
 \chapter{Libraries}
 
 Use the
-\link*{\code{,open} command}
-[\code{,open} command (section~\Ref{})]{module-command-guide}
+\code{,open} command (section~\ref{module-command-guide})
  or
-\link*{the module language}
-[the module language (chapter~\Ref)]{module-guide}
+the module language (chapter~\ref{module-guide})
  to open the structures described below.
 
-\section{ASCII character encoding}
-\label{ascii-procedures}
+\section{General utilities}
+\label{big-util}
 
-These are in the structure \code{ascii}.
+%% These are missing:
+%%        copy-string
+%%        string->immutable-string
+%%        error
+%%        breakpoint
 
-\begin{protos}
-\proto{char->ascii}{ char}{integer}
-\proto{ascii->char}{ integer}{char}
-\end{protos}
-\noindent
-These are identical to \code{char->integer} and \code{integer->char} except that
- they use the
-\link{ASCII encoding}[ASCII encoding (appendix~\Ref)]{ascii-chart}.
+These are in the \code{big-util} structure.
 
 \begin{protos}
-\constproto{ascii-limit}{integer}
-\constproto{ascii-whitespaces}{list of integers}
+\proto{atom?}{ value}{boolean}
 \end{protos}
-\code{Ascii-limit} is one more than the largest value that \code{char->ascii}
- may return.
-\code{Ascii-whitespaces} is a list of the ASCII values of whitespace characters
- (space, horizontal tab, line feed (= newline), vertical tab, form feed, and
- carriage return).
+%
+\code{(atom? \var{x})} is the same as \code{(not (pair? \var{x}))}.
+
+\begin{protos}
+\proto{null-list?}{ list}{boolean}
+\end{protos}
+%
+Returns true for the empty list, false for a pair, and signals an
+error otherwise.
+
+\begin{protos}
+\proto{neq?}{ value value}{boolean}
+\end{protos}
+\code{(neq? \var{x} \var{y})} is the same as \code{(not (eq? \var{x}
+\var{y}))}.
+
+\begin{protos}
+\proto{n=}{ number number}{boolean}
+\end{protos}
+\code{(n= \var{x} \var{y})} is the same as \code{(not (= \var{x}
+  \var{y}))}.
+
+\begin{protos}
+\proto{identity}{ value}{value}
+\proto{no-op}{ value}{value}
+\end{protos}
+These both just return their argument.  \code{No-op} is guaranteed not to
+be compiled in-line, \code{identity} may be.
+
+\begin{protos}
+\proto{memq?}{ value list}{boolean}
+\end{protos}
+%
+Returns true if \var{value} is in \var{list}, false otherwise.
+
+\begin{protos}
+\proto{any?}{ predicate list}{boolean}
+\end{protos}
+Returns true if \var{predicate} is true for any element of \var{list}.
+
+\begin{protos}
+\proto{every?}{ predicate list}{boolean}
+\end{protos}
+  Returns true if \var{predicate} is true for every element of \var{list}.
+
+\begin{protos}
+\proto{any}{ predicate list}{value}
+\proto{first}{ predicate list}{value}
+\end{protos}
+\code{Any} returns some element of \var{list} for which \var{predicate} is true, or
+false if there are none.  \code{First} does the same except that it returns
+the first element for which \var{predicate} is true.
+
+\begin{protos}
+\proto{filter}{ predicate list}{list}
+\protonoindex{filter!}{ predicate list}{list}\mainschindex{filter"!}
+\end{protos}
+Returns a list containing all of the elements of \var{list} for which
+\var{predicate} is true.  The order of the elements is preserved.
+\code{Filter!} may reuse the storage of \var{list}.
+
+\begin{protos}
+\proto{filter-map}{ procedure list}{list}
+\end{protos}
+The same as \code{filter} except the returned list contains the results of
+applying \var{procedure} instead of elements of \var{list}.  \code{(filter-map \var{p}
+\var{l})} is the same as \code{(filter identity (map \var{p} \var{l}))}.
+
+\begin{protos}
+\proto{partition-list}{ predicate list}{list list}
+\protonoindex{partition-list!}{ predicate list}{list list}\mainschindex{partition-list"!}
+\end{protos}
+The first return value contains those elements \var{list} for which
+\var{predicate} is true, the second contains the remaining elements.
+The order of the elements is preserved.  \code{Partition-list!} may
+reuse the storage of the \var{list}.
+
+\begin{protos}
+\proto{remove-duplicates}{ list}{list}
+\end{protos}
+Returns its argument with all duplicate elements removed.  The first
+instance of each element is preserved.
+
+\begin{protos}
+\proto{delq}{ value list}{list}
+\protonoindex{delq!}{ value list}{list}\mainschindex{delq"!}
+\proto{delete}{ predicate list}{list}
+\end{protos}
+All three of these return \var{list} with some elements removed.
+\code{Delq} removes all elements \code{eq?} to \var{value}.  \code{Delq!}
+does the same and may modify the list argument.  \code{Delete} removes
+all elements for which \var{predicate} is true.  Both \code{delq} and
+\code{delete} may reuse some of the storage in the list argument, but
+won't modify it.
+
+\begin{protos}
+\protonoindex{reverse!}{ list}{list}\mainschindex{reverse"!}
+\end{protos}
+Destructively reverses \var{list}.
+
+\begin{protos}
+\proto{concatenate-symbol}{ value \ldots}{symbol}
+\end{protos}
+Returns the symbol whose name is produced by concatenating the
+\code{display}ed
+representations of \var{value}~\ldots.
+
+\begin{example}
+(concatenate-symbol 'abc "-" 4) \(\Longrightarrow\) 'abc-4
+\end{example}
+
+\section{Pretty-printing}
+
+These are in the \code{pp} structure.
+
+\begin{protos}
+\protonoresult{p}{ value}
+\protonoresult{p}{ value output-port}
+\protonoresult{pretty-print}{ value output-port position}
+\end{protos}
+Pretty-print \var{value} The current output port is used if no port is
+specified.  \var{Position} is the starting offset.  \var{Value} will be
+pretty-printed to the right of this column.
 
 \section{Bitwise integer operations}
 
@@ -78,10 +188,10 @@ They are in the structure \code{byte-vectors}.
 \begin{protos}
 \proto{byte-vector?}{ value}{boolean}
 \proto{make-byte-vector}{ k fill}{byte-vector}
-\proto{byte-vector}{ i \ldots}{byte-vector}
+\proto{byte-vector}{ b \ldots}{byte-vector}
 \proto{byte-vector-length}{ byte-vector}{integer}
 \proto{byte-vector-ref}{ byte-vector k}{integer}
-\protonoresult{byte-vector-set!}{ byte-vector k i}
+\protonoresultnoindex{byte-vector-set!}{ byte-vector k b}\mainschindex{byte-vector-set"!}
 \end{protos}
 
 \section{Sparse vectors}
@@ -94,7 +204,7 @@ entries in a tree.  They are in the structure \code{sparse-vectors}.
 \begin{protos}
 \proto{make-sparse-vector}{}{sparse-vector}
 \proto{sparse-vector-ref}{ sparse-vector k}{value}
-\protonoresult{sparse-vector-set!}{ sparse-vector k value}
+\protonoresultnoindex{sparse-vector-set!}{ sparse-vector k value}\mainschindex{sparse-vector-set"!}
 \proto{sparse-vector->list}{ sparse-vector}{list}
 \end{protos}
 %
@@ -123,7 +233,7 @@ The system uses these to hold the values of lexical variables that
 \proto{cell?}{ value}{boolean}
 \proto{make-cell}{ value}{cell}
 \proto{cell-ref}{ cell}{value}
-\protonoresult{cell-set!}{ cell value}
+\protonoresultnoindex{cell-set!}{ cell value}\mainschindex{cell-set"!}
 \end{protos}
 
 \section{Queues}
@@ -135,8 +245,8 @@ The procedures are in structure \code{queues}.
 \proto{make-queue}{}{queue}
 \proto{queue?}{ value}{boolean}
 \proto{queue-empty?}{ queue}{boolean}
-\protonoresult{enqueue!}{ queue value}
-\proto{dequeue!}{ queue}{value}
+\protonoresultnoindex{enqueue!}{ queue value}\mainschindex{enqueue"!}
+\protonoindex{dequeue!}{ queue}{value}\mainschindex{dequeue"!}
 \end{protos}
 \noindent 
 \code{Make-queue} creates an empty queue, \code{queue?} is a predicate for
@@ -147,7 +257,7 @@ The procedures are in structure \code{queues}.
 \proto{queue-length}{ queue}{integer}
 \proto{queue->list}{ queue}{values}
 \proto{list->queue}{ values}{queue}
-\proto{delete-from-queue!}{ queue value}{boolean}
+\protonoindex{delete-from-queue!}{ queue value}{boolean}\mainschindex{delete-from-queue"!}
 \end{protos}
 \noindent
 \code{Queue-length} returns the number of values in \var{queue}.
@@ -198,9 +308,9 @@ Returns \code{\#t} if \cvar{value} is an array.
 
 \begin{protos}
 \proto{array-ref}{ array index$_0$ \ldots}{value}
-\protonoresult{array-set!}{ array value index$_0$ \ldots}
+\protonoresultnoindex{array-set!}{ array value index$_0$ \ldots}\mainschindex{array-set"!}
 \proto{array->vector}{ array}{vector}
-\proto{array-dimensions}{ array}{list}
+\proto{array-shape}{ array}{list}
 \end{protos}
 \noindent
 \code{Array-ref} returns the specified array element and \code{array-set!}
@@ -215,7 +325,7 @@ Returns \code{\#t} if \cvar{value} is an array.
 
 \code{Array->vector} returns a vector containing the elements of \cvar{array}
  in row-major order.
-\code{Array-dimensions} returns the dimensions of
+\code{Array-shape} returns the dimensions of
  the array as a list.
 
 \begin{protos}
@@ -227,7 +337,7 @@ Returns \code{\#t} if \cvar{value} is an array.
 \cvar{Linear-map} must accept as many arguments as the number of
  \cvar{dimension}s given and must return a list of non-negative integers
  that are valid indexes into \cvar{array}.
-<\begin{example}
+\begin{example}
 (array-ref (make-shared-array a f i0 i1 ...)
            j0 j1 ...)
 \end{example}
@@ -240,12 +350,12 @@ As an example, the following function makes the transpose of a two-dimensional
  array:
 \begin{example}
 (define (transpose array)
-  (let ((dimensions (array-dimensions array)))
+  (let ((shape (array-shape array)))
     (make-shared-array array
                        (lambda (x y)
                          (list y x))
-                       (cadr dimensions)
-                       (car dimensions))))
+                       (cadr shape)
+                       (car shape))))
 
 (array->vector
   (transpose
@@ -322,9 +432,7 @@ The print method can be modified using \code{define-record-discloser}:
  will cause the result of \code{(kons 1 2)} to print as
  \code{\#\{Pare 1 2\}}.
 
-\link*{\code{Define-record-resumer}}
- [\code{Define-record-resumer} (section~\Ref{})]
- {sec:hibernation}
+\code{Define-record-resumer} (section~\ref{sec:hibernation})
  can be used to control how records are stored in heap images.
 
 \subsection{Low-level access to records}
@@ -344,7 +452,7 @@ These procedures are in the structure \code{records}.
 \proto{record-length}{ record}{integer}
 \proto{record-type}{ record}{value}
 \proto{record-ref}{ record i}{value}
-\protonoresult{record-set!}{ record i value}
+\protonoresultnoindex{record-set!}{ record i value}\mainschindex{record-set"!}
 \end{protos}
 \noindent
 These the same as the standard \code{vector-} procedures except that they
@@ -396,9 +504,7 @@ These procedures construct the usual record-manipulating procedures.
  and
  \code{define-record-resumer}
  (re-exported by
- \link*{\code{external-calls}}
-       [\code{external-calls} (section~\Ref{})]
-       {sec:hibernation}).
+ \code{external-calls} (section~\ref{sec:hibernation})).
 
 The procedures described in this section can be used to define new
  record-type-defining macros.
@@ -573,8 +679,10 @@ the index of an element within the \cvar{all-elements} vector.
 \proto{enum-set->list}{ enum-set}{list}
 \proto{enum-set-member?}{ enum-set enumerand}{boolean}
 \proto{enum-set=?}{ enum-set enum-set}{boolean}
+\proto{enum-set-subset?}{ enum-set enum-set}{boolean}
 \proto{enum-set-union}{ enum-set enum-set}{enum-set}
 \proto{enum-set-intersection}{ enum-set enum-set}{ enum-set}
+\proto{enum-set-difference}{ enum-set enum-set}{ enum-set}
 \proto{enum-set-negation}{ enum-set}{enum-set}
 \end{protos}
 %
@@ -582,8 +690,12 @@ the index of an element within the \cvar{all-elements} vector.
 \code{Enum-set-member?} tests for membership.  \code{Enum-set=?} tests
 two sets of equal type for equality.  (If its arguments are not of the
 same type, \code{enum-set=?} raises an exception.)
+\code{Enum-set-subset?} tests, for two sets of equal type, 
+if the first set is a subset of the second one.
 \code{Enum-set-union} computes the union of two sets of equal type,
-\code{enum-set-intersection} computes the intersection, and
+\code{enum-set-intersection} computes the intersection, 
+\code{enum-set-difference} computes the intersection, 
+and
 \code{enum-set-negation} computes the complement of a set.
 
 Here is an example.  Given an enumerated type:
@@ -608,9 +720,9 @@ we can define sets of colors:
 
 \begin{example}
 > (enum-set->list (color-set red blue))
-(#{Color red} #{Color blue})
+(#\ob{}Color red\cb{} #\ob{}Color blue\cb{})
 > (enum-set->list (enum-set-negation (color-set red blue)))
-(#{Color green})
+(#\ob{}Color green\cb{})
 > (enum-set-member? (color-set red blue) (color blue))
 #t
 \end{example}
@@ -628,7 +740,7 @@ All but a finite number of those values are \code{\#f}.
 \proto{make-string-table}{}{string-table}
 \proto{make-integer-table}{}{integer-table}
 \proto{make-table-maker}{ compare-proc hash-proc}{procedure}
-\protonoresult{make-table-immutable!}{ table}
+\protonoresultnoindex{make-table-immutable!}{ table}\mainschindex{make-table-immutable"!}
 \end{protos}
 \noindent
 The first four functions listed make various kinds of tables.
@@ -655,7 +767,7 @@ For example, \code{make-integer-table} could be defined
 \begin{protos}
 \proto{table?}{ value}{boolean}
 \proto{table-ref}{ table key}{value or {\tt \#f}}
-\protonoresult{table-set!}{ table key value}
+\protonoresultnoindex{table-set!}{ table key value}\mainschindex{table-set"!}
 \protonoresult{table-walk}{ procedure table}
 \end{protos}
 \noindent
@@ -668,11 +780,13 @@ For example, \code{make-integer-table} could be defined
 \begin{protos}
 \proto{default-hash-function}{ value}{integer}
 \proto{string-hash}{ string}{integer}
+\proto{symbol-hash}{ symbol}{integer}
 \end{protos}
 \noindent
 \code{Default-hash-function} is the hash function used in the tables
- returned by \code{make-table}, and \code{string-hash} it the one used
- by \code{make-string-table}.
+ returned by \code{make-table}, \code{string-hash} is the one used
+ by \code{make-string-table}, and \code{symbol-hash} is the one used
+ by \code{make-symbol-table}.
 
 \section{Port extensions}
 
@@ -802,6 +916,80 @@ Using a continuation to throw out of the call to \code{thunk} causes
   \evalsto '(a b a b a)
 \end{example}
 
+\section{OS strings}
+\label{os-strings}
+
+\index{OS string}
+On common operating systems such as Unix and Windows, various
+parameters to OS functionality---such as file names, user names,
+command-line arguments etc.---appear as text in most contexts, but are
+really byte sequences: On Unix, the byte sequence may be interpreted
+as text through some locale-determined encoding.  On Windows, such
+parameters are typically represented as sequences of UTF-16 code
+units.  In both cases, not every such byte sequence has a string
+equivalent: On Unix, a byte sequence encoding a file name using
+Latin-1 often cannot be decoded using UTF-8.  On Windows, unpaired
+UTF-16 surrogates are admissible in encodings, and no lossless text
+decoding for them exists.
+
+For representing such string-like parameters, Scheme~48 uses an
+abstraction called \textit{OS strings}.  An OS string is created from
+either a string or a NUL-terminated byte sequence stored in a byte
+vector, and has an associated text codec (see
+section~\ref{text-codecs}) that is able to convert from one
+representation to the other.  The exact meaning of a NUL-terminated
+byte sequence is dependent on this text codec.  However, only codecs
+for encodings that are a conservative extension of ASCII (such as
+ASCII itself, Latin-1, or UTF-8) should be used here, to allow a
+minimal set of portable file names.  (The Windows port uses a special
+synthetic encoding called UTF-8of16 compatible with UTF-8 but capable
+of encoding even invalid UTF-16 internally, but uses the UTF-8 codec
+at the Scheme level.)
+
+Most procedures accepting OS strings also accept strings or byte
+vectors, which are then used to construct a OS string.  In the headers
+of the specifications of these procedures, such arguments occur as
+\var{os-string-thing}.\index{os-string-thing@\var{os-string-thing}}
+The standard Scheme procedures such as \code{open-input-file} that
+take file names all accept \var{os-string-thing} arguments.  OS
+strings are in the \code{os-strings} structure.
+
+\begin{protos}
+\proto{string->os-string}{ string}{os-string}
+\proto{byte-vector->os-string}{ byte-vector}{os-string}
+\proto{x->os-string}{ os-string-thing}{os-string}
+\end{protos}
+\noindent
+These procedures create an OS string from a string, a byte-vector
+(whose last value should be 0), and an \var{os-string-thing} argument,
+respectively, always using the standard OS-string text codec (see
+below).
+
+\begin{protos}
+\proto{os-string->byte-vector}{ os-string}{byte-vector}
+\proto{os-string->string}{ os-string}{string}
+\end{protos}
+\noindent
+These procedures yield the contents of an OS string.  For an OS string
+created from a string, \code{os-string->string} will return a string
+with the same contents; for an OS string created from a byte vector,
+\code{os-string->byte-vector} will return a byte vector with the same
+contents.  For the other cases, data loss as determined by the text
+codec is possible.
+
+\begin{protos}
+\proto{current-os-string-text-codec}{}{text-codec}
+\proto{call-with-os-string-text-codec}{ text-codec thunk}{ value(s)}
+\end{protos}
+\noindent
+The \code{current-os-string-text-codec} returns the current text codec
+used for creating new OS strings.  The initial default is determined
+by the operating system.  (On Unix, this is the text codec determined
+by the locale.  On Windows, this is UTF-8.)  The
+\code{call-with-os-string-text-codec} procedure dynamically binds the
+current text codec to \var{text-codec} during the invocation of
+\var{thunk}.
+
 \section{Shell commands}
 
 Structure \code{c-system-function} provides access to the C \code{system()}
@@ -809,7 +997,7 @@ Structure \code{c-system-function} provides access to the C \code{system()}
 
 \begin{protos}
 \proto{have-system?}{}{boolean}
-\proto{system}{ string}{integer}
+\proto{system}{ os-string-thing}{integer}
 \end{protos}
 \noindent
 \code{Have-system?} returns true if the underlying C implementation
@@ -1225,6 +1413,835 @@ The only inefficiencies in this code are the \code{final} and \code{continue}
 The macro expander could do the substitution for \code{continue} when there
  is no explicit proceed variable, as in this case, but not in general.
 
+\section{Sorting lists and vectors}
+\label{sort}
+
+(This section, as the libraries it describes, was written mostly by
+Olin Shivers for the draft of SRFI~32.)
+
+The sort libraries in Scheme~48 include
+%
+\begin{itemize}
+\item vector insert sort (stable)
+\item vector heap sort
+\item vector quick sort (with regular comparisons and with median-of-3 pivot picking)
+\item vector merge sort (stable)
+\item pure and destructive list merge sort (stable)
+\item stable vector and list merge
+\item miscellaneous sort-related procedures: vector and list merging, 
+  sorted predicates, vector binary search, vector and list 
+  delete-equal-neighbor procedures.
+\item a general, non-algorithmic set of procedure names for general sorting
+  and merging
+\end{itemize}
+
+\subsection{Design rules}
+
+\paragraph{What vs. how}
+
+There are two different interfaces: ``what'' (simple) and ``how'' (detailed).
+
+\begin{description}
+\item[Simple] you specify semantics: datatype (list or vector), 
+  mutability, and stability.
+  
+\item[Detailed] you specify the actual algorithm (quick, heap,
+  insert, merge). Different algorithms have different properties,
+  both semantic and pragmatic, so these exports are necessary.
+  
+  It is necessarily the case that the specifications of these procedures
+  make statements about execution ``pragmatics.'' For example, the sole
+  distinction between heap sort and quick sort---both of which are
+  provided by this library----is one of execution time, which is not a
+  ``semantic'' distinction. Similar resource-use statements are made about
+  ``iterative'' procedures, meaning that they can execute on input of
+  arbitrary size in a constant number of stack frames.
+\end{description}
+
+\paragraph{Consistency across procedure signatures}
+
+The two interfaces share common procedure signatures wherever
+possible, to facilitate switching a given call from one procedure
+to another.
+        
+\paragraph{Less-than parameter first, data parameter after}
+
+These procedures uniformly observe the following parameter order:
+the data to be sorted comes after the comparison procedure.
+That is, we write
+
+\begin{example}
+  (sort \(<\) \var{list})
+\end{example}
+
+not
+
+\begin{example}
+  (sort \var{list} \(<\))
+\end{example}
+%
+
+\paragraph{Ordering, comparison procedures and stability}
+
+These routines take a $<$ comparison procedure, not a $\leq$ comparison
+procedure, and they sort into increasing order. The difference between
+a $<$ spec and a $\leq$ spec comes up in two places: 
+
+\begin{itemize}
+\item the definition of an ordered or sorted data set, and
+\item the definition of a stable sorting algorithm.
+%\item correctness of quicksort. NOTE "two" above
+\end{itemize}
+%
+
+We say that a data set (a list or vector) is \textit{sorted} or
+\textit{ordered} if it contains no adjacent pair of values $\ldots x,
+y \ldots$ such that $y < x$.
+
+In other words, scanning across the data never takes a ``downwards'' step.
+
+If you use a $\leq$ procedure where these algorithms expect a $<$
+procedure, you may not get the answers you expect. For example,
+the \code{list-sorted?} procedure will return false if you pass it a $\leq$ comparison
+procedure and an ordered list containing adjacent equal elements.
+
+A ``stable'' sort is one that preserves the pre-existing order of equal
+elements. Suppose, for example, that we sort a list of numbers by 
+comparing their absolute values, i.e., using comparison procedure
+%
+\begin{verbatim}
+(lambda (x y) (< (abs x) (abs y)))
+\end{verbatim}
+%
+If we sort a list that contains both 3 and -3: \[\ldots 3, \ldots, -3 \ldots\]
+then a stable sort is an algorithm that will not swap the order
+of these two elements, that is, the answer is guaranteed to to look like
+\[\ldots 3, -3 \ldots\]
+not
+\[\ldots -3, 3 \ldots\]
+Choosing $<$ for the comparison procedure instead of $\leq$ affects
+how stability is coded. Given an adjacent pair $x, y$, \code{(<
+  $y$ $x$)} means ``$x$ should be moved in front of $x$''---otherwise,
+leave things as they are. So using a $\leq$ procedure where a $<$
+procedure is expected will \emph{invert} stability.
+
+This is due to the definition of equality, given a $<$ comparator:
+\begin{verbatim}
+    (and (not (< x y))
+         (not (< y x)))
+\end{verbatim}
+The definition is rather different, given a $\leq$ comparator:
+\begin{verbatim}
+    (and (<= x y)
+         (<= y x))
+\end{verbatim}
+%
+A ``stable'' merge is one that reliably favors one of its data sets
+when equal items appear in both data sets. \emph{All merge operations in
+this library are stable}, breaking ties between data sets in favor
+of the first data set---elements of the first list come before equal 
+elements in the second list.
+
+So, if we are merging two lists of numbers ordered by absolute value,
+the stable merge operation \code{list-merge}
+\begin{verbatim}
+    (list-merge (lambda (x y) (< (abs x) (abs y)))
+                '(0 -2 4 8 -10) '(-1 3 -4 7))
+\end{verbatim}
+reliably places the 4 of the first list before the equal-comparing -4
+  of the second list:
+\begin{verbatim}
+    (0 -1 -2 4 -4 7 8 -10)
+\end{verbatim}
+%
+  Some sort algorithms will \emph{not work correctly} if given a $\leq$
+  when they expect a $<$ comparison (or vice-versa).
+
+%% For example,
+%%   violating quicksort's spec may cause it to produce wrong answers,
+%%   diverge, raise an error, or do some fourth thing. To see why,
+%%   consider the left-scan part of the standard quicksort partition
+%%   step: (let ((i (let scan ((i i)) (if (elt< (vector-ref v i) pivot)
+%%   (scan (+ i 1)) i)))) ...)  Consider applying this loop to a vector
+%%   of all zeroes (hence, PIVOT, as well, is zero), but erroneously
+%%   using \verb|<=| for the ELT< procedure. The loop will scan right off
+%%   the end of the vector, producing a vector-index error.  The
+%%   guarantee that the scan loop will terminate before running off the
+%%   end of the vector depends critically upon ELT< performing as a true,
+%%   irreflexive $<$ relation. Running off the end of the vector is only
+%%   one of a variety of possibly ways to lose---other, variant
+%%   implementations of quicksort can, instead, loop forever on some data
+%%   sets if ELT< is a $\leq$ predicate.
+
+In short, if your comparison procedure $f$ answers true to \code{($f$ x x)}, then 
+\begin{itemize}
+\item using a stable sorting or merging algorithm will not give you a
+  stable sort or merge, 
+\item \code{list-sorted?} may surprise you.
+% \item quicksort may fail in a variety of possible ways.
+\end{itemize}
+Note that  you can synthesize a $<$ procedure from a $\leq$ procedure with
+\begin{verbatim}
+    (lambda (x y) (not (<= y x)))
+\end{verbatim}
+if need be. 
+
+Precise definitions give sharp edges to tools, but require care in use. 
+``Measure twice, cut once.''
+
+%% I have adopted the choice of $<$ from Common Lisp. One would assume
+%% the definers of Common Lisp had a good reason for adopting $<$ instead
+%% of $\leq$, but canvassing several of the principal actors in the
+%% definition process has turned up no better reason than ``an arbitrary
+%% but consistent choice.'' At minimum, then, these libraries extend the
+%% coverage of that consistent choice.
+
+\paragraph{All vector operations accept optional subrange parameters}
+
+The vector operations specified below all take optional
+\code{start}/\code{end} arguments indicating a selected subrange
+of a vector's elements. If a \code{start} parameter or
+\code{start}/\code{end} parameter pair is given to such a
+procedure, they must be exact, non-negative integers, such that
+%
+\[
+    0 \leq \var{start} \leq \var{end} \leq \code{(vector-length \var{vector})}
+\]
+%
+where \var{vector} is the related vector parameter. If not specified,
+they default to 0 and the length of the vector, respectively. They are
+interpreted to select the range $[\var{start},\var{end})$, that
+is, all elements from index \var{start} (inclusive) up to, but not
+including, index \var{end}.
+
+\paragraph{Required vs.\ allowed side-effects}
+
+\code{List-sort!} and \code{List-stable-sort!} are allowed, but
+not required, to alter their arguments' cons cells to construct the
+result list. This is consistent with the what-not-how character of the
+group of procedures to which they belong (the \code{sorting} structure).
+
+The \code{list-delete-neighbor-dups!}, \code{list-merge!} and
+\code{list-merge-sort!} procedures, on the other hand, provide
+specific algorithms, and, as such, explicitly commit to the use of
+side-effects on their input lists in order to guarantee their key
+algorithmic properties (e.g., linear-time operation).
+
+\subsection{Procedure specification}
+
+\begin{center}
+\begin{tabular}{ll}
+Structure name & Functionality\\\hline
+\code{sorting} & General sorting for lists and vectors\\
+\code{sorted} & Sorted predicates for lists and vectors\\
+\code{list-merge-sort}& List merge sort\\
+\code{vector-merge-sort} & Vector merge sort\\
+\code{vector-heap-sort} & Vector heap sort\\
+\code{vector-quick-sort} & Vector quick sort\\
+\code{vector-quick-sort3} & Vector quick sort with 3-way comparisons\\
+\code{vector-insert-sort} & Vector insertion sort\\
+\code{delete-neighbor-duplicates} & List and vector delete neighbor duplicates\\
+\code{binary-searches} & Vector binary search
+ \end{tabular}
+\end{center}
+%
+Note that there is no ``list insert sort'' package, as you might as well always
+use list merge sort. The reference implementation's destructive list merge
+sort will do fewer \code{set-cdr!}s than a destructive insert sort.
+
+\paragraph{Procedure naming and functionality}
+
+Almost all of the procedures described below are variants of two basic
+operations: sorting and merging. These procedures are consistently named
+by composing a set of basic lexemes to indicate what they do.
+\begin{center}
+
+\begin{tabular}{lp{0.8\textwidth}}
+Lexeme & Meaning\\\hline
+\code{sort}&    The procedure sorts its input data set by some $<$ comparison procedure.
+\\
+\code{merge}&   The procedure merges two ordered data sets into a single ordered
+          result.
+\\
+\code{stable} & This lexeme indicates that the sort is a stable one.
+\\
+\code{vector}& The procedure operates upon vectors.
+\\
+\code{list} &   The procedure operates upon lists.
+\\
+\code{!}      &  Procedures that end in \code{!} are allowed, and sometimes required, 
+          to reuse their input storage to construct their answer.
+\end{tabular}
+\end{center}
+
+\paragraph{Types of parameters and return values}
+
+In the procedures specified below,
+%
+\begin{itemize}
+\item A \code{<} or \code{=} parameter is a procedure accepting
+  two arguments taken from the specified procedure's data set(s), and
+  returning a boolean;
+\item \code{Start} and \code{end} parameters are exact, non-negative integers that 
+  serve as vector indices selecting a subrange of some associated vector.
+  When specified, they must satisfy the relation
+  \[
+    0 \leq \var{start} \leq \var{end} \leq \code{(vector-length \var{vector})}
+  \]
+  where \var{vector} is the associated vector.
+\end{itemize}
+%
+Passing values to procedures with these parameters that do not satisfy
+these types is an error.
+
+If a procedure is said to return ``unspecified,'' this means that
+nothing at all is said about what the procedure returns, not even the
+number of return values. Such a procedure is not even required to be
+consistent from call to call in the nature or number of its return
+values. It is simply required to return a value (or values) that may
+be passed to a command continuation, e.g.  as the value of an
+expression appearing as a non-terminal subform of a \code{begin}
+expression. Note that in R$^5$RS, this restricts such a procedure to
+returning a single value; non-R$^5$RS systems may not even provide this
+restriction.
+
+\subsubsection{\code{sorting}---general sorting package}
+
+This library provides basic sorting and merging functionality suitable for
+general programming. The procedures are named by their semantic properties,
+i.e., what they do to the data (sort, stable sort, merge, and so forth).
+
+\begin{protos}
+  \proto{list-sorted?}{ $<$ list}{boolean} 
+  \proto{list-merge}{ $<$ list$_1$ list$_2$}{list}
+  \protonoindex{list-merge!}{ $<$ list$_1$ list$_2$}{list}\mainschindex{list-merge"!}
+  \proto{list-sort}{ $<$ lis}{list}
+  \protonoindex{list-sort!}{ $<$ lis}{list}\mainschindex{list-sort"!}
+  \proto{list-stable-sort}{  $<$ list}{list}
+  \protonoindex{list-stable-sort!}{ $<$ list}{list}\mainschindex{list-stable-sort"!}
+  \proto{list-delete-neighbor-dups}{  $=$ list}{list}
+  \proto{vector-sorted?}{ $<$ v [start [end]]}{boolean}
+  \proto{vector-merge}{ $<$ v$_1$ v$_2$ [start$1$ [end$1$ [start$2$ [end$2$]]]]}{vector}
+  \protonoresultnoindex{vector-merge!}{ $<$ v v$_1$ v$_2$ [start [start$1$ [end$1$ [start$2$ [end$2$]]]]]}\mainschindex{vector-merge"!}
+  \proto{vector-sort}{ $<$ v [start [end]]}{vector}
+  \protonoresultnoindex{vector-sort!}{ $<$ v [start [end]]}\mainschindex{vector-sort"!}
+  \proto{vector-stable-sort}{ $<$ v [start [end]]}{vector}
+  \protonoresultnoindex{vector-stable-sort!}{ $<$ v [start [end]]}\mainschindex{vector-stable-sort"!}
+  \proto{vector-delete-neighbor-dups}{ $=$ v [start [end]]}{vector}
+\end{protos}
+
+\begin{center}
+\begin{tabular}{ll}
+Procedure &Suggested algorithm
+\\\hline
+\code{list-sort} & vector heap or quick\\
+\code{list-sort!} & list merge sort\\
+\code{list-stable-sort} & vector merge sort\\
+\code{list-stable-sort!} & list merge sort\\
+\code{vector-sort} & heap or quick sort\\
+\code{vector-sort!} & heap or quick sort\\
+\code{vector-stable-sort} & vector merge sort\\
+\code{vector-stable-sort!} merge sort
+\end{tabular}
+\end{center}
+%
+\code{List-Sorted?} and \code{vector-sorted?} return true if their
+input list or vector is in sorted order, as determined by their \var{$<$}
+comparison parameter.
+
+All four merge operations are stable: an element of the initial list
+\var{list$_1$} or vector \var{vector$_1$} will come before an
+equal-comparing element in the second list \var{list$_2$} or vector
+\var{vector$_2$} in the result.
+
+The procedures
+%
+\begin{itemize}
+\item \code{list-merge}
+\item \code{list-sort}
+\item \code{list-stable-sort}
+\item \code{list-delete-neighbor-dups}
+\end{itemize}
+%
+do not alter their inputs and are allowed to return a value that shares 
+a common tail with a list argument.
+
+The procedure
+\begin{itemize}
+\item \code{list-sort!}
+\item \code{list-stable-sort!}
+\end{itemize}
+%
+are ``linear update'' operators---they are allowed, but not required, to
+alter the cons cells of their arguments to produce their results. 
+
+On the other hand, the \code{list-merge!} procedure 
+make only a single, iterative, linear-time pass over its argument
+list, using \code{set-cdr!}s to rearrange the cells of the list
+into the final result ---it works ``in place.'' Hence, any cons cell
+appearing in the result must have originally appeared in an input. The
+intent of this iterative-algorithm commitment is to allow the
+programmer to be sure that if, for example, \code{list-merge!} is asked to
+merge two ten-million-element lists, the operation will complete
+without performing some extremely (possibly twenty-million) deep
+recursion.
+
+The vector procedures
+%
+\begin{itemize}
+\item \code{vector-sort}
+\item \code{vector-stable-sort}
+\item \code{vector-delete-neighbor-dups}
+\end{itemize}
+%
+do not alter their inputs, but allocate a fresh vector for their result,
+of length $\var{end} - \var{start}$. 
+
+The vector procedures
+%
+\begin{itemize}
+\item \code{vector-sort!}
+\item \code{vector-stable-sort!}
+\end{itemize}
+%
+sort their data in-place. (But note that \code{vector-stable-sort!}
+may allocate temporary storage proportional to the size of the
+input
+%%---I am not aware of $O(n \log(n))$ stable vector-sorting
+%%algorithms that run in constant space
+.)
+
+\code{Vector-merge} returns a vector of length $(\var{end$_1$}-\var{start$_1$}+(\var{end$_2$}-\var{start$_2$})$.
+    
+\code{Vector-merge!} writes its result into vector \var{v},
+beginning at index \var{start}, for indices less than \(\var{end} =
+\var{start} + (\var{end$_1$}-\var{start$_1$}) +
+(\var{end$_2$}-\var{start$_2$})\). The target subvector
+  $\var{v}[\var{start},\var{end})$ may not overlap either source
+subvector $\var{vector$_1$}[\var{start$_1$},\var{end$_1$})$ $\var{vector$_2$}[\var{start$_2$},\var{end$_2$})$.
+
+The \code{\ldots-delete-neighbor-dups-\ldots} procedures:
+These procedures delete adjacent duplicate elements from a list or a
+vector, using a given element-equality procedure. The first/leftmost
+element of a run of equal elements is the one that survives. The list or
+vector is not otherwise disordered.
+    
+These procedures are linear time---much faster than the $O(n^2)$ general
+duplicate-element deletors that do not assume any ``bunching'' of elements
+(such as the ones provided by SRFI~1). If you want to delete duplicate
+elements from a large list or vector, you can sort the elements to bring
+equal items together, then use one of these procedures, for a total time
+of $O(n\log(n))$.
+    
+The comparison procedure \(=\) passed to these procedures is always
+applied
+%
+\code{($=$ $x$ $y$)}
+%
+where $x$ comes before $y$ in the containing list or vector.
+
+\begin{itemize}
+\item \code{List-delete-neighbor-dups} does not alter its input list; its answer
+  may share storage with the input list.
+\item \code{Vector-delete-neighbor-dups} does not alter its input vector, but
+  rather allocates a fresh vector to hold the result.
+\end{itemize}
+%
+Examples:
+
+\begin{example}
+(list-delete-neighbor-dups = '(1 1 2 7 7 7 0 -2 -2))
+  \(\Longrightarrow\) (1 2 7 0 -2)
+
+(vector-delete-neighbor-dups = '\#(1 1 2 7 7 7 0 -2 -2))
+  \(\Longrightarrow\) \#(1 2 7 0 -2)
+
+(vector-delete-neighbor-dups = '\#(1 1 2 7 7 7 0 -2 -2) 3 7)
+  \(\Longrightarrow\) \#(7 0 -2)
+\end{example}
+         
+\subsubsection{Algorithm-specific sorting packages}
+
+These packages provide more specific sorting functionality, that is,
+specific committment to particular algorithms that have particular
+pragmatic consequences (such as memory locality, asymptotic running time)
+beyond their semantic behaviour (sorting, stable sorting, merging, etc.).
+Programmers that need a particular algorithm can use one of these packages.
+
+\paragraph{\code{sorted}---sorted predicates}
+%
+\begin{protos}
+  \proto{list-sorted?}{ $<$ list}{boolean}
+  \proto{vector-sorted?}{ $<$ vector}{boolean}
+  \proto{vector-sorted?}{ $<$ vector start}{boolean}
+  \proto{vector-sorted?}{ $<$ vector start end}{boolean}
+\end{protos}
+
+Return \code{\#f} iff there is an adjacent pair \(\ldots x, y \ldots\) in the input
+list or vector such that $y < x$. The optional \var{start}/\var{end} range 
+arguments restrict \code{vector-sorted?} to the indicated subvector.
+
+\paragraph{\code{list-merge-sort}---list merge sort}
+%
+\begin{protos}
+  \proto{list-merge-sort}{ $<$ list}{list}
+  \protonoindex{list-merge-sort!}{ $<$ list}{list}\mainschindex{list-merge-sort"!}
+  \proto{list-merge}{ list$_1$ $<$ list$_2$}{list}
+  \protonoindex{list-merge!}{ list$_1$ $<$ list$_2$}{list}\mainschindex{list-merge"!}
+\end{protos}
+%
+The sort procedures sort their data using a list merge sort, which is
+stable. (The reference implementation is, additionally, a ``natural'' sort.
+See below for the properties of this algorithm.)
+
+The \code{!} procedures are destructive---they use \code{set-cdr!}s to
+rearrange the cells of the lists into the proper order. As such, they
+do not allocate any extra cons cells---they are ``in place'' sorts.
+%% Additionally, \code{list-merge!} is iterative---it can operate on
+%% arguments of arbitrary size with a constant number of stack frames.
+
+The merge operations are stable: an element of \var{list$_1$} will
+come before an equal-comparing element in \var{list$_2$} in the result
+list.
+
+\paragraph{\code{vector-merge-sort}---vector merge sort}
+
+\begin{protos}
+  \proto{vector-merge-sort}{ $<$ vector [start [end [temp]]]}{vector}
+  \protonoresultnoindex{vector-merge-sort!}{ $<$ vector [start [end [temp]]]}\mainschindex{vector-merge-sort"!}
+  \proto{vector-merge}{ $<$ vector$_1$ vector$_2$ [start$_1$ [end$_1$ [start$_2$ [end$_2$]]]]}{vector}
+  \protonoresultnoindex{vector-merge!}{ $<$ vector vector$_1$ vector$_2$ [start [start$_1$ [end$_1$ [start$_2$ [end$_2$]]]]]}\mainschindex{vector-merge"!}
+\end{protos}
+%
+The sort procedures sort their data using vector merge sort, which is
+stable. (The reference implementation is, additionally, a ``natural'' sort.
+See below for the properties of this algorithm.)
+
+The optional \var{start}/\var{end} arguments provide for sorting of subranges, and
+default to 0 and the length of the corresponding vector.
+    
+Merge-sorting a vector requires the allocation of a temporary
+``scratch'' work vector for the duration of the sort. This scratch
+vector can be passed in by the client as the optional \var{temp}
+argument; if so, the supplied vector must be of size $\leq \var{end}$,
+and will not be altered outside the range [start,end). If not
+supplied, the sort routines allocate one themselves.
+
+The merge operations are stable: an element of \var{vector$_1$} will
+come before an equal-comparing element in \var{vector$_2$} in the
+result vector.
+
+\begin{itemize}
+\item 
+\code{Vector-merge-sort!} leaves its result in
+\(\var{vector}[\var{start},\var{end})\).
+\item   
+\code{Vector-merge-sort} returns a vector of length
+\(\var{end}-\var{start}\).
+\item 
+\code{Vector-merge} returns a vector of length
+\((\var{end$_1$}-\var{start$_1$})+(\var{end$_2$}-\var{start$_2$})\).
+\item 
+\code{Vector-merge!} writes its result into \var{vector}, beginning
+at index \var{start},
+for indices less than \(\var{end} =\var{start} +
+(\var{end$_1$}-\var{start$_1$}) + (\var{end$_2$}-\var{start$_2$})\).
+The target subvector
+\[\var{vector}[\var{start},\var{end})\]
+may not overlap either source subvector
+\[\var{vector$_1$}[\var{start$_1$},\var{end$_1$}), \textrm{ or }
+\var{vector$_2$}[\var{start$_2$},\var{end$_2$}).\]
+\end{itemize}
+
+\paragraph{\code{vector-heap-sort}---vector heap sort}
+
+\begin{protos}
+\proto{vector-heap-sort}{ $<$ vector [start [end]]}{vector}
+\protonoresultnoindex{vector-heap-sort!}{ $<$ vector [start [end]]}\mainschindex{vector-heap-sort"!}
+\end{protos}
+%
+These procedures sort their data using heap sort, 
+which is not a stable sorting algorithm.
+    
+\code{Vector-heap-sort} returns a vector of length \(\var{end}-\var{start}\). 
+\code{Vector-heap-sort!} is in-place, leaving its result in
+\(\var{vector}[\var{start},\var{end})\).
+
+\paragraph{\code{vector-quick-sort}---vector quick sort}
+
+\begin{protos}
+\proto{vector-quick-sort}{ $<$ vector [start [end]]}{vector}
+\protonoresultnoindex{vector-quick-sort!}{ $<$ vector [start [end]]}\mainschindex{vector-quick-sort"!}
+\end{protos}
+%
+These procedures sort their data using quick sort, 
+which is not a stable sorting algorithm.
+    
+\code{Vector-quick-sort} returns a vector of length \(\var{end}-\var{start}\). 
+\code{Vector-quick-sort!} is in-place, leaving its result in
+\(\var{vector}[\var{start},\var{end})\).
+
+\paragraph{\code{vector-quick-sort3}---vector quick sort with 3-way comparisons}
+
+\begin{protos}
+\proto{vector-quick-sort3}{ comp vector [start [end]]}{vector}
+\protonoresultnoindex{vector-quick-sort3!}{ comp vector [start [end]]}\mainschindex{vector-quick-sort3"!}
+\end{protos}
+%
+These procedures sort their data using quick sort, 
+which is not a stable sorting algorithm.
+    
+\code{Vector-quick-sort3} returns a vector of length \(\var{end}-\var{start}\). 
+\code{Vector-quick-sort3!} is in-place, leaving its result in
+\(\var{vector}[\var{start},\var{end})\).
+
+These procedures implement a variant of quick-sort that takes a three-way
+comparison procedure $C$. $C$ compares a pair of elements and returns
+an exact integer whose sign indicates their relationship:
+%
+\begin{eqnarray*}
+  (C x y) < 0   &\Rightarrow&   x<y\\
+  (C x y) = 0   &\Rightarrow&   x=y\\
+  (C x y) > 0   &\Rightarrow&   x>y
+\end{eqnarray*}
+
+To help remember the relationship between the sign of the result and
+the relation, use the procedure $-$ as the model for $C$: $(- x y) < 0$
+means that $x < y$; $(- x y) > 0$ means that $x > y$.
+
+\paragraph{\code{vector-insert-sort}---vector insertion sort}
+
+\begin{protos}
+\proto{vector-insert-sort}{ $<$ vector [start [end]]}{vector}
+\protonoresultnoindex{vector-insert-sort!}{ $<$ vector [start [end]]}\mainschindex{vector-insert-sort"!}
+\end{protos}
+%
+These procedures stably sort their data using insertion sort.
+%
+\begin{itemize}
+\item \code{Vector-insert-sort} returns a vector of length \(\var{end}-\var{start}\).
+\item \code{Vector-insert-sort!} is in-place, leaving its result in
+  \(\var{vector}[\var{start},\var{end})\).
+\end{itemize}
+
+\paragraph{\code{delete-neighbor-duplicates}---list and vector
+  delete neighbor duplicates}
+
+\begin{protos}
+  \proto{list-delete-neighbor-dups}{ $=$ list}{list}
+  \protonoindex{list-delete-neighbor-dups!}{ $=$ list}{list}\mainschindex{list-delete-neighbor-dups"!}
+  \proto{vector-delete-neighbor-dups}{ $=$ vector [start [end]]}{vector}
+  \protonoindex{vector-delete-neighbor-dups!}{ $=$ vector [start [end]]}{end$'$}\mainschindex{vector-delete-neighbor-dups}
+\end{protos}
+%
+These procedures delete adjacent duplicate elements from a list or
+a vector, using a given element-equality procedure $=$. The first/leftmost
+element of a run of equal elements is the one that survives. The list
+or vector is not otherwise disordered.
+
+These procedures are linear time---much faster than the $O(n^2)$ general
+duplicate-element deletors that do not assume any ``bunching'' of elements
+(such as the ones provided by SRFI~1). If you want to delete duplicate
+elements from a large list or vector, you can sort the elements to bring
+equal items together, then use one of these procedures, for a total time
+of $O(n\log(n))$.
+    
+The comparison procedure = passed to these procedures is always
+applied
+
+\begin{example}
+(\(=\) \(x\) \(y\))
+\end{example}
+
+where $x$ comes before $y$ in the containing list or vector.
+%
+\begin{itemize}
+\item 
+\code{List-delete-neighbor-dups} does not alter its input list; its
+answer may share storage with the input list.
+\item 
+\code{Vector-delete-neighbor-dups} does not alter its input vector, but
+rather allocates a fresh vector to hold the result.
+\item
+\code{List-delete-neighbor-dups!} is permitted, but not required, to
+mutate its input list in order to construct its answer.
+\item
+\code{Vector-delete-neighbor-dups!} reuses its input vector to hold the
+answer, packing its answer into the index range
+\([\var{start},\var{end$'$})\), where
+\var{end$'$} is the non-negative exact integer returned as its value. It
+returns \var{end$'$} as its result. The vector is not altered outside the range
+\([\var{start},\var{end$'$})\).
+\end{itemize}
+%
+Examples:
+
+\begin{example}
+(list-delete-neighbor-dups = '(1 1 2 7 7 7 0 -2 -2))
+  \(\Longrightarrow\) (1 2 7 0 -2)
+
+(vector-delete-neighbor-dups = '\#(1 1 2 7 7 7 0 -2 -2))
+  \(\Longrightarrow\) \#(1 2 7 0 -2)
+
+(vector-delete-neighbor-dups = '\#(1 1 2 7 7 7 0 -2 -2) 3 7)
+  \(\Longrightarrow\) \#(7 0 -2)
+
+;; Result left in v[3,9):
+(let ((v (vector 0 0 0 1 1 2 2 3 3 4 4 5 5 6 6)))
+  (cons (vector-delete-neighbor-dups! = v 3)
+        v))
+   \(\Longrightarrow\) (9 . \#(0 0 0 1 2 3 4 5 6 4 4 5 5 6 6))
+\end{example}
+
+\paragraph{\code{binary-searches}---vector binary search}
+
+\begin{protos}
+\proto{vector-binary-search}{ $<$ elt-$>$key key vector [start [end]]}{integer or {\tt \#f}}
+\proto{vector-binary-search3}{ compare-proc vector [start [end]]}{integer or {\tt \#f}}
+\end{protos}
+
+\code{vector-binary-search} searches \var{vector} in range
+\([\var{start},\var{end})\) (which default to 0 and the length of
+\var{vector}, respectively) for an element whose
+associated key is equal to \var{key}. The procedure \var{elt-$>$key} is used to map
+an element to its associated key. The elements of the vector are assumed
+to be ordered by the $<$ relation on these keys. That is, 
+
+\begin{example}
+(vector-sorted? (lambda (x y) (\(<\) (\var{elt-\(>\)key} x) (\var{elt-\(>\)key} y)))
+                \var{vector} \var{start} \var{end}) \(\Longrightarrow\) true
+\end{example}
+
+An element \var{e} of \var{vector} is a match for \var{key} if it's
+neither less nor greater than the key:
+
+\begin{example}
+(and (not (\(<\) (\var{elt-\(>\)key} \var{e}) \var{key}))
+     (not (\(<\) \var{key} (\var{elt-\(>\)key} \var{e}))))
+\end{example}
+
+If there is such an element, the procedure returns its index in the
+vector as an exact integer. If there is no such element in the searched 
+range, the procedure returns false.
+
+\begin{example}
+(vector-binary-search < car 4 '\#((1 . one) (3 . three)
+                                 (4 . four) (25 . twenty-five)))
+\(\Longrightarrow\) 2
+
+(vector-binary-search < car 7 '\#((1 . one) (3 . three)
+                                 (4 . four) (25 . twenty-five)))
+\(\Longrightarrow\) \#f
+\end{example}    
+
+\code{Vector-binary-search3} is a variant that uses a three-way comparison
+procedure \var{compare-proc}. \var{Compare-proc} compares its
+parameter to the search key, and returns an
+exact integer whose sign indicates its relationship to the search key.
+%
+\[
+  \begin{array}{rclcrcl}
+      (\var{compare-proc}~x) &<& 0& \Rightarrow&  x &<& \var{search-key}\\
+      (\var{compare-proc}~x) &=& 0& \Rightarrow&  x &=& \var{search-key}\\
+      (\var{compare-proc}~x) &>& 0& \Rightarrow&  x &>& \var{search-key}
+  \end{array}
+\]
+
+\begin{example}
+(vector-binary-search3 (lambda (elt) (- (car elt) 4))
+                       '\#((1 . one) (3 . three)
+                          (4 . four) (25 . twenty-five)))
+\(\Longrightarrow\) 2
+\end{example}
+
+%% Rationale:
+%% %
+%% \begin{itemize}
+%% \item Why isn't \code{vector-binary-search}'s \var{elt-$>$key}
+%%   computation simply absorbed into the $<$ procedure? It is separated
+%%   out because the $<$ procedure is
+%%   applied twice inside the binary-search inner loop, once with the search
+%%   key for the first argument and the element key for the second argument,
+%%   and once, with the reverse argument order. This is not necessary for
+%%   \code{vector-binary-search3}.
+%% \item When a comparison operation is able to produce a three-way
+%%   discrimination, the inner loop of the binary search can trim the number
+%%   of per-iteration comparisons from an average of 1.5 to a guaranteed
+%%   single comparison per iteration. This can be a significant savings when
+%%   searching with an expensive comparison operation (e.g., one that
+%%   uses string compare, sends email, references a database, or queries
+%%   a network service such as a web server).
+%% \item Failure is signaled by false (rather than, say, -1) so that searches
+%%   can be used in conditional forms such as
+%% \begin{verbatim}
+%%         (or (vector-binary-search ...) ...)
+%% \end{verbatim}
+%%   or
+%% \begin{verbatim}
+%%         (cond ((vector-binary-search ...) => index-consumer)
+%%               ...)
+%% \end{verbatim}
+%% \end{itemize}
+
+\subsection{Algorithmic properties}
+
+Different sort and merge algorithms have different properties.
+Choose the algorithm that matches your needs:
+
+\begin{description}
+\item[Vector insert sort]
+  Stable, but only suitable for small vectors---$O(n^2)$.
+\item[Vector quick sort]
+  Not stable. Is fast on average---$O(n\log(n))$---but has bad worst-case
+  behaviour. Has good memory locality for big vectors (unlike heap sort). 
+  A clever pivot-picking trick (median of three samples) helps avoid 
+  worst-case behaviour, but pathological cases can still blow up.
+\item[Vector heap sort]
+  Not stable. Guaranteed fast---$O(n\log(n))$ \emph{worst} case. Poor
+  locality on large vectors. A very reliable workhorse.
+\item[Vector merge sort]
+    Stable. Not in-place---requires a temporary buffer of equal size. 
+    Fast---$O(n\log(n))$---and has good memory locality for large vectors.
+    
+    The implementation of vector merge sort provided by this
+    implementation is, additionally, a ``natural'' sort, meaning that it
+    exploits existing order in the input data, providing $O(n)$ best case.
+\item[Destructive list merge sort]
+    Stable, fast and in-place (i.e., allocates no new cons cells). ``Fast''
+    means $O(n\log(n))$ worse-case, and substantially better if the data
+    is already mostly ordered, all the way down to linear time for
+    a completely-ordered input list (i.e., it is a ``natural'' sort).
+
+    Note that sorting lists involves chasing pointers through memory, which
+    can be a loser on modern machine architectures because of poor cache and
+    page locality.
+%%     Pointer \emph{writing}, which is what the
+%%     \code{set-cdr!}s of a destructive list-sort algorithm do, is
+%%     even worse, especially if your Scheme has a generational GC---the
+%%     writes will thrash the write-barrier.
+    Sorting vectors has inherently better locality.
+    
+    This implementation's destructive list merge and merge sort
+    implementations are opportunistic---they avoid redundant
+    \code{set-cdr!}s, and try to take long
+    already-ordered runs of list structure as-is when doing the merges.
+\item[Pure list merge sort]
+  Stable and fast---$O(n\log(n))$ worst-case, and possibly $O(n)$,
+  depending upon the input list (see discussion above).
+\end{description}
+
+\begin{center}
+  \begin{tabular}{lllll}
+Algorithm &    Stable? & Worst case &  Average case &  In-place\\
+\hline
+Vector insert & Yes&      $O(n^2)$ &     $O(n^2)$&        Yes\\
+Vector quick  & No &      $O(n^2)$  &    $O(n\log(n))$&     Yes\\
+Vector heap   & No &      $O(n\log(n))$&   $O(n\log(n))$&     Yes\\
+Vector merge  & Yes&      $O(n\log(n))$&   $O(n\log(n))$&     No\\
+List merge    & Yes&      $O(n\log(n))$&   $O(n\log(n))$&     Either
+\end{tabular}
+\end{center}
+
 \section{Regular expressions}
 \label{regexp-adt}
 
@@ -1237,6 +2254,14 @@ A regular expression is either a character set, which matches any character
 in the set, or a composite expression containing one or more subexpressions.
 A regular expression can be matched against a string to determine success
 or failure, and to determine the substrings matched by particular subexpressions.
+
+\begin{protos}
+\proto{regexp?}{ value}{boolean}
+\end{protos}
+\noindent
+Returns \code{\#t} if \cvar{value} is a regular expression created
+using the functional interface for regular expressions, and \code{\#f}
+otherwise.
 
 \subsection{Character sets}
 
@@ -1273,9 +2298,8 @@ These perform the indicated operations on character sets.
 
 The following character sets are predefined:
 \begin{center}
-\W\begin{tabular}{ll}
-\T\setlongtables
-\T\begin{longtable}{ll}
+\texonly\begin{longtable}{ll}\endtexonly
+\htmlonly\begin{tabular}{ll}\endhtmlonly
  \code{lower-case} &   \code{(set "abcdefghijklmnopqrstuvwxyz")} \\
  \code{upper-case} &   \code{(set "ABCDEFGHIJKLMNOPQRSTUVWXYZ")} \\
  \code{alphabetic} &   \code{(union lower-case upper-case)} \\
@@ -1291,8 +2315,8 @@ The following character sets are predefined:
  \code{whitespace} &
       \code{(union (set \#}\verb2\2\code{space) (ascii-range 9 13))} \\
  \code{hexdigit} &     \code{(set "0123456789abcdefABCDEF")} \\
-\W\end{tabular}
-\T\end{longtable}
+\texonly\end{longtable}\endtexonly
+\htmlonly\end{tabular}\endhtmlonly
 \end{center}
 \noindent The above are taken from the default locale in POSIX.
 The characters in \code{whitespace} are \cvar{space}, \cvar{tab},
@@ -1476,14 +2500,14 @@ The matching procedures will ignore any characters following an
 `SRFI' stands for `Scheme Request For Implementation'.
 An SRFI is a description of an extension to standard Scheme.
 Draft and final SRFI documents, a FAQ, and other information about SRFIs
- can be found at the
-\xlink{SRFI web site}[ at \code{http://srfi.schemers.org}]
-{http://srfi.schemers.org}.
+ can be found at
+\urlhd{http://srfi.schemers.org}{the SRFI web site}{\code{http://srfi.schemers.org}}.
 
 Scheme~48 includes implementations of the following (final) SRFIs:
 \begin{itemize}
 \item SRFI 1 -- List Library
 \item SRFI 2 -- \code{and-let*}
+\item SRFI 4 -- Homogeneous numeric vector datatypes (see note below)
 \item SRFI 5 -- \code{let} with signatures and rest arguments
 \item SRFI 6 -- Basic string ports
 \item SRFI 7 -- Program configuration
@@ -1494,16 +2518,34 @@ Scheme~48 includes implementations of the following (final) SRFIs:
 \item SRFI 14 -- Character-Set Library (see note below)
 \item SRFI 16 -- Syntax for procedures of variable arity
 \item SRFI 17 -- Generalized \code{set!}
+\item SRFI 19 -- Time Data Types and Procedures
+\item SRFI 22 -- Running Scheme Scripts on Unix
 \item SRFI 23 -- Error reporting mechanism
 \item SRFI 25 -- Multi-dimensional Array Primitives 
 \item SRFI 26 -- Notation for Specializing Parameters without Currying
 \item SRFI 27 -- Sources of Random Bits
 \item SRFI 28 -- Basic Format Strings
 \item SRFI 31 -- A special form \texttt{rec} for recursive evaluation
+\item SRFI 34 -- Exception Handling for Programs
 \item SRFI 37 -- args-fold: a program argument processor
+\item SRFI 40 -- A Library of Streams
 \item SRFI 42 -- Eager Comprehensions
+\item SRFI 43 -- Vector library
+\item SRFI 45 -- Primitives for Expressing Iterative Lazy Algorithms
+\item SRFI 60 -- Integers as Bits
+\item SRFI 61 -- A more general cond clause
+\item SRFI 62 -- S-expression comments
+\item SRFI 63 -- Homogeneous and Heterogeneous Arrays
+\item SRFI 66 -- Octet Vectors
+\item SRFI 67 -- Compare Procedures
+\item SRFI 74 -- Octet-Addressed Binary Blocks
+\item SRFI 78 -- Lightweight testing
 \end{itemize}
 Documentation on these can be found at the web site mentioned above.
+
+SRFI~4 specifies an external representation for homogeneous numeric
+vectors that is incompatible with R$^5$RS.  The Scheme~48 version of
+SRFI~4 does not support this external representation.
 
 SRFI~14 includes the procedure \code{->char-set} which is not a standard
  Scheme identifier (in R$^5$RS the only required identifier starting
@@ -1511,7 +2553,9 @@ SRFI~14 includes the procedure \code{->char-set} which is not a standard
 In the Scheme~48 version of SRFI~14 we have renamed \code{->char-set}
  as \code{x->char-set}.
 
-The SRFI bindings can be accessed either by opening the appropriate structure
+%% With the exception of SRFI 62 (which is supported by default), the
+SRFI bindings can be accessed
+either by opening the appropriate structure
  (the structure \code{srfi-}\cvar{n} contains SRFI \cvar{n})
  or by loading structure \code{srfi-7} and then using
  the \code{,load-srfi-7-program} command to load an SRFI 7-style program.
@@ -1537,10 +2581,6 @@ test> x
 10
 test> 
 \end{example}
-
-%\W \chapter*{Index}
-%\W \htmlprintindex
-%\T \input{doc.ind}
 
 %%% Local Variables: 
 %%% mode: latex

@@ -7,95 +7,33 @@
 	bignum-low
 	integer-arithmetic
 	flonum-arithmetic
-	data struct
+	data struct stob
+	text-encodings
 	interpreter interpreter-internal
 	stack gc interpreter-gc gc-util
 	vmio
 	arithmetic-opcodes
 	external-opcodes
+	external-events
+	shared-bindings shared-bindings-access
 	symbols
 	io-opcodes
 	external-gc-roots
 	proposal-opcodes
 	read-image
-	return-codes)
-  (files (interp resume))
-  (begin
-    (define (s48-disable-interrupts!)
-      (disable-interrupts!))
+	return-codes
 
-    (define (s48-enable-interrupts!)
-      (enable-interrupts!))
+	;; For debugging
+	memory ;; fetch
 
-    ; used for raising exceptions in external code
-    (define (s48-push x)
-      (push x))
-    
-    (define (s48-stack-ref i)
-      (stack-ref i))
-    
-    (define (s48-stack-set! x v)
-      (stack-set! x v))
-    
-    (define (s48-enter-integer x)
-      (enter-integer x (ensure-space long-as-integer-size)))
-    
-    ; arguments must either both be intergers or both floanums
-    (define (s48-integer-or-floanum-add x y)
-      (if (double? x)
-	  (flonum-add x y)
-	  (integer-add x y)))
-    (define (s48-integer-or-floanum-sub x y)
-      (if (double? x)
-	  (flonum-subtract x y)
-	  (integer-subtract x y)))
-
-    (define (s48-integer-or-floanum-mul x y)
-      (if (double? x)
-	  (flonum-multiply x y)
-	  (integer-multiply x y)))
-    
-    (define (s48-integer-remainder x y)
-      (integer-remainder x y))
-
-    (define (s48-integer-quotient x y)
-      (integer-quotient x y))
-
-    (define (s48-integer-divide x y)
-      (integer-divide x y))
-
-    (define-syntax define-integer-or-floanum-comparison
-      (syntax-rules ()
-	((define-integer-or-floanum-comparison 
-	   s48-integer-or-floanum-proc integer-op flonum-op)
-	 (define (s48-integer-or-floanum-proc x y)
-	   (enter-boolean
-	    (if (double? x)
-		(flonum-op x y)
-		(integer-op x y)))))))
-
-    (define-integer-or-floanum-comparison s48-integer-or-floanum-= integer= flonum=)
-    (define-integer-or-floanum-comparison s48-integer-or-floanum-< integer< flonum<)
-    (define-integer-or-floanum-comparison s48-integer-or-floanum-> integer> flonum>)
-    (define-integer-or-floanum-comparison s48-integer-or-floanum-<= integer<= flonum<=)
-    (define-integer-or-floanum-comparison s48-integer-or-floanum->= integer>= flonum>=)
-
-    (define (s48-integer-bitwise-not x)
-      (integer-bitwise-not x))
-    (define (s48-integer-bit-count x)
-      (integer-bit-count x))
-    (define (s48-integer-bitwise-and x y)
-      (integer-bitwise-and x y))
-    (define (s48-integer-bitwise-ior x y)
-      (integer-bitwise-ior x y))
-    (define (s48-integer-bitwise-xor x y)
-      (integer-bitwise-xor x y))
-    ))
+	)
+  (files (interp resume)
+	 (interp vm-external)))
 
 ; Byte code architecture.
 
 (define-structure vm-architecture vm-architecture-interface
-  (open prescheme)
+  (open prescheme ps-platform)
   (files (interp arch)))
 
 ;----------------------------------------------------------------
@@ -107,15 +45,17 @@
 	events
 	pending-interrupts
 	memory data stob struct allocation vmio
+	text-encodings
 	return-codes
 	gc-roots gc gc-util
-	heap stack external)
+	heap stack external external-events)
   (for-syntax (open scheme destructuring signals))
   (files (interp interp)
 	 (interp call)
 	 (interp define-primitive)
 	 (interp prim)
-	 (interp interrupt))
+	 (interp interrupt)
+	 )
   ;(optimize auto-integrate)
   )
 
@@ -165,17 +105,34 @@
 	integer-arithmetic)
   (files (arith integer-op)))
 
-(define-structure external-opcodes external-opcodes-interface
+(define-structure external-opcodes external-call-interface
   (open prescheme vm-architecture ps-receive
 	interpreter-internal stack
 	memory data struct
 	gc gc-roots gc-util
+	heap ; S48-GATHER-OBJECTS
 	string-tables
-	external)
+	external
+	shared-bindings shared-bindings-access)
   (files (interp external-call)))
 
+(define-structure external-events external-events-interface
+  (open prescheme ps-record-types ps-memory
+	data struct
+	vm-utilities
+	shared-bindings)
+  (files (interp external-event)))
+
+(define-structures ((shared-bindings shared-bindings-interface)
+		    (shared-bindings-access shared-bindings-access-interface))
+  (open prescheme
+	vm-architecture data struct
+	string-tables
+	gc gc-roots gc-util)
+  (files (interp shared-binding)))
+
 (define-structure io-opcodes (export)
-  (open prescheme vm-utilities vm-architecture ps-receive
+  (open prescheme vm-utilities vm-architecture ps-receive enum-case
 	interpreter-internal
 	channel-io vmio
 	memory data struct
@@ -183,7 +140,8 @@
 	gc-roots
 	symbols external-opcodes
 	stack			;pop
-	stob)			;immutable
+	stob			;immutable
+	text-encodings)
   (files (interp prim-io)))
 
 (define-structure proposal-opcodes (export initialize-proposals!+gc)
@@ -302,21 +260,27 @@
     
     (define-syntax define-extensible-proc
       (syntax-rules ()
-	((define-extensible-proc proc extender temp)
+	((define-extensible-proc (proc arg ...) body-form extender temp)
 	 (begin
-	   (define temp unspecific)
-	   (define (proc) (temp))
+	   (define (temp arg ...)
+	     body-form
+	     (unspecific))
+	   (define (proc arg ...) (temp arg ...))
 	   (define (extender more)
 	     (let ((old temp))
-	       (set! temp (lambda ()
-			(more)
-			(old)))))))))
+	       (set! temp (lambda (arg ...)
+			    (more arg ...)
+			    (old arg ...)))))))))
 
-    (define-extensible-proc s48-gc-root
+    (define-extensible-proc (s48-gc-root)
+      (unspecific)
       add-gc-root!
       *gc-root-proc*)
 
-    (define-extensible-proc s48-post-gc-cleanup
+    (define-extensible-proc (s48-post-gc-cleanup major? in-trouble?)
+      (begin
+	(eq? major? #t) 
+	(eq? in-trouble? #t))		; for the type checker
       add-post-gc-cleanup!
       *post-gc-cleanup*)))
 
@@ -358,8 +322,8 @@
 ; Data structures
 
 (define-structure data vm-data-interface
-  (open prescheme vm-utilities
-	system-spec vm-architecture)
+  (open prescheme ps-unsigned-integers vm-utilities
+	ps-platform vm-architecture)
   ;(optimize auto-integrate)
   (files (data data)))
 
@@ -370,7 +334,7 @@
 
 (define-structure stob stob-interface
   (open prescheme ps-receive vm-utilities vm-architecture
-	memory heap data allocation)
+	memory heap data allocation debugging)
   ;(optimize auto-integrate)
   (files (data stob)))
 
@@ -384,7 +348,11 @@
 
 (define-structure string-tables string-table-interface
   (open prescheme vm-utilities vm-architecture
-	data struct stob)
+	data struct stob
+	ps-memory            ; address->integer - BIBOP
+	memory               ; address->stob-descriptor - BIBOP
+        image-table          ; image-location-new-descriptor - BIBOP
+	)
   (files (data vm-tables)))
 
 (define-structure symbols (export s48-symbol-table
@@ -395,135 +363,92 @@
 	gc gc-roots)
   (files (data symbol)))
 
-;----------------------------------------------------------------
-; Memory management
-
-(define-structures ((heap heap-interface)
-		    (heap-gc-util heap-gc-util-interface)
-		    (heap-init heap-init-interface))
-  (open prescheme ps-receive vm-utilities vm-architecture memory data
-	ps-memory)
-  (files (heap heap)))
-
-(define-structure gc gc-interface
-  (open prescheme ps-receive vm-utilities vm-architecture
-	memory data
-	heap heap-gc-util
-	interpreter-gc)
-  (files (heap gc)))
-
-; This should be in heap.scm except that it needs GC and GC needs HEAP,
-; so we have to put this in its own package to avoid a dependency loop.
-
-(define-structure gc-static-hack (export)
-  (open prescheme gc heap-gc-util gc-roots)
-  (begin
-    (add-gc-root! (lambda ()
-		    (walk-impure-areas
-		     (lambda (start end)
-		       (s48-trace-locations! start end)
-		       #t))))))
-
-(define-structure allocation allocation-interface
-  (open prescheme memory heap-gc-util gc data vm-architecture
-	gc-static-hack)
-  (begin
-
-    (define (s48-make-available+gc len)
-      (if (not (bytes-available? len))
-	  (s48-collect))
-      (if (not (bytes-available? len))
-	  (error "Scheme 48 heap overflow")))
-
-    (define s48-allocate-small allocate)
-
-    (define (s48-allocate-traced+gc len)
-      (if (not (bytes-available? len))
-	  (s48-collect))
-      (if (not (bytes-available? len))
-	  null-address
-	  (allocate len)))
-
-    ; Same again.  Just doing (define x y) for exported procedures X and Y
-    ; causes the Pre-Scheme compiler to emit bad code.
-    (define (s48-allocate-untraced+gc len)
-      (s48-allocate-traced+gc len))
-
-    ; For allocation done outside the VM.
-
-    (define (s48-allocate-stob type size)
-      (let* ((traced? (< type least-b-vector-type))
-	     (length-in-bytes (if traced?
-				  (cells->bytes size)
-				  size))
-	     (needed (+ length-in-bytes (cells->bytes stob-overhead)))
-	     (thing (if traced?
-			(s48-allocate-traced+gc needed)
-			(s48-allocate-untraced+gc needed))))
-	(if (null-address? thing)
-	    (error "insufficient heap space for external allocation")
-	    (begin
-	      (store! thing (make-header type length-in-bytes))
-	      (address->stob-descriptor (address+ thing
-						  (cells->bytes stob-overhead)))))))
-
-  ))
+(define-structure text-encodings text-encodings-interface
+  (open prescheme ps-memory enum-case
+	(subset vm-architecture (text-encoding-option)))
+  (files (data text-encoding)))
 
 ;----------------------------------------------------------------
-; Reading and writing images
+;; DUMPER
+;----------------------------------------------------------------
+;; Reading and writing images
 
+;; The new READ-IMAGE uses a helper structure READ-IMAGE-KERNEL
 (define-structure read-image read-image-interface
-  (open prescheme vm-utilities ps-receive vm-architecture
-	memory data struct
-	string-tables
-	heap-init		;s48-initialize-heap
-	gc)			;s48-trace-value
+  (open prescheme enum-case ps-receive ps-memory
+	debugging
+	vm-utilities
+	(subset vm-architecture (architecture-version))
+	image-util
+	read-image-gc-specific
+	read-image-util
+	data
+	(subset memory (fetch))
+	heap-init
+	(subset gc (s48-trace-value)))
   (files (heap read-image)))
 
-(define-structure write-image (export s48-write-image)
-  (open prescheme ps-receive vm-utilities vm-architecture
+(define-structure read-image-portable read-image-portable-interface
+  (open prescheme ps-receive enum-case
+	vm-utilities vm-architecture
+	memory 
+	data struct
+	(subset string-tables (relocate-table))
+	ps-memory               ;allocate/deallocate-memory
+	heap                    ;s48-heap-size
+	image-table             ;make-table
+	image-util
+	heap-init
+	read-image-util
+	read-image-util-gc-specific
+	)
+ (files (heap read-image-portable)))
+
+(define-structure write-image write-image-interface
+  (open prescheme ps-receive enum-case
+	vm-utilities vm-architecture
 	memory data struct
+	ps-platform
 	heap
 	image-table
 	image-util
+	write-image-util
 	string-tables
-	symbols			;s48-symbol-table
-	external-opcodes)	;s48-imported-bindings s48-exported-bindings
+	symbols				;s48-symbol-table
+	shared-bindings-access
+	ps-record-types			;define-record-type
+	write-image-gc-specific
+	)
   (files (heap write-image)))
-
-(define-interface image-table-interface
-  (export make-image-location
-          image-location-new-descriptor
-          image-location-next
-          set-image-location-next!
-
-          make-table
-	  deallocate-table
-	  break-table!
-	  table-okay?
-          table-set!
-          table-ref))
 
 (define-structure image-table image-table-interface
   (open prescheme ps-memory ps-record-types
 	vm-utilities)
   (files (heap image-table)))
 
-(define-interface image-util-interface
-  (export write-page
-	  (write-check :syntax)
-	  write-header-integer
-	  image-write-init
-	  image-write-terminate
-	  image-write-status
-	  write-descriptor
-	  write-image-block
-	  empty-image-buffer!))
-
 (define-structure image-util image-util-interface
+  (open prescheme enum-case)
+  (files (heap image-util)))
+
+(define-structure read-image-util read-image-util-interface
+  (open prescheme ps-receive
+	data
+	memory
+	(subset ps-memory (read-block address+ address<))
+	(subset data (bytes->a-units b-vector-header? header-length-in-a-units stob?))
+	vm-utilities
+	(subset allocation (s48-allocate-traced+gc))
+	(subset struct (vm-symbol-next
+			vm-set-symbol-next!
+			shared-binding-next
+			set-shared-binding-next!))
+	string-tables)
+  (files (heap read-image-util)))
+
+(define-structure write-image-util write-image-util-interface
   (open prescheme ps-memory
 	(subset memory	(address1+)))
-  (files (heap image-util)))
+  (files (heap write-image-util)))
 
 ;----------------------------------------------------------------
 ; Arithmetic
@@ -538,6 +463,7 @@
   (open prescheme 
 	vm-utilities
 	stob
+	ps-platform
 	gc
 	struct memory
 	vm-architecture
@@ -554,13 +480,12 @@
 	ps-receive
 	interpreter-internal
 	data
-	system-spec
 	gc-util
 	bignum-low)
   (files (arith bignum-arith)))
 
 (define-structure integer-arithmetic integer-arithmetic-interface
-  (open prescheme 
+  (open prescheme ps-unsigned-integers
 	fixnum-arithmetic
 	bignum-arithmetic
 	external
@@ -603,3 +528,30 @@
 	((enum-case enumeration value)
 	 (unspecific))))))
 
+
+; Memory management
+;
+; These are dummies  to avoid warnings during compilation.
+; The real modules are in each GC subdirectory (gc-twospace and gc-bibop)
+; and will be loaded after this file.
+
+;----------------------------------------------------------------
+
+(define-structures ((heap heap-interface)
+		    (heap-gc-util heap-gc-util-interface)
+		    (heap-init heap-init-interface)
+		    (gc gc-interface)
+		    (allocation allocation-interface)
+		    (read-image-gc-specific read-image-gc-specific-interface)
+		    (read-image-util-gc-specific read-image-util-gc-specific-interface)
+		    (write-image-gc-specific write-image-gc-specific-interface))
+  (open)
+  (files))
+
+
+;; JUST FOR DEBUGGING:
+;; To activate/deactivate it, the flag 'debug-mode?' must be set in
+;; debugging.scm
+(define-structure debugging debugging-interface
+  (open prescheme vm-utilities)
+  (files debugging))

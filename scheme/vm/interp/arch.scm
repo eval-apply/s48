@@ -1,15 +1,15 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; This is file arch.scm.
 
 ;;;; Architecture description
 
-(define architecture-version "Vanilla 24")
+(define architecture-version "Vanilla 40")
 
 ; Things that the VM and the runtime system both need to know.
 
-(define bits-used-per-byte 8)
+(define bits-used-per-byte bits-per-byte)
 
 (define byte-limit (expt 2 bits-used-per-byte))
 (define two-byte-limit (* byte-limit byte-limit))
@@ -78,6 +78,15 @@
   (make-flat-env  env-data)      ; make new environment from env-data
   (make-big-flat-env big-env-data) ; same, but with two-byte size and offsets
 
+  ; the following four emitted from the byte-code optimizer, for the
+  ; benefit of the native-code compiler
+  (env-set! stack-index index 1)             ; set environment slot
+  (big-env-set! two-byte-stack-index two-byte-index 1)
+  (template-ref stack-index index) ; same thing as stack-indirect
+  (big-template-ref two-byte-stack-index two-byte-index) ; same thing as stack-indirect
+
+  (make-flat-closure two-bytes)  ; create flat closure
+
   (push 1)		         ; push *val* onto stack
   (push-false)			 ; a common combination
   (pop)			         ; pop top of stack into *val*
@@ -107,9 +116,14 @@
   ;; Different ways to call procedures
   (call     offset nargs 1 +)    ; last argument is the procedure to call,
 				 ; offset is to return pointer
-  (tail-call nargs 1 +)          ; same, no return pointer, moves arguments
+  (tail-call nargs two-bytes 1 +)   ; same, no return pointer but stack frame size, moves arguments
   (big-call offset two-byte-nargs 1 +) ; ditto, nargs counts are two bytes
-  (poll offset)			 ; offset is for continuation-pc if interrupt
+
+  (known-tail-call nargs two-bytes 1 +)
+  (known-call offset nargs 1 +) ; like CALL, but no protocol conversion
+  (big-known-call offset two-byte-nargs 1 +) ; ditto, nargs count are two bytes
+
+  (poll)
   (apply offset two-byte-nargs 2 +)   ; last argument is procedure to call, second to
 				 ; last is a list of additional arguments, next
                                  ; two bytes are the number of stack arguments
@@ -130,6 +144,11 @@
 				 ; call a template instead of a procedure
 				 ; nargs is needed for interrupt handling
   (jump-if-false offset 1)	 ; boolean in *val*
+
+
+  ;; conditional jump; the offset is the jump target
+  (test-op+jump-if-false offset instr instr)
+
   (jump          offset)
   (jump-back     offset-)	 ; same, but subtract the offset
   (computed-goto byte offset 1)	 ; jump using delta specified by *val*
@@ -166,7 +185,7 @@
   (arithmetic-shift 2)
   (char? 1)
   ((char=? char<?) 2)
-  ((char->ascii ascii->char) 1)
+  ((char->scalar-value scalar-value->char scalar-value?) 1)
   (eof-object? 1)
 
   ;; Data manipulation
@@ -181,18 +200,22 @@
 
   (make-vector-object stob 2)			; size + init
   ; If the byte = 0 then do not log in the current proposal
-  (stored-object-indexed-ref  stob index 2)	; vector + offset
-  (stored-object-indexed-set! stob index 3)	; vector + offset + value
+  (stored-object-indexed-ref  stob byte 2)	; vector + offset
+  (stored-object-indexed-set! stob byte 3)	; vector + offset + value
+
+  (make-double)
 
   (make-byte-vector 2)
   (byte-vector-length 1)
   (byte-vector-ref 2)
   (byte-vector-set! 3)
+  (make-unmovable-byte-vector 2)
 
   (make-string 2)
   (string-length 1)
   (string-ref 2)
   (string-set! 3)
+  (copy-string-chars! 5)
 
   (intern 1)
                      
@@ -201,14 +224,18 @@
   ((immutable? make-immutable!) 1)
 
   ;; channels (unbuffered, non-blocking I/O)
-  (open-channel 3)
+  (open-channel 4)
   (close-channel 1)
   (channel-maybe-read 5)
   (channel-maybe-write 4)
+  (channel-parameter 1)
   (channel-ready? 1)
   (channel-abort 1)             ; stop channel operation
   (open-channels-list)		; return a list of the open channels
-  
+
+  ;; weak-pointers
+  (make-weak-pointer 1)
+
   ;; Optimistic concurrency
   (current-proposal)
   (set-current-proposal! 1)
@@ -239,18 +266,22 @@
   (return-from-native-exception 1)
   (set-interrupt-handlers! 1)
   (set-enabled-interrupts! 1)
-  (resume-interrupted-call-to-byte-code)
+  (resume-interrupted-opcode-to-byte-code)
   (resume-interrupted-call-to-native-code)
-  (return-from-poll-interrupt)
+  (resume-native-poll)
   (schedule-interrupt 1)
   (wait 2)                      ; do nothing until something happens
   (call-external-value 1 +)
   (lookup-shared-binding 2)
   (undefine-shared-binding 2)
+  (find-undefined-imported-bindings)
   (time 2)
+  (system-parameter 1)
   (vm-extension 2)		; access to extensions of the virtual machine
   (return-from-callback 2)	; return from an callback
-
+  (op-with-cell-literal byte byte byte byte ;word-literal
+                       byte +)
+  
   ;; Unnecessary primitives
   (string=? 2)
   (reverse-list->string 2)
@@ -260,11 +291,22 @@
   (checked-record-ref index 3)
   (checked-record-set! index 4)
 
+  (encode-char 5)
+  (encode-char! 5)
+
+  (decode-char 4)
+  (decode-char! 4)
+
   ;; ports (buffered I/O) - these are all unnecessary
   ;; byte = 0 -> port is supplied
   ;;      = 1 -> get port from dynamic environment
+  ((read-byte peek-byte) byte 1 0)
+  (write-byte byte 2 1)
+
   ((read-char peek-char) byte 1 0)
   (write-char byte 2 1)
+
+  (os-error-message 1)
 
   ;; For writing informative messages when debugging
   (message 1)
@@ -273,9 +315,13 @@
 (define-enumeration interrupt
   (alarm           ; order matters - higher priority first
    keyboard
-   post-gc         ; handler is passed a list of finalizers
-   i/o-completion  ; handler is passed channel and status
+
+   ;; "Major" means the collector made a maximal effort to reclaim
+   ;; memory; everything else is "minor".
+   post-minor-gc post-major-gc ; handler is passed a list of finalizers
+   i/o-completion  ; handler is passed channel, error flag and status
    os-signal
+   external-event  ; handler is passed event type uid
    ))
 
 ; Possible problems
@@ -287,6 +333,7 @@
    bad-procedure
    wrong-number-of-arguments
    wrong-type-argument
+   immutable-argument
    arithmetic-overflow
    index-out-of-range
    heap-overflow
@@ -310,9 +357,14 @@
    no-current-proposal
    native-code-not-supported
    illegal-exception-return
+
+   ;; these only come from external code
+   external-error
+   external-assertion-violation
+   external-os-error
    ))
 
-; Used by (READ-CHAR) and (WRITE-CHAR) to get the appropriate ports from
+; Used by (READ-BYTE) and (WRITE-BYTE) to get the appropriate ports from
 ; the fluid environment.
 
 (define-enumeration current-port-marker
@@ -388,17 +440,19 @@
 
 (define native-protocol-mask #x80)
 
-; The maximum number of arguments that can be passed to EXTERNAL-CALL.
-; This is determined by the C procedure `external_call()'.
-
-(define maximum-external-call-args 12)
-
 ;----------------
 ; The number of stack slots available to each procedure by default.
 ; Procedures that need more than this must use one of the two-byte-nargs
 ; protocols.  All of these are given in terms of descriptors.
 
 (define default-stack-space 64)
+
+; The maximum number of arguments that can be passed to EXTERNAL-CALL.
+; This is determined by the C procedure `external_call()'.
+
+; This leaves space for the non-argument stuff on the stack---see
+; external-call.scm.  Note that Mike isn't quite sure this is right.
+(define maximum-external-call-args (- default-stack-space 5))
 
 (define continuation-stack-size 4)  ; header + continuation + pc + code
 
@@ -412,6 +466,13 @@
 (define continuation-pc-index   0)
 (define continuation-code-index 1)
 (define continuation-cont-index 2)
+
+; Offsets in the CONT-DATA instruction
+					; -1 -2        frame size
+(define gc-mask-size-offset -3)		; -3           gc mask size
+					; -4 -5        offset
+                                        ; -6 -7        template
+(define gc-mask-offset      -8)         ; -8 ...       mask (low bytes first)
 
 ; The number of additional values that the VM adds to exception continuations.
 (define exception-continuation-cells 5)
@@ -440,6 +501,7 @@
   (run-time
    real-time
    cheap-time     ; cheap (no system call) access to the polling clock
+   gc-run-time
    ;current-time
    ))
 
@@ -448,6 +510,7 @@
 (define-enumeration memory-status-option
   (available
    heap-size
+   max-heap-size
    stack-size
    gc-count
    expand-heap!
@@ -473,6 +536,26 @@
    open-for-output
    ))
 
+; Parameters that configure a channel
+
+(define-enumeration channel-parameter-option
+  (buffer-size crlf?))
+
+; Built-in text encodings
+
+(define-enumeration text-encoding-option
+  (us-ascii
+   latin-1
+   utf-8
+   utf-16le utf-16be
+   utf-32le utf-32be))
+
+; Options for op/system-parameter
+
+(define-enumeration system-parameter-option
+  (host-architecture
+   os-string-encoding))
+
 (define-enumeration stob
   (;; D-vector types (traced by GC)
    pair
@@ -491,7 +574,7 @@
    weak-pointer
    shared-binding
    unused-d-header1
-   unused-d-header2
+   transport-link-cell
 
    ;; B-vector types (not traced by GC)
    string        ; = least b-vector type
@@ -510,7 +593,7 @@
 (define stob-data
   '((pair pair? cons
       (car set-car!) (cdr set-cdr!))
-    (symbol symbol? #f       ; RTS calls op/string->symbol
+    (symbol symbol? #f       ; RTS calls op/intern/string->symbol
       (symbol->string))
     (location location? make-location
       (location-id set-location-id!)
@@ -519,7 +602,7 @@
       (cell-ref cell-set!))
     (closure closure? make-closure
       (closure-template) (closure-env))
-    (weak-pointer weak-pointer? make-weak-pointer
+    (weak-pointer weak-pointer? #f ; make-weak-pointer is an op
       (weak-pointer-ref))
     (shared-binding shared-binding? make-shared-binding
       (shared-binding-name)
@@ -527,17 +610,29 @@
       (shared-binding-ref shared-binding-set!))
     (port port? make-port
       (port-handler)
+      ;; either an integer from the TEXT-ENCODING-OPTION for encodings
+      ;; handled by the VM, or a :TEXT-CODEC object for things handled
+      ;; purely by the RTS
+      (port-text-codec-spec set-port-text-codec-spec!)
+      (port-crlf?   set-port-crlf?!)
       (port-status  set-port-status!)
       (port-lock    set-port-lock!)		; used for buffer timestamps
       (port-data    set-port-data!)
       (port-buffer  set-port-buffer!)
       (port-index   set-port-index!)
       (port-limit   set-port-limit!)
+      ;; for CR/LF handling
+      (port-pending-cr?  set-port-pending-cr?!)
       (port-pending-eof? set-port-pending-eof?!))
     (channel channel? #f
       (channel-status)
       (channel-id)
       (channel-os-index)
       (channel-close-silently?))
+    (transport-link-cell transport-link-cell? make-transport-link-cell
+      (transport-link-cell-key) ; must always be younger, hence no mutator
+      (transport-link-cell-value set-transport-link-cell-value!)
+      (transport-link-cell-tconc set-transport-link-cell-tconc!)
+      (transport-link-cell-next set-transport-link-cell-next!))
     ))
 

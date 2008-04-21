@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; These are the four entry points (cf. rts/eval.scm):
@@ -84,11 +84,11 @@
 		   (if (location-defined? loc)
 		       (contents loc)
 		       (error "uninitialized variable" (schemify node env))))
-		 (error "invalid variable reference" (schemify node env))))
+		 (assertion-violation 'name "invalid variable reference" (schemify node env))))
 	    ((unbound? binding)
-	     (error "unbound variable" (schemify node env)))
+	     (assertion-violation 'name "unbound variable" (schemify node env)))
 	    (else
-	     (error "peculiar binding" node binding))))))
+	     (assertion-violation 'name "peculiar binding" node binding))))))
 
 (define (name-node-binding node env)
   (or (node-ref node 'binding)
@@ -141,7 +141,7 @@
 
 (define (run-begin exp-list env)
   (if (null? exp-list)
-      (syntax-error "null begin")
+      (syntax-violation 'begin "null begin")
       (let loop ((exp-list exp-list))
 	(if (null? (cdr exp-list))
 	    (run (car exp-list) env)
@@ -158,9 +158,9 @@
 		      (variable-type? (binding-type probe)))
 		 (set-contents! (binding-place probe)
 				(run (caddr exp) env))
-		 (error "invalid assignment" (schemify node env))))
-	    ((unbound? probe) (error "unbound variable" exp))
-	    (else (error "peculiar assignment" exp))))))
+		 (assertion-violation 'set! "invalid assignment" (schemify node env))))
+	    ((unbound? probe) (assertion-violation 'set! "unbound variable" exp))
+	    (else (assertion-violation 'set! "peculiar assignment" exp))))))
 
 (define-interpreter 'if syntax-type
   (lambda (node env)
@@ -198,7 +198,8 @@
 
 
 (let ((bad (lambda (node env)
-	     (error "not valid in expression context" (node-form node)))))
+	     (assertion-violation 'definition
+				  "not valid in expression context" (node-form node)))))
   (define-interpreter 'define syntax-type bad)
   (define-interpreter 'define-syntax syntax-type bad))
 
@@ -210,7 +211,8 @@
     (let ((name (cadr (node-form node))))
       (or (table-ref primitive-procedures name)
 	  (lambda args
-	    (error "unimplemented primitive procedure" name))))))
+	    (assertion-violation 'primitive-procedure
+				 "unimplemented primitive procedure" name))))))
 
 (define primitive-procedures (make-table))
 
@@ -251,31 +253,13 @@
   (cond ((null? names)
 	 (if (null? args)
 	     env
-	     (error "too many arguments" args)))
+	     (assertion-violation 'bind-vars "too many arguments" args)))
 	((not (pair? names))
 	 (bind-var names args env))
 	((null? args)
-	 (error "too few arguments" names))
+	 (assertion-violation 'bind-vars "too few arguments" names))
 	(else
 	 (bind-var (car names) (car args)
 		   (bind-vars (cdr names) (cdr args) env)))))
-
-
-; LOAD
-
-(define (load filename . package-option)
-  (load-into filename (if (null? package-option)
-			  (interaction-environment)
-			  (car package-option))))
-
-(define (load-into filename package)
-  (eval-nodes (read-forms filename package #f)
-	      (package->environment package)
-	      filename))
-
-
-(define (eval-from-file forms package file)	;Scheme 48 internal thing
-  (eval-forms forms package file))
-
 
 ; (scan-structures (list s) (lambda (p) #t) (lambda (stuff) #f))

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2000 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 ; Pre-Scheme packages
 
@@ -231,7 +231,7 @@
 
 (define-structures ((ps-primops ps-primop-interface))
   (open scheme big-scheme comp-util node simplify-internal
-	linking ps-types front expand)
+	linking ps-types front expand platform)
   (files (primop primop)))
 
 (define-structures ((ps-c-primops ps-c-primop-interface))
@@ -256,6 +256,7 @@
 (define-structures ((c-primop-data (export)))
   (open scheme big-scheme comp-util node simplify
 	ps-types ps-primops ps-c-primops
+	platform
 	front
 	structure-refs
 	c-internal
@@ -289,7 +290,7 @@
 
 (define-structures ((c (export write-c-file hoist-nested-procedures))
 		    (c-internal c-internal-interface))
-  (open scheme big-scheme comp-util strongly-connected node forms
+  (open scheme ascii big-scheme comp-util strongly-connected node forms
 	defrecord
 	ps-primops ps-c-primops
 	ps-types type-variables
@@ -302,7 +303,6 @@
 	external-values
 	external-constants
 	eval-node)         ; unspecific?
-  (begin (define number-of-char-codes 256))  ; should be somewhere else
   (files c
 	 c-decl
 	 c-call

@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; The stack grows from higher addresses to lower ones.
 ; *STACK-BEGIN* and *STACK-END* delimit the stack portion of memory.
@@ -333,6 +333,9 @@
   (set! *cont* (stack-cont-continuation *cont*))
   (integer->address (pop)))
 
+(define (set-cont-to-stack!)
+  (set! *cont* *stack*))
+
 ; Pushing exception data.  We do this in a chunk to ensure that we agree
 ; with the VM as to which value is where.
 
@@ -458,19 +461,20 @@
 
 (define (maybe-write-template template not-first? out)
   (if not-first?
-      (write-string " <- " out))
+      (begin
+	(write-string " <- " out)
+	(unspecific))) ; avoid type error
   (if (template? template)
       (let ((name (template-name template)))
 	(cond ((fixnum? name)
 	       (write-integer (extract-fixnum name) out))
 	      ((and (record? name)
 		    (vm-string? (record-ref name 2)))
-	       (write-string (extract-string (record-ref name 2)) out))
+	       (write-vm-string (record-ref name 2) out))
 	      ((and (record? name)
 		    (vm-symbol? (record-ref name 2)))
-	       (write-string (extract-string
-			      (vm-symbol->string (record-ref name 2)))
-			     out))
+	       (write-vm-string (vm-symbol->string (record-ref name 2))
+				out))
 	      (else
 	       (write-string "?" out))))
       (write-string " ?? " out))

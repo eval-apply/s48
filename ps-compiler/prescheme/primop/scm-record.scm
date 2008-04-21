@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2000 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 (define-complex-primitive (make-record symbol?)
   (lambda (type)

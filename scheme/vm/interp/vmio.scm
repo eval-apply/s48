@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; This is file vmio.scm.
 
@@ -57,21 +57,35 @@
   (if (null-pointer? *vm-channels*)
       (error "out of memory, unable to continue"))
   (vector+length-fill! *vm-channels* *number-of-channels* false)
-  (let ((key (ensure-space (* 3 (+ channel-size
-				   (vm-string-size
-				     (string-length "standard output")))))))
-    (values (make-initial-channel (current-input-channel)
-				  input-status
-				  "standard input"
-				  key)
-	    (make-initial-channel (current-output-channel)
-				  output-status
-				  "standard output"
-				  key)
-	    (make-initial-channel (current-error-channel)
-				  output-status
-				  "standard error"
-				  key))))
+  (let ((input-encoding (channel-console-encoding (current-input-channel)))
+	(output-encoding (channel-console-encoding (current-output-channel)))
+	(error-encoding (channel-console-encoding (current-error-channel))))
+    (if (or (null-pointer? input-encoding)
+	    (null-pointer? output-encoding)
+	    (null-pointer? error-encoding))
+	(error "out of memory, unable to continue"))
+
+    (let ((key (ensure-space (* 3 (+ channel-size
+				     (vm-string-size
+				      (string-length "standard output"))
+				     (vm-string-size (string-length input-encoding))
+				     (vm-string-size (string-length output-encoding))
+				     (vm-string-size (string-length error-encoding)))))))
+      (values (make-initial-channel (current-input-channel)
+				    input-status
+				    "standard input"
+				    key)
+	      (enter-string input-encoding key)
+	      (make-initial-channel (current-output-channel)
+				    output-status
+				    "standard output"
+				    key)
+	      (enter-string output-encoding key)
+	      (make-initial-channel (current-error-channel)
+				    output-status
+				    "standard error"
+				    key)
+	      (enter-string error-encoding key)))))
 
 (define (make-initial-channel channel status name key)
   (let ((vm-channel (make-channel status
@@ -80,6 +94,7 @@
 				  false    ; close-silently?
 				  false    ; next
 				  false    ; os-status
+				  false    ; error?
 				  key)))
     (vector-set! *vm-channels* channel vm-channel)
     vm-channel))
@@ -101,6 +116,7 @@
 				      close-silently?
 				      false   ; next
 				      false   ; os-status
+				      false   ; error?
 				      key)))
 	   (vector-set! *vm-channels* os-index channel)
 	   (values channel
@@ -131,8 +147,8 @@
 	((false? (vector-ref *vm-channels* os-index))
 	 (let ((old-index (extract-fixnum (channel-os-index channel))))
 	   (if (vm-eq? (channel-os-status channel)
-		       true)
-	       (enqueue-channel! old-index (channel-abort old-index)))
+		       true) ; operation pending
+	       (enqueue-channel! old-index (channel-abort old-index) false))
 	   (vector-set! *vm-channels* old-index false)
 	   (vector-set! *vm-channels* os-index channel)
 	   (set-channel-os-index! channel (enter-fixnum os-index))
@@ -167,8 +183,8 @@
 (define (close-channel! channel)
   (let ((os-index (extract-fixnum (channel-os-index channel))))
     (if (vm-eq? (channel-os-status channel)
-		true)
-	(enqueue-channel! os-index (channel-abort os-index)))
+		true) ; operation pending
+	(enqueue-channel! os-index (channel-abort os-index) false))
     (let ((status (if (or (= input-status (channel-status channel))
 			  (= special-input-status (channel-status channel)))
 		      (close-input-channel os-index)
@@ -184,8 +200,9 @@
   (if (and (<= 0 os-index)
 	   (< os-index *number-of-channels*)
 	   (channel? (os-index->channel os-index)))
-      (close-channel! (os-index->channel os-index)))
-  (unspecific))
+      (begin
+	(close-channel! (os-index->channel os-index))
+	(unspecific)))) ; CLOSE-CHANNEL! returns an integer
 
 ; Called to close an OS channel when we have been unable to make the
 ; corresponding Scheme channel.
@@ -206,10 +223,15 @@
   (write-error-string (error-string status))
   (write-error-newline)
   (write-error-string " while closing port ")
-  (if (vm-string? id)
-      (write-error-string (extract-string id))
-      (write-error-integer (extract-fixnum index)))
-  (write-error-newline))
+  (cond
+   ((vm-string? id)
+    (write-error-string (extract-low-string id)))
+   ((fixnum? id)
+    (write-error-integer (extract-fixnum index)))
+   (else
+    (write-error-string "<strange id>")))
+  (write-error-newline)
+  (unspecific))
 
 ; Return a list of the open channels, for the opcode of the same name.
 ; Not that it's important, but the list has the channels in order of
@@ -246,9 +268,10 @@
 (define (channel-queue-empty?)
   (false? *pending-channels-head*))
 
-(define (enqueue-channel! index status)
+(define (enqueue-channel! index status error?)
   (let ((channel (os-index->channel index)))
     (set-channel-os-status! channel (enter-fixnum status))
+    (set-channel-error?! channel error?)
     (cond ((or (not (false? (channel-next channel))) ; already queued (how?)
 	       (eq? channel *pending-channels-head*) ; first and only
 	       (eq? channel *pending-channels-tail*)); last (i.e. no next)
@@ -346,9 +369,14 @@
 (define (notify-channel-closed channel)
   (let ((id (channel-id channel)))
     (write-error-string "Channel closed: ")
-    (if (fixnum? id)
-	(write-error-integer (extract-fixnum id))
-	(write-error-string (extract-string id)))
+    (cond
+     ((fixnum? id)
+      (write-error-integer (extract-fixnum id)))
+     ((vm-string? id)
+      (write-vm-string id (current-error-port)))
+     (else
+      (write-error-string "<strange id>")))
     (write-error-string " ")
     (write-error-integer (extract-fixnum (channel-os-index channel)))
-    (write-error-newline)))
+    (write-error-newline)
+    (unspecific)))

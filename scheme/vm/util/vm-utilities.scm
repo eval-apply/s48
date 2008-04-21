@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 (define (adjoin-bits high low k)
@@ -28,7 +28,14 @@
       ((= i n))
     (proc i)))
 
+(define (natural-for-each-while proc n)
+  (do ((i 0 (+ i 1)))
+      ((or (= i n)
+	   (not (proc i))))))
+
 ;----------------
+
+; stderr
 
 (define (error? status)
   (not (eq? status (enum errors no-errors))))
@@ -45,3 +52,23 @@
 (define (error-message string)
   (write-error-string string)
   (write-error-newline))
+
+; stdout
+
+(define (write-out-string string)
+  (write-string string (current-output-port)))
+
+(define (write-out-integer integer)
+  (write-integer integer (current-output-port)))
+
+(define (write-out-newline)
+  (write-char #\newline (current-output-port)))
+
+(define (display-message str)
+  (write-out-string str)
+  (write-out-newline))
+
+(define (display-integer int)
+  (write-out-integer int)
+  (write-out-newline))
+

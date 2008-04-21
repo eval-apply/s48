@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2000 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 ; (make-vector size init)
 
@@ -147,7 +147,7 @@
 
 (define-c-generator copy-memory! #t
   (lambda (call port indent)
-    (format port "memcpy((void *)") 
+    (format port "memmove((void *)") 
     (c-value (call-arg call 1) port)
     (format port ", (void *)") 
     (c-value (call-arg call 0) port)

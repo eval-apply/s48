@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Value pipes (queues where readers and writers can block)
 ;
@@ -36,7 +36,7 @@
 				 (exact? size)
 				 (< 0 size)))
 			size
-			(call-error "invalid argument" make-pipe more)))))
+			(assertion-violation 'make-pipe "invalid argument" more)))))
 	(id (if (or (null? more)
 		    (null? (cdr more)))
 		#f
@@ -72,12 +72,15 @@
 		(lose)))))))
 		  
 (define (block-on-pipe pipe lose)
-  (or (maybe-commit-and-block-on-queue (pipe-threads pipe))
-      (lose)))
+  (maybe-commit-and-block-on-queue (pipe-threads pipe))
+  (lose))
 
 (define (make-pipe-reader win block)
   (lambda (pipe)
-    (pipe-read-or-write! pipe dequeue! 0 -1 (pipe-max-count pipe) win block))) 
+    ;; Using maybe-dequeue! because dequeue! would raise an error,
+    ;; even if the subsequent commit fails anyway.
+    (pipe-read-or-write! pipe maybe-dequeue!
+			 0 -1 (pipe-max-count pipe) win block))) 
 
 (define pipe-read!
   (make-pipe-reader (lambda (x) x) block-on-pipe))
@@ -129,7 +132,9 @@
     (let ((count (pipe-count pipe)))
       (if (and (pipe-max-count pipe)
 	       (= count (pipe-max-count pipe)))
-	  (dequeue! (pipe-queue pipe))
+	  ;; Using maybe-dequeue! because dequeue! would raise an
+	  ;; error, even if the subsequent commit fails anyway.
+	  (maybe-dequeue! (pipe-queue pipe))
 	  (set-pipe-count! pipe (+ count 1)))
       (enqueue! (pipe-queue pipe) value)
       (if (not (if (= count 0)

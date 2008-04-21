@@ -19,8 +19,11 @@
 	  stob-data
 	  (time-option :syntax)
 	  (channel-status-option :syntax)
+	  (channel-parameter-option :syntax)
 	  (port-status-options :syntax)
 	  (current-port-marker :syntax)
+	  (text-encoding-option :syntax)
+	  (system-parameter-option :syntax)
 
 	  maximum-stack-args
 	  two-byte-nargs-protocol
@@ -42,6 +45,9 @@
 	  continuation-cont-index
 	  continuation-pc-index
 	  continuation-code-index
+
+	  gc-mask-size-offset
+	  gc-mask-offset
 	  
           exception-continuation-cells
 	  exception-cont-size-index
@@ -60,7 +66,7 @@
 ; Data structures
 
 (define-interface vm-data-interface
-  (export bytes-per-cell bits-per-cell addressing-units-per-cell
+  (export bytes-per-cell bits-per-byte bits-per-cell addressing-units-per-cell
 	  bytes->cells
 	  cells->bytes
 	  a-units->cells
@@ -75,8 +81,8 @@
 	  make-tag&immediate-type
 
 	  enter-fixnum extract-fixnum
-	  bits-per-fixnum greatest-fixnum-value
-	  too-small-for-fixnum? too-big-for-fixnum?
+	  bits-per-fixnum greatest-fixnum-value least-fixnum-value
+	  too-small-for-fixnum? too-big-for-fixnum? unsigned-too-big-for-fixnum?
 	  descriptor->fixnum fixnum->stob
 	  fixnum= fixnum< fixnum> fixnum<= fixnum>=
 	  fixnum-bitwise-not fixnum-bitwise-and
@@ -88,7 +94,10 @@
 	  true false eof-object null unspecific-value unreleased-value quiescent
 	  unbound-marker unassigned-marker
 	  vm-boolean? false? enter-boolean extract-boolean
-	  vm-char? enter-char extract-char vm-char=? vm-char<?
+	  bytes-per-scalar-value-unit scalar-value-units->bytes
+	  scalar-value-units->bytes bytes->scalar-value-units
+	  vm-char? vm-char=? vm-char<?
+	  enter-char extract-char scalar-value->char char->scalar-value
 
 	  make-header header-type
 	  header-type-field-width

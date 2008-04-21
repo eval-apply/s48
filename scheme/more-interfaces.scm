@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Interfaces for packages that can get loaded after the initial.image
@@ -14,7 +14,6 @@
 	  command-loop
 	  command-level-condition
 	  command-processor
-	  error-form ;foo
 	  execute-command
 	  exit-command-processor
 	  evaluate-and-select
@@ -29,7 +28,6 @@
 	  set-command-results!
 	  start-command-processor
 	  restart-command-processor
-	  value->expression		;foo
 	  y-or-n?
 	  help
 	  define-command-syntax
@@ -42,13 +40,14 @@
 	  &environment-id-string
 	  ;&evaluate
 
-	  ; Switches
-	  add-switch
-	  lookup-switch
-	  switch-on?
-	  switch-set!
-	  switch-doc
-	  list-switches
+	  ; Settings
+	  add-setting
+	  lookup-setting
+	  setting-boolean?
+	  setting-value
+	  setting-set!
+	  setting-doc
+	  list-settings
 	  ))
 
 (define-interface command-levels-interface
@@ -61,7 +60,7 @@
 	  proceed-with-command-level
 	  kill-paused-thread!
 
-	  reset-command-input?  ; condition predicate 
+	  reset-command-input-condition?
 
 	  terminate-command-processor!
 	  command-level
@@ -85,12 +84,16 @@
 	  command-input
 	  command-output
 	  command-error-output
-	  batch-mode?
-	  set-batch-mode?!
-	  break-on-warnings?
-	  set-break-on-warnings?!
-	  load-noisily?
-	  set-load-noisily?!
+	  batch-mode? set-batch-mode?!
+	  break-on-warnings? set-break-on-warnings?!
+	  load-noisily? set-load-noisily?!
+	  trace-writing-depth set-trace-writing-depth!
+	  inspector-menu-limit set-inspector-menu-limit!
+	  inspector-writing-depth set-inspector-writing-depth!
+	  inspector-writing-length set-inspector-writing-length!
+	  condition-writing-depth set-condition-writing-depth!
+	  condition-writing-length set-condition-writing-length!
+	  translations set-translations!
 
 	  maybe-menu
 	  set-menu!
@@ -208,6 +211,10 @@
 	  ;set-package-evaluator!
 	  ))
 
+(define-interface display-conditions-interface
+  (export display-condition		;command.scm
+	  limited-write))
+
 (define-interface debuginfo-interface
   (export read-debug-info
 	  write-debug-info))
@@ -219,6 +226,7 @@
 	  error-form
 	  location-info
 	  location-name
+	  location-package-name
 	  template-debug-data
 	  template-id
 	  template-name
@@ -285,6 +293,8 @@
 	  &inexact->exact
 	  &real-part
 	  &imag-part
+	  &magnitude
+	  &angle
 	  &floor
 	  &numerator
 	  &denominator
@@ -299,11 +309,49 @@
   (export real-time
 	  run-time))
 
+(define-interface unicode-char-maps-interface
+  (export (primary-category :syntax)
+	  primary-category?
+
+	  (general-category :syntax)
+	  general-category?
+	  general-category-id
+	  general-category-symbol
+	  general-category-primary-category
+
+	  char-general-category
+	  char-titlecase
+	  char-title-case?
+	  char-foldcase
+
+	  string-upcase string-downcase
+	  string-foldcase
+	  string-titlecase))
+
+(define-interface signals-internal-interface
+  (export simple-condition->condition
+	  condition->simple-condition
+	  coerce-to-condition
+	  coerce-to-simple-condition))
+
 ; Experimental DEFINE-RECORD-TYPE that is now officially a failure.
 
 (define-interface defrecord-interface  ;RK's
   (export (define-record-type :syntax)
 	  define-record-discloser))
+
+; Unicode
+; -------
+
+(define-interface text-codec-utils-interface
+  (export guess-port-text-codec-according-to-bom
+	  set-port-text-codec-according-to-bom!))
+
+(define-interface unicode-normalizations-interface
+  (export string-normalize-nfd
+	  string-normalize-nfkd
+	  string-normalize-nfc
+	  string-normalize-nfkc))
 
 ; --------------------
 ; Big Scheme
@@ -321,6 +369,22 @@
 
 	  call-external))
 
+(define-interface shared-objects-interface
+  (export open-shared-object
+	  close-shared-object
+	  shared-object?
+	  shared-object-name
+	  shared-object-address shared-object-address-or-false
+	  shared-object-address?
+	  shared-object-address-value
+	  call-shared-object-address))
+
+(define-interface load-dynamic-externals-interface
+  (export load-dynamic-externals
+	  import-dynamic-externals
+	  reload-dynamic-externals
+	  unload-dynamic-externals))
+
 (define-interface dump/restore-interface
   (export dump
 	  restore
@@ -329,12 +393,12 @@
 	  $restore-index))
 
 (define-interface extended-ports-interface
-  (export char-source->input-port
-	  char-sink->output-port
+  (export byte-source->input-port char-source->input-port
+	  byte-sink->output-port char-sink->output-port
 	  make-tracking-input-port make-tracking-output-port
-	  make-string-input-port
-	  make-string-output-port
-	  string-output-port-output
+	  make-byte-vector-input-port make-string-input-port
+	  make-byte-vector-output-port make-string-output-port
+	  byte-vector-output-port-output string-output-port-output
 	  limit-output
 	  current-row current-column fresh-line
 
@@ -355,6 +419,32 @@
 
 (define-interface lu-decompositions-interface
   (export lu-decomposition))
+
+(define-interface compact-tables-interface
+  (export compute-compact-table))
+
+(define-interface inversion-lists-interface
+  (export make-empty-inversion-list
+	  inversion-list?
+	  inversion-list-member?
+	  inversion-list-complement
+	  inversion-list-union inversion-list-intersection
+	  inversion-list-difference
+	  number->inversion-list numbers->inversion-list
+	  range->inversion-list ranges->inversion-list
+	  inversion-list-adjoin inversion-list-remove
+	  inversion-list-size
+	  inversion-list-copy
+	  inversion-list=?
+	  inversion-list-hash
+	  inversion-list-fold/done?
+	  inversion-list-cursor?
+	  inversion-list-cursor inversion-list-cursor-at-end?
+	  inversion-list-cursor-next inversion-list-cursor-ref))
+
+(define-interface constant-tables-interface
+  (export make-constant-table
+	  constant-table-lookup))
 
 (define-interface mask-types-interface
   (export make-mask-type
@@ -381,8 +471,10 @@
 	  enum-set->list
 	  enum-set-member?
 	  enum-set=?
+	  enum-set-subset?
 	  enum-set-union
 	  enum-set-intersection
+	  enum-set-difference
 	  enum-set-negation))
 
 (define-interface enum-sets-internal-interface
@@ -390,7 +482,16 @@
 	  enum-set?
 	  enum-set-type
 	  enum-set->integer
-	  integer->enum-set))
+	  integer->enum-set
+
+	  ;; for r6rs-enums
+	  make-enum-set-type
+	  enum-set-type-values
+	  enum-set-type-member?
+	  elements->enum-set
+	  (define-enum-set-maker :syntax)
+	  enum-set-type-element-index
+	  ))
 
 (define-interface search-trees-interface
   (export make-search-tree
@@ -407,6 +508,9 @@
 	  sparse-vector-ref sparse-vector-set!
 	  sparse-vector->list))
 
+(define-interface variable-argument-lists-interface
+  (export (opt-lambda :syntax)))
+
 ; This is getting to be a hodge-podge.
 
 (define-interface big-util-interface       
@@ -418,7 +522,6 @@
 	  filter filter! filter-map partition-list partition-list!
 	  remove-duplicates delq delq! delete
 	  reverse!
-	  copy-string
 	  string->immutable-string
 	  ))
 
@@ -445,12 +548,34 @@
   (export (define-record-type :syntax)
 	  define-record-discloser))
 
+(define-interface parse-bytecode-interface
+  (export byte-code?
+          parse-template
+          parse-template-code
+          parse-instruction
+          parse-protocol
+          with-template
+          make-attribution
+          make-opcode-table
+          opcode-table-set! opcode-table-ref
+          protocol-protocol protocol-nargs n-ary-protocol? 
+          protocol-cwv-tailcall? call-with-values-protocol-target
+          env-data? env-data-total-count env-data-frame-offsets
+          env-data-maybe-template-index env-data-closure-offsets 
+          env-data-env-offsets
+          cont-data? cont-data-length cont-data-mask-bytes cont-data-live-offsets cont-data-pc
+          cont-data-template cont-data-gc-mask-size cont-data-depth))
+
+(define-interface reinitializers-interface
+  (export (define-reinitializer :syntax)))
+
 (define-interface locks-interface
   (export lock?
 	  make-lock
 	  obtain-lock
 	  maybe-obtain-lock
 	  release-lock
+	  with-lock
 	  lock-owner))		;really should be internal
 
 (define-interface value-pipes-interface
@@ -470,8 +595,27 @@
 	  placeholder-value
 	  placeholder-set!))
 
-(define-interface sicp-interface
-  (export and or (sequence :syntax)
-	  mapcar mapc 1+ -1+ t nil atom? print princ prin1 error
-	  (cons-stream :syntax) head tail the-empty-stream empty-stream?
-	  explode implode get put))
+(define-interface matchers-interface
+  (export matcher? matcher-sexpr
+	  matches?
+	  is
+	  anything
+	  opposite
+	  is-true is-false is-null
+	  is-within
+	  member-of
+	  all-of any-of list-where-all list-where-any))
+
+(define-interface test-suites-interface 
+  (export ((define-test-suite define-test-case define-test-cases) :syntax)
+	  ((check check-exception check-that check-exception-that) :syntax)
+	  run-test-suite
+	  =within
+	  zap-test-suite!))
+
+; Backwards compatibility
+
+(define-interface signals-interface
+  (export error warn syntax-error call-error note
+	  signal signal-condition
+	  make-condition))

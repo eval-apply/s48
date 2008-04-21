@@ -1,19 +1,31 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Low-level things that rely on the fact that we're running under the
 ; Scheme 48 VM.
 
-; Needs LET macro.
+; Historical kludge; ASCII is a misnomer (as it covers only [0, 127])---
+; we really mean Latin-1.
 
+(define (char->ascii c)
+  (let ((scalar-value (char->scalar-value c)))
+    (if (>= scalar-value ascii-limit)
+	(assertion-violation 'char->ascii
+			     "not an ASCII character"
+			     c))
+    scalar-value))
 
-; Characters are not represented in ASCII.  Using a different encoding
-; helps to catch portability problems.
+(define (ascii->char x)
+  (if (or (>= x ascii-limit) (< x 0))
+      (assertion-violation 'ascii->char
+			   "not an ASCII code"
+			   x))
+  (scalar-value->char x))
 
-(define (char->integer c) (+ (char->ascii c) 1000))
-(define (integer->char n) (ascii->char (- n 1000)))
+(define (char->integer c) (char->scalar-value c))
+(define (integer->char n) (scalar-value->char n))
 
-(define ascii-limit 256)		;for reader
+(define ascii-limit 128)
 ; space, horizontal tab, line feed (= newline), vertical tab, form feed, and
 ; carriage return
 (define ascii-whitespaces '(32 9 10 11 12 13))
@@ -83,10 +95,10 @@
 ; STRING-COPY is here because it's needed by STRING->SYMBOL.
 
 (define (string-copy s)
-  (let ((z (string-length s)))
-    (let ((copy (make-string z #\space)))
-      (copy-bytes! s 0 copy 0 z)
-      copy)))
+  (let* ((z (string-length s))
+	 (copy (make-string z)))
+    (copy-string-chars! s 0 copy 0 z)
+    copy))
 
 ; The symbol table
 
@@ -163,14 +175,18 @@
   (message stuff))
 
 ; Checking for undumpable objects when writing images.
+; Also convert file-name to VM format
 
-(define (write-image filename start-procedure message)
+(define (write-image file-name start-procedure message)
   (let ((undumpable (make-vector 1000 #f)))
-    (write-image-low filename start-procedure message undumpable)
+    (write-image-low file-name
+		     start-procedure
+		     message
+		     undumpable)
     (if (vector-ref undumpable 0)
-	(signal 'error
-		"undumpable records written in image"
-		(vector-prefix->list undumpable)))))
+	(assertion-violation 'write-image
+			     "undumpable records written in image"
+			     (vector-prefix->list undumpable)))))
 
 ; Return a list containing the non-#F values at the beginning of VECTOR.
 

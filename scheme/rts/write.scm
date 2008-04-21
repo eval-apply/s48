@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; This is file write.scm.
 
@@ -16,7 +16,7 @@
 	     (open-output-port? port))
 	(let recur ((obj obj))
 	  (recurring-write obj port recur))
-	(call-error "invalid port argument" write port))))
+	(assertion-violation 'write "invalid port argument" port))))
 
 (define (recurring-write obj port recur)
   (cond ((null? obj) (write-string "()" port))
@@ -43,9 +43,40 @@
 	(write probe port)
 	(write-char obj port))))
 
+; These are from Matthew Flatt's Unicode proposal for R6RS
+; See read.scm.
+
+; Don't use non-R5RS char literals to avoid bootstrap circularities
+
+(define *nul* (scalar-value->char 0))
+(define *alarm* (scalar-value->char 7))
+(define *backspace* (scalar-value->char 8))
+(define *tab* (scalar-value->char 9))
+(define *linefeed* (scalar-value->char 10))
+(define *vtab* (scalar-value->char 11))
+(define *page* (scalar-value->char 12))
+(define *return* (scalar-value->char 13))
+(define *escape* (scalar-value->char 27))
+(define *rubout* (scalar-value->char 127))
+
+(define *char-name-table*
+  (list
+   (cons #\space 'space)
+   (cons #\newline 'newline)
+   (cons *nul* 'nul)
+   (cons *alarm* 'alarm)
+   (cons *backspace* 'backspace)
+   (cons *tab* 'tab)
+   (cons *linefeed* 'linefeed)
+   (cons *vtab* 'vtab)
+   (cons *page* 'page)
+   (cons *return* 'return)
+   (cons *escape* 'escape)
+   (cons *rubout* 'rubout)))
+
 (define (character-name char)
-  (cond ((char=? char #\space) 'space)
-        ((char=? char #\newline) 'newline)
+  (cond ((assq char *char-name-table*)
+	 => cdr)
 	(else #f)))
 
 (define (write-string-literal obj port)
@@ -54,9 +85,22 @@
     (do ((i 0 (+ i 1)))
 	((= i len) (write-char #\" port))
       (let ((c (string-ref obj i)))
-	(if (or (char=? c #\\) (char=? c #\"))
-	    (write-char #\\ port))
-	(write-char c port)))))
+	(cond
+	 ((or (char=? c #\\) (char=? c #\")
+	      (char=? c #\') (char=? c #\newline)) ; proposed for R6RS
+	  (write-char #\\ port)
+	  (write-char c port))
+	 ;; the following were all proposed for R6RS
+	 ((char=? c *alarm*) (write-string "\\a" port))
+	 ((char=? c *backspace*) (write-string "\\b" port))
+	 ((char=? c *tab*) (write-string "\\t" port))
+	 ((char=? c *linefeed*) (write-string "\\n" port))
+	 ((char=? c *vtab*) (write-string "\\v" port))
+	 ((char=? c *page*) (write-string "\\f" port))
+	 ((char=? c *return*) (write-string "\\r" port))
+	 ((char=? c *escape*)  (write-string "\\e" port))
+	 (else
+	  (write-char c port)))))))
 
 (define (write-list obj port recur)
   (cond ((quotation? obj)
@@ -105,7 +149,7 @@
   (cond ((disclose obj)
 	 => (lambda (l)
 	      (write-string "#{" port)
-	      (display-type-name (car l) port)
+	      (display (car l) port)
 	      (for-each (lambda (x)
 			  (write-char #\space port)
 			  (recur x))
@@ -123,21 +167,6 @@
 	((eq? obj (if #f #f)) (write-string "#{Unspecific}" port))
 	(else
 	 (write-string "#{Random object}" port))))
-
-; Display the symbol WHO-CARES as Who-cares.
-
-(define (display-type-name name port)
-  (if (symbol? name)
-      (let* ((s (symbol->string name))
-	     (len (string-length s)))
-	(if (and (> len 0)
-		 (char-alphabetic? (string-ref s 0)))
-	    (begin (write-char (char-upcase (string-ref s 0)) port)
-		   (do ((i 1 (+ i 1)))
-		       ((>= i len))
-		     (write-char (char-downcase (string-ref s i)) port)))
-	    (display name port)))
-      (display name port)))
 
 ;(define (write-string s port)
 ;  (do ((i 0 (+ i 1)))
@@ -157,5 +186,5 @@
 		((char? obj) (write-char obj port))
 		(else
 		 (recurring-write obj port recur))))
-	(call-error "invalid port argument" display port))))
+	(assertion-violation 'display "invalid port argument" port))))
 

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2000 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 ; This file has the Pre-Scheme compiler's code for dealing with the
 ; Scheme 48's module system.
@@ -24,6 +24,7 @@
     (environment-define! config 'ps-memory ps-memory)
     (environment-define! config 'ps-receive ps-receive)
     (environment-define! config 'ps-flonums ps-flonums)
+    (environment-define! config 'ps-unsigned-integers ps-unsigned-integers)
     (environment-define! config 'ps-record-types ps-record-types)
     (environment-define! config 'structure-refs structure-refs)
     (environment-define! config ':syntax (structure-ref meta-types syntax-type))
@@ -168,7 +169,7 @@
 				 (structure-ref meta-types syntax-type)
 				 `(usual-transform ',name)
 				 name)))
-	    '(and cond do let let* or quasiquote syntax-rules))) ; delay
+	    '(and cond do let let* or quasiquote))) ; delay
 
 ; Plus whatever primitives are wanted.
 
@@ -199,6 +200,7 @@
 (import-syntax! 'enumerated 'enumerand->name)
 (import-syntax! 'prescheme  'errors)
 (import-syntax! 'prescheme  'define-external-enumeration)
+(import-syntax! 'scheme     'syntax-rules)
 
 ; define still more syntax
 
@@ -231,6 +233,11 @@
   (make-structure base-package
 		  (lambda () (get-interface 'ps-flonums-interface)) 
 		  'ps-flonums))
+
+(define ps-unsigned-integers
+  (make-structure base-package
+		  (lambda () (get-interface 'ps-unsigned-integers-interface)) 
+		  'ps-unsigned-integers))
 
 (define ps-receive
   (make-structure base-package

@@ -1,17 +1,24 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <errno.h>              /* for errno, (POSIX?/ANSI) */
+#include <string.h>		/* FD_ZERO sometimes needs this */
+#include <locale.h>		/* ISO C99 */
 #include "sysdep.h"
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
 #include "c-mods.h"
 #include "scheme48vm.h"
 #include "event.h"
+#include "fd-io.h"
 #include "unix.h"
 
 /* Non-blocking I/O on file descriptors.
@@ -31,7 +38,7 @@
 */
 
 int
-ps_open_fd(char *filename, bool is_input, long *status)
+ps_open_fd(char *filename, psbool is_input, long *status)
 {
 #define FILE_NAME_SIZE 1024
 #define PERMISSION 0666   /* read and write for everyone */
@@ -55,7 +62,7 @@ ps_open_fd(char *filename, bool is_input, long *status)
     mode = PERMISSION; }
 
   /* keep trying if interrupted */
-  while(TRUE) {
+  while(1) {
     int fd = open(expanded, flags, mode);
     if (fd != -1) {
       *status = NO_ERRORS;
@@ -72,7 +79,7 @@ ps_close_fd(long fd_as_long)
   int fd = (int)fd_as_long;
 
   /* keep retrying if interrupted */
-  while(TRUE) {
+  while(1) {
     int status = close(fd);
     if (status != -1) {
       s48_remove_fd(fd);
@@ -82,11 +89,30 @@ ps_close_fd(long fd_as_long)
   }
 }
 
-bool ps_check_fd(long fd_as_long, bool is_read, long *status)
+psbool ps_check_fd(long fd_as_long, psbool is_read, long *status)
 {
   int fd = (int)fd_as_long;
   int ready;
 
+#if defined HAVE_GLIB
+  struct pollfd pollfds[1];
+  pollfds[0].fd = fd;
+  pollfds[0].events = is_read? POLLIN : POLLOUT;
+
+  *status = NO_ERRORS;
+
+  while(1) {
+    ready = poll(pollfds, 1, 0);
+#elif defined HAVE_POLL
+  struct pollfd pollfds[1];
+  pollfds[0].fd = fd;
+  pollfds[0].events = is_read? POLLIN : POLLOUT;
+
+  *status = NO_ERRORS;
+
+  while(1) {
+    ready = poll(pollfds, 1, 0);
+#elif defined HAVE_SELECT
   struct timeval timeout;
   fd_set fds;
 
@@ -96,29 +122,56 @@ bool ps_check_fd(long fd_as_long, bool is_read, long *status)
 
   *status = NO_ERRORS;
 
-  while(TRUE) {
+  while(1) {
     ready = select(fd + 1,
 		   is_read ? &fds : NULL,
 		   is_read ? NULL : &fds,
 		   &fds,
 		   &timeout);
+#endif /* HAVE_SELECT */
     if (ready == 0)
-	return FALSE;
-    else if (ready == 1)
-	return TRUE;
+	return PSFALSE;
+    /* Mike has witnessed it return 2 on Mac OS X. */
+    else if (ready >= 1)
+	return PSTRUE;
     else if (errno != EINTR) {
 	*status = errno;
-	return FALSE; } } 
+	return PSFALSE; } } 
 }
 
 long
-ps_read_fd(long fd_as_long, char *buffer, long max, bool waitp,
-	   bool *eofp, bool *pending, long *status)
+ps_read_fd(long fd_as_long, char *buffer, long max, psbool waitp,
+	   psbool *eofp, psbool *pending, long *status)
 {
   int got, ready;
   void *buf = (void *)buffer;
   int fd = (int)fd_as_long;
 
+#if defined HAVE_GLIB
+  struct pollfd pollfds[1];
+  pollfds[0].fd = fd;
+  pollfds[0].events = POLLIN;
+
+  /* for the normal return */
+  *eofp = PSFALSE;
+  *pending = PSFALSE;
+  *status = NO_ERRORS;
+
+  while(1) {
+    ready = poll(pollfds, 1, 0);
+#elif defined HAVE_POLL
+  struct pollfd pollfds[1];
+  pollfds[0].fd = fd;
+  pollfds[0].events = POLLIN;
+
+  /* for the normal return */
+  *eofp = PSFALSE;
+  *pending = PSFALSE;
+  *status = NO_ERRORS;
+
+  while(1) {
+    ready = poll(pollfds, 1, 0);
+#elif HAVE_SELECT
   struct timeval timeout;
   fd_set readfds;
 
@@ -127,17 +180,18 @@ ps_read_fd(long fd_as_long, char *buffer, long max, bool waitp,
   timerclear(&timeout);
 
   /* for the normal return */
-  *eofp = FALSE;
-  *pending = FALSE;
+  *eofp = PSFALSE;
+  *pending = PSFALSE;
   *status = NO_ERRORS;
 
-  while(TRUE) {
+  while(1) {
     ready = select(fd + 1, &readfds, NULL, &readfds, &timeout);
+#endif /* HAVE_SELECT */
     if (ready == 0) {
       if (!waitp)
 	return 0;
-      else if (s48_add_pending_fd(fd, TRUE)) {
-	*pending = TRUE;
+      else if (s48_add_pending_fd(fd, PSTRUE)) {
+	*pending = PSTRUE;
 	return 0; }
       else {
 	*status = ENOMEM;    /* as close as POSIX gets */
@@ -153,15 +207,15 @@ ps_read_fd(long fd_as_long, char *buffer, long max, bool waitp,
       if (got > 0) {       /* all is well */
 	return got; }
       else if (got == 0) { /* end of file */
-	*eofp = TRUE;
+	*eofp = PSTRUE;
 	return 0; }
       else if (errno == EINTR) {			/* HCC */
 	return 0; }
       else if (errno == EAGAIN) {			/* HCC */
 	if (!waitp)
 	  return 0;
-	else if (s48_add_pending_fd(fd, TRUE)) {
-	  *pending = TRUE;
+	else if (s48_add_pending_fd(fd, PSTRUE)) {
+	  *pending = PSTRUE;
 	  return 0; }
 	else {
 	  *status = ENOMEM;    /* as close as POSIX gets */
@@ -172,21 +226,21 @@ ps_read_fd(long fd_as_long, char *buffer, long max, bool waitp,
 }
 
 long
-ps_write_fd(long fd_as_long, char *buffer, long max, bool *pending, long *status)
+ps_write_fd(long fd_as_long, char *buffer, long max, psbool *pending, long *status)
 {
   int sent;
   int fd = (int)fd_as_long;
   void *buf = (void *)buffer;
 
-  *pending = FALSE;
+  *pending = PSFALSE;
   *status = NO_ERRORS;
 
   sent = write(fd, buf, max);
   if (sent > 0)
     {}
   else if (errno == EINTR || errno == EAGAIN) {		/* HCC */
-    if (s48_add_pending_fd(fd, FALSE))
-      *pending = TRUE;
+    if (s48_add_pending_fd(fd, PSFALSE))
+      *pending = PSTRUE;
     else
       *status = ENOMEM;    /* as close as POSIX gets */
     sent = 0; }
@@ -195,6 +249,55 @@ ps_write_fd(long fd_as_long, char *buffer, long max, bool *pending, long *status
     sent = 0; }
 
   return sent;
+}
+
+long
+ps_io_buffer_size(void)
+{
+  return 4096;
+}
+
+psbool
+ps_io_crlf_p(void)
+{
+  return PSFALSE;
+}
+
+char *
+ps_console_encoding(long fd_as_long)
+{
+  static char *encoding_STDIN = NULL;
+  static char *encoding_STDOUT = NULL;
+  static char *encoding_STDERR = NULL;
+  static char setlocale_called = PSFALSE;
+  char *codeset;
+
+  char** encoding_p;
+
+  if (fd_as_long == STDIN_FD())
+    encoding_p = &encoding_STDIN;
+  else if (fd_as_long == STDOUT_FD())
+    encoding_p = &encoding_STDOUT;
+  else if (fd_as_long == STDERR_FD())
+    encoding_p = &encoding_STDERR;
+    
+  /* Mike has no clue what the rationale for needing this is. */
+  if (!setlocale_called)
+    {
+      setlocale(LC_CTYPE, "");
+      setlocale_called = PSTRUE;
+    }
+
+  if (*encoding_p == NULL)
+    {
+      codeset = nl_langinfo(CODESET); /* this ain't reentrant */
+      *encoding_p = malloc(strlen(codeset) + 1);
+      if (*encoding_p == NULL)
+	return NULL;
+      strcpy(*encoding_p, codeset);
+    }
+
+  return *encoding_p;
 }
 
 long
@@ -227,6 +330,6 @@ s48_add_channel(s48_value mode, s48_value id, long fd)
     if ((flags & O_NONBLOCK) == 0)
       fprintf(stderr,
         "Warning: output channel file descriptor %d is not non-blocking\n",
-	      fd); }
+	      (int) fd); }
   return s48_really_add_channel(mode, id, fd);
 }

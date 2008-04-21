@@ -6,7 +6,7 @@ This chapter details Scheme~48's command processor, which incorporates
 At the \code{>} prompt, you can type either a Scheme form
  (expression or definition) or a command beginning with a comma.
 In
-\link*{inspection mode}[inspection mode (see section~\Ref)]{inspector}
+inspection mode (see section~\ref{inspector})
  the prompt changes to \code{:} and commands
  no longer need to be preceded by a comma; input beginning with
  a letter or digit is assumed to be a command, not an expression.
@@ -53,14 +53,14 @@ The command prompt indicates the number of stopped levels below the
  current one: \code{>} or \code{:} for the
  base level and \code{\cvar{n}>} or \code{\cvar{n}:} for all other levels,
  where \cvar{n} is the command-level nesting depth.
-The \code{auto-levels} switch
+The \code{levels} setting
  described below can be used to disable the automatic pushing of new levels.
 
 The command processor's evaluation package and the value of the
- \code{inspect-focus-value} switch are local to each command level.
+current focus value are local to each command level.
 They are preserved when a new level is pushed and restored when
  it is discarded.
-The settings of all other switches are shared by all command levels.
+The settings of all other settings are shared by all command levels.
 
 \begin{description}
 \item $\langle{}$eof$\rangle{}$\\
@@ -85,7 +85,7 @@ The settings of all other switches are shared by all command levels.
 
 \item \code{,push}\\
  Pushes a new command level on above the current one.
- This is useful if the \code{auto-levels} switch has been used
+ This is useful if the \code{levels} setting has been used
  to disable the automatic pushing of new levels for errors and interrupts.
 
 \item \code{,reset [\cvar{number}]}\\
@@ -129,17 +129,15 @@ Whenever moving to an existing level, either by sending
 There are many commands related to modules.
 Only the most commonly used module commands are described here;
  documentation for the
- rest can be found in \link*{the module chapter}[section~\Ref]{module-commands}.
+ rest can be found in section~\ref{module-commands}.
 There is also
-\link*{a brief description of modules, structures, and packages}
-[a brief description of modules, structures, and packages in section~\Ref]
-{module-guide} below.
+a brief description of modules, structures, and packages in section~\ref{module-guide} below.
 
 \begin{description}
 \item \code{,open \cvar{structure \ldots}}\\
 Makes the bindings in the \cvar{structure}s visible in the current package.
 The packages associated with the \cvar{structure}s will be loaded if
- this has not already been done (the \code{ask-before-loading} switch
+ this has not already been done (the \code{ask-before-loading} setting
  can be used disable the automatic loading of packages).
 
 \item \code{,config [\cvar{command}]}\\
@@ -185,9 +183,7 @@ If no \cvar{command} is given, the \code{config} package becomes the
     (or a list of them, if \cvar{exp} returns multiple results)
     the new focus object.
     The \code{,run} command is useful when writing
-    \link*{command programs}
-    [command programs, which are described in section~\Ref{} below]
-    {command-programs}.
+    command programs, which are described in section~\ref{command-programs} below.
 
 \item \code{,trace \cvar{name} \ldots}\\
     Start tracing calls to the named procedure or procedures.
@@ -218,7 +214,6 @@ If no \cvar{command} is given, the \code{config} package becomes the
     prints `\code{Not bound}'.
  
 \item \code{,expand \cvar{form}}
-\T\vspace{-1em}
 \item \code{,expand-all \cvar{form}}\\
     Show macro expansion of \cvar{form}, if any.
     \code{,expand} performs a single macro expansion while
@@ -228,37 +223,39 @@ If no \cvar{command} is given, the \code{config} package becomes the
     Display name of file containing \cvar{procedure}'s source code.
 \end{description}
 
-\section{Switches}
+\section{Settings}
 
-There are a number of binary switches that control the behavior of the
- command processor.
+There are a number of settings that control the behavior of the
+ command processor; most of them are booleans.
 They can be set using the \code{,set} and \code{,unset} commands.
 
 \begin{description}
-\item \code{,set \cvar{switch} [on | off | ?]}\\
-    This sets the value of mode-switch \cvar{switch}.
-    The second argument defaults to \code{on}.
-    If the second argument is \code{?} the value of \cvar{switch} is
+\item \code{,set \cvar{setting} [on | off | literal | ?]}\\
+    This sets the value of setting \cvar{setting}.
+    For a boolean setting, the second argument must be \code{on} or
+    \code{off}; it then defaults to \code{on}.
+    Otherwise, the value must be a literal, typically a posititive number.
+    If the second argument is \code{?} the value of \cvar{setting} is
     is displayed and not changed.
-    Doing \code{,set ?} will display a list of the switches and
+    Doing \code{,set ?} will display a list of the setting and
     their current values.
 
-\item \code{,unset \cvar{switch}}\\
-    \code{,unset \cvar{switch}} is the same as
-    \code{,set \cvar{switch} off}.
+\item \code{,unset \cvar{setting}}\\
+    \code{,unset \cvar{setting}} is the same as
+    \code{,set \cvar{setting} off}.
 \end{description}
 
-The switches are as follows:
+The settings are as follows:
 \begin{description}
-\item \code{batch}\\
+\item \code{batch} (boolean)\\
     In `batch mode' any error or interrupt that comes up will cause
     Scheme~48 to exit immediately with a non-zero exit status.  Also,
     the command processor doesn't print prompts.  Batch mode is
     off by default.
 
-% JAR says: disable auto-levels by default??
+% JAR says: disable levels by default??
 
-\item \code{auto-levels}\\
+\item \code{levels} (boolean)\\
     Enables or disables the automatic pushing of a new command level when
     an error, interrupt, or other breakpoint occurs.
     When enabled (the default), breakpoints push a new command level,
@@ -270,26 +267,19 @@ The switches are as follows:
 \item retention of the continuation in effect at the point of errors
 \item confusion among some newcomers
 \end{itemize}
-    With \code{auto-levels} disabled one must issue a
+    With \code{levels} disabled one must issue a
     \code{,push} command immediately
     following an error in order to retain the error continuation for
     debugging purposes; otherwise the continuation is lost as soon as
     the focus object changes.  If you don't know anything about the
     available debugging tools, then levels might as well be disabled.
 
-\item \code{inspect-focus-value}\\
-    Enable or disable `inspection' mode, which is used for inspecting
-    data structures and continuations.
-    \link*{Inspection mode is desribed below}
-    [Inspection mode is described in section~\Ref]
-    {inspector}.
-
-\item \code{break-on-warnings}\\
+\item \code{break-on-warnings} (boolean)\\
     Enter a new command level when a warning is produced, just as
     when an error occurs.  Normally warnings only result in a displayed
     message and the program does not stop executing.
 
-\item \code{ask-before-loading} \\
+\item \code{ask-before-loading} (boolean)\\
     If on, the system will ask before loading modules that are arguments
     to the \code{,open} command.  \code{Ask-before-loading} is off by
     default.
@@ -301,7 +291,7 @@ Load structure random (y/n)? y
 >
 \end{example}
 
-\item \code{load-noisily}\\
+\item \code{load-noisily} (boolean)\\
     When on, the system will print out the names of modules and files
     as they are loaded.  \code{load-noisily} is off by default.
 \begin{example}
@@ -312,28 +302,49 @@ will notify when loading modules and files
 > 
 \end{example}
 
-\item \code{inline-values}\\
+\item \code{inline-values} (boolean)\\
 This controls whether or not the compiler is allowed to substitute
  variables' values in-line.
 When \code{inline-values} mode is on,
 some Scheme procedures will be substituted in-line; when it is off,
 none will.
-\link*{The performance section}[Section~\Ref]{section:performance}
+Section~\ref{section:performance}
 has more information.
 
+\item \code{inspector-menu-limit} (positive integer)\\
+This controls how many items the displayed portion of the inspector
+menu contains at most.  (See Section~\ref{inspector}.)
+
+\item \code{inspector-writing-depth} (positive integer)\\
+This controls the maximum depth to which the inspector
+prints values.  (See Section~\ref{inspector}.)
+
+\item \code{inspector-writing-length} (positive integer)\\
+This controls the maximum length to which the inspector
+prints values.  (See Section~\ref{inspector}.)
+
+\item \code{condition-writing-depth} (positive integer)\\
+This controls the maximum depth to which conditions
+are printed.
+
+\item \code{condition-writing-length} (positive integer)\\
+This controls the maximum length to which conditions
+are printed.
+
+\item \code{trace-writing-length} (positive integer)\\
+This controls the maximum length to which tracing
+prints procedure calls.
 \end{description}
 
 \section{Inspection mode}
 \label{inspector}
 
 There is a data inspector available via the \code{,inspect} and
- \code{,debug} commands or by setting the \code{inspect-focus-value} switch.
+ \code{,debug} commands.
 The inspector is particularly useful with procedures, continuations,
  and records.
 The command processor can be taken out of inspection mode by
- using the \code{q} command, by unsetting the \code{inspect-focus-value} switch,
- or by going to a command level where the \code{inspect-focus-value} is not
- set.
+ using the \code{q} command.
 When in inspection mode, input that begins with
   a letter or digit is read as a command, not as an expression.
 To see the value of a variable or number, do \code{(begin \cvar{exp})}
@@ -451,7 +462,7 @@ The required argument types are as follows:
 \item expressions should be s-expressions
 \item commands (as for \code{,config} and \code{,exec} itself)
  should be lists of the form
- \code{(\cvar{command-name} \cvar{argument} \cvar{...})}
+ \code{(\cvar{command-name} \cvar{argument} \ldots)}
  where \cvar{command-name} is a symbol.
 \end{itemize}
 
@@ -475,24 +486,32 @@ The file \code{scheme/vm/load-vm.scm} in the source directory contains an
     should be a string (written with double quotes); this string will
     be part of the greeting message as the image starts up.
 
-\item \code{,build \cvar{exp} \cvar{filename}}\\
+\item \code{,build \cvar{exp} \cvar{filename} [\cvar{option \ldots}]}\\
     Like \code{,dump}, except that the image file contains the value of
     \cvar{exp}, which should be a procedure of one argument, instead of
     the command processor.  When
     \cvar{filename} is resumed, that procedure will be invoked on the VM's
-    \code{-a} arguments, which are passed as a list of strings.  The
+    \code{-a} arguments, which are passed as a list of OS strings (see
+    section~\ref{os-strings}.  The
     procedure should return an integer which is
     returned to the program that invoked the VM.  The command
     processor and debugging system are not included in the image
     (unless you go to some effort to preserve them, such as retaining
     a continuation).
+    
+    If \code{no-warnings} appears as an \cvar{option} after the file
+    name, no warnings about undefined external bindings
+    (see Section~\ref{sec:shared-bindings}) will be printed upon
+    resuming the image.  This is useful when the definitions of
+    external bindings appear in shared objects that are only loaded
+    after the resumption of the image.
 
     Doing \code{,flush} before building an image will reduce the amount
     of debugging information in the image, making for a smaller
     image file, but if an error occurs, the error message may be less
     helpful.  Doing \code{,flush source maps} before loading any programs
     used in the image will make it still smaller.
-    See \link*{the description of \code{flush}}[section~\Ref]{resource-commands}
+    See section~\ref{resource-commands}
     for more information.
 
 \end{description}
@@ -510,7 +529,6 @@ The file \code{scheme/vm/load-vm.scm} in the source directory contains an
     before and after the collection.
 
 \item \code{,keep \cvar{kind}}
-\T\vspace{-1em}
 \item \code{,flush \cvar{kind}}\\
     These control the amount of debugging information retained after
     compiling procedures.  This information can consume a fair amount
@@ -577,9 +595,7 @@ The following commands are useful when debugging multithreaded programs:
 %    The optional \cvar{name} is used for printing and debugging.
 %
 %\item \code{,suspend [\cvar{exp}]}
-%\T\vspace{-1em}
 %\item \code{,continue [\cvar{exp}]}
-%\T\vspace{-1em}
 %\item \code{,kill [\cvar{exp}]}\\
 %    Suspend, unsuspend, and terminate a thread, respectively.
 %    Suspended threads are not run until unsuspended, terminated

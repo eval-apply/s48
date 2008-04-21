@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Things provided by the byte compiler / VM, together with a few
@@ -16,7 +16,9 @@
 		    (low-level low-level-interface)
 		    (escapes escapes-interface)
 		    (vm-exposure vm-exposure-interface)
+		    (all-operators (export all-operators))
 		    (ascii ascii-interface)
+		    (unicode unicode-interface)
 		    (locations locations-interface)
 		    (records records-interface)
 		    (cells cells-interface)
@@ -24,7 +26,8 @@
 		    (ports ports-interface)
 		    (shared-bindings shared-bindings-interface)
 		    (low-proposals low-proposals-interface)
-		    (signals signals-interface)
+		    (low-exceptions low-exceptions-interface)
+		    (signal-conditions signal-conditions-interface)
 		    (debug-messages (export debug-message))
 		    (silly (export reverse-list->string))
 		    (code-quote (export (code-quote :syntax)))
@@ -32,6 +35,6 @@
   (define-all-operators)		; Primitive Scheme, in the LSC paper
   (usual-transforms and cond do let let* or)
   (files (rts low)
-	 (rts signal))
+	 (rts low-exception))
   (optimize auto-integrate))
 

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Minimal full-I/O test system
 
@@ -6,6 +6,7 @@
   (set! *error-channel* error-channel)
   (set-exception-handlers! exception-handlers)
   (let* ((ch (open-channel "small-test.image"
+			   "small-test.image"
 			   (enum open-channel-option input-file)
 			   #f))
 	 (out (output-channel->port out-channel))
@@ -40,28 +41,31 @@
 
 (define (output-channel->port channel)
   (make-port #f
+	     'text-codec
+	     #f
 	     (bitwise-ior (arithmetic-shift 1 (enum port-status-options
 						    output))
 			  (arithmetic-shift 1 (enum port-status-options
 						    open-for-output)))
-	     channel
 	     #f		; lock
-	     #f #f	; input stuff
-	     (make-code-vector buffer-size 0)
-	     0))
+	     channel
+	     (make-byte-vector buffer-size 0)
+	     0 buffer-size
+	     #f #f))
 
 (define (input-channel->port channel)
   (make-port #f
+	     'text-codec
+	     #f
 	     (bitwise-ior (arithmetic-shift 1 (enum port-status-options
 						    input))
 			  (arithmetic-shift 1 (enum port-status-options
 						    open-for-input)))
-	     channel
 	     #f		; lock
-	     (make-code-vector buffer-size 0)
-	     0
-	     0
-	     #f #f))  ; output stuff
+	     channel
+	     (make-byte-vector buffer-size 0)
+	     0 buffer-size
+	     #f #f))
 
 (define *error-channel* #f)
 
@@ -84,46 +88,46 @@
   (channel-write-string "
 " channel))
 
-(define (define-exception-handler opcode proc)
-  (vector-set! exception-handlers opcode proc))
+(define (define-vm-exception-handler opcode proc)
+  (vector-set! vm-exception-handlers opcode proc))
 
-(define exception-handlers
+(define vm-exception-handlers
   (make-vector op-count #f))
 
-(define-exception-handler (enum op write-char)
+(define-vm-exception-handler (enum op write-char)
   (lambda (opcode reason char port)
     (cond ((= reason (enum exception buffer-full/empty))
 	   (force-output port)
 	   (message "[overflow]")
 	   (write-char char port))
 	  (else
-	   (apply signal-exception opcode reason args)))))
+	   (apply signal-vm-exception opcode reason args)))))
 
-(define-exception-handler (enum op read-char)
+(define-vm-exception-handler (enum op read-char)
   (lambda (opcode reason port)
     (cond ((= reason (enum exception buffer-full/empty))
 	   (fill-buffer port)
 	   (message "[underflow]")
 	   (read-char port))
 	  (else
-	   (apply signal-exception opcode reason args)))))
+	   (apply signal-vm-exception opcode reason args)))))
 
-(define-exception-handler (enum op peek-char)
+(define-vm-exception-handler (enum op peek-char)
   (lambda (opcode reason port)
     (cond ((= reason (enum exception buffer-full/empty))
 	   (fill-buffer port)
 	   (message "[underflow]")
 	   (peek-char port))
 	  (else
-	   (apply signal-exception opcode reason args)))))
+	   (apply signal-vm-exception opcode reason args)))))
 
-(define-exception-handler (enum op write-block)
+(define-vm-exception-handler (enum op write-block)
   (lambda (opcode reason thing start count port)
     (cond ((= reason (enum exception buffer-full/empty))
 	   (force-output port)
 	   (write-buffer thing start count (port-data port)))
 	  (else
-	   (apply signal-exception opcode reason args)))))
+	   (apply signal-vm-exception opcode reason args)))))
 
 (define (force-output port)
   (write-buffer (port-out-buffer port) 0 (port-out-index port) (port-data port))
@@ -138,7 +142,7 @@
 (define (fill-buffer port)
   (let ((got (channel-read (port-in-buffer port)
 			   0
-			   (code-vector-length (port-in-buffer port))
+			   (code-byte-length (port-in-buffer port))
 			   (port-data port))))
     (cond ((= got 0)
 	   (fill-buffer port))

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Packages involved in building the initial system.
@@ -11,12 +11,13 @@
 	packages bindings meta-types 
 	fluids cells
 	locations	; contents location-assigned?
-	signals)	; error
+	exceptions)	; error
   (files (rts env)))
 
 ; EVAL and LOAD
 
-(define-structure evaluation evaluation-interface
+(define-structures ((evaluation evaluation-interface)
+		    (load-filenames load-filenames-interface))
   (open scheme-level-2
 	packages        	;package-uid package->environment link!
 	environments		;package-for-load
@@ -27,30 +28,32 @@
 	closures		;make-closure
 	vm-exposure		;invoke-closure
 	features		;current-noise-port force-output
-	signals fluids)
+	exceptions fluids cells)
   (files (rts eval)))
 
 ; Scheme = scheme-level-2 plus EVAL and friends
 
 (define-module (make-scheme environments evaluation)
+
   (define-structure scheme scheme-interface
     (open scheme-level-2
 	  environments
 	  evaluation))
   scheme)
 
-
 ; Command processor.
 
 (define-module (make-mini-command scheme) ;copied from debug-packages.scm
+
   (define-structure mini-command (export command-processor)
     (open scheme
-	  signals conditions handle
-	  display-conditions
+	  ascii byte-vectors os-strings
+	  writing methods
+	  conditions exceptions handle
 	  i/o)                 ;current-error-port
-    (files (debug mini-command)))
+    (files (debug mini-command)
+	   (env dispcond))) ; avoid having to include this generally
   mini-command)
-
 
 ; For building systems.
 
@@ -62,9 +65,7 @@
 	  interfaces		;make-simple-interface
 	  packages		;make-simple-package
 	  environments		;with-interaction-environment, etc.
-	  usual-resumer
-	  conditions handle	;error? with-handler
-	  signals)		;error
+	  usual-resumer)
     (files (env start)))
 
   initial-system)
@@ -92,7 +93,7 @@
 (define-structure for-reification for-reification-interface
   (open scheme-level-1
 	packages packages-internal
-	signals
+	exceptions
 	meta-types			;sexp->type structure-type
 	interfaces			;make-simple-interface
 	bindings

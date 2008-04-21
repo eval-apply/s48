@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; This is the main entry point to the compiler.  It returns a template
 ; that will execute the forms (each of which is a node).
@@ -11,10 +11,10 @@
     (lambda ()
       (if (null? forms)
 	  (segment->template (sequentially
-			      (lambda-protocol 0 #t #f)
+			      (lambda-protocol 0 #t #f #f)
 			      (deliver-value (instruction (enum op unspecific))
 					     (return-cont #f)))
-			     (make-frame #f name 0 #f #f))
+			     (make-frame #f name 0 #f #f #f))
 	  (compile-forms-loop (reverse forms)
 			      name
 			      #f)))))			;next template
@@ -31,10 +31,10 @@
 ; Stack has zero args, no env, template.
   
 (define (compile-form form name next)
-  (let ((frame (make-frame #f name 0 #f #t)))
+  (let ((frame (make-frame #f name 0 #t #f #f)))
     (segment->template
       (sequentially
-        (lambda-protocol 0 #t #f)	; template, no env
+        (lambda-protocol 0 #t #f #f)	; template, no env, no closure
 	(let ((node (flatten-form (force-node form))))
 	  (cond ((define-node? node)
 		 (sequentially
@@ -68,8 +68,6 @@
 		  (call-template-inst template label 0 depth frame)
 		  after)))
 
-(define define-node? (node-predicate 'define syntax-type))
-
 ; Definitions must be treated differently from assignments: we must
 ; use SET-CONTENTS! instead of SET-GLOBAL! because the SET-GLOBAL!
 ; instruction traps if an attempt is made to store into an undefined
@@ -85,7 +83,7 @@
 		    (binding->index frame
 				    (node-ref name 'binding)
 				    (node-form name)
-				    value-type))
+				    #f))
 		  (begin (depth-check! frame 2)
 			 (instruction (enum op push)))
 		  (compile-expression (caddr form)
@@ -107,21 +105,27 @@
 		    i
 		    (loop (cdr slots) (+ i 1))))))
 	(else
-	 (error "can't find location data in STOB-DATA"))))
+	 (assertion-violation 'location-contents-offset
+			      "can't find location data in STOB-DATA"))))
 
 ;----------------
 ; Make a startup procedure from a list of initialization templates.  This
 ; is only used by the static linker.  RESUMER should be a template that
-; returns a procedure that takes 5 arguments (the number the VM passes to
+; returns a procedure that takes 8 arguments (the number the VM passes to
 ; the startup procedure).
 
+; The length of the argument list needs to be in sync with
+; MAKE-USUAL-RESUMER in rts/init.scm, and S48-CALL-STARTUP-PROCEDURE
+; in vm/interp/resume.scm.
+
 (define (make-startup-procedure inits resumer)
-  (let ((nargs 5)
-	(frame (make-frame #f		; no parent
-			   #f		; no name
-			   5		; args on stack
-			   #f		; drop environment
-			   #t)))	; keep template
+  (let* ((nargs 8)
+	 (frame (make-frame #f		; no parent
+			    #f		; no name
+			    nargs	; args on stack
+			    #t		; keep template
+			    #f		; drop environment
+			    #f)))       ; drop closure
     (append-templates inits
 		      nargs
 		      frame
@@ -139,7 +143,7 @@
 (define (append-templates templates nargs frame final)
   (segment->template
     (sequentially
-      (lambda-protocol nargs #t #f)	; push template
+      (lambda-protocol nargs #t #f #f)	; push template
       (reduce (lambda (template seg)
 		(sequentially
 		  (template-call template

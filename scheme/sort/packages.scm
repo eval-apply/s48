@@ -3,11 +3,12 @@
 
 ;;; The general sort package:
 
-(define-structure sort sort-interface
+(define-structure sorting sorting-interface
   (open scheme
 	list-merge-sort
 	vector-heap-sort
 	vector-merge-sort
+	vector-quick-sort
 	sorted
 	delete-neighbor-duplicates)
   (files sort)
@@ -21,8 +22,6 @@
 
 (define-structure delete-neighbor-duplicates delete-neighbor-duplicates-interface
   (open scheme
-	receiving
-	formats
 	vector-utils)
   (files delndups)
   (optimize auto-integrate))
@@ -34,14 +33,12 @@
 
 (define-structure list-merge-sort list-merge-sort-interface
   (open scheme
-	receiving
-	(subset signals (error)))
+	(subset exceptions (assertion-violation)))
   (files lmsort)
   (optimize auto-integrate))
 
 (define-structure vector-merge-sort vector-merge-sort-interface
   (open scheme
-	receiving
 	vector-utils
 	vector-insertion-sort-internal)
   (files vmsort)
@@ -49,7 +46,6 @@
 
 (define-structure vector-heap-sort vector-heap-sort-interface
   (open scheme
-	receiving
 	vector-utils)
   (files vhsort)
   (optimize auto-integrate))
@@ -62,6 +58,18 @@
   (files visort)
   (optimize auto-integrate))
 
+(define-structure vector-quick-sort vector-quick-sort-interface
+  (open scheme
+	vector-utils
+	vector-insertion-sort-internal)
+  (files vqsort2))
+
+(define-structure vector-quick-sort3 vector-quick-sort3-interface
+  (open scheme
+	vector-utils
+	vector-insertion-sort-internal)
+  (files vqsort3))
+
 (define-structure vector-utils (export vector-copy
 				       vector-portion-copy
 				       vector-portion-copy!
@@ -69,3 +77,4 @@
 				       vectors-start+end-2)
   (open scheme)
   (files vector-util))
+

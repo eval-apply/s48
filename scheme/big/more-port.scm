@@ -1,149 +1,170 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Additional port types
 
 ;----------------
 ; Ports which keep track of the current row and column.
 ;
-; When the row or column data is requested we need to process the characters
-; between the port's current index and the index at the time of the previous
-; check.
-;
-; When a buffer operation is requested we need to process any remaining
-; characters in the old buffer.
+; Note that we're only counting character access---single-byte access
+; or block access are ignored.
 ;
 ; sub-port:    port being tracked
-; index:       the index of the next character to be processed
-; row, column: position of the character at BUFFER[INDEX - 1] 
+; row, column: position of the next character
 
 (define-record-type port-location :port-location
-  (really-make-port-location sub-port index row column)
+  (really-make-port-location sub-port row column)
   port-location?
   (sub-port port-location-sub-port)
-  (index    port-location-index  set-port-location-index!)
   (row      port-location-row    set-port-location-row!)
   (column   port-location-column set-port-location-column!))
 
 (define (make-port-location sub-port)
-  (really-make-port-location sub-port 0 0 0))
-
-; Update the data and return what you get.
+  (really-make-port-location sub-port 0 0))
 
 (define (row-column-accessor accessor)
   (lambda (port)
     (let ((data (port-data port)))
       (if (port-location? data)
-	  (begin
-	    (update-row-and-column! port data)
-	    (accessor data))
+	  (accessor data)
 	  #f))))
 
 (define current-row    (row-column-accessor port-location-row))
 (define current-column (row-column-accessor port-location-column))
 
-; Bring LOCATION up to date.
+(define (port-location-update! location ch)
+  (if (char=? ch #\newline)
+      (begin
+	(set-port-location-row! location
+				(+ 1 (port-location-row location)))
+	(set-port-location-column! location 0))
+      (set-port-location-column! location
+				 (+ 1 (port-location-column location)))))
 
-(define (update-row-and-column! port location)
-  (let ((at (port-index port))
-	(checked-to (port-location-index location))
-	(buffer (port-buffer port)))
-    (if (< checked-to at)
-	(begin
-	  (get-row-and-column! buffer checked-to at location)
-	  (set-port-location-index! location at)))))
+; A codec that doesn't trigger the VM taking over
 
-(define (get-row-and-column! buffer start end location)
-  (let loop ((i start)
-	     (row (port-location-row location))
-	     (column (port-location-column location)))
-    (cond ((= i end)
-	   (set-port-location-row! location row)
-	   (set-port-location-column! location column))
-	  ((= (char->ascii #\newline)
-	      (byte-vector-ref buffer i))
-	   (loop (+ i 1) (+ row 1) 0))
-	  (else
-	   (loop (+ i 1) row (+ column 1))))))
+(define-text-codec utf-8/diy "UTF-8/DIY"
+  (lambda (char buffer start count)
+    (encode-char (enum text-encoding-option utf-8) char buffer start count))
+  (lambda (buffer start count)
+    (decode-char (enum text-encoding-option utf-8)  buffer start count)))
 
 ;----------------
 ; Input ports that keep track of the current row and column.
 
 (define (make-tracking-input-port port)
   (if (input-port? port)
-      (make-buffered-input-port tracking-input-port-handler
-				(make-port-location port)
-				(make-byte-vector default-buffer-size 0)
-				0
-				0)
-      (call-error "not an input port" make-tracking-input-port port)))
+      (let ((tracking
+	     (make-buffered-input-port tracking-input-port-handler
+				       (make-port-location port)
+				       (make-byte-vector (default-buffer-size) 0)
+				       0
+				       0)))
+	;; We need this because otherwise the VM won't give control
+	;; back to our handler for every character.
+	(set-port-text-codec-spec! tracking utf-8/diy)
+	tracking)
+      (assertion-violation 'make-tracking-input-port "not an input port" port)))
+
+(define (make-tracking-one-char-input plain-one-char-input)
+  (lambda (port mode)
+    (let ((thing (plain-one-char-input port mode)))
+      (cond
+       (mode thing)			; PEEK or READY?
+       ((eof-object? thing) thing)
+       (else
+	(port-location-update! (port-data port) thing)
+	thing)))))
 
 (define tracking-input-port-handler
-  (make-buffered-input-port-handler
-   (lambda (location)
-     (list 'tracking-port (port-location-sub-port location)))
-   (lambda (port)			; close
-     (maybe-commit))
-   (lambda (port wait?)
-     (if (maybe-commit)
-	 (let ((location (port-data port)))
-	   (update-row-and-column! port location)
-	   (let ((got (read-block (port-buffer port)
-				  0
-				  (byte-vector-length (port-buffer port))
-				  (port-location-sub-port location)
-				  wait?)))
-	     ;(note-buffer-reuse! port)
-	     (if (eof-object? got)
-		 (set-port-pending-eof?! port #t)
-		 (begin
-		   (set-port-location-index! location 0)
-		   (set-port-index! port 0)
-		   (set-port-limit! port got)))
-	     #t))
-	 #f))
-   (lambda (port)
-     (let ((ready? (char-ready? (port-location-sub-port (port-data port)))))
-       (if (maybe-commit)
-	   (values #t ready?)
-	   (values #f #f))))))
+  (let ((plain-handler
+	 (make-buffered-input-port-handler
+	  (lambda (location)
+	    (list 'tracking-port (port-location-sub-port location)))
+	  (lambda (port)		; close
+	    (maybe-commit))
+	  (lambda (port wait?)
+	    (if (maybe-commit)
+		(let ((got (read-block (port-buffer port)
+				       0
+				       (byte-vector-length (port-buffer port))
+				       (port-location-sub-port (port-data port))
+				       wait?)))
+		  ;;(note-buffer-reuse! port)
+		  (if (eof-object? got)
+		      (set-port-pending-eof?! port #t)
+		      (begin
+			(set-port-index! port 0)
+			(set-port-limit! port got)))
+		  #t)
+		#f))
+	  (lambda (port)
+	    (let ((ready? (byte-ready? (port-location-sub-port (port-data port)))))
+	      (if (maybe-commit)
+		  (values #t ready?)
+		  (values #f #f)))))))
+    (make-port-handler
+     (port-handler-discloser plain-handler)
+     (port-handler-close plain-handler)
+     (port-handler-byte plain-handler)
+     (make-tracking-one-char-input (port-handler-char plain-handler))
+     (port-handler-block plain-handler)
+     (port-handler-ready? plain-handler)
+     (port-handler-force plain-handler))))
 
 ;----------------
 ; Output ports that keep track of the current row and column.
 
+(define (make-tracking-one-char-output plain-one-char-output)
+  (lambda (port ch)
+    (plain-one-char-output port ch)
+    (port-location-update! (port-data port) ch)))
+
 (define tracking-output-port-handler
-  (make-buffered-output-port-handler
-   (lambda (location)
-     (list 'tracking-port (port-location-sub-port location)))
-   (lambda (port)			; close
-     (maybe-commit))
-   (lambda (port necessary?)		; we ignore necessary? and always write
-     (if (maybe-commit)			; out whatever we have
-	 (let ((location (port-data port)))
-	   (update-row-and-column! port location)
-	   (write-block (port-buffer port)
-			0
-			(port-index port)
-			(port-location-sub-port location))
-	   ;(note-buffer-reuse! port)
-	   (set-port-location-index! location 0)
-	   (set-port-index! port 0)
-	   #t)
-	 #f))
-   (lambda (port)
-     (let ((ready? (output-port-ready?
-		    (port-location-sub-port (port-data port)))))
-       (if (maybe-commit)
-	   (values #t ready?)
-	   (values #f #f))))))
+  (let ((plain-handler
+	 (make-buffered-output-port-handler
+	  (lambda (location)
+	    (list 'tracking-port (port-location-sub-port location)))
+	  (lambda (port)			; close
+	    (maybe-commit))
+	  (lambda (port necessary?)		; we ignore necessary? and always write
+	    (if (maybe-commit)			; out whatever we have
+		(begin
+		  (write-block (port-buffer port)
+			       0
+			       (port-index port)
+			       (port-location-sub-port (port-data port)))
+		  ;;(note-buffer-reuse! port)
+		  (set-port-index! port 0)
+		  #t)
+		#f))
+	  (lambda (port)
+	    (let ((ready? (output-port-ready?
+			   (port-location-sub-port (port-data port)))))
+	      (if (maybe-commit)
+		  (values #t ready?)
+		  (values #f #f)))))))
+    (make-port-handler
+     (port-handler-discloser plain-handler)
+     (port-handler-close plain-handler)
+     (port-handler-byte plain-handler)
+     (make-tracking-one-char-output (port-handler-char plain-handler))
+     (port-handler-block plain-handler)
+     (port-handler-ready? plain-handler)
+     (port-handler-force plain-handler))))
 
 (define (make-tracking-output-port port)
   (if (output-port? port)
-      (make-buffered-output-port tracking-output-port-handler
-				 (make-port-location port)
-				 (make-byte-vector default-buffer-size 0)
-				 0
-				 default-buffer-size)
-      (call-error "not an output port" make-tracking-output-port port)))
+      (let ((tracking
+	     (make-buffered-output-port tracking-output-port-handler
+					(make-port-location port)
+					(make-byte-vector (default-buffer-size) 0)
+					0
+					(default-buffer-size))))
+	;; We need this because otherwise the VM won't give control
+	;; back to our handler for every character.
+	(set-port-text-codec-spec! tracking utf-8/diy)
+	tracking)
+      (assertion-violation 'make-tracking-output-port "not an output port" port)))
 
 (define (fresh-line port)
   (let ((column (current-column port)))
@@ -169,17 +190,29 @@
 	 (values #t #f)
 	 (values #f #f)))))
 
-; We copy the input string because (a) string-set! exists and (b) buffers have
-; to be byte vectors.
+; We copy the input because it's mutable.
+
+(define (make-byte-vector-input-port bytes)
+  (let* ((size (byte-vector-length bytes))
+	 (buffer (make-byte-vector size 0)))
+    (copy-bytes! bytes 0 buffer 0 size)
+    (make-byte-vector-input-port-internal buffer)))
+
+(define (make-byte-vector-input-port-internal buffer)
+  (make-buffered-input-port string-input-port-handler
+			    #f		; no additional state needed
+			    buffer
+			    0
+			    (byte-vector-length buffer)))
 
 (define (make-string-input-port string)
-  (let ((buffer (make-byte-vector (string-length string) 0)))
-    (copy-bytes! string 0 buffer 0 (string-length string))
-    (make-buffered-input-port string-input-port-handler
-			      #f             ; no additional state needed
-			      buffer
-			      0
-			      (string-length string))))
+  (let* ((string-size (string-length string))
+	 (encoding-size (string-encoding-length/utf-8 string 0 string-size))
+	 (buffer (make-byte-vector encoding-size 0)))
+    (encode-string/utf-8 string 0 string-size buffer 0 encoding-size)
+    (let ((port (make-byte-vector-input-port-internal buffer)))
+      (set-port-text-codec! port utf-8-codec)
+      port)))
 
 ;----------------
 ; String output ports
@@ -190,25 +223,28 @@
 ;
 ; These are thread-safe for no particular reason.
 
-(define (make-string-output-port)
+(define (make-byte-vector-output-port)
   (make-buffered-output-port string-output-port-handler
 			     (list #f)
-			     (make-byte-vector default-buffer-size 0)
+			     (make-byte-vector (default-buffer-size) 0)
 			     0
-			     default-buffer-size))
+			     (default-buffer-size)))
+
+(define make-string-output-port make-byte-vector-output-port)
 
 ; Concatenates all of the buffers into single string.
 ; Could use a proposal...
 
-(define (string-output-port-output port)
+(define (byte-vector-output-port-output port)
   (ensure-atomicity
     (check-buffer-timestamp! port)	; makes the proposal check this
     (let* ((full (provisional-cdr (port-data port)))
 	   (last (port-buffer port))
 	   (index (provisional-port-index port))
-	   (out (make-string (apply +
-				    index
-				    (map byte-vector-length full)))))
+	   (out (make-byte-vector (apply +
+					 index
+					 (map byte-vector-length full))
+				  0)))
       (let loop ((full (reverse full)) (i 0))
 	(if (null? full)
 	    (copy-bytes! last 0 out i index)
@@ -217,6 +253,9 @@
 	      (copy-bytes! buffer 0 out i count)
 	      (loop (cdr full) (+ i count)))))
       out)))
+
+(define (string-output-port-output port)
+  (utf-8->string (byte-vector-output-port-output port) #\?))
 
 (define string-output-port-handler
   (make-buffered-output-port-handler
@@ -250,7 +289,27 @@
     (string-output-port-output port)))
 
 ;----------------
-; Output ports from single character consumers
+; Output ports from single byte consumers
+
+(define (byte-sink->output-port proc)
+  (make-unbuffered-output-port byte-sink-output-port-handler
+			       proc))
+
+(define byte-sink-output-port-handler
+  (make-unbuffered-output-port-handler 
+   (lambda (proc)
+     (list 'byte-sink-output-port))
+   make-output-port-closed!
+   (lambda (port buffer start count)
+     (let ((proc (port-data port)))
+       (do ((i 0 (+ i 1)))
+	   ((= i count))
+	 (proc (byte-vector-ref buffer (+ start i)))))
+     count)
+   (lambda (port)		; ready?
+     #t)))
+
+; Output ports from single char consumers
 
 (define (char-sink->output-port proc)
   (make-unbuffered-output-port char-sink-output-port-handler
@@ -261,31 +320,28 @@
    (lambda (proc)
      (list 'char-sink-output-port))
    make-output-port-closed!
-   (lambda (port char)
-     ((port-data port) char))
+   (lambda (port byte)
+     (assertion-violation 'char-sink-output-port-handler
+			  "char port does not accept bytes"))
+   (lambda (port ch)
+     ((port-data port) ch))
    (lambda (port buffer start count)
-     (let ((proc (port-data port)))
-       (if (string? buffer)
-	   (do ((i 0 (+ i 1)))
-	       ((= i count))
-	     (proc (string-ref buffer (+ start i))))
-	   (do ((i 0 (+ i 1)))
-	       ((= i count))
-	     (proc (ascii->char (byte-vector-ref buffer (+ start i))))))))
+     (assertion-violation 'char-sink-output-port-handler
+			  "char port does not accept bytes"))
    (lambda (port)		; ready?
      #t)
-   (lambda (port error-if-closed?)		; force output
+   (lambda (port error-if-closed?)	; output forcer
      (unspecific))))
 
-; Call PROC on a port that will transfer COUNT characters to PORT and
+; Call PROC on a port that will transfer COUNT bytes to PORT and
 ; then quit.
 
 (define (limit-output port count proc)
   (call-with-current-continuation
     (lambda (quit)
-      (proc (char-sink->output-port
-	     (lambda (char)
-	       (write-char char port)
+      (proc (byte-sink->output-port
+	     (lambda (byte)
+	       (write-byte byte port)
 	       (set! count (- count 1))
 	       (if (<= count 0)
 		   (quit #f))))))))
@@ -294,14 +350,16 @@
 (define write-one-line limit-output)
 
 ;----------------
-; Input ports from single character producers
+; Input ports from single value producers
 ;
-; (char-source->input-port <next-char-thunk>
-;                          [<char-ready?-thunk>
-;                          [<close-thunk>]])
+; ((make-source->input-port handler)
+;                     <next-thunk>
+;                     [<ready?-thunk>
+;                     [<close-thunk>]])
 
-(define (char-source->input-port source . more)
-  (make-unbuffered-input-port char-source-input-port-handler
+(define (make-source->input-port handler)
+  (lambda (source . more)
+    (make-buffered-input-port handler
 			      (make-source-data source
 						(if (null? more)
 						    (lambda () #t)
@@ -309,87 +367,73 @@
 						(if (or (null? more)
 							(null? (cdr more)))
 						    values
-						    (cadr more))
-						#f)))
-
-; These are a bit of a mess.  We have to keep a one-character buffer to make
-; peek-char work.
+						    (cadr more)))
+			      (make-byte-vector 128 0)
+			      0
+			      0)))
 
 (define-record-type source-data :source-data
-  (make-source-data source ready? close buffer)
+  (make-source-data source ready? close)
   source-data?
   (source source-data-source)
-  (close source-data-close)
   (ready? source-data-ready?)
-  (buffer source-data-buffer set-source-data-buffer!))
+  (close source-data-close))
 
-(define char-source-input-port-handler
-  (make-port-handler
+(define (make-source-input-port-handler discloser-name encode-data)
+  (make-buffered-input-port-handler
    (lambda (proc)
-     (list 'char-source-input-port))
+     (list discloser-name))
    (lambda (port)
      (make-input-port-closed! port)
      ((source-data-close (port-data port))))
-   (lambda (port read?)
-     (char-source-read-char port (port-data port) read?))
-   (lambda (port buffer start count wait?)
-     (if (or (= count 0)
-	     (port-pending-eof? port))
-	 0
-	 (char-source-read-block port (port-data port) buffer start count)))
+   (lambda (port wait?)
+     (let ((buffer (port-buffer port))
+	   (data (port-data port))
+	   (limit (provisional-port-limit port)))
+       (let ((got
+	      (source-read-block encode-data
+				 port data
+				 buffer
+				 limit
+				 (- (byte-vector-length buffer) limit))))
+	 (provisional-set-port-limit! port (+ limit got))
+	 (maybe-commit))))
    (lambda (port)
-     (if (or (port-pending-eof? port)
-	     (source-data-buffer (port-data port)))
+     (if (port-pending-eof? port)
 	 #t
-	 ((source-data-ready? (port-data port)))))
-   #f))				; force
+	 ((source-data-ready? (port-data port)))))))
 
-; EOF and peeked characters are held in separate places so we have to check
-; both.  
-
-(define (char-source-read-char port data read?)   
-  (cond ((port-pending-eof? port)
-	 (if read?
-	     (set-port-pending-eof?! port #t))
-	 (eof-object))
-	((source-data-buffer data)
-	 => (lambda (char)
-	      (if read?
-		  (set-source-data-buffer! data #f))
-	      char))
-	(else
-	 (let ((char ((source-data-source data))))
-	   (if (not read?)
-	       (if (eof-object? char)
-		   (set-port-pending-eof?! port #t)
-		   (set-source-data-buffer! data char)))
-	   char))))
-
-; Put any buffered in first and then get the rest from the source.
-
-(define (char-source-read-block port data buffer start count)
-  (let loop ((i (if (source-data-buffer data)
-		    (let ((char (source-data-buffer data)))
-		      (buffer-set! buffer start char)
-		      (set-source-data-buffer! data #f)
-		      1)
-		    0)))
+(define (source-read-block encode-data port data buffer start count)
+  (let loop ((i 0))
     (if (= i count)
 	count
 	(let ((next ((source-data-source data))))
-	  (cond ((eof-object? next)
-		 (if (= 0 i)
-		     (eof-object)
-		     (begin
-		       (set-port-pending-eof?! port #t)
-		       i)))
-		(else
-		 (buffer-set! buffer (+ start i) next)
-		 (loop (+ i 1))))))))
+	  (if (eof-object? next)
+	      (begin
+		(provisional-set-port-pending-eof?! port #t)
+		i)
+	      (let ((got (encode-data next buffer (+ start i)))) ; we know the end is the limit
+		(loop (+ i got))))))))
 
-(define (buffer-set! buffer index char)
-  (if (string? buffer)
-      (string-set! buffer index char)
-      (byte-vector-set! buffer index (char->ascii char))))
+(define (encode-byte thing buffer start)
+  (byte-vector-set! buffer start thing)
+  1)
 
-						
+(define byte-source-input-port-handler
+  (make-source-input-port-handler 'byte-source-input-port
+				  encode-byte))
+
+(define byte-source->input-port
+  (make-source->input-port byte-source-input-port-handler))
+
+(define char-source-input-port-handler
+  (make-source-input-port-handler 'char-source-input-port
+				  encode-char/utf-8))
+
+(define char-source->input-port 
+  (let ((make (make-source->input-port char-source-input-port-handler)))
+    (lambda (source . more)
+      (let ((port (apply make source more)))
+	(set-port-text-codec! port utf-8-codec)
+	port))))
+

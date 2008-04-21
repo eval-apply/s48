@@ -1,8 +1,8 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Current input, output, error, and noise ports.
 
-; These two ports are needed by the VM for the READ-CHAR and WRITE-CHAR
+; These two ports are needed by the VM for the READ-BYTE and WRITE-BYTE
 ; opcodes.
 (define $current-input-port  (enum current-port-marker current-input-port))
 (define $current-output-port (enum current-port-marker current-output-port))
@@ -47,19 +47,30 @@
 ;----------------
 ; Procedures with default port arguments.
 
+; We probably lose a lot of speed here as compared with the
+; specialized VM instructions.
+
 (define (newline . port-option)
   (write-char #\newline (output-port-option port-option)))
 
+(define (byte-ready? . port-option)
+  (real-byte-ready? (input-port-option port-option)))
+
+; CHAR-READY? sucks
 (define (char-ready? . port-option)
   (real-char-ready? (input-port-option port-option)))
 
 (define (output-port-option port-option)
   (cond ((null? port-option) (current-output-port))
 	((null? (cdr port-option)) (car port-option))
-	(else (error "write-mumble: too many arguments" port-option))))
+	(else
+	 (assertion-violation 'write-mumble
+			      "too many arguments" port-option))))
 
 (define (input-port-option port-option)
   (cond ((null? port-option) (current-input-port))
 	((null? (cdr port-option)) (car port-option))
-	(else (error "read-mumble: too many arguments" port-option))))
+	(else
+	 (assertion-violation 'read-mumble
+			      "read-mumble: too many arguments" port-option))))
 

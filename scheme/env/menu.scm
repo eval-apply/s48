@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; This breaks abstractions left and right.
 
@@ -9,10 +9,6 @@
 ;    stack    ; list of other things
 ;
 ; The current thing being inspected is the focus object.
-
-(define *menu-limit* 15)	; maximum menu entries
-(define *write-depth* 3)	; limit for recursive writes
-(define *write-length* 5)       ; ditto
 
 (define (current-menu)
   (or (maybe-menu)
@@ -31,10 +27,10 @@
   (let* ((menu (current-menu))
 	 (position (menu-position)))
     (if (> (menu-length menu)
-	   (+ *menu-limit* position))
+	   (+ (inspector-menu-limit) position))
 	(begin
 	  (set-menu-position! (- (+ position
-				    *menu-limit*)
+				    (inspector-menu-limit))
 				 1))
 	  (present-menu))
 	(write-line "There is no more." (command-output)))))
@@ -246,8 +242,8 @@
 (define (display-menu menu start port)
   (newline port)
   (maybe-display-source (focus-object) #f)
-  (let ((items (menu-refs menu start (+ *menu-limit* 1)))
-	(limit (+ start *menu-limit*)))
+  (let ((items (menu-refs menu start (+ (inspector-menu-limit) 1)))
+	(limit (+ start (inspector-menu-limit))))
     (let loop ((i start) (items items))
       (with-limited-output
        (lambda ()
@@ -263,19 +259,17 @@
 		      (begin (display ": " port)
 			     (write-carefully (car item) port)))
 		  (display "] " port)
-		  (write-carefully
-		   (value->expression (cadr item))
-		   port)
+		  (write-carefully (cadr item) port)
 		  (newline port)
 		  (loop (+ i 1) (cdr items))))))))))
 
 ; Exception continuations don't have source, so we get the source from
 ; the next continuation if it is from the same procedure invocation.
 
-(define (maybe-display-source thing exception?)
+(define (maybe-display-source thing vm-exception?)
   (cond ((not (continuation? thing))
 	 (values))
-	((exception-continuation? thing)
+	((vm-exception-continuation? thing)
 	 (let ((next (continuation-cont thing)))
 	   (if (not (eq? next (continuation-cont thing)))
 	       (maybe-display-source next #t))))
@@ -285,19 +279,21 @@
 	       (let ((source (assoc (continuation-pc thing)
 				    (debug-data-source dd))))
 		 (if source
-		     (display-source-info (cdr source) exception?))))))))
+		     (display-source-info (cdr source) vm-exception?))))))))
   
 ; Show the source code for a continuation, if we have it.
 
-(define (display-source-info info exception?)
+(define (display-source-info info vm-exception?)
   (let ((o-port (command-output)))
     (if (pair? info)
 	(let ((exp (car info)))
-	  (display (if exception?
+	  (display (if vm-exception?
 		       "Next call is "
 		       "Waiting for ")
 		   o-port)
-	  (limited-write exp o-port *write-depth* *write-length*)
+	  (limited-write exp o-port
+			 (inspector-writing-depth)
+			 (inspector-writing-length))
 	  (newline o-port)
 	  (if (and (pair? (cdr info))
 		   (integer? (cadr info)))
@@ -308,7 +304,8 @@
 				       (list '^^^)
 				       (list-tail parent (+ i 1)))
 			       o-port
-			       *write-depth* *write-length*)
+			       (inspector-writing-depth)
+			       (inspector-writing-length))
 		(newline o-port)))))))
 
 ;----------------
@@ -327,11 +324,11 @@
 (define (with-limited-output thunk . limits)
   (let-fluids $write-length (if (pair? limits)
 				(car limits)
-				*write-length*)
+				(inspector-writing-length))
 	      $write-depth (if (and (pair? limits)
 				    (pair? (cdr limits)))
 			       (cadr limits)
-			       *write-depth*)
+			       (inspector-writing-depth))
     thunk))
 
 (define (write-carefully x port)

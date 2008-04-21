@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; String hash tables for managing three tables:
 ;  the symbol table : string -> symbol
@@ -102,6 +102,20 @@
 				(loop (link->value (foo-next entry)))))))
 		      hash-table-slots)))
 
+; Return a procedure that will apply PROC to every element of TABLE
+; until PROC returns #f.
+
+(define (table-while-walker foo-next)
+  (lambda (proc table)
+    (natural-for-each-while (lambda (index)
+			      (let loop ((entry (hash-table-ref table index)))
+				(cond
+				 ((vm-eq? entry false) #t)
+				 ((not (proc entry)) #f)
+				 (else
+				  (loop (link->value (foo-next entry)))))))
+			    hash-table-slots)))
+
 ; Copy a table, retaining all entries.
 
 (define (table-tracer foo-next set-foo-next! trace-value)
@@ -166,21 +180,22 @@
 	       (loop (foo-next foo)
 		     okay-link)))))))
 
-; Add DELTA to all hidden pointers.
-
-(define (table-relocator foo-next set-foo-next!)
-  (lambda (table delta)
-    (if (vm-vector? table)
+(define (relocate-table table relocate foo-next set-foo-next!)
+  (if (vm-vector? table)
+      (begin
 	(natural-for-each
 	 (lambda (index)
 	   (let ((bucket (hash-table-ref table index)))
 	     (if (not (false? bucket))
-		 (let ((bucket (+ bucket delta)))
+		 (let ((bucket (relocate bucket)))
 		   (vm-vector-set! table index (value->link bucket))
 		   (let loop ((entry bucket))
 		     (let ((next (link->value (foo-next entry))))
 		       (if (not (false? next))
-			   (let ((next (+ next delta)))
+			   (let ((next (relocate next)))
 			     (set-foo-next! entry (value->link next))
 			     (loop next)))))))))
-	 hash-table-slots))))
+	 hash-table-slots)
+	(unspecific))))
+
+

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; An implementation of Pre-Scheme's memory interface that can detect some
 ; stray reads and writes.  It has numerous limitiations:
@@ -103,7 +103,7 @@
 	(byte-address (address->vector-index address)))
     (if (and vector (= byte-address 0))
 	(vector-set! *memory* (arithmetic-shift address address-shift) #f)
-	(error "bad deallocation address" address))))
+	(assertion-violation 'deallocate-memory "bad deallocation address" address))))
 
 ; Various ways of accessing memory
 
@@ -121,7 +121,7 @@
   (let ((vector (address->vector address))
 	(byte-address (address->vector-index address)))
     (if (not (= 0 (bitwise-and byte-address 3)))
-	(error "unaligned address error" address)
+	(assertion-violation 'word-ref "unaligned address error" address)
 	(+ (+ (arithmetic-shift (signed-code-vector-ref vector byte-address) 24)
 	      (arithmetic-shift (code-vector-ref vector (+ byte-address 1)) 16))
 	   (+ (arithmetic-shift (code-vector-ref vector (+ byte-address 2))  8)
@@ -136,7 +136,7 @@
   (let ((vector (address->vector address))
 	(byte-address (address->vector-index address)))
     (if (not (= 0 (bitwise-and byte-address 3)))
-	(error "unaligned address error" address))
+	(assertion-violation 'word-set! "unaligned address error" address))
     (code-vector-set! vector    byte-address
 		      (bitwise-and 255 (arithmetic-shift value -24)))
     (code-vector-set! vector (+ byte-address 1)
@@ -158,37 +158,46 @@
     (values count (enum errors no-errors))))
 
 (define (read-block port address count)
-  (cond ((not (char-ready? port))
+  (cond ((not (byte-ready? port))
 	 (values 0 #f (enum errors no-errors)))
-	((eof-object? (scheme:peek-char port))
+	((eof-object? (peek-byte port))
 	 (values 0 #t (enum errors no-errors)))
 	(else
 	 (let ((vector (address->vector address))
 	       (byte-address (address->vector-index address)))
 	   (let loop ((i 0))
 	     (if (or (= i count)
-		     (not (char-ready? port)))
+		     (not (byte-ready? port)))
 		 (values i #f (enum errors no-errors))
-		 (let ((c (scheme:read-char port)))
-		   (cond ((eof-object? c)
+		 (let ((b (read-byte port)))
+		   (cond ((eof-object? b)
 			  (values i #f (enum errors no-errors)))
 			 (else
 			  (code-vector-set! vector
 					    (+ i byte-address)
-					    (char->ascii c))
+					    b)
 			  (loop (+ i 1)))))))))))
 
 (define (copy-memory! from to count)
-  (let ((from-vector (address->vector from))
-	(from-address (address->vector-index from))
-	(to-vector (address->vector to))
-	(to-address (address->vector-index to)))
-    (do ((i 0 (+ i 1)))
-	((>= i count))
-      (code-vector-set! to-vector
-			(+ i to-address)
-			(code-vector-ref from-vector
-					 (+ i from-address))))))
+  (let ((from (address-index from))
+	(to (address-index to)))
+    (let ((from-vector (address->vector from))
+	  (from-address (address->vector-index from))
+	  (to-vector (address->vector to))
+	  (to-address (address->vector-index to)))
+      (if (>= from-address to-address)
+	  (do ((i 0 (+ i 1)))
+	      ((>= i count))
+	    (code-vector-set! to-vector
+			      (+ i to-address)
+			      (code-vector-ref from-vector
+					       (+ i from-address))))
+	  (do ((i (- count 1) (- i 1)))
+	      ((negative? i))
+	    (code-vector-set! to-vector
+			      (+ i to-address)
+			      (code-vector-ref from-vector
+					       (+ i from-address))))))))
 
 (define (memory-equal? from to count)
   (let ((from-vector (address->vector from))
@@ -228,7 +237,8 @@
 (define (index-of-first-nul vector address)
   (let loop ((i address))
     (cond ((= i (code-vector-length vector))
-	   (error "CHAR-POINTER->STRING called on pointer with no nul termination"))
+	   (assertion-violation 'char-pointer->string
+				"CHAR-POINTER->STRING called on pointer with no nul termination"))
 	  ((= 0 (code-vector-ref vector i))
 	   (- i address))
 	  (else

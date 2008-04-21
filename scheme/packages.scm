@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Meta-modules: the big picture.
@@ -41,10 +41,10 @@
 			     (features features-interface)
 			     (records records-interface)
 			     (record-types record-types-interface)
-			     (signals signals-interface))
+			     (low-exceptions low-exceptions-interface))
 	   ;; Assumes use of FLATLOAD.  The implementations of these
 	   ;; structures will become available via some miracle, e.g.
-	   ;; a command ",open signals ... code-vectors" or an
+	   ;; a command ",open low-exceptions ... code-vectors" or an
 	   ;; explicit LOAD of something.  Cf. the rule for
 	   ;; link/linker.image in the Makefile.
 	   )))
@@ -196,6 +196,8 @@
 				compiler-structures))
   (files ;; more-interfaces, when not flatloading
          env-packages
+	 ;; (sort interfaces), when not flatloading
+	 (sort packages)
 	 more-packages))
 
 
@@ -226,18 +228,19 @@
 	    code-vectors
 	    features
 	    records
-	    signals)
+	    low-exceptions)
 	   :structure)))
 
 (define-interface low-structures-interface
-  (export ((ascii
+  (export ((all-operators
+	    ascii
 	    bitwise
 	    byte-vectors
 	    cells
 	    code-vectors
 	    features
 	    records
-	    signals
+	    low-exceptions
 	    cells
 	    channels
 	    closures
@@ -251,10 +254,12 @@
 	    low-proposals
 	    scheme-level-0
 	    shared-bindings
+	    signal-conditions
 	    silly
 	    source-file-names
 	    structure-refs
 	    debug-messages
+	    unicode
 	    vm-exposure
 	    write-images)
 	   :structure)))
@@ -264,16 +269,20 @@
 	    channel-i/o
 	    condvars
 	    define-record-types
+	    encodings
 	    enum-case
 	    enumerated
 	    fluids
+	    os-strings
 	    proposals
 	    queues
 	    record-types
 	    scheduler
 	    scheme-level-1
 	    scheme-level-2
+	    set-text-procedures
 	    templates
+	    text-codecs
 	    threads
 	    util
 	    vm-data
@@ -284,9 +293,9 @@
   (export ((channel-ports
 	    conditions
 	    continuations
-	    display-conditions
 	    ;; escapes
 	    exceptions
+	    exceptions-internal
 	    fluids-internal
 	    handle
 	    i/o
@@ -294,6 +303,7 @@
 	    methods
 	    meta-methods
 	    interrupts
+	    external-events
 	    low-level
 	    more-types
 	    number-i/o
@@ -303,6 +313,7 @@
 	    root-scheduler
 	    session-data
 	    threads-internal
+	    vm-exceptions
 	    usual-resumer
 	    ;; silly
 	    ;; structure-refs
@@ -349,6 +360,7 @@
 
 (define-interface initial-structures-interface
   (export ((environments
+	    load-filenames
 	    evaluation
 	    ensures-loaded
 	    ;; for-reification is in there, but shouldn't get reified.
@@ -405,6 +417,11 @@
 	    callback
 	    command-levels
 	    command-processor
+	    command-state
+	    usual-commands
+	    compact-tables
+	    constant-tables
+	    conditions
 	    c-system-function
 	    debugging
 	    define-record-types
@@ -412,47 +429,71 @@
 	    destructuring
 	    disassembler
 	    disclosers
+	    display-conditions
 	    dump/restore
 	    dynamic-externals
 	    enum-case
-	    enum-sets
+	    enum-sets enum-sets-internal
 	    extended-numbers
 	    extended-ports
 	    externals
 	    external-calls
 	    finite-types
+	    floatnums
 	    formats
-	    innums
 	    inspector
 	    inspector-internal
+	    inversion-lists
 	    list-interfaces
+	    load-dynamic-externals
 	    locks
 	    lu-decompositions
 	    masks
 	    mask-types
 	    mvlet
 	    nondeterminism
+	    net-addresses
+	    net-sockets
 	    package-commands-internal
 	    package-mutation
             parse-bytecode
 	    placeholders
 	    pp
+	    previews
 	    ;profile
 	    queues
+	    shared-objects
 	    time
 	    random
 	    receiving
 	    reduce
 	    search-trees
-	    sicp
+	    signals
 	    sockets
+	    unicode-char-maps
+
+	    delete-neighbor-duplicates
+	    binary-searches
+	    sorted
+	    list-merge-sort
+	    vector-merge-sort
+	    vector-heap-sort
+	    vector-insertion-sort
+	    vector-quick-sort vector-quick-sort3
+	    sorting
 	    sort
+
 	    sparse-vectors
+	    reinitializers
+	    signals
 	    spatial
 	    strong
+	    text-codec-utils
 	    traverse
 	    udp-sockets
+	    unicode-normalizations
 	    value-pipes
+	    variable-argument-lists
 
 	    big-scheme
 	    big-util
@@ -468,6 +509,24 @@
 	    ;; Compatibility
 	    record table
 
+	    ; CML packages (see scheme/cml/packages.scm)
+	    rendezvous
+	    rendezvous-channels
+	    rendezvous-async-channels
+	    rendezvous-placeholders
+	    rendezvous-jars
+	    rendezvous-time
+	    ; do-it-yourself
+	    make-rendezvous
+	    trans-ids
+
+	    ; R6RS packages
+
+	    r6rs-unicode
+	    r6rs-lists
+	    r6rs-enums
+	    r6rs-sorting
+
 	    ; POSIX packages (see scheme/posix/packages.scm)
 	    posix-files
 	    posix-time
@@ -480,13 +539,17 @@
 	    posix
 
 	    ; SRFI packages
-	    srfi-1 srfi-2 srfi-5 srfi-6 srfi-7 srfi-8 srfi-9
-	    srfi-11 srfi-13 srfi-14 srfi-16 srfi-17
+	    srfi-1 srfi-2 srfi-4 srfi-5 srfi-6 srfi-7 srfi-8 srfi-9
+	    srfi-11 srfi-13 srfi-14 srfi-16 srfi-17 srfi-19
 	    srfi-23 srfi-25 srfi-26 srfi-27 srfi-28
-	    srfi-31 srfi-37
-	    srfi-42
+	    srfi-31 srfi-34 srfi-37
+	    srfi-39 srfi-40 srfi-42 srfi-43 srfi-45
+            srfi-60 srfi-61 srfi-62 srfi-63 srfi-66 srfi-67
+	    srfi-71 srfi-74 srfi-78
 
             libscheme48
+	    test-suites
+	    matchers
 	    )
 	   :structure)
 	  ((define-signature define-package) :syntax)))

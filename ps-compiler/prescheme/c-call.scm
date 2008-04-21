@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2000 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 
 ; Generating C code for a call
@@ -158,7 +158,7 @@
 ; identifiers.  Luckily C is case-sensitive and Scheme is not.
 
 (define char-translations
-  (let* ((count number-of-char-codes)
+  (let* ((count ascii-limit)
          (string (make-string count)))
     (do ((i '0 (+ i '1)))
         ((>= i count))

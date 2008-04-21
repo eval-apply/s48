@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 (define (fake-it name)
@@ -11,6 +11,8 @@
 (define extended-vm        (fake-it 'extended-vm))
 (define external-call      (fake-it 'call-external-value))
 (define schedule-interrupt (fake-it 'schedule-interrupt))
+
+(define dequeue-external-event! (fake-it 'dequeue-external-event!))
 
 (define-syntax document-it
   (syntax-rules 
@@ -44,6 +46,7 @@
 					    1))))
 (document-it external-bignum-negate  (lambda (x) (- x)))
 (document-it external-bignum-from-long (lambda (x) x))
+(document-it external-bignum-from-unsigned-long (lambda (x) x))
 (document-it external-bignum-fits-in-word? 
 	     (lambda (bignum word-length two-compl?)
 	       (and (>= bignum -134217728)
@@ -63,6 +66,7 @@
 (define s48-call-native-procedure (fake-it 's48-call-native-code))
 (define s48-invoke-native-continuation (fake-it 's48-call-native-code))
 (define s48-native-return 0)
+(define s48-jump-native (fake-it 's48-jump-native))
 
 (define get-proposal-lock!     (fake-it 'get-proposal-lock!))
 (define release-proposal-lock! (fake-it 'release-proposal-lock!))
@@ -72,3 +76,14 @@
   (syntax-rules ()
     ((shared-set! x v)
      (set! x v))))
+
+(define (get-os-string-encoding)
+  "UTF-8")
+
+(define host-architecture "s48")
+
+(define (argument-type-violation val)
+  (fake-it 'argument-type-violation))
+
+(define (range-violation val min max)
+  (fake-it 'range-violation))

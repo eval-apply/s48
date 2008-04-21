@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Implementation of OS channels in Scheme.
 ;
@@ -82,6 +82,7 @@
 	      #t)
 	  (enum prescheme:errors no-errors)))
 
+(define (channel-crlf?) #f)
 ;----------------
 ; Non-blocking I/O (implemented using CHAR-READY?)
 ;
@@ -103,6 +104,10 @@
 
 (define (channel-write-block channel start count)
   (values count #f (write-block (channel->port channel) start count)))
+
+(define (channel-buffer-size) 4096)
+
+(define (channel-console-encoding channel) "ISO8859-1")
 
 (define (channel-abort channel)
   (set! *pending-channels* (delq channel *pending-channels*))
@@ -131,9 +136,11 @@
 (define-enumeration events
   (keyboard-interrupt-event
    io-completion-event
+   io-error-event
    alarm-event
    os-signal-event
    error-event
+   external-event
    no-event
    ))
 

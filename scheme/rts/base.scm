@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; This is file base.scm.
@@ -184,63 +184,6 @@
 (define (char>=? x y) (not (char<? x y)))
 (define (char<=? x y) (not (char>? x y)))
 
-(define (char-whitespace? c)
-  (if (memq (char->ascii c) ascii-whitespaces) #t #f))
-
-(define (char-lower-case? c)
-  (and (char>=? c #\a)
-       (char<=? c #\z)))
-
-(define (char-upper-case? c)
-  (and (char>=? c #\A)
-       (char<=? c #\Z)))
-
-(define (char-numeric? c)
-  (and (char>=? c #\0)
-       (char<=? c #\9)))
-
-(define (char-alphabetic? c)
-  (or (char-upper-case? c)
-      (char-lower-case? c)))
-
-(define char-case-delta 
-  (- (char->ascii #\a) (char->ascii #\A)))
-
-(define (make-character-map f)
-  (let ((s (make-string ascii-limit #\0)))
-    (do ((i 0 (+ i 1)))
-	((>= i ascii-limit))
-      (string-set! s i (f (ascii->char i))))
-    s))
-
-(define upcase-map
-  (make-character-map
-   (lambda (c)
-     (if (char-lower-case? c)
-	 (ascii->char (- (char->ascii c) char-case-delta))
-	 c))))
-
-(define (char-upcase c)
-  (string-ref upcase-map (char->ascii c)))
-
-(define downcase-map
-  (make-character-map
-   (lambda (c)
-     (if (char-upper-case? c)
-	 (ascii->char (+ (char->ascii c) char-case-delta))
-	 c))))
-
-(define (char-downcase c)
-  (string-ref downcase-map (char->ascii c)))
-
-(define (char-ci-compare pred)
-  (lambda (c1 c2) (pred (char-upcase c1) (char-upcase c2))))
-(define char-ci=? (char-ci-compare char=?))
-(define char-ci<? (char-ci-compare char<?))
-(define char-ci<=? (char-ci-compare char<=?))
-(define char-ci>? (char-ci-compare char>?))
-(define char-ci>=? (char-ci-compare char>=?))
-
 
 ; Strings
 
@@ -308,7 +251,10 @@
 		   (else #f)))))))
 
 ;(define string=?    (make-string=? char=?))  -- VM implements this
-(define string-ci=? (make-string=? char-ci=?))
+(define string-ci=?-proc (make-string=? char-ci=?))
+
+(define (string-ci=? s1 s2)
+  (string-ci=?-proc s1 s2))
 
 (define (make-string<? char<? char=?)
   (lambda (s1 s2)
@@ -325,7 +271,11 @@
 			 (loop (+ i 1)))))))))))
 
 (define string<?    (make-string<? char<? char=?))
-(define string-ci<? (make-string<? char-ci<? char-ci=?))
+
+(define string-ci<?-proc (make-string<? char-ci<? char-ci=?))
+
+(define (string-ci<? s1 s2)
+  (string-ci<?-proc s1 s2))
 
 (define (string>? s1 s2) (string<? s2 s1))
 (define (string<=? s1 s2) (not (string>? s1 s2)))
@@ -334,6 +284,10 @@
 (define (string-ci>? s1 s2) (string-ci<? s2 s1))
 (define (string-ci<=? s1 s2) (not (string-ci>? s1 s2)))
 (define (string-ci>=? s1 s2) (not (string-ci<? s1 s2)))
+
+(define (set-string-ci-procedures! ci=? ci<?)
+  (set! string-ci=?-proc ci=?)
+  (set! string-ci<?-proc ci<?))
 
 ; Vectors
 

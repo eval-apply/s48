@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; A thingie (placecard?) is used to hold a spot for a location that is to be
 ; found later.  The compiler sticks them in templates and the module system
@@ -8,9 +8,9 @@
 ; by flatload, which can't handle them.
 
 (define-record-type thingie :thingie
-  (make-thingie binding name want-type)
+  (make-thingie binding name assigned?)
   thingie?
   (binding thingie-binding)
   (name thingie-name)
-  (want-type thingie-want-type))
+  (assigned? thingie-assigned? set-thingie-assigned?!))
 

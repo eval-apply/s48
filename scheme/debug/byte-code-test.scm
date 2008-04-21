@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Test various of the byte-codes
@@ -44,7 +44,7 @@
   (write-string "
 " channel))
 
-(define (resume arg in out error)
+(define (resume arg in in-encoding out out-encoding error error-encoding)
   (set! *output-channel* out)
   (do ((tests (do ((tests *tests* (cdr tests))
 		   (r '() (cons (car tests) r)))

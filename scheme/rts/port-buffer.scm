@@ -1,43 +1,50 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 			       
 (define (make-buffered-input-port handler data buffer index limit)
   (if (and (okay-buffer? buffer index limit)
 	   (port-handler? handler))
       (make-port handler
+		 (enum text-encoding-option latin-1)
+		 #f
 		 (bitwise-ior input-port-mask open-input-port-mask)
 		 #f		; timestamp (was lock)
 		 data
 		 buffer
 		 index
 		 limit
+		 #f             ; pending-cr?
 		 #f)            ; pending-eof?
-      (call-error "invalid argument"
-		  make-buffered-input-port handler data buffer index limit)))
+      (assertion-violation 'make-buffered-input-port
+			   "invalid argument"
+			   handler data buffer index limit)))
 
 (define (make-buffered-output-port handler data buffer index limit)
   (if (and (okay-buffer? buffer index limit)
 	   (> limit 0)
 	   (port-handler? handler))
       (make-port handler
+		 (enum text-encoding-option latin-1)
+		 #f
 		 open-output-port-status
 		 #f		; timestamp (was lock)
 		 data
 		 buffer
 		 index
 		 limit
+		 #f             ; pending-cr?
 		 #f)            ; pending-eof?
-      (call-error "invalid argument"
-		  make-buffered-output-port handler data buffer index limit)))
+      (assertion-violation 'make-buffered-output-port
+			   "invalid argument"
+			   handler data buffer index limit)))
 
 (define (okay-buffer? buffer index limit)
   (and (byte-vector? buffer)
-       (let ((length (byte-vector-length buffer)))
-	 (integer? limit)
-	 (integer? index)
-	 (exact? limit)
-	 (exact? index)
-	 (<= 0 limit length)
-	 (<= 0 index limit))))
+       (integer? limit)
+       (integer? index)
+       (exact? limit)
+       (exact? index)
+       (<= 0 limit (byte-vector-length buffer))
+       (<= 0 index limit)))
 
 ;----------------
 ; (buffered-input-port-handler discloser
@@ -62,9 +69,10 @@
 			 (make-input-port-closed! port)
 			 (or (closer! (port-data port))
 			     (lose))))
+		     (make-one-byte-input buffer-filler!)
 		     (make-one-char-input buffer-filler!)
 		     (make-read-block buffer-filler!)
-		     (make-char-ready? ready? #t)
+		     (make-byte-ready? ready? #t)
 		     #f))			; force
 
 ;----------------
@@ -80,29 +88,30 @@
 
 ; And a current field.
 
-(define port-flushed? port-pending-eof?)
-(define set-port-flushed?! set-port-pending-eof?!)
+(define port-flushed port-pending-eof?)
+(define set-port-flushed! set-port-pending-eof?!)
 
 ;----------------
 
-(define (make-one-char-input buffer-filler!)
+; The READ? argument says whether we're doing a READ or a PEEK.
+
+(define (make-one-byte-input buffer-filler!)
   (lambda (port read?)
     (with-new-proposal (lose)
       (let ((index (provisional-port-index port))
 	    (limit (provisional-port-limit port)))
 	(cond ((not (open-input-port? port))
 	       (remove-current-proposal!)
-	       (call-error "invalid argument"
-			   (if read? read-char peek-char)
-			   port))
+	       (assertion-violation (if read? 'read-byte 'peek-byte)
+				    "invalid argument"
+				    port))
 	      ((< index limit)
 	       (if read?
 		   (provisional-set-port-index! port (+ 1 index)))
-	       (let ((ch (ascii->char
-			  (provisional-byte-vector-ref (port-buffer port)
-						      index))))
+	       (let ((b (provisional-byte-vector-ref (port-buffer port)
+						     index)))
 		 (if (maybe-commit)
-		     ch
+		     b
 		     (lose))))
 	      ((provisional-port-pending-eof? port)
 	       (if read?
@@ -111,13 +120,124 @@
 		   (eof-object)
 		   (lose)))
 	      (else
+	       (provisional-set-port-index! port 0)
+	       (provisional-set-port-limit! port 0)
 	       (buffer-filler! port #t)
 	       (lose)))))))
 
-;----------------
-; See if there is a character available.
+; The MODE argument says whether we're doing a READ (#f) , a PEEK (#t),
+; or a CHAR-READY? ( () )
 
-(define (make-char-ready? ready? read?)
+(define (make-one-char-input buffer-filler!)
+  (lambda (port mode)
+    (let ((decode
+	   (text-codec-decode-char-proc (port-text-codec port))))
+      (with-new-proposal (lose)
+
+	(let ((limit (provisional-port-limit port)))
+	  (let loop ((index (provisional-port-index port)))
+	  
+	    (define (consume&deliver decode-count val)
+	      (if (not mode)
+		  (provisional-set-port-index! port
+					       (+ index decode-count)))
+	      (if (maybe-commit)
+		  val
+		  (lose)))
+
+	    (cond ((not (open-input-port? port))
+		   (remove-current-proposal!)
+		   (assertion-violation (cond
+					 ((not mode) 'read-char)
+					 ((null? mode) 'char-ready?)
+					 (else 'peek-char))
+					"invalid argument"
+					port))
+		  ((< index limit)
+		   (let ((buffer (port-buffer port)))
+		     (call-with-values
+			 (lambda ()
+			   (decode buffer index (- limit index)))
+		       (lambda (ch decode-count)
+			 (cond
+			  (ch
+			    ;; CR/LF handling. Great.
+			   (cond
+			    ((port-crlf? port)
+			     (cond
+			      ((char=? ch cr)
+			       (provisional-set-port-pending-cr?! port #t)
+			       (consume&deliver decode-count
+						(if (null? mode) ; CHAR-READY?
+						    #t
+						    #\newline)))
+			      ((and (char=? ch #\newline)
+				    (provisional-port-pending-cr? port))
+			       (provisional-set-port-pending-cr?! port #f)
+			       (loop (+ index decode-count)))
+			      (else
+			       (provisional-set-port-pending-cr?! port #f)
+			       (consume&deliver decode-count
+						(if (null? mode) ; CHAR-READY?
+						    #t
+						    ch)))))
+			    (else
+			     (provisional-set-port-pending-cr?! port #f)
+			     (consume&deliver decode-count
+					      (if (null? mode) ; CHAR-READY?
+						  #t
+						  ch)))))
+			     
+			  ((or (not decode-count) ; decoding error
+			       (provisional-port-pending-eof? port)) ; partial char
+			   (consume&deliver 1
+					    (if (null? mode)
+						#t
+						#\?)))
+			  ;; need at least DECODE-COUNT bytes
+			  (else
+			   (if (> decode-count
+				  (- (byte-vector-length buffer)
+				     limit))
+			      
+			       ;; copy what we have to the
+			       ;; beginning so there's space at the
+			       ;; end we can try to fill
+			       (begin
+				 ;; (debug-message "aligning port buffer")
+				 (attempt-copy-bytes! buffer index
+						      buffer 0
+						      (- limit index))
+				 (provisional-set-port-index! port 0)
+				 (provisional-set-port-limit! port (- limit index))))
+			   (if (or (not (buffer-filler! port (not (null? mode))))
+				   (not (null? mode)))
+			       (lose)
+			       #f)))))))
+		  ((provisional-port-pending-eof? port)
+		   (if (not mode)
+		       (provisional-set-port-pending-eof?! port #f))
+		   (cond
+		    ((not (maybe-commit))
+		     (lose))
+		    ((null? mode) #t)
+		    (else (eof-object))))
+		  (else
+		   (if (= index limit)	; we have zilch
+		       (begin
+			 (provisional-set-port-index! port 0)
+			 (provisional-set-port-limit! port 0))
+		       ;; may be out of synch because of CR/LF conversion
+		       (provisional-set-port-index! port index))
+		   (if (or (not (buffer-filler! port (not (null? mode))))
+			   (not (null? mode)))
+		       (lose)
+		       #f)))))))))
+
+;----------------
+; See if there is a byte available.
+
+(define (make-byte-ready? ready? read?)
   (lambda (port)
     (with-new-proposal (lose)
       (cond ((not ((if read?
@@ -125,7 +245,7 @@
 		       open-output-port?)
 		   port))
 	     (remove-current-proposal!)
-	     (call-error "invalid argument" char-ready? port))
+	     (assertion-violation 'byte-ready? "invalid argument" port))
 	    ((or (< (provisional-port-index port)
 		    (provisional-port-limit port))
 		 (and read?
@@ -186,7 +306,8 @@
 			   have)))))
 	    (begin
 	      (remove-current-proposal!)
-	      (call-error "invalid argument" read-block port buffer start count)))))))
+	      (assertion-violation 'read-block "invalid argument"
+				   port buffer start count)))))))
 
 ; Copy whatever bytes are currently available.
 ;
@@ -210,12 +331,10 @@
 	  (provisional-set-port-index! port
 				       (+ index copy-count))
 	  copy-count)
-	#f)))
-
-(define (buffer-length buffer)
-  (if (string? buffer)
-      (string-length buffer)
-      (byte-vector-length buffer)))
+	(begin
+	  (provisional-set-port-index! port 0)
+	  (provisional-set-port-limit! port 0)
+	  #f))))
 
 ;----------------------------------------------------------------
 ; Buffered output ports
@@ -235,9 +354,10 @@
   (make-port-handler (lambda (port)
 		       (discloser (port-data port)))
 		     (make-closer closer! buffer-emptier!)
+		     (make-one-byte-output buffer-emptier!)
 		     (make-one-char-output buffer-emptier!)
 		     (make-write-block buffer-emptier!)
-		     (make-char-ready? ready? #f)
+		     (make-byte-ready? ready? #f)
 		     (make-forcer buffer-emptier!)))
 
 (define (make-closer closer! buffer-emptier!)
@@ -255,28 +375,96 @@
 	       (or (closer! (port-data port))
 		   (lose))))))))
 
-; First check that PORT is open and then either put CHAR in PORT's buffer or
+; First check that PORT is open and then either put BYTE in PORT's buffer or
 ; empty the buffer and try again.
 
-(define (make-one-char-output buffer-emptier!)
-  (lambda (port char)
+(define (make-one-byte-output buffer-emptier!)
+  (lambda (port byte)
     (with-new-proposal (lose)
       (let ((index (provisional-port-index port))
 	    (limit (byte-vector-length (port-buffer port))))
 	(cond ((not (open-output-port? port))
 	       (remove-current-proposal!)
-	       (call-error "invalid argument" write-char port))
+	       (assertion-violation 'write-byte "invalid argument" port))
 	      ((< index limit)
 	       (provisional-byte-vector-set! (port-buffer port)
 					     index
-					     (char->ascii char))
+					     byte)
 	       (provisional-set-port-index! port (+ 1 index))
 	       (or (maybe-commit)
 		   (lose)))
 	      (else
-	       (set-port-flushed?! port #t)
-	       (buffer-emptier! port #t)
+	       (call-to-flush! port (lambda () (buffer-emptier! port #t)))
 	       (lose)))))))
+
+(define (make-one-char-output buffer-emptier!)
+  (lambda (port ch)
+    (let ((encode
+	   (text-codec-encode-char-proc (port-text-codec port))))
+      (with-new-proposal (lose)
+	(let ((index (provisional-port-index port))
+	      (limit (byte-vector-length (port-buffer port))))
+	  (cond ((not (open-output-port? port))
+		 (remove-current-proposal!)
+		 (assertion-violation 'write-byte "invalid argument" port))
+		((< index limit)
+		 (let ((encode-count #f)
+		       (ok? #f))
+		   (cond
+		    ((not
+		      (maybe-commit-no-interrupts
+		       (lambda ()
+			 (if (and (port-crlf? port)
+				  (char=? ch #\newline))
+			     ;; CR/LF handling ruins our day once again
+			     (call-with-values
+				 (lambda ()
+				   (encode cr
+					   (port-buffer port)
+					   index (- limit index)))
+			       (lambda (the-ok? cr-encode-count)
+				 (cond
+				  ((or (not the-ok?)
+				       (>= (+ index cr-encode-count) limit))
+				   (set! ok? #f)
+			   (set! encode-count (+ 1 cr-encode-count))) ; LF will take at least one
+				  (else
+				   (call-with-values
+				       (lambda ()
+					 (encode #\newline
+						 (port-buffer port)
+						 (+ index cr-encode-count)
+						 (- limit (+ index cr-encode-count))))
+				     (lambda (the-ok? lf-encode-count)
+				       (set! ok? the-ok?)
+				       (if the-ok?
+					   (set-port-index! port
+							    (+ index
+							       cr-encode-count lf-encode-count))
+					   (set! encode-count (+ cr-encode-count lf-encode-count)))))))))
+			     (call-with-values
+				 (lambda ()
+				   (encode ch
+					   (port-buffer port)
+					   index (- limit index)))
+			       (lambda (the-ok? the-encode-count)
+				 (set! ok? the-ok?)
+				 (if the-ok?
+				     (set-port-index! port (+ index the-encode-count))
+				     (set! encode-count the-encode-count))))))))
+		     (lose))
+		    (ok?)		; we're done
+		    (encode-count	; need more space
+		     (with-new-proposal (_)
+		       (call-to-flush! port (lambda () (buffer-emptier! port #t))))
+		     (lose))
+		    (else		; encoding error
+		     (set! ch #\?)    ; if we get an encoding error on
+					; the second go, we're toast
+		     (lose)))))
+		(else
+		 (call-to-flush! port (lambda () (buffer-emptier! port #t)))
+		 (lose))))))))
 
 ; We have the following possibilities:
 ;  - the port is no longer open
@@ -284,7 +472,7 @@
 ;  - there is nothing to write
 ;       -> do nothing
 ;  - there is room left in the port's buffer
-;       -> copy characters into it
+;       -> copy bytes into it
 ;  - there is no room left in the port's buffer
 ;       -> write it out and try again
 
@@ -294,8 +482,8 @@
       (with-new-proposal (lose)
 	(cond ((not (open-output-port? port))
 	       (remove-current-proposal!)
-	       (call-error "invalid argument"
-			   write-block buffer start count port))
+	       (assertion-violation 'write-block "invalid argument"
+				    buffer start count port))
 	      ((= count 0)
 	       (if (maybe-commit)
 		   0
@@ -311,8 +499,7 @@
 			      (loop sent)))
 			(lose))))
 	      (else
-	       (buffer-emptier! port #t)
-	       (set-port-flushed?! port #t)
+	       (call-to-flush! port (lambda () (buffer-emptier! port #t)))
 	       (lose)))))))
 
 (define (copy-bytes-out! buffer start count port)
@@ -343,18 +530,18 @@
 	     (if necessary?
 		 (begin
 		   (remove-current-proposal!)
-		   (call-error "invalid argument" force-output port)))
+		   (assertion-violation 'force-output "invalid argument" port)))
 	     (unspecific))
 	    ((< 0 (provisional-port-index port))
-	     (set-port-flushed?! port #t)
-	     (if (or (not (buffer-emptier! port necessary?))
+	     (if (or (not (call-to-flush port (lambda () (buffer-emptier! port necessary?))))
 		     necessary?)
 		 (lose)))))))
 
 
 ;----------------
 
-(define default-buffer-size 4096)  ; should get this from the system
+(define (default-buffer-size)
+  (channel-parameter (enum channel-parameter-option buffer-size)))
 
 ;----------------
 ; Code to periodically flush output ports.
@@ -369,16 +556,16 @@
 		    (cdr pair)))))
 
 ; Return a list of thunks that will flush the buffer of each open port
-; that contains characters that have been there since the last time
+; that contains bytes that have been there since the last time
 ; this was called.  The actual i/o is done using separate threads to
 ; keep i/o errors from killing anything vital.
 ; 
-; If USE-FLUSHED?-FLAGS? is true this won't flush buffers that have been
+; If USE-FLUSHED-FLAGS? is true this won't flush buffers that have been
 ; flushed by someone else since the last call.  If it is false then flush
 ; all non-empty buffers, because the system has nothing to do and is going
 ; to pause while waiting for external events.
 
-(define (output-port-forcers use-flushed?-flags?)
+(define (output-port-forcers use-flushed-flags?)
   (let ((pair (session-data-ref flush-these-ports)))
     (let loop ((next (cdr pair))
 	       (last pair)
@@ -389,19 +576,21 @@
 ;				  " thunk(s)]")
 	  thunks ;)
 	  (let ((port (weak-pointer-ref (car next))))
-	    (cond ((or (not port)			; GCed or closed so
-		       (not (open-output-port? port)))	; drop it from the list
+	    (cond ((or (not port)	; GCed or closed so
+		       (not (open-output-port? port))) ; drop it from the list
 		   (set-cdr! last (cdr next))
 		   (loop (cdr next) last thunks))
-		  ((and use-flushed?-flags?		; flushed recently
-			(port-flushed? port))
-		   (set-port-flushed?! port #f)		; race condition, but
-		   (loop (cdr next) next thunks))	; it is harmless
-		  ((< 0 (port-index port))		; non-empty
+		  ((eq? (port-flushed port) 'flushing) ; somebody else is doing it
+		   (loop (cdr next) next thunks)) 
+		  ((and use-flushed-flags? ; flushed recently
+			(port-flushed port))
+		   (set-port-flushed! port #f)	; race condition, but harmless
+		   (loop (cdr next) next thunks))
+		  ((< 0 (port-index port)) ; non-empty
 		   (loop (cdr next) next
 			 (cons (make-forcing-thunk port)
 			       thunks)))
-		  (else					; empty
+		  (else			; empty
 		   (loop (cdr next) next thunks))))))))
 
 ; Returns a list of the current ports that are flushed whenever.
@@ -446,3 +635,14 @@
 	     port))
 	  "error when closing port"
 	  port))))
+
+(define (call-to-flush! port thunk)
+  (set-port-flushed! port 'flushing) ; don't let the periodic flusher go crazy
+  (thunk)
+  (set-port-flushed! port #t))
+
+(define (call-to-flush port thunk)
+  (set-port-flushed! port 'flushing) ; don't let the periodic flusher go crazy
+  (let ((retval (thunk))) ; one is enough
+    (set-port-flushed! port #t)
+    retval))

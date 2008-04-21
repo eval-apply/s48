@@ -43,18 +43,55 @@
 (define-structure srfi-1 srfi-1-interface
   (open (modify scheme-level-2 (hide map for-each member assoc)) ; redefined
 	receiving
-	(subset signals (error)))
+	(subset exceptions (assertion-violation)))
   (files srfi-1))
 
 ; AND-LET*: an AND with local bindings, a guarded LET* special form
 
 (define-structure srfi-2 (export (and-let* :syntax))
   (open scheme-level-2
-	signals)		; error
+	exceptions)		; error
   (files srfi-2))
 
 ; SRFI-3 - withdrawn
-; SRFI-4 - needs hacks to the reader
+
+; SRFI 4: Homogeneous numeric vector datatypes
+; Does not include hacks to the reader (intentionally).
+
+(define-interface srfi-4-interface
+  (export
+   s8vector? make-s8vector s8vector s8vector-length
+   s8vector-ref s8vector-set! s8vector->list list->s8vector
+   u8vector? make-u8vector u8vector u8vector-length
+   u8vector-ref u8vector-set! u8vector->list list->u8vector
+   s16vector? make-s16vector s16vector s16vector-length
+   s16vector-ref s16vector-set! s16vector->list list->s16vector
+   u16vector? make-u16vector u16vector u16vector-length
+   u16vector-ref u16vector-set! u16vector->list list->u16vector
+   s32vector? make-s32vector s32vector s32vector-length
+   s32vector-ref s32vector-set! s32vector->list list->s32vector
+   u32vector? make-u32vector u32vector u32vector-length
+   u32vector-ref u32vector-set! u32vector->list list->u32vector
+   s64vector? make-s64vector s64vector s64vector-length
+   s64vector-ref s64vector-set! s64vector->list list->s64vector
+   u64vector? make-u64vector u64vector u64vector-length u64vector-ref
+   u64vector-set! u64vector->list list->u64vector
+   f32vector? make-f32vector f32vector f32vector-length f32vector-ref
+   f32vector-set! f32vector->list list->f32vector
+   f64vector? make-f64vector f64vector f64vector-length f64vector-ref
+   f64vector-set! f64vector->list list->f64vector   
+   ))
+
+(define-structure srfi-4 srfi-4-interface
+  (open scheme define-record-types 
+	srfi-16 ; case-lambda
+	srfi-60 ; Integers as Bits
+	(modify srfi-66 ; Octet vectors
+		(rename (make-u8vector srfi-66:make-u8vector)))
+	srfi-74 ; blobs
+	(subset big-util (no-op)))
+  (files srfi-4))
+
 
 ; A compatible let form with signatures and rest arguments
 
@@ -80,7 +117,7 @@
 	; for parsing programs
 	receiving
 	nondeterminism
-	(subset signals (error))
+	(subset exceptions (assertion-violation))
 
 	(subset evaluation			(eval-from-file))
 
@@ -99,33 +136,36 @@
 
   (begin
     (define available-srfis
-      '(srfi-1 srfi-2 srfi-5 srfi-6 srfi-7 srfi-8 srfi-9
-	srfi-11 srfi-13 srfi-14 srfi-16 srfi-17
+      '(srfi-1 srfi-2 srfi-4 srfi-5 srfi-6 srfi-7 srfi-8 srfi-9
+	srfi-11 srfi-13 srfi-14 srfi-16 srfi-17 srfi-19
 	srfi-23 srfi-25 srfi-26 srfi-27 srfi-28
-	srfi-31 srfi-37
-	srfi-42))
+	srfi-31 srfi-34 srfi-37
+	srfi-39 srfi-40 srfi-42 srfi-43 srfi-45
+        srfi-60 srfi-61 srfi-62 srfi-63 srfi-66 srfi-67
+	srfi-71 srfi-74 srfi-78
+	srfi-95))
 
     ; Some SRFI's redefine Scheme variables.
     (define shadowed
       '((srfi-1 map for-each member assoc)
 	(srfi-5 let)
 	(srfi-13 string->list string-copy string-fill!)
-	(srfi-17 set!)))
+	(srfi-17 set!)
+	(srfi-45 force delay)
+	(srfi-43 vector-fill! vector->list list->vector)
+        (srfi-61 cond)
+        (srfi-63 equal?)
+        (srfi-71 let let* letrec)))
     )
-
+  
   (files srfi-7))
 
 ; receive: Binding to multiple values
-; Taken directly from the SRFI document (or from `receiving', take your pick).
+; Identical to the version in UTIL
 
 (define-structure srfi-8 (export (receive :syntax))
-  (open scheme-level-2)
-  (begin
-    (define-syntax receive
-      (syntax-rules ()
-	((receive formals expression body ...)
-	 (call-with-values (lambda () expression)
-			   (lambda formals body ...)))))))
+  (open scheme-level-2
+	util))
 
 ; Defining Record Types
 ; SRFI-9 is a slight modification of DEFINE-RECORD-TYPE.
@@ -200,7 +240,8 @@
   (open scheme-level-2
 	bitwise
 	srfi-8 srfi-14
-	(subset signals		(error)))
+	unicode-char-maps
+	(subset exceptions (assertion-violation)))
   (files srfi-13))
 
 ; Character-Set Library
@@ -249,12 +290,20 @@
 (define-structure srfi-14 srfi-14-interface
   (open scheme-level-2
 	bitwise
+	unicode
+	byte-vectors
+	(subset primitives (copy-bytes! unspecific))
+	inversion-lists
 	srfi-9
-	(modify ascii (rename (char->ascii %char->latin1)
-			      (ascii->char %latin1->char)))
+	(subset define-record-types (define-record-discloser))
+	variable-argument-lists
+	(subset big-util (partition-list))
 	(subset features (make-immutable!))
-	(subset signals (error)))
-  (files srfi-14))
+	(subset exceptions (assertion-violation)))
+  (optimize auto-integrate)
+  (files srfi-14
+	 srfi-14-base-char-sets ; auto-generated
+	 srfi-14-char-sets))
 
 ; SRFI-15 - withdrawn
 
@@ -262,19 +311,121 @@
 
 (define-structure srfi-16 (export (case-lambda :syntax))
   (open scheme-level-2
-	(subset signals (error)))
+	(subset exceptions (syntax-violation)))
   (files srfi-16))
 
 ; Generalized set!
 
 (define-structure srfi-17 (export (set! :syntax) setter)
   (open (modify scheme-level-2 (rename (set! scheme-set!)))
-	(subset signals (error))
+	(subset exceptions (assertion-violation))
 	(subset util (unspecific)))
   (files srfi-17))
 
 ; SRFI-18 - no implementation given
-; SRFI-19 - implementation is specific to MzScheme
+
+(define-interface srfi-19-interface
+  (export 
+   ;; Constants
+   time-duration
+   time-monotonic
+   time-process
+   time-tai
+   time-thread
+   time-utc
+   ;; Current time and clock resolution
+   current-date
+   current-julian-day
+   current-modified-julian-day
+   current-time
+   time-resolution
+   ;; Time object and accessors
+   make-time
+   time?
+   time-type
+   time-nanosecond
+   time-second
+   set-time-type!
+   set-time-nanosecond!
+   set-time-second!
+   copy-time
+   ;; Time comparison procedures
+   time<=?
+   time<?
+   time=?
+   time>=?
+   time>?
+   ;; Time arithmetic procedures
+   time-difference
+   time-difference!
+   add-duration
+   add-duration!
+   subtract-duration
+   subtract-duration!
+   ;; Date object and accessors
+   make-date
+   date?
+   date-nanosecond
+   date-second
+   date-minute
+   date-hour
+   date-day
+   date-month
+   date-year
+   date-zone-offset
+   date-year-day
+   date-week-day
+   date-week-number
+   ;; Time/Date/Julian Day/Modified Julian Day converters
+   date->julian-day
+   date->modified-julian-day
+   date->time-monotonic
+   date->time-tai
+   date->time-utc
+   julian-day->date
+   julian-day->time-monotonic
+   julian-day->time-tai
+   julian-day->time-utc
+   modified-julian-day->date
+   modified-julian-day->time-monotonic
+   modified-julian-day->time-tai
+   modified-julian-day->time-utc
+   time-monotonic->date
+   time-monotonic->time-tai
+   time-monotonic->time-tai!
+   time-monotonic->time-utc
+   time-monotonic->time-utc!
+   time-tai->date
+   time-tai->julian-day
+   time-tai->modified-julian-day
+   time-tai->time-monotonic
+   time-tai->time-monotonic!
+   time-tai->time-utc
+   time-tai->time-utc!
+   time-utc->date
+   time-utc->julian-day
+   time-utc->modified-julian-day
+   time-utc->time-monotonic
+   time-utc->time-monotonic!
+   time-utc->time-tai
+   time-utc->time-tai!
+   ;; Date to string/string to date converters.
+   date->string
+   string->date))
+
+(define-structure srfi-19 srfi-19-interface
+  (open scheme
+	srfi-9 ; DEFINE-RECORD-PROCEDURES
+        srfi-23 ; ERROR
+        ascii
+        receiving
+        (modify posix-time (prefix posix:))
+        (modify extended-ports
+                (rename (make-string-output-port open-output-string)
+                        (string-output-port-output get-output-string)
+                        (make-string-input-port open-input-string))))
+  (files srfi-19))
+
 ; SRFI-20 - withdrawn
 ; SRFI-21 - no implementation given
 ; SRFI-22 - needs internals hacking
@@ -282,7 +433,12 @@
 ; Error reporting mechanism
 
 (define-structure srfi-23 (export error)
-  (open (subset signals (error))))
+  (open scheme
+	(modify exceptions
+		(rename (error exceptions:error))))
+  (begin
+    (define (error message . irritants)
+      (apply exceptions:error #f message irritants))))
 
 ; Multi-dimensional Array Primitives 
 
@@ -293,7 +449,7 @@
 (define-structure srfi-25 srfi-25-interface
   (open scheme
 	define-record-types
-	(subset signals (error)))
+	(subset exceptions (assertion-violation)))
   (files srfi-25))
 
 ; Notation for Specializing Parameters without Currying
@@ -324,10 +480,9 @@
   (open
    scheme-level-1
    floatnums
-   external-calls
+   external-calls load-dynamic-externals
    (subset srfi-9 (define-record-type)) 
-   (subset srfi-23 (error))
-   (subset posix-time (current-time time-seconds)))
+   (subset srfi-23 (error)))
   (files srfi-27))
 
 ; Basic Format Strings
@@ -337,7 +492,7 @@
 
 (define-structure srfi-28 srfi-28-interface
   (open scheme
-	(subset signals (error))
+	(subset exceptions (assertion-violation))
 	srfi-6				; string ports
 	)
   (files srfi-28))
@@ -359,7 +514,18 @@
 	((rec NAME EXPRESSION)
 	 (letrec ( (NAME EXPRESSION) ) NAME))))))
 
-; args-fold: a program argument processor
+; Exception Handling for Programs
+
+(define-interface srfi-34-interface
+  (export with-exception-handler
+	  raise
+	  (guard :syntax)))
+
+(define-structure srfi-34 srfi-34-interface
+  (open scheme
+	exceptions))
+
+; SRFI 37: args-fold: a program argument processor
 
 (define-interface srfi-37-interface
   (export args-fold
@@ -372,7 +538,36 @@
 	srfi-11)
   (files srfi-37))
 
-; Eager Comprehensions
+; SRFI 39: Parameter objects
+
+(define-interface srfi-39-interface
+  (export make-parameter
+          ((parameterize) :syntax)))
+
+(define-structure srfi-39 srfi-39-interface
+  (open scheme
+	exceptions
+        fluids
+        cells)
+  (files srfi-39))
+  
+; SRFI 40: A Library of Streams
+
+(define-interface srfi-40-interface
+  (export stream-null (stream-cons :syntax) stream? stream-null? stream-pair?
+          stream-car stream-cdr (stream-delay :syntax) stream stream-unfoldn
+          stream-map stream-for-each stream-filter))
+
+(define-structure srfi-40 srfi-40-interface
+  (open (modify scheme (hide delay force))
+        define-record-types
+	cells
+        (subset srfi-1 (any every))
+        srfi-23 ; ERROR
+	)
+  (files srfi-40))
+
+; SRFI 42: Eager Comprehensions
 
 (define-interface srfi-42-interface
   (export ((do-ec
@@ -398,3 +593,253 @@
   (open scheme
 	srfi-23)
   (files srfi-42))
+
+; SRFI 43: Vector library
+
+(define-interface srfi-43-interface
+  (export make-vector vector vector-unfold vector-unfold-right
+          vector-copy vector-reverse-copy vector-append vector-concatenate
+          vector? vector-empty? vector= vector-ref vector-length
+          vector-fold vector-fold-right vector-map vector-map!
+          vector-for-each vector-count vector-index vector-skip
+          vector-index-right vector-skip-right
+          vector-binary-search vector-any vector-every
+          vector-set! vector-swap! vector-fill! vector-reverse!
+          vector-copy! vector-reverse-copy! vector-reverse!
+          vector->list reverse-vector->list list->vector reverse-list->vector))
+
+(define-structure srfi-43 srfi-43-interface
+  (open (modify scheme
+                (rename (vector-fill! %vector-fill!))
+                (rename (vector->list %vector->list))
+                (rename (list->vector %list->vector)))
+        (modify util (rename (unspecific unspecified-value)))
+        (subset srfi-8 (receive))
+        (subset exceptions (assertion-violation)))
+  (files srfi-43))
+
+; SRFI 45: Primitives for Expressing Iterative Lazy Algorithms
+
+(define-interface srfi-45-interface
+  (export (lazy :syntax) force (delay :syntax)))
+
+(define-structure srfi-45 srfi-45-interface
+  (open scheme
+	define-record-types)
+  (files srfi-45))
+
+; SRFI 60: Integers as Bits
+
+(define-interface srfi-60-interface
+  (export logand bitwise-and logior bitwise-ior logxor bitwise-xor
+	  lognot bitwise-not bitwise-if bitwise-merge logtest 
+	  any-bits-set? logcount bit-count integer-length 
+	  log2-binary-factors first-set-bit logbit?  bit-set?  
+	  copy-bit bit-field copy-bit-field ash arithmetic-shift 
+	  rotate-bit-field reverse-bit-field integer->list 
+	  list->integer booleans->integer))
+
+(define-structure srfi-60 srfi-60-interface
+  (open scheme bitwise)
+  (files srfi-60))
+
+; SRFI 61: A more general cond clause
+
+(define-interface srfi-61-interface
+  (export (cond :syntax)))
+
+(define-structure srfi-61 srfi-61-interface
+  (open (modify scheme (hide cond)))
+  (files srfi-61))
+
+; SRFI 62: S-expression comments
+
+; note this modifies the reader
+(define-structure srfi-62 (export)
+  (open scheme
+	reading)
+  (begin
+    (define-sharp-macro #\;
+      (lambda (char port)
+	;; The octothorpe reader leaves the semicolon
+	;; in the input stream, so we consume it.
+	(read-char port)
+	(sub-read-carefully port)
+	(sub-read port)))))
+
+; SRFI 63: Homogeneous and Heterogeneous Arrays
+
+(define-interface srfi-63-interface
+  (export array? equal? array-rank array-dimensions make-array
+          make-shared-array list->array array->list vector->array
+          array->vector array-in-bounds? array-ref array-set!
+          a:fixz8b a:fixz16b a:fixz32b a:fixz64b
+          a:fixn8b a:fixn16b a:fixn32b a:fixn64b          
+          a:floc16b a:floc32b a:floc64b a:floc128b
+          a:flor16b a:flor32b a:flor64b a:flor128b          
+          a:floq32d a:floq64d a:floq128d
+          a:bool))
+
+(define-structure srfi-63 srfi-63-interface
+  (open (modify scheme-level-2 (hide equal?)) ; redefined
+        define-record-types
+        srfi-4 srfi-16
+        (subset exceptions (assertion-violation)))
+  (files srfi-63))
+
+; SRFI 66: Octet Vectors
+
+(define-interface srfi-66-interface
+  (export make-u8vector
+	  u8vector?
+	  list->u8vector u8vector->list
+	  u8vector
+	  u8vector-length
+	  u8vector-ref u8vector-set!
+	  u8vector-copy! u8vector-copy
+	  u8vector=?
+	  u8vector-compare))
+
+(define-structure srfi-66 srfi-66-interface
+  (open scheme
+	byte-vectors
+	(subset primitives (copy-bytes!)))
+  (files srfi-66))
+
+; SRFI 67: Compare Procedures
+
+(define-interface srfi-67-interface
+  (export boolean-compare
+	  char-compare char-compare-ci
+	  string-compare string-compare-ci
+	  symbol-compare
+	  integer-compare rational-compare real-compare complex-compare
+	  number-compare
+	  vector-compare vector-compare-as-list
+	  list-compare list-compare-as-vector
+	  pair-compare-car pair-compare-cdr
+	  pair-compare
+	  default-compare
+	  (refine-compare :syntax)
+	  (select-compare :syntax)
+	  (cond-compare :syntax)
+	  (if3 :syntax)
+	  ((if=? if<? if>? if<=? if>=? if-not=?) :syntax)
+	  =? <? >? <=? >=? not=?
+	  </<? </<=? <=/<? <=/<=? >/>? >/>=? >=/>? >=/>=?
+	  chain=? chain<? chain>? chain<=? chain>=?
+	  pairwise-not=?
+	  min-compare max-compare
+	  kth-largest
+	  compare-by< compare-by> compare-by<= compare-by>= compare-by=/< compare-by=/>
+	  debug-compare))
+
+(define-structure srfi-67 srfi-67-interface
+  (open scheme
+	srfi-16 ; CASE-LAMBDA
+	srfi-23 ; ERROR
+	srfi-27 ; RANDOM
+	)
+  (files srfi-67))
+
+; SRFI 71: Extended LET-syntax for multiple values
+
+(define-interface srfi-71-interface
+  (export ((let let* letrec) :syntax)
+          ((values->list values->vector) :syntax)
+          uncons
+          uncons-2
+          uncons-3
+          uncons-4
+          uncons-cons
+          unlist
+          unvector))
+
+(define-structure srfi-71*
+  (export ((srfi-let srfi-let* srfi-letrec) :syntax)
+          ((values->list values->vector) :syntax)
+          uncons
+          uncons-2
+          uncons-3
+          uncons-4
+          uncons-cons
+          unlist
+          unvector)  
+  (open (modify scheme
+                (rename (let r5rs-let)
+                        (let* r5rs-let*)
+                        (letrec r5rs-letrec))))
+  (files srfi-71))
+
+(define-structure srfi-71 srfi-71-interface
+  (open (modify srfi-71*
+                (rename (srfi-let let)
+                        (srfi-let* let*)
+                        (srfi-letrec letrec)))))
+
+; SRFI 74: Octet-addressed binary objects
+
+(define-interface srfi-74-interface
+  (export (endianness :syntax)
+	  blob? make-blob
+	  blob-length
+	  blob-u8-ref blob-u8-set!
+	  blob-s8-ref blob-s8-set!
+	  blob-uint-ref blob-uint-set!
+	  blob-sint-ref blob-sint-set!
+
+	  blob-u16-ref blob-s16-ref
+	  blob-u16-native-ref blob-s16-native-ref
+	  blob-u16-set! blob-s16-set!
+	  blob-u16-native-set! blob-s16-native-set!
+
+	  blob-u32-ref blob-s32-ref
+	  blob-u32-native-ref blob-s32-native-ref
+	  blob-u32-set! blob-s32-set!
+	  blob-u32-native-set! blob-s32-native-set!
+
+	  blob-u64-ref blob-s64-ref
+	  blob-u64-native-ref blob-s64-native-ref
+	  blob-u64-set! blob-s64-set!
+	  blob-u64-native-set! blob-s64-native-set!
+
+	  blob=?
+	  blob-copy blob-copy!
+
+	  blob->u8-list u8-list->blob
+	  blob->uint-list blob->sint-list 
+	  uint-list->blob sint-list->blob))
+
+(define-structure srfi-74 srfi-74-interface
+  (open scheme
+	srfi-23 ; ERROR
+	srfi-26 ; CUT
+	bitwise
+	srfi-66 ; U8VECTOR
+	)
+  (files srfi-74))
+
+; SRFI 78: Lightweight testing
+
+(define-interface srfi-78-interface
+  (export (check :syntax)
+          (check-ec :syntax)
+          check-report
+          check-set-mode!
+          check-reset!
+          check-passed?))
+
+(define-structure srfi-78 srfi-78-interface
+  (open scheme srfi-42
+        (subset exceptions (assertion-violation)))
+  (files srfi-78))
+
+; SRFI 95: Sorting and Merging
+
+(define-interface srfi-95-interface
+  (export sorted? merge merge! sort sort!))
+
+(define-structure srfi-95 srfi-95-interface
+  (open scheme srfi-63
+	(subset exceptions (assertion-violation)))
+  (files srfi-95))

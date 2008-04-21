@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; This is file xnum.scm.
 
@@ -63,7 +63,8 @@
 				 (extended-number-set! n i ?arg))
 			  ...
 			  n)))
-		    (error "ill-formed DEFINE-EXTENDED-NUMBER-TYPE" '?type))))
+		    (assertion-violation 'define-extended-number-type
+					 "ill-formed DEFINE-EXTENDED-NUMBER-TYPE" '?type))))
 	    (define (?predicate x)
 	      (and (extended-number? x)
 		   (eq? (extended-number-type x) ?type)))
@@ -95,7 +96,7 @@
 		    (lambda (lose)
 		      (set-final-method! mtable
 					 (lambda (next-method . args)
-					   (apply lose args)))
+					   (apply lose (enum exception wrong-type-argument) args)))
 		      (lambda args
 			((perform) args))))))
 		      
@@ -125,6 +126,8 @@
 (define-opcode-extension inexact->exact &inexact->exact)
 (define-opcode-extension real-part      &real-part)
 (define-opcode-extension imag-part      &imag-part)
+(define-opcode-extension angle          &angle)
+(define-opcode-extension magnitude      &magnitude)
 
 (define-opcode-extension floor          &floor)
 (define-opcode-extension numerator      &numerator)
@@ -171,6 +174,21 @@
 
 (define-method &imag-part ((x :real))
   (if (exact? x) 0 (exact->inexact 0)))
+
+(define-method &magnitude ((x :real))
+  (abs x))
+
+(define pi (delay (* 2 (asin 1)))) ; can't compute at build time
+
+(define-method &angle ((x :real))
+  (cond
+   ((positive? x)
+    (if (exact? x)
+	0
+	(exact->inexact 0)))
+   ((negative? x) (force pi))
+   ((exact? x)    (assertion-violation 'angle "invalid argument to angle" x))
+   (else x)))
 
 (define-method &floor ((n :integer)) n)
 
@@ -248,7 +266,7 @@
 		(let ((m (string->integer (substring s 0 slash) radix))
 		      (n (string->integer (substring s (+ slash 1) len)
 					  radix)))
-		  (if (and m n)
+		  (if (and m n (not (zero? n)))
 		      (set-exactness (/ m n) xact?)
 		      #f))))
 	  ((string-position #\# s)
@@ -259,6 +277,10 @@
 				      (string->list s)))
 		   radix
 		   xact?)))
+	  ((and (= radix 10)
+		(string-position #\e s))
+	   => (lambda (e)
+		(parse-with-exponent s xact? e)))
 	  ((string-position #\. s)
 	   => (lambda (dot)
 		(parse-decimal s radix xact? dot)))
@@ -288,6 +310,19 @@
 			 xact?))
 	#f)))
 
+(define (parse-with-exponent s xact? e)
+  (let ((len (string-length s)))
+    (cond
+     ((string->integer (substring s (+ e 1) len) 10)
+      => (lambda (exp)
+	   (cond
+	    ((really-string->number (substring s 0 e) 10 xact?)
+	     => (lambda (significand)
+		  (* significand
+		     (expt 10 exp))))
+	    (else #f))))
+     (else #f))))
+    
 (define (parse-rectangular s radix xact?)
   (let ((len (string-length s)))
     (let loop ((i (- len 2)))

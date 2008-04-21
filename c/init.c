@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 #include <stdlib.h>
@@ -10,13 +10,17 @@
 extern long s48_get_file_size(unsigned char *);
 
 #if !defined(DEFAULT_HEAP_SIZE)
-/* 3 megacell = 12 megabytes (6 meg per semispace) */
+/* 3 megacells = 12 megabytes */
 #define DEFAULT_HEAP_SIZE 3000000L
 #endif
 
 #if !defined(DEFAULT_STACK_SIZE)
 /* 2500 cells = 10000 bytes */
 #define DEFAULT_STACK_SIZE 2500L
+#endif
+
+#if defined(STATIC_AREAS) && defined(S48_GC_BIBOP)
+#error "The BIBOP GC doesn't support the STATIC_AREAS feature yet."
 #endif
 
 #if defined(STATIC_AREAS)
@@ -33,19 +37,15 @@ extern long s48_get_file_size(unsigned char *);
 extern void	s48_sysdep_init(void);
 extern void	s48_initialize_external_modules(void);
 
-char *s48_object_file;   /* specified via a command line argument */
-
 int
-s48_main(argc, argv)
-     int argc; char **argv;
+s48_main(int argc, char *argv[])
 {
   char *image_name = DEFAULT_IMAGE_NAME;
   long heap_size = DEFAULT_HEAP_SIZE;    /* in numbers of cells */
   long stack_size = DEFAULT_STACK_SIZE;  /* in numbers of cells */
   int errors = 0;
   long return_value;
-  void *stack;
-  int warn_undefined_imported_bindings_p = 1;
+  char *stack;
 
 #if defined(STATIC_AREAS)
   extern long static_entry;
@@ -58,7 +58,12 @@ s48_main(argc, argv)
   long vm_argc = 0;
   char *me = *argv;		/* Save program name. */
 
-  s48_object_file = NULL;
+  {
+    /* initialize floating-point printer */
+    extern void s48_free_init(void);
+
+    s48_free_init();
+  }
 
   argv++; argc--;		/* Skip program name. */
 
@@ -68,8 +73,8 @@ s48_main(argc, argv)
       case 'h':
 	argc--; argv++;
 	if (argc == 0) { errors++; break; }
-	heap_size = atoi(*argv);
-	if (heap_size <= 0) errors++;
+	heap_size = atol(*argv);
+	if (heap_size < 0) errors++;  /* 0 means now no limit */
 	break;
       case 's':
 	argc--; argv++;
@@ -87,15 +92,6 @@ s48_main(argc, argv)
 	vm_argc = argc;    /* remaining args are passed to the VM */
 	argc = 0;
 	break;
-      case 'o':
-        argc--; argv++;
-	if (argc == 0) { errors++; break; }
-        s48_object_file = *argv;
-	break;
-      case 'u':
-        argc--; argv++;
-	warn_undefined_imported_bindings_p = 0;
-	break;
       default:
 	fprintf(stderr, "Invalid argument: %s\n", *argv);
 	errors++;
@@ -107,14 +103,29 @@ s48_main(argc, argv)
   if (errors != 0) {
     fprintf(stderr,
 "Usage: %s [options] [-a arguments]\n\
-Options: -h <total heap size in words>\n\
-	 -s <stack buffer size in words>\n\
-         -i <image file name>\n\
-         -o <object file name>\n\
-         -u [don't warn on unbound external identifiers]\n",
-	    me);
+Options: -h <heap-size>    %s heap size in words (default %d).%s\n\
+	 -s <stack-size>   Stack buffer size in words.\n\
+         -i <file>         Load image from file (default \"%s\")\n",
+	    me,
+#if S48_GC_BIBOP
+	    "Maximum",
+	    DEFAULT_HEAP_SIZE,
+"\n                           A heap size of 0 means the heap can grow\n\
+                           unboundedly. This is dangerous because it can\n\
+                           cause your system to run out of memory.",
+#else
+	    "Total",
+	    DEFAULT_HEAP_SIZE,
+	    "",
+#endif
+	    DEFAULT_IMAGE_NAME
+	    );
     return 1;
   }
+
+
+  /* Disable GC to read the image and initialize the VM-stack */ 
+  s48_forbid_gcB();
 
   s48_sysdep_init();
   s48_heap_init();
@@ -128,7 +139,7 @@ Options: -h <total heap size in words>\n\
 			  static_symbol_table,
 			  static_imported_binding_table,
 			  static_exported_binding_table);
-    if (-1 == s48_initialize_heap(heap_size, 0, 0)) {
+    if (s48_initialize_heap(heap_size) == NULL) {
       fprintf(stderr, "system is out of memory\n");
       return 1; }
 #else
@@ -139,7 +150,7 @@ Options: -h <total heap size in words>\n\
     fprintf(stderr, "Image file \"%s\" is unusable.\n", image_name);
     return 1; }
   
-  stack = (void *) malloc(stack_size * sizeof(long));
+  stack = (char *) malloc(stack_size * sizeof(long));
     
   if (!stack) {
     fprintf(stderr, "system is out of memory\n");
@@ -148,10 +159,10 @@ Options: -h <total heap size in words>\n\
   s48_initialize_vm(stack, stack_size);
 
   s48_initialize_external_modules();
-  
-  if (warn_undefined_imported_bindings_p)
-    s48_warn_about_undefined_imported_bindings();
-  
+
+  /* Heap und stack are ok. Enable the GC. */
+  s48_allow_gcB();
+
   return_value = s48_call_startup_procedure(argv, vm_argc);
 
   return(return_value);

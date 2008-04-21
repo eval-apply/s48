@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; All regular expressions are records of the following type.
 ;
@@ -100,7 +100,7 @@
        (= 0 (set-no-case set))))
 
 (define (char->mask char)
-  (arithmetic-shift 1 (char->ascii char)))
+  (arithmetic-shift 1 (char->scalar-value char)))
 
 (define (char-in-set? char set)
   (not (zero? (bitwise-and (set-use-case set)
@@ -108,16 +108,20 @@
 
 (define char-limit 256)		; allow eight-bit characters
 
-; A vector mapping ASCII values to case-insensitive bitsets.
+; A vector mapping Latin-1 values to case-insensitive bitsets.
+; It's unclear how to make this work with Unicode while preserving
+; the underlying 8-bit POSIX API.
 
 (define no-case-char-masks
   (reduce ((count* i 0 char-limit))
 	  ((masks '()))
-    (cons (let ((ch (ascii->char i)))
+    (cons (let ((ch (scalar-value->char i)))
 	    (bitwise-ior (arithmetic-shift 1 i)
-			 (cond ((char-upper-case? ch)
+			 (cond ((and (< i 128)
+				     (char-upper-case? ch))
 				(char->mask (char-downcase ch)))
-			       ((char-lower-case? ch)
+			       ((and (< i 128)
+				     (char-lower-case? ch))
 				(char->mask (char-upcase ch)))
 			       (else
 				0))))
@@ -135,7 +139,7 @@
     (list->vector (reverse sets))))
 
 (define (char->set char)
-  (vector-ref singleton-sets (char->ascii char)))
+  (vector-ref singleton-sets (char->scalar-value char)))
 
 ; Arguments can be strings or single characters.  We walk down all of the
 ; characters, or-ing their masks together.
@@ -152,14 +156,14 @@
 	      ((string? arg)
 	       (add-string-masks arg case no-case))
 	      (else
-	       (apply call-error "invalid argument" set all-args)))
+	       (apply assertion-violation 'set "invalid argument" all-args)))
 	(make-set case no-case))))
 	      
 (define (add-char-masks char case no-case)
   (values (bitwise-ior case (char->mask char))
 	  (bitwise-ior no-case
 		       (vector-ref no-case-char-masks
-				   (char->ascii char)))))
+				   (char->scalar-value char)))))
   
 (define (add-string-masks string case no-case)
   (reduce ((string* char string))
@@ -170,32 +174,32 @@
 ; Ranges.  Again, we loop through the ranges building up two masks.
 
 (define (range low high)
-  (or (real-ranges `(,low ,high) char->integer integer->ascii)
-      (call-error "invalid argument" range low high)))
+  (or (real-ranges `(,low ,high) char->integer integer->scalar-value)
+      (assertion-violation 'range "invalid argument" low high)))
 
 (define (ranges . limits)
-  (or (real-ranges limits char->integer integer->ascii)
-      (apply call-error "invalid argument" ranges limits)))
+  (or (real-ranges limits char->integer integer->scalar-value)
+      (apply assertion-violation 'ranges "invalid argument" limits)))
 
 (define (ascii-range low high)
   (or (real-ranges `(,low ,high) char->ascii identity)
-      (call-error "invalid argument" ascii-range low high)))
+      (assertion-violation 'ascii-range "invalid argument" low high)))
 
 (define (ascii-ranges . limits)
   (or (real-ranges limits char->ascii identity)
-      (apply call-error "invalid argument" ascii-ranges limits)))
+      (apply assertion-violation 'ascii-ranges "invalid argument" limits)))
 
-(define (integer->ascii i)
-  (char->ascii (integer->char i)))
+(define (integer->scalar-value i)
+  (char->scalar-value (integer->char i)))
 
 (define (identity i)
   i)
 
 ; LIMITS is a list of lists (<start-char> <end-char>), CHAR->INT returns an
-; integer given a character and INT->ASCII translates that integer to the
-; corresponding ASCII value.
+; integer given a character and INT->SCALAR-VALUE translates that integer to the
+; corresponding scalar value.
 
-(define (real-ranges limits char->int int->ascii)
+(define (real-ranges limits char->int int->scalar-value)
   (if (every char? limits)
       (let loop ((to-do limits) (case 0) (no-case 0))
 	(cond ((null? to-do)
@@ -210,12 +214,12 @@
 		     (reduce ((count* i start (+ end 1)))
 			     ((case case)
 			      (no-case no-case))
-			(let ((ascii (int->ascii i)))
+			(let ((scalar-value (int->scalar-value i)))
 			  (values (bitwise-ior case
-					       (arithmetic-shift 1 ascii))
+					       (arithmetic-shift 1 scalar-value))
 				  (bitwise-ior no-case
 					       (vector-ref no-case-char-masks
-							   ascii))))
+							   scalar-value))))
 			(loop (cddr to-do) case no-case)))))))
       #f))
 	       
@@ -256,10 +260,10 @@
 (define alphabetic   (union lower-case upper-case))
 (define numeric      (range #\0 #\9))
 (define alphanumeric (union alphabetic numeric))
-(define punctuation  (set "!\"#$%&'()*+,-./:;<=>?@ [\\]^_`{|}~"))
-(define blank        (set #\space (ascii->char 9)))	;#\tab
+(define punctuation  (set "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"))
+(define blank        (set #\space (scalar-value->char 9)))	;#\tab
 (define graphic      (union alphanumeric punctuation))
-(define whitespace   (apply set (map ascii->char
+(define whitespace   (apply set (map scalar-value->char
 				     '(32	;space
 				       9	;tab
 				       10	;newline
@@ -304,7 +308,7 @@
 
 (define (submatch id exp)
   (cond ((not (regexp? exp))
-	 (call-error "invalid argument" submatch exp))
+	 (assertion-violation 'submatch "invalid argument" exp))
 	((empty-set? exp)
 	 the-empty-set)
 	(else
@@ -339,7 +343,7 @@
 	       (make-sequence (reverse res))))
 	(let ((exp (car exps)))
 	  (cond ((not (regexp? exp))
-		 (apply call-error "invalid argument" sequence all-exps))
+		 (apply assertion-violation 'sequence "invalid argument" all-exps))
 		((empty-set? exp)
 		 the-empty-set)
 		((sequence? exp)
@@ -369,7 +373,7 @@
 				(cons set (reverse res))))))
 	(let ((exp (car exps)))
 	  (cond ((not (regexp? exp))
-		 (apply call-error "invalid argument" sequence all-exps))
+		 (apply assertion-violation 'one-of "invalid argument" all-exps))
 		((empty-set? exp)
 		 (loop (cdr exps) res set))
 		((set? exp)
@@ -384,7 +388,7 @@
 (define (text string)
   (if (string? string)
       (apply sequence (map char->set (string->list string)))
-      (call-error "invalid argument" text string)))
+      (assertion-violation 'text "invalid argument" string)))
 
 ; Repetitions
 ;  LOW is an integer >= 0.
@@ -409,7 +413,7 @@
 		   (or (not high)
 		       (and (integer? high)
 			    (<= low high)))))
-	 (call-error "invalid argument" make-repeat low high exp))
+	 (assertion-violation 'make-repeat "invalid argument" low high exp))
 	((or (epsilon? exp)
 	     (and high
 		  (= low high 0)))
@@ -433,7 +437,7 @@
 (define (repeat . stuff)
   (case (length stuff)
     ((0)
-     (call-error "invalid argument" repeat))
+     (assertion-violation 'repeat "invalid argument" repeat))
     ((1)
      (make-repeat 0 #f (car stuff)))
     ((2)
@@ -441,7 +445,7 @@
     ((3)
      (apply make-repeat stuff))
     (else
-     (apply call-error "invalid argument" repeat stuff))))
+     (apply assertion-violation 'repeat "invalid argument" stuff))))
 
 ;----------------
 ; Three functions that transform EXP instead of having their own record type.
@@ -466,7 +470,7 @@
   (if (regexp? exp)
       (or (expression-map function exp)
 	  exp)
-      (call-error "invalid argument" proc exp)))
+      (assertion-violation 'start-expression-map "invalid argument" proc exp)))
 
 ; This returns #F if FUNCTION does not modify EXP.
 
@@ -511,7 +515,7 @@
 	       (string-end? exp))
 	   exp)
 	  (else
-	   (error "expression-map got a non-expression" exp)))))
+	   (assertion-violation 'expression-map "got a non-expression" exp)))))
 
 ; As above, this returns #F if FUNCTION leaves EXPS unchanged.
 
@@ -543,9 +547,9 @@
 
 (define (exp->posix-string exp)
   (cond ((not (regexp? exp))
-	 (call-error "invalid argument" exp->posix-string exp))
+	 (assertion-violation 'exp->posix-string "invalid argument" exp))
 	((empty-set? exp)
-	 (call-error "no Posix string for the empty set" exp->posix-string exp))
+	 (assertion-violation 'exp->posix-string "no Posix string for the empty set" exp))
 	(else
 	 (reduce ((list* elt (exp->strings exp '())))
 		 ((strings '())
@@ -588,7 +592,7 @@
 	((string-end? exp)
 	 (cons "$" tail))
 	(else
-	 (error "bad expression" exp))))
+	 (assertion-violation 'exp->strings "bad expression" exp))))
 
 ; Add parentheses around the strings for EXP, encoding "(" as #F because it
 ; does not begin a submatch.
@@ -671,7 +675,7 @@
 
 (define (bit-set->posix-string bit-set)
   (cond ((= bit-set 0)
-	 (error "trying to convert the empty set"))
+	 (assertion-violation 'bit-set->posix-string "trying to convert the empty set"))
 	((= (bitwise-and bit-set all-chars)
 	    all-chars)
 	 ".")
@@ -696,7 +700,7 @@
 ;  - a mask with the character and two or three adjacent characters
 ; If the character is present but not all of the bigger mask, then the character
 ; will not be inside a range and so must be removed and placed at the end of the
-; string.  This is complicated by #\] and #\^ being adjacent ASCII characters.
+; string.  This is complicated by #\] and #\^ having adjacent scalar values.
 ; If one is present then the four characters "\]^_" must be present to make sure
 ; the funny character is inside a range.
 ;
@@ -792,7 +796,8 @@
 (define (shift-down n)
   (arithmetic-shift n -1))
 
-; Turn RANGES, which is list of pairs and (<ascii start> . <ascii end>) ranges
+; Turn RANGES, which is list of pairs and
+; (<scalar value start> . <scalar value end>) ranges
 ; into a string, where the ranges become <start char>-<end char>.  Any
 ; characters in RANGES are put directly into the result.
 
@@ -800,13 +805,13 @@
   (if (and (null? (cdr ranges))
 	   (= (caar ranges)
 	      (cdar ranges)))
-      (string (ascii->char (caar ranges)))
+      (string (scalar-value->char (caar ranges)))
       (reduce ((list* range ranges))
 	      ((res '()))
 	(if (char? range)
 	    (cons range res)
-	    (let ((first (ascii->char (car range)))
-		  (last (ascii->char (cdr range))))
+	    (let ((first (scalar-value->char (car range)))
+		  (last (scalar-value->char (cdr range))))
 	      (case (- (cdr range) (car range))
 		((0)
 		 (cons first res))
@@ -848,7 +853,7 @@
       (if (empty-set? exp)
 	  #f
 	  (regexp-match (car (compile-exp exp)) string 0 #f #t #t))
-      (call-error "invalid argument" any-match? exp string)))
+      (assertion-violation 'any-match? "invalid argument" exp string)))
   
 (define (exact-match? exp string)
   (if (and (regexp? exp)
@@ -859,7 +864,7 @@
 	    (and matches
 		 (= 0 (match-start (car matches)))
 		 (= (string-length string) (match-end (car matches))))))
-      (call-error "invalid argument" exact-match? exp string)))
+      (assertion-violation 'exact-match? "invalid argument" exp string)))
 
 ; Do the match and select out the match records that correspond to submatches,
 ; making them into an alist.  The first match record, which is for the entire
@@ -885,7 +890,7 @@
 			  (match-end (car matches))
 			  (reverse submatches)))
 	    #f))
-      (call-error "invalid argument" match exp string)))
+      (assertion-violation 'match "invalid argument" exp string)))
 
 ; Compile the expression if this hasn't already been done.  The compiled version
 ; is the POSIX regexp object and the list of submatch indexes.
@@ -894,11 +899,10 @@
   (or (regexp-compiled exp)
       (mvlet* (((string match-flags)
 		(exp->posix-string exp))
-	       (regexp (if (null? match-flags)
-			   (make-posix-regexp string (regexp-option extended))
-			   (make-posix-regexp string
-					      (regexp-option extended)
-					      (regexp-option submatches)))))
+	       ;; must always have submatches on, needed by EXACT-MATCH?
+	       (regexp (make-posix-regexp string 
+					  (regexp-option extended)
+					  (regexp-option submatches))))
 	(set-regexp-compiled! exp (cons regexp match-flags))
 	(cons regexp match-flags))))
 
@@ -909,7 +913,7 @@
 
 (define (regexp->s-exp x)
   (cond ((not (regexp? x))
-	 (call-error "invalid argument" regexp->s-exp x))	 
+	 (assertion-violation 'regexp->s-exp "invalid argument" x))	 
 	((set? x)
 	 (list 'set
 	       (let ((chars (set->chars x)))
@@ -932,7 +936,7 @@
 	((string-end? x)
 	 '(string-end))
 	(else
-	 (error "unknown type of regular-expression" x))))
+	 (assertion-violation 'regexp->s-exp  "unknown type of regular-expression" x))))
 
 ; Used by EXP->S-EXP.  Returns a list of the characters in SET (using the
 ; case-sensitive set).
@@ -951,7 +955,7 @@
 		    chars
 		    (loop (arithmetic-shift bits -1)
 			  (if (odd? bits)
-			      (cons (ascii->char i)
+			      (cons (scalar-value->char i)
 				    chars)
 			      chars))))))))
 

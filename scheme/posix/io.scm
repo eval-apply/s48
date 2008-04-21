@@ -1,7 +1,9 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Calls from Section 6 of POSIX.
+
+(import-dynamic-externals "=scheme48external/posix")
 
 ; First some port manipulation routines.
 
@@ -22,7 +24,7 @@
 
 (define (port-is-a-terminal? port)
   (cond ((not (port? port))
-	 (call-error port-is-a-terminal? (list port)))
+	 (assertion-violation 'port-is-a-terminal? "not a port" port))
 	((port->channel port)
 	 => channel-is-a-terminal?)
 	(else
@@ -30,9 +32,10 @@
 
 (define (port-terminal-name port)
   (cond ((not (port? port))
-	 (call-error port-terminal-name (list port)))
+	 (assertion-violation 'port-terminal-name "not a port" port))
 	((port->channel port)
-	 => channel-terminal-name)
+	 => (lambda (channel)
+	      (byte-vector->os-string (channel-terminal-name channel))))
 	(else
 	 #f)))
 
@@ -71,7 +74,7 @@
 	     input-channel->port
 	     output-channel->port)
 	 (channel-dup channel))
-	(call-error dup (list port)))))
+	(assertion-violation 'dup "argument cannot be coerced to channel" port))))
 
 (define (channel-dup channel)
   (really-dup channel #f))
@@ -84,7 +87,7 @@
 	     (really-dup channel (enum channel-status-option output)))
 	    (input-channel->port
 	     (really-dup channel (enum channel-status-option input))))
-	(call-error dup-switching-mode (list port)))))
+	(assertion-violation 'dup-switching-mode "argument cannot be coerced to channel" port))))
 
 (define (dup2 port fd)
   (let ((channel (maybe-x->channel port)))
@@ -93,7 +96,7 @@
 	     input-channel->port
 	     output-channel->port)
 	 (channel-dup2 channel fd))
-	(call-error dup2 (list port fd)))))
+	(assertion-violation 'dup2 "argument cannot be coerced to channel" port fd))))
 
 (import-lambda-definition really-dup (channel new-status) "posix_dup")
 (import-lambda-definition channel-dup2 (channel fd) "posix_dup2")
@@ -135,7 +138,9 @@
 				   (not (vector-ref channels index)))
 			       (set-close-on-exec?! channel #t))))
 		       (open-channels-list)))))
-	(call-error remap-file-descriptors! ports&channels))))
+	(apply assertion-violation 'remap-file-descriptors!
+	       "not all arguments can be mapped to channels"
+	       ports&channels))))
 
 (define (close-all-but . ports&channels)
   (let ((channels (maybe-xs->channels ports&channels #f)))
@@ -144,7 +149,9 @@
 		    (if (not (memq channel channels))
 			(close-channel channel)))
 		  (open-channels-list))
-	(call-error close-all-but ports&channels))))
+	(apply assertion-violation 'close-all-but 
+	       "not all arguments can be mapped to channels"
+	       ports&channels))))
 
 ; Coerce PORT-OR-CHANNEL to a channel, if possible.
 
@@ -283,14 +290,14 @@
   (let ((channel (maybe-x->channel port-or-channel)))
     (if channel
 	(call-imported-binding posix-io-flags channel #f)
-	(call-error i/o-flags (list port-or-channel)))))
+	(assertion-violation 'i/o-flags "argument cannot be coerced to channel" port-or-channel))))
 
 (define (set-i/o-flags! port-or-channel options)
   (let ((channel (maybe-x->channel port-or-channel)))
     (if (and channel
 	     (file-options? options))
 	(call-imported-binding posix-io-flags channel options)
-	(call-error set-i/o-flags! (list port-or-channel options)))))
+	(assertion-violation 'set-i/o-flags! "argument type error" port-or-channel options))))
 
 (import-definition posix-io-flags)
 
@@ -305,37 +312,4 @@
 ; 7. Asynchronous Input and Output
 ;
 ; All optional
-;
-;----------------
-; Utilities
 
-(define (vector-for-each proc vector)
-  (do ((i 0 (+ i 1)))
-      ((= i (vector-length vector)))
-    (proc (vector-ref vector i))))
-
-(define (input-port->string port)
-  (let loop ((buffers '()))
-    (let ((buffer (make-string 1024)))
-      (let ((got (read-block buffer 0 1024 port)))
-	(if (or (eof-object? got)
-		(< got 1024))
-	    (apply string-append
-		   (reverse (if (eof-object? got)
-				buffers
-				(cons (substring buffer 0 got) buffers))))
-	    (loop (cons buffer buffers)))))))
-
-; Test for the above, with 1024 replaced by 4.
-;(do ((i 0 (+ i 1)))
-;    ((= i 20))
-;  (let ((s (substring "abcdefghijklmnopqrstuvwxyz" 0 i)))
-;    (if (not (string=? s (output->string (make-string-input-port s))))
-;        (error "missed at" i))))
-
-(define (input-port->list port)
-  (let loop ((list '()))
-    (let ((got (read port)))
-      (if (eof-object? got)
-	  (reverse list)
-	  (loop (cons got list))))))
