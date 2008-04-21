@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
 
    See file COPYING. */
 
@@ -8,11 +8,6 @@
 #include <errno.h>
 
 #include <windows.h>
-
-#undef TRUE
-#define TRUE  (0 == 0)
-#undef FALSE
-#define FALSE (0 == 1)
 
 /*
    Expanding Windows filenames
@@ -26,7 +21,6 @@
 
 char *s48_expand_file_name (char *name, char *buffer, int buffer_len)
 {
-#define ENV_NAME_SIZE 256
   char *drive = NULL, *path = NULL, *dir = NULL;
   int dir_len;
   int name_len = strlen(name);
@@ -38,26 +32,19 @@ char *s48_expand_file_name (char *name, char *buffer, int buffer_len)
        * I have no idea if it will have trailing \ for a subdirectory.
        */
       path  = getenv("HOMEPATH");
-      name += 2;
+      name += 1;
       name_len -= 2;
     }
   else if ((name_len >= 3) && (name[0] == '%'))
     {
       char *pos = strchr(name + 2, '%');
-      if (pos) /* #### uh oh #### */
+      if (pos)
 	{
-	  if ((pos - name) + 1 > ENV_NAME_SIZE)
-	    {
-	      fprintf(stderr,
-		      "\ns48_expand_file_name: environment variable longer than %d characters\n",
-		      ENV_NAME_SIZE - 2);
-	      return NULL;
-	    }
+	  *pos = '\0';
+	  dir = getenv(name+1);
+	  name = pos + 1;
+	  name_len -= (pos - name) + 1;
 	}
-      *pos = '\0';
-      dir = getenv(name+1);
-      name = pos + 1;
-      name_len -= (pos - name) + 1;
     }
 
   if ((drive && path) || dir)
@@ -128,7 +115,41 @@ s48_run_machine(long (*proc) (void))
 unsigned char *
 ps_error_string(long the_errno)
 {
-  return((unsigned char *)strerror(the_errno));
+  DWORD id = (DWORD) the_errno;
+#define ERROR_BUFFER_SIZE 512
+  static WCHAR buf[ERROR_BUFFER_SIZE + 1];
+  static char utf8[(ERROR_BUFFER_SIZE * 4) + 1];
+
+  for (;;)
+    {
+      if (FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM,
+			 NULL, /* lpSource */
+			 id,
+			 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			 buf, ERROR_BUFFER_SIZE,
+			 NULL)) /* arguments ... */
+	{
+	  int count
+	    = WideCharToMultiByte(CP_UTF8,
+				  0, /* dwFlags */
+				  buf,
+				  -1,
+				  utf8, 
+				  ERROR_BUFFER_SIZE * 4 + 1, 
+				  NULL, /* lpDefaultChar */
+				  NULL /* lpUsedDefaultChar */
+				  );
+	  /* get rid of annoying trailing line end */
+	  if ((count > 3) && (utf8[count-3] == 0x0d) && (utf8[count-2] == 0x0a))
+	    utf8[count-3] = '\0';
+	  return utf8;
+	}
+      else
+	/* risky, but we assume some amount of sanity on the side of
+	   the Windows implementors---haha */
+	id = GetLastError();
+    }
+#undef ERROR_BUFFER_SIZE
 }
 
 /* Getting the length of a file. */

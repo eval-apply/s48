@@ -1,19 +1,15 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
-
-
-
-; ,open architecture primitives assembler packages enumerated 
-; ,open features sort locations display-conditions
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 (define length-procedures
   (do ((i (- stob-count 1) (- i 1))
        (l '() (cons (eval `(lap *length ()
-                                (check-nargs= 1)
-                                (pop)
+                                (protocol 1 (push template))
+                                (stack-ref 1)
                                 (stored-object-length
                                   ,(enumerand->name i stob))
 				(push)
-				(literal '2)
+				(literal 2)
+				(push)
 				(arithmetic-shift)
                                 (return))
                           (interaction-environment))

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Some interfaces.  Order of presentation is a bit random.
@@ -35,7 +35,6 @@
 	  vector? make-vector vector-length vector-ref vector-set!
 
 	  ;; Unnecessarily primitive
-	  read-char peek-char write-char
 	  string=?
 	  vector
 	  assq
@@ -55,6 +54,7 @@
 (define-interface primitives-interface
   (export add-finalizer!
 	  call-external-value
+	  channel-parameter
 	  checked-record-ref
 	  checked-record-set!
 	  collect			;,collect command
@@ -63,6 +63,7 @@
 	  continuation-set!
 	  continuation?
 	  copy-bytes!
+	  copy-string-chars!
 	  current-thread		;fluids threads
 	  double?
 	  eof-object                    ;i/o-internal re-exports this
@@ -81,6 +82,11 @@
 	  make-template
 	  make-weak-pointer
 	  memory-status			;interrupts
+	  os-error-message
+	  peek-byte
+	  peek-char
+	  read-byte
+	  read-char
 	  record
 	  record-length
 	  record-ref
@@ -95,6 +101,7 @@
 	  set-interrupt-handlers!	;interrupts
 	  set-session-data!		;channels
 	  string-hash
+	  system-parameter
 	  template-length
 	  template-ref
 	  template-set!
@@ -104,7 +111,11 @@
 	  vm-extension
 	  wait
 	  weak-pointer-ref
-	  weak-pointer?))
+	  weak-pointer?
+	  write-byte
+	  write-char
+	  encode-char
+	  decode-char))
 
 (define-interface bitwise-interface
   (export arithmetic-shift
@@ -152,6 +163,11 @@
 	  byte-vector-set!
 	  make-byte-vector
 
+	  ;; creates a byte-vector that will never be moved in a
+	  ;; garbage collection or raises an exception if the GC does
+	  ;; not support this feature.
+	  make-unmovable-byte-vector
+
 	  byte-vector))
 
 ; Same again, but with old names for compatibility.
@@ -182,6 +198,8 @@
   (export port?
 	  make-port
 	  port-handler
+	  port-text-codec-spec set-port-text-codec-spec!
+	  port-crlf?        set-port-crlf?!
 	  port-buffer       
 
 	  port-lock         set-port-lock!
@@ -189,17 +207,21 @@
 	  port-data         set-port-data!
 	  port-index        set-port-index!
 	  port-limit        set-port-limit!
+	  port-pending-cr?  set-port-pending-cr?!
 	  port-pending-eof? set-port-pending-eof?!
 
 	  provisional-port-status provisional-set-port-status!
 	  provisional-port-index  provisional-set-port-index!
 	  provisional-port-limit  provisional-set-port-limit!
 	  provisional-port-lock   provisional-set-port-lock!
+	  provisional-port-pending-cr?
+	  provisional-set-port-pending-cr?!
 	  provisional-port-pending-eof?
 	  provisional-set-port-pending-eof?!))
 
 (define-interface condvars-interface
   (export make-condvar
+	  condvar?
 	  maybe-commit-and-wait-for-condvar
 	  maybe-commit-and-set-condvar!
 	  condvar-value set-condvar-value!
@@ -216,7 +238,8 @@
 	  undefine-imported-binding
 	  lookup-exported-binding
 	  define-exported-binding
-	  undefine-exported-binding))
+	  undefine-exported-binding
+	  find-undefined-imported-bindings))
 
 (define-interface low-proposals-interface
   (export make-proposal
@@ -303,6 +326,11 @@
 	  ascii-limit
 	  ascii-whitespaces))
 
+(define-interface unicode-interface
+  (export scalar-value->char
+	  char->scalar-value
+	  scalar-value?))
+
 ; Level 1: The rest of Scheme except for I/O.
 
 (define-interface scheme-level-1-adds-interface
@@ -357,13 +385,14 @@
 	  last
 	  posq
 	  posv
-	  position
+	  posqual
 	  reduce
 	  sublist
 	  insert
 	  unspecific
+	  symbol-append
 
-	  (mvlet :syntax)))
+	  (receive :syntax)))
 
 ; Level 2 consists of harder things built on level 1.
 
@@ -424,8 +453,8 @@
 	  same-type?	 &same-type?
 	  add-method!	 &add-method!
 	  set-final-method!
-	  make-method-table         ;rts/exception.scm
-	  method-table-get-perform  ;rts/exception.scm
+	  make-method-table
+	  method-table-get-perform
 	  make-simple-type
 	  ;; Hooks for DOODL or other future extension
 	  :simple-type :method-info :method-table :singleton
@@ -467,27 +496,82 @@
 
 (define :enumeration :syntax)
 
-(define-interface signals-interface
-  (export error warn syntax-error call-error note
-	  signal signal-condition
-	  make-condition))
+(define-interface low-exceptions-interface
+  (export ((error
+	    assertion-violation
+	    implementation-restriction-violation
+	    warning note
+	    syntax-violation)
+	   (proc (:value :string &rest :value) :values))
+
+	  initialize-low-exception-procedures!))
 
 (define-interface handle-interface
   (export ignore-errors report-errors-as-warnings with-handler))
 
 (define-interface conditions-interface
-  (export define-condition-type
+  (export condition
+	  condition?
+	  simple-conditions
 	  condition-predicate
-	  condition-stuff condition-type
-	  error? warning? note? syntax-error? call-error? read-error?
-	  interrupt?
+	  condition-accessor
+	  define-condition-type
+	  &condition
+	  &message
+	  make-message-condition
+	  message-condition?
+	  condition-message
+	  &warning
+	  make-warning
+	  warning?
+	  &serious
+	  make-serious-condition
+	  serious-condition?
+	  &error
+	  make-error
+	  error?
+	  &violation
+	  make-violation
+	  violation?
+	  &non-continuable
+	  make-noncontinuable-violation
+	  non-continuable-violation?
+	  &implementation-restriction
+	  make-implementation-restriction-violation
+	  implementation-restriction-violation?
+	  &lexical
+	  make-lexical-violation
+	  lexical-violation?
+	  &syntax
+	  make-syntax-violation
+	  syntax-violation?
+	  &undefined
+	  make-undefined-violation
+	  undefined-violation?
+	  &assertion
+	  make-assertion-violation
+	  assertion-violation?
+	  &irritants
+	  make-irritants-condition
+	  irritants-condition?
+	  condition-irritants
+	  &who
+	  make-who-condition
+	  who-condition?
+	  condition-who
 
-	  ;; Do these belong here?... not really.
-	  exception-arguments
-	  exception-reason
-	  exception-opcode
-	  exception?
-	  make-exception))
+	  &vm-exception make-vm-exception vm-exception?
+	  vm-exception-opcode vm-exception-reason
+	  &i/o-error make-i/o-error i/o-error?
+	  &i/o-port-error make-i/o-port-error i/o-port-error? i/o-error-port
+	  &decoding-error make-decoding-error decoding-error?
+	  decoding-error-encoding-name
+	  decoding-error-bytes decoding-error-start
+	  &note make-note note?
+	  &interrupt make-interrupt-condition interrupt-condition?
+	  interrupt-source
+	  decode-condition
+	  ))
 
 (define-interface wind-interface
   (export call-with-current-continuation
@@ -497,32 +581,94 @@
   (export current-input-port current-output-port
 	  close-output-port close-input-port
 
+	  read-byte peek-byte write-byte byte-ready?
+	  read-char peek-char
 	  char-ready?
+	  write-char
 	  read-block write-block
 	  newline
-	  input-port-option		;read.scm
-	  output-port-option		;write.scm
 	  write-string			;write.scm
-	  initialize-i/o                ;init.scm
 	  with-current-ports
-	  initialize-i/o-handlers!      ;init.scm
-	  disclose-port
 	  current-error-port
 	  current-noise-port
 	  force-output			;xport.scm
+	  port-text-codec set-port-text-codec!
 	  output-port-ready?
 	  input-port?
 	  output-port?
 	  silently
 	  make-null-output-port))
 
+(define-interface text-codecs-interface
+  (export spec->text-codec text-codec->spec
+	  text-codec? make-text-codec
+	  text-codec-names
+	  text-codec-decode-char-proc
+	  text-codec-encode-char-proc
+
+	  (define-text-codec :syntax)
+	  find-text-codec
+
+	  null-text-codec
+	  us-ascii-codec
+	  latin-1-codec
+	  utf-8-codec
+	  utf-16le-codec utf-16be-codec
+	  utf-32le-codec utf-32be-codec))
+
+(define-interface encodings-interface
+  (export char-encoding-length
+	  string-encoding-length
+	  encode-char
+	  encode-string
+	  string->bytes-n
+	  string->bytes
+	  bytes-string-size
+	  decode-char
+	  decode-string
+	  bytes->string bytes->string-n
+	  
+	  char-encoding-length/utf-8
+	  string-encoding-length/utf-8
+	  encode-char/utf-8
+	  encode-string/utf-8
+	  string->utf-8-n
+	  string->utf-8
+	  bytes-string-size/utf-8
+	  decode-char/utf-8
+	  decode-string/utf-8
+	  utf-8->string utf-8->string-n
+
+	  (encoding-status :enumeration)
+	  (decoding-status :enumeration)))
+
+(define-interface os-strings-interface
+  (export os-string?
+	  string->os-string byte-vector->os-string x->os-string
+	  os-string->string os-string->byte-vector
+	  call-with-os-string-text-codec
+	  current-os-string-text-codec))
+
 (define-interface i/o-internal-interface
-  (export make-buffered-input-port  make-unbuffered-input-port
+  (export input-port-option		;read.scm
+	  output-port-option		;write.scm
+
+	  initialize-i/o                ;init.scm
+	  initialize-i/o-handlers!      ;init.scm
+
+	  disclose-port
+
+	  make-buffered-input-port
 	  make-buffered-output-port make-unbuffered-output-port
 
 	  make-port-handler
+	  port-handler-discloser port-handler-close
+	  port-handler-byte port-handler-char port-handler-block
+	  port-handler-ready? port-handler-force
+
 	  make-buffered-input-port-handler
 	  make-buffered-output-port-handler
+	  make-unbuffered-output-port-handler
 	 
 	  ;port-handler-buffer-proc     ; extended-ports
 	  default-buffer-size
@@ -556,7 +702,7 @@
 
 	  initialize-channel-i/o!       ;scheduler
 	  waiting-for-i/o?              ;scheduler
-	  abort-unwanted-i/o!		;scheduler
+	  abort-unwanted-reads!		;scheduler
 
 	  ; call this with interrupts disabled
 	  wait-for-channel))		;big/socket.scm
@@ -605,12 +751,14 @@
 	  maybe-commit-and-block
 	  maybe-commit-and-block-on-queue
 	  maybe-commit-and-make-ready
+	  maybe-commit-no-interrupts
 	  spawn-on-scheduler spawn-on-root
 	  wait
 	  upcall propogate-upcall
 	  interrupt-thread
 	  kill-thread!
 	  terminate-thread!
+	  make-deadlock-condition deadlock-condition?
 
 	  thread-queue-empty?
 	  maybe-dequeue-thread!
@@ -628,7 +776,7 @@
 	  round-robin-event-handler
 
 	  make-counter            ; for thread counts
-	  counter-value
+	  counter-value set-counter!
           increment-counter!
           decrement-counter!))
 
@@ -638,11 +786,26 @@
 	  delete-from-queue! on-queue?))
 
 (define-interface exceptions-interface
-  (export define-exception-handler
-	  initialize-exceptions!
+  (compound-interface (export with-exception-handler
+			      raise raise-continuable
+			      (guard :syntax)
+			      syntax-violation
+			      (assert :syntax))
+		      low-exceptions-interface))
+
+(define-interface exceptions-internal-interface
+  (export initialize-exceptions!
+	  really-signal-condition))
+
+(define-interface signal-conditions-interface
+  (export signal-condition))
+
+(define-interface vm-exceptions-interface
+  (export define-vm-exception-handler
+	  initialize-vm-exceptions!
 	  extend-opcode!
-	  signal-exception
-	  continuation-preview))	;env/debug.scm
+	  signal-vm-exception
+	  vm-exception-reason->message))
 
 (define-interface interrupts-interface
   (export initialize-interrupts!	;init.scm
@@ -650,7 +813,8 @@
 	  no-interrupts
 	  ;reset-timer-interrupts!
 	  set-interrupt-handler!
-	  interrupt?
+	  get-interrupt-handler
+	  interrupt-condition?
 	  ;set-timer-interrupt!
 	  schedule-interrupt
 	  set-enabled-interrupts!	;command.scm
@@ -663,17 +827,22 @@
 	  call-before-heap-overflow!
 	  (interrupt :syntax)))
 
+(define-interface external-events-interface
+  (export initialize-external-events!	;init.scm
+	  waiting-for-external-events?  ;root-scheduler.scm
+	  wait-for-external-event))
+
 (define-interface writing-interface
   (export write
 	  display
-	  display-type-name
 	  recurring-write))
 
 (define-interface reading-interface
   (export read
 	  define-sharp-macro		;command.scm
 	  reading-error
-	  gobble-line))
+	  gobble-line
+	  sub-read sub-read-carefully))
 
 ; Level 2: the harder stuff.
 ; Various primitives get numeric types and promoted to n-ary at this point.
@@ -688,6 +857,7 @@
 	  open-input-file open-output-file
 	  with-input-from-file with-output-to-file
 	  number->string string->number
+	  read-char peek-char write-char
 	  newline display write
 	  read))
 
@@ -715,8 +885,10 @@
 	  continuation?
 	  :continuation
 
-	  exception-continuation?
-	  exception-continuation-exception))
+	  vm-exception-continuation?
+	  vm-exception-continuation-exception
+
+	  continuation-preview)) ; env/debug.scm
 
 (define-interface templates-interface
   (export make-template
@@ -748,7 +920,9 @@
 	  file-name-directory
 	  file-name-nondirectory
 	  translate
+	  set-global-translation!
 	  set-translation!
+	  make-translations with-translations
 	  translations))
 
 ; Things for the compiler.
@@ -766,7 +940,7 @@
 	  table-walk
 	  make-table-immutable!
 
-	  string-hash
+	  string-hash symbol-hash
 	  default-hash-function))
 
 ;----------------
@@ -785,7 +959,7 @@
 	  syntax-type
 	  any-values-type
 	  any-arguments-type
-	  value-type
+	  value-type value-type?
 	  error-type
 
 	  make-some-values-type
@@ -857,11 +1031,11 @@
 
 	  make-name-table
 
+	  make-qualified
 	  qualified?
 	  qualified-parent-name
 	  qualified-symbol
 	  qualified-uid
-	  name->qualified
 
           desyntaxify
 	  ))
@@ -918,6 +1092,7 @@
 	  scan-forms
 	  expand-scanned-form
 	  syntax?
+	  static-value
 	  make-compiler-env
 	  bind-source-file-name))
 
@@ -936,6 +1111,8 @@
 	  force-node
 	  schemify
 
+	  name->qualified
+
 	  get-operator
 	  make-operator-table
 	  operator-name
@@ -947,6 +1124,32 @@
 	  operator-uid
 	  operator?
 	  operators-table		;config.scm comp-package.scm
+
+	  lambda-node?
+	  flat-lambda-node?
+	  name-node?
+	  call-node?
+	  literal-node?
+	  quote-node?
+	  define-node?
+	  loophole-node?
+
+	  operator/flat-lambda
+	  operator/lambda
+	  operator/set!
+	  operator/call
+	  operator/begin
+	  operator/name
+	  operator/letrec
+	  operator/pure-letrec
+	  operator/literal
+	  operator/quote
+	  operator/unassigned
+	  operator/unspecific
+	  operator/define
+	  operator/define-syntax
+	  operator/primitive-procedure
+	  operator/structure-ref
 	  ))
 
 ;----------------
@@ -968,6 +1171,7 @@
           cwv-continuation-protocol
           make-dispatch-protocol
 	  make-label
+	  label-reference
 	  note-environment
 	  note-source-code
 	  segment->cv segment->template
@@ -1001,6 +1205,7 @@
 	  template-offset
 	  environment-offset
 	  depth-check!
+	  index->offset
 	  literal->index
 	  binding->index))
 
@@ -1084,8 +1289,7 @@
 	  make-new-location		;ctop.scm
 	  structure-package
 	  note-structure-name!
-	  (:package :type)
-	  (:structure :type)))		;for (define-method ...)'s
+	  (:package :type)))
 
 (define-interface packages-internal-interface
   (export package-loaded?		;env/load-package.scm
@@ -1096,6 +1300,7 @@
 	  location-info-table		;debuginfo, disclosers
 	  package-definition
 	  package-unstable?		;env/pacman.scm
+	  environment-stable?           ;comp/schemify.scm
 	  package-integrate?		;env/debug.scm
 	  package-add-static!		;opt/analyze.scm
 	  package-refine-type!		;opt/usage.scm
@@ -1228,10 +1433,9 @@
 	  ; eval-scanned-forms
 	  ))
 
-(define-interface display-conditions-interface
-  (export display-condition		;command.scm
-	  &disclose-condition      	;env/disclosers.scm
-	  limited-write))
+(define-interface load-filenames-interface
+  (export with-load-filename
+	  current-load-filename))
 
 ; Bindings needed by the form composed by REIFY-STRUCTURES.
 

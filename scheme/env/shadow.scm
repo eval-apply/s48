@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Deal with shadowed variables.
@@ -37,7 +37,7 @@
     (if (= reason (enum exception undefined-global))
 	(deal-with-replaced-variable opcode reason loc template index rest
 				     succeed)
-	(apply signal-exception opcode reason loc rest))))
+	(apply signal-global-exception opcode reason loc rest))))
 
 (define (deal-with-replaced-variable opcode reason loc template index rest
 				     succeed)
@@ -47,21 +47,39 @@
 	 (let* ((p-uid (template-package-id template))
 		(new (maybe-replace-location loc p-uid)))
 	   (if (eq? new loc)
-	       (apply signal-exception opcode reason loc rest)
+	       (apply signal-global-exception opcode reason loc rest)
 	       (begin (template-set! template index new)
-		      ;(signal 'note "Replaced location" loc new p-uid)
+		      ;(note 'deal-with-replaced-variable "Replaced location" loc new p-uid)
 		      (if (location-defined? new)
 			  (succeed new rest)
-			  (apply signal-exception opcode reason new rest)))))
-	 (error "lossage in deal-with-replaced-variables"
-		loc index)))))
+			  (apply signal-global-exception opcode reason loc new rest)))))
+	 (assertion-violation 'deal-with-replaced-variable
+			      "lossage in deal-with-replaced-variables"
+			      loc index)))))
 
-(define-exception-handler (enum op global)
+(define (signal-global-exception opcode reason loc . rest)
+  (signal-condition
+   (condition
+    (construct-vm-exception opcode reason)
+    (make-assertion-violation)
+    (make-who-condition (enumerand->name opcode op))
+    (make-message-condition
+     (if (location-defined? loc)
+	 "unassigned variable"
+	 "undefined variable"))
+    (make-irritants-condition
+     (cons (or (location-name loc) loc)
+	   (let ((pack (location-package-name loc)))
+	     (if pack
+		 (cons pack rest)
+		 rest)))))))
+
+(define-vm-exception-handler (enum op global)
   (deal-with-replaced-variables
    (lambda (loc more-args)
      (contents loc))))
 
-(define-exception-handler (enum op set-global!)
+(define-vm-exception-handler (enum op set-global!)
   (deal-with-replaced-variables
    (lambda (loc more-args)
      (set-contents! loc (car more-args)))))

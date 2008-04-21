@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Optimizers
 
@@ -12,9 +12,9 @@
     (apply-optimizers (map (lambda (name)
 			     (or (table-ref optimizers-table name)
 				 (begin
-				   (signal 'note
-					   "optional optimization pass not invoked"
-					   name)
+				   (note 'get-optimizer
+					 "optional optimization pass not invoked"
+					 name)
 				   (lambda (forms package) forms))))
 			   names)
 		      forms

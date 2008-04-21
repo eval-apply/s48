@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Commands for debugging.
 
@@ -86,18 +86,20 @@
 
 (define (ok-to-proceed? condition)
   (and condition
-       (if (error? condition)
-	   (and (exception? condition)
-		(let ((opcode (exception-opcode condition)))
+       (if (serious-condition? condition)
+	   (and (vm-exception? condition)
+		(let ((opcode (vm-exception-opcode condition)))
 		  (or (= opcode (enum op global))
 		      (>= opcode (enum op eq?)))))
 	   #t)))
 
 (define (breakpoint . rest)
-  (command-loop (make-condition 'breakpoint rest)))
+  (command-loop (conditions:condition (make-breakpoint-condition)
+				      (make-who-condition 'breakpoint)
+				      (make-irritants-condition rest))))
 
-(define-condition-type 'breakpoint '())
-(define breakpoint? (condition-predicate 'breakpoint))
+(define-condition-type &breakpoint &condition
+  make-breakpoint-condition breakpoint-condition?)
 
 ; push
 
@@ -174,93 +176,133 @@
 (define (condition)
   (let ((c (command-level-condition (command-level))))
     (if c
-	(set-focus-object! c)
+	(set-command-results! (list c) #t)
 	(write-line "no condition" (command-output)))))
 
 ; Toggling various boolean flags.
 
-(define-command-syntax 'set "<switch> [<on-or-off-or-?>]"
-  "set the value of a switch (? lists switches)"
-  '(name &opt name))
+(define-command-syntax 'set "<setting> [<on-or-off-or-literal-or-?>]"
+  "set the value of a setting (? lists settings)"
+  '(name &opt literal))
 
-(define-command-syntax 'unset "<switch>"
-  "turn off a switch"
+(define-command-syntax 'unset "<setting>"
+  "set boolean setting to off"
   '(name))
 
 (define (set name . maybe-value)
   (if (eq? name '?)
-      (list-switches)
-      (let* ((switch (lookup-switch name))
-	     (value (cond ((not switch)
-			   (error "switch not found" name))
+      (list-settings)
+      (let* ((setting (lookup-setting name))
+	     (value (cond ((not setting)
+			   (assertion-violation 'set "setting not found" name))
 			  ((null? maybe-value)
-			   #t)
-			  (else
+			   (if (setting-boolean? setting)
+			       #t
+			       (assertion-violation 'set "no value specified")))
+			  ((eq? (car maybe-value) '?)
+			   (if (setting-boolean? setting)
+			       (display (if (setting-value setting)
+					    "on, "
+					    "off, ")
+					(command-output)))
+			   (setting-value setting))
+			  ((setting-boolean? setting)
 			   (case (car maybe-value)
 			     ((off) #f)
 			     ((on) #t)
-			     ((?)
-			      (display (if (switch-on? switch)
-					   "on, "
-					   "off, ")
-				       (command-output))
-			      (switch-on? switch))
 			     (else
-			      (error "invalid setting (should be on or off or ?)"
-				     (car maybe-value)))))))
+			      (assertion-violation
+			       'set
+			       "invalid value for boolean setting; should be on or off"))))
+			  (else
+			   (car maybe-value))))
 	     (out (command-output)))
-	(switch-set! switch value)
-	(display (switch-doc switch) out)
+	(setting-set! setting value)
+	(display (setting-doc setting) out)
+	(if (not (setting-boolean? setting))
+	    (begin
+	      (display " is " (command-output))
+	      (write value (command-output))))
 	(newline out))))
 	 
 (define (unset name)
-  (let ((switch (lookup-switch name))
+  (let ((setting (lookup-setting name))
 	(out (command-output)))
-    (if (not switch)
-	(error "switch not found" name)
-	(switch-set! switch #f))
-    (display (switch-doc switch) out)
+    (if (not setting)
+	(assertion-violation 'unset "setting not found" name)
+	(setting-set! setting #f))
+    (display (setting-doc setting) out)
     (newline out)))
 
-; The actual switches.
+; The actual settings.
 
-(add-switch 'batch
-	    batch-mode?
-	    set-batch-mode?!
-	    "will not prompt and will exit on errors"
-	    "will prompt and will not exit on errors")
+(define (positive-integer? n)
+  (and (integer? n)
+       (exact? n)
+       (positive? n)))
 
-(add-switch 'inline-values
-	    (lambda ()
-	      (package-integrate? (environment-for-commands)))
-	    (lambda (b)
-	      (set-package-integrate?! (environment-for-commands) b))
-	    "will compile some calls in line"
-	    "will not compile calls in line")
+(add-setting 'batch #t
+	     batch-mode?
+	     set-batch-mode?!
+	     "will not prompt and will exit on errors"
+	     "will prompt and will not exit on errors")
 
-(add-switch 'break-on-warnings
-	    break-on-warnings?
-	    set-break-on-warnings?!
-	    "will enter breakpoint on warnings"
-	    "will not enter breakpoint on warnings")
+(add-setting 'inline-values #t
+	     (lambda ()
+	       (package-integrate? (environment-for-commands)))
+	     (lambda (b)
+	       (set-package-integrate?! (environment-for-commands) b))
+	     "will compile some calls in line"
+	     "will not compile calls in line")
 
-(add-switch 'load-noisily
-	    load-noisily?
-	    set-load-noisily?!
-	    "will notify when loading modules and files"
-	    "will not notify when loading modules and files")
+(add-setting 'break-on-warnings #t
+	     break-on-warnings?
+	     set-break-on-warnings?!
+	     "will enter breakpoint on warnings"
+	     "will not enter breakpoint on warnings")
 
-;(add-switch 'form-preferred
-;            form-preferred?
-;            set-form-preferred?!
-;            "commas are required before commands"
-;            "commas are not required before commands")
+(add-setting 'load-noisily #t
+	     load-noisily?
+	     set-load-noisily?!
+	     "will notify when loading modules and files"
+	     "will not notify when loading modules and files")
 
-(add-switch 'levels
-	    push-command-levels?
-	    set-push-command-levels?!
-	    "will push command level on errors"
-	    "will not push command level on errors")
+;(add-setting 'form-preferred #t
+;             form-preferred?
+;             set-form-preferred?!
+;             "commas are required before commands"
+;             "commas are not required before commands")
+
+(add-setting 'levels #t
+	     push-command-levels?
+	     set-push-command-levels?!
+	     "will push command level on errors"
+	     "will not push command level on errors")
+
+(add-setting 'inspector-menu-limit positive-integer?
+	     inspector-menu-limit
+	     set-inspector-menu-limit!
+	     "maximum number of menu entries in inspector")
+
+(add-setting 'inspector-writing-depth positive-integer?
+	     inspector-writing-depth
+	     set-inspector-writing-depth!
+	     "maximum writing depth in inspector")
+
+(add-setting 'inspector-writing-length positive-integer?
+	     inspector-writing-length
+	     set-inspector-writing-length!
+	     "maximum writing length in inspector")
+
+(add-setting 'condition-writing-length positive-integer?
+	     condition-writing-length
+	     set-condition-writing-length!
+	     "maximum writing length for conditions")
+
+(add-setting 'condition-writing-depth positive-integer?
+	     condition-writing-depth
+	     set-condition-writing-depth!
+	     "maximum writing depth for conditions")
 
 ; Old toggling commands retained for compatibility
 ; These have no help strings.
@@ -271,8 +313,8 @@
 (define (toggle-command name)
   (lambda maybe-value
     (set name (if (null? maybe-value)
-		  (if (switch-on? (or (lookup-switch name)
-				      (error "switch not found" name)))
+		  (if (setting-value (or (lookup-setting name)
+					 (assertion-violation 'toggle "setting not found" name)))
 		      'off
 		      'on)
 		  (car maybe-value)))))
@@ -362,20 +404,30 @@ Kind should be one of: names maps files source tabulate"
 
 (define (collect)
   (let ((port (command-output))
-	(before (available-memory)))
+	(available-before (available-memory))
+	(heap-size-before (heap-size)))
     (primitives:collect)
-    (let ((after (available-memory)))
+    (let ((available-after (available-memory))
+	  (heap-size-after (heap-size)))
       (display "Before: " port)
-      (write before port)
-      (display " words free in semispace" port)
+      (write available-before port)
+      (display " out of " port)
+      (display heap-size-before port)
+      (display" words available" port)
       (newline port)
       (display "After:  " port)
-      (write after port)
-      (display " words free in semispace" port)
+      (write available-after port)
+      (display " out of " port)
+      (display heap-size-after port)
+      (display " words available" port)
       (newline port))))
 
 (define (available-memory)
   (primitives:memory-status (enum memory-status-option available)
+			    #f))
+
+(define (heap-size)
+  (primitives:memory-status (enum memory-status-option heap-size)
 			    #f))
 
 (define-command-syntax 'collect "" "invoke the garbage collector" '())
@@ -422,6 +474,11 @@ Kind should be one of: names maps files source tabulate"
 (define-command-syntax 'untrace "<name> ..." "stop tracing calls"
   '(&rest name))
 
+(add-setting 'trace-writing-depth positive-integer?
+	     trace-writing-depth
+	     set-trace-writing-depth!
+	     "writing depth for traces")
+
 ; Trace internals
 
 (define (trace-1 name)
@@ -458,34 +515,33 @@ Kind should be one of: names maps files source tabulate"
   (lambda args
     (apply-traced proc name args)))
 
-(define *trace-depth* 8)
 (define (apply-traced proc name args)
   (let ((port (command-output)))
     (dynamic-wind
      (lambda ()
        (display "[" port))
      (lambda ()
-       (with-limited-output
-	 (lambda ()
-	   (display "Enter " port)
-	   (write-carefully (error-form name args) port)
-	   (newline port))
-	 *trace-depth*
-	 *trace-depth*)
-       (call-with-values (lambda ()
-			   (apply proc args))
-	 (lambda results
-	   (with-limited-output
- 	     (lambda ()
-	       (display " Leave " port)
-	       (write-carefully name port)
-	       (for-each (lambda (result)
-			   (display " " port)
-			   (write-carefully (value->expression result) port))
-			 results))
-	     *trace-depth*
-	     (- *trace-depth* 1))
-	   (apply values results))))
+       (let ((depth (trace-writing-depth)))
+	 (with-limited-output
+	  (lambda ()
+	    (display "Enter " port)
+	    (write-carefully (error-form name args) port)
+	    (newline port))
+	  depth depth)
+	 (call-with-values (lambda ()
+			     (apply proc args))
+	   (lambda results
+	     (with-limited-output
+	      (lambda ()
+		(display " Leave " port)
+		(write-carefully name port)
+		(for-each (lambda (result)
+			    (display " " port)
+			    (write-carefully (value->expression result) port))
+			  results))
+	      depth
+	      (- depth 1))
+	     (apply values results)))))
      (lambda ()
        (display "]" port)
        (newline port)))))
@@ -566,8 +622,9 @@ Kind should be one of: names maps files source tabulate"
 			  ((end) '())
 			  ((#f run) (cons (cadr command) (recur)))
 			  (else
-			   (error "unusual command in ,from-file ... ,end"
-				  command))))))))
+			   (assertion-violation 'from-file
+						"unusual command in ,from-file ... ,end"
+						command))))))))
     (if (package? env)
 	(with-interaction-environment env
 	  (lambda ()
@@ -616,11 +673,15 @@ Kind should be one of: names maps files source tabulate"
 
 ; Temporary hack until we get default values for unhandled upcalls.
 
+; This gets called during the building of, say scheme48.image, while
+; there's still the REALLY-SIGNAL-CONDITION from EXCEPTIONS
+; installed---so we make sure we get the right ones.
+
 (define (maybe-user-context)
   (call-with-current-continuation
     (lambda (exit)
       (with-handler (lambda (condition punt)
-		      (if (error? condition)
+		      (if (serious-condition? condition)
 			  (exit #f)
 			  (punt)))
 		    user-context))))
@@ -651,9 +712,39 @@ Kind should be one of: names maps files source tabulate"
 	(probe (package-lookup (environment-for-commands) name)))
     (if probe
 	(begin (display "Bound to " port)
-	       (write probe)
-	       (newline port))
+	       (cond ((binding? probe)
+                      (describe-binding probe port))
+                     (else
+                      (write probe port)
+                      (newline port)))
+               (set-focus-object! probe))
 	(write-line "Not bound" port))))
+
+(define (describe-binding binding port)
+  (let ((type (binding-type binding))
+	(location (binding-place binding))
+	(static (binding-static binding)))
+    (display (binding-type-description binding) port)
+    (write-char #\space port)
+    (write location port)
+    (newline port)
+    (display "  Type " port)
+    (write (type->sexp type #t) port)
+    (newline port)
+    (cond (static (display "  Static " port)
+                  (write static port)
+                  (newline port)))))
+
+(define (binding-type-description binding)
+  (let ((type (binding-type binding))
+        (static (binding-static binding)))
+    (cond ((variable-type? type) "mutable variable")
+          ((eq? type undeclared-type) "unknown denotation")
+          ((subtype? type syntax-type)
+           (if (transform? static) "macro" "special operator"))
+          ((primop? static) "primitive procedure")
+          ((transform? static) "integrated procedure")
+          (else "variable"))))
 
 ; ,expand <form>
 

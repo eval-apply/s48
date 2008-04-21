@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; flatloaded -> load
 
@@ -37,7 +37,6 @@
     (for-each (lambda (thunk) (thunk)) (reverse l))
     (newline)))
 
-(define *source-file-name* "")    ;Cf. alt/config.scm
 (define (fload filename . rest)
   (let ((save filename))
     (dynamic-wind (lambda () (set! *source-file-name* filename))

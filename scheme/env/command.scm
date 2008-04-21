@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Interpreting commands.
 
@@ -52,7 +52,10 @@
 ; started.
 
 (define (command-loop condition)
-  (push-command-level condition #f))
+  ;; The handler may have gotten unwound by `raise'
+  (with-handler command-loop-condition-handler
+    (lambda ()
+      (push-command-level condition #f))))
 
 ; Install the handler, bind $NOTE-UNDEFINED to keep from annoying the user,
 ; bind $FOCUS-BEFORE to avoid keeping state on the stack where it can be
@@ -96,7 +99,8 @@
 
 (define (display-command-level-condition condition)
   (if condition
-      (display-condition condition (command-output))))
+      (display-condition condition (command-output)
+			 (condition-writing-depth) (condition-writing-length))))
 
 ; If #T anything that doesn't start with the command prefix (a comma) is
 ; treated as an argument to RUN.  If #F no commas are needed and RUN
@@ -140,22 +144,28 @@
 (define (command-loop-condition-handler c next-handler)
   (cond ((or (warning? c)
 	     (note? c))
-         (if (break-on-warnings?)
-             (deal-with-condition c)
-             (begin (force-output (current-output-port)) ; keep synchronous
-	            (display-condition c (current-error-port))
-                    (unspecific))))     ;proceed
-        ((or (error? c) (interrupt? c))
-         (if (batch-mode?)
-             (begin (force-output (current-output-port)) ; keep synchronous
-	            (display-condition c (current-error-port))
-                    (let ((status (if (error? c) 1 2)))
-                      (scheme-exit-now status)))
-             (deal-with-condition c)))
-	((reset-command-input? c)
+	 (if (break-on-warnings?)
+	     (deal-with-condition c)
+	     (begin (force-output (current-output-port)) ; keep synchronous
+		    (display-condition c (current-error-port)
+				       (condition-writing-depth) (condition-writing-length))
+		    (unspecific))))	;proceed
+	((or (serious-condition? c) (interrupt-condition? c))
+	 (if (batch-mode?)
+	     (begin (force-output (current-output-port)) ; keep synchronous
+		    (display-condition c (current-error-port)
+				       (condition-writing-depth) (condition-writing-length))
+		    (let ((status
+			   (cond
+			    ((error? c) 1)
+			    ((violation? c) 3) ; historical, probably nonsense
+			    (else 2))))
+		      (scheme-exit-now status)))
+	     (deal-with-condition c)))
+	((reset-command-input-condition? c)
 	 (unspecific))			;proceed
-        (else                           
-         (next-handler))))
+	(else                           
+	 (next-handler))))
 
 ; Stop the current level either by pushing a new one or restarting it.
 ; If we restart the current level we save it as the focus object to give
@@ -166,7 +176,8 @@
       (command-loop c)
       (let ((level (car (command-levels))))
 	(set-focus-object! level)
-	(display-condition c (command-output))
+	(display-condition c (command-output)
+			   (condition-writing-depth) (condition-writing-length))
 	(restart-command-level level))))
 
 (define (abort-to-command-level level)
@@ -211,7 +222,7 @@
 ; ARG is a list of command-line arguments after "run-script"
 
 (define (run-script arg)
-  (run-script-handler (car arg) (cdr arg)))
+  (run-script-handler (os-string->string (car arg)) (cdr arg)))
 
 (define *script-handler-alist* '())
 
@@ -227,21 +238,23 @@
 	  (lambda ()
 	    ((cdr pair) args)))))
    (else
-    (display "invalid argument to run-script-handler" (current-error-port))
-    (display tag)
+    (display "invalid argument to run-script-handler: " (current-error-port))
+    (display tag (current-error-port))
+    (newline (current-error-port))
     1)))
 
-(define EX_SOFTWARE (shared-binding-ref (lookup-imported-binding "EX_SOFTWARE")))
+(define (EX_SOFTWARE) (shared-binding-ref (lookup-imported-binding "EX_SOFTWARE")))
 
 (define (with-srfi-22-error-handling thunk)
   (call-with-current-continuation
    (lambda (k)
      (with-handler
       (lambda (c punt)
-	(if (error? c)
+	(if (serious-condition? c)
 	    (begin
-	      (display-condition c (current-error-port))
-	      (k EX_SOFTWARE))
+	      (display-condition c (current-error-port)
+				 (condition-writing-depth) (condition-writing-length))
+	      (k (EX_SOFTWARE)))
 	    (punt)))
       (lambda ()
 	(thunk)
@@ -251,22 +264,22 @@
   (lambda (args)
     (with-srfi-22-error-handling
      (lambda ()
-       (load-script-into (car args) (interaction-environment))
-       ((environment-ref (interaction-environment) 'main) args)))))
+       (load-script-into (os-string->string (car args)) (interaction-environment))
+       ((environment-ref (interaction-environment) 'main) (map os-string->string args))))))
 
 (define-script-handler "srfi-7"
   (lambda (args)
     (with-srfi-22-error-handling
      (lambda ()
        (eval '(load-package 'srfi-7) (user-command-environment))
-       (eval `(load-srfi-7-script 'srfi-7-script ,(car args))
+       (eval `(load-srfi-7-script 'srfi-7-script ,(os-string->string (car args)))
 	     (user-command-environment))
        (let ((cell (make-cell #f)))	; kludge
 	 (let-fluid $command-results cell
 	  (lambda ()
 	    (eval '(in 'srfi-7-script '(run main))
 		  (user-command-environment))))
-	 ((car (cell-ref cell)) args))))))
+	 ((car (cell-ref cell)) (map os-string->string args)))))))
 
 ;----------------
 ; Evaluate a form and save its result as the current focus values.
@@ -309,8 +322,7 @@
 	 with-limited-output
 	 (lambda (p) (p)))
      (lambda ()
-       (write-carefully (value->expression result)
-			out)
+       (write-carefully result out)
        (newline out)))))
 
 ;----------------
@@ -394,60 +406,99 @@
 	   (apply proc (cdr command))))))
 
 ;----------------
-; Switches - these are boolean-valued cells for controlling the behavior
+; Settings - these are cells for controlling the behavior
 ; of the command interpreter.
 ;
-; This code is here so that the help listing can print out the switches
+; This code is here so that the help listing can print out the settings
 ; and their current values.
 
-(define *switches* '())
+(define-record-type setting :setting
+  (make-setting name type get set on-doc off-doc)
+  setting?
+  (name setting-name)
+  ;; is #t for boolean or a predicate
+  (type setting-type)
+  (get setting-get)
+  (set setting-set)
+  ;; We have two documentation strings, one for `on' and one for `off'.
+  (on-doc setting-on-doc)
+  (off-doc setting-off-doc))
 
-(define (lookup-switch name)
-  (assq name *switches*))
+(define (setting-boolean? setting)
+  (eqv? #t (setting-type setting)))
 
-(define (add-switch name get set on-doc off-doc)
-  (set! *switches*
-	(insert (list name get set on-doc off-doc)
-		*switches*
+; alist mapping names to :SETTING records
+(define *settings-alist* '())
+
+(define (lookup-setting name)
+  (cond
+   ((assq name *settings-alist*) => cdr)
+   (else #f)))
+
+(define (add-setting name boolean? get set on-doc . maybe-off-doc)
+  (set! *settings-alist*
+	(insert (cons name
+		      (make-setting name boolean? get set on-doc
+			      (if (null? maybe-off-doc)
+				  #f
+				  (car maybe-off-doc))))
+		*settings-alist*
 		(lambda (z1 z2)
 		  (string<=? (symbol->string (car z1))
 			     (symbol->string (car z2)))))))
 
-(define (switch-on? switch)
-  ((cadr switch)))
+(define (setting-value setting)
+  ((setting-get setting)))
 
-(define (switch-set! switch value)
-  ((caddr switch) value))
+(define (setting-set! setting value)
+  (if (if (setting-boolean? setting)
+	  (and (not (eqv? value #t))
+	       (not (eqv? value #f)))
+	  (not ((setting-type setting) value)))
+      (error 'setting-set!
+	     "invalid value for setting" (setting-name setting) value))
+  ((setting-set setting) value))
 
-; We have two documentation strings, one for `on' and one for `off'.
+(define (setting-doc setting)
+  (cond
+   ((not (setting-boolean? setting))
+    (setting-on-doc setting))
+   ((setting-value setting)
+    (setting-on-doc setting))
+   (else
+    (setting-off-doc setting))))
 
-(define (switch-doc switch)
-  (let ((doc (cdddr switch)))
-    (if (switch-on? switch)
-	(car doc)
-	(cadr doc))))
+; Print out a list of the settings and their current values.
 
-; Print out a list of the switches and their current values.
-
-(define (list-switches)
+(define (list-settings)
   (let ((o-port (command-output))
-	(size (apply max (map (lambda (switch)
-				(string-length (symbol->string (car switch))))
-			      *switches*))))
-    (for-each (lambda (switch)
-		(let ((name (symbol->string (car switch))))
+	(size (apply max
+		     (map (lambda (z)
+			    (string-length (symbol->string (setting-name (cdr z)))))
+			  *settings-alist*))))
+    (for-each (lambda (z)
+		(let* ((setting (cdr z))
+		       (name (symbol->string (setting-name setting))))
 		  (display #\space o-port)
 		  (display name o-port)
 		  (display #\space o-port)
 		  (write-spaces (- size (string-length name)) o-port)
-		  (display (if (switch-on? switch)
-			       "(on, "
-			       "(off, ")
-			   o-port)
-		  (display (switch-doc switch) o-port)
+		  (display #\( o-port)
+		  (cond
+		   ((not (setting-boolean? setting))
+		    (write (setting-value setting) o-port)
+		    (display ", " o-port)
+		    (display (setting-on-doc setting) o-port))
+		   ((setting-value setting)
+		    (display "on, " o-port)
+		    (display (setting-on-doc setting) o-port))
+		   (else
+		    (display "off, " o-port)
+		    (display (setting-off-doc setting) o-port)))
 		  (display #\) o-port)
 		  (newline o-port)))
-	      *switches*)))
+	      *settings-alist*)))
+
 
 ;----------------
 ; help
@@ -492,10 +543,10 @@
 ""
 "Square brackets [...] indicate optional arguments."
 ""
-"The following switches are turned on and off by the `set' and `unset' commands:"
+"The following settings are set by the `set' and `unset' commands:"
 ""
                 ))
-    (list-switches)
+    (list-settings)
     (for-each (lambda (s)
                 (write-line s o-port))
               '(
@@ -524,22 +575,6 @@
              (newline o-port)
              (loop (cdr s1) (if (null? s2) s2 (cdr s2))))))))
                    
-;----------------
-; Utilities
-
-(define (error-form proc args)
-  (cons proc (map value->expression args)))
-
-; Print non-self-evaluating value X as 'X.
-
-(define (value->expression obj)         ;mumble
-  (if (or (symbol? obj)
-	  (pair? obj)
-	  (null? obj)
-	  (vector? obj))
-      `',obj
-      obj))
-
 (define (write-spaces count o-port)
   (do ((count count (- count 1)))
       ((<= count 0))
@@ -589,12 +624,13 @@
     (if info
         (begin (write-char #\space port)
                (display info port)))
-    (display "." port)
     (newline port)
-    (write-line "Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees."
+    (write-line "Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees."
 		port)
-    (write-line "Please report bugs to scheme-48-bugs@martigny.ai.mit.edu."
+    (write-line "Please report bugs to scheme-48-bugs@s48.org."
                 port)
+    (write-line "Get more information at http://www.s48.org/."
+		port)
     (if (not (batch-mode?))
 	(write-line "Type ,? (comma question-mark) for help." port))))
 

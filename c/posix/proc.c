@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 /*
@@ -21,7 +21,8 @@
 #include "posix.h"
 #include "unix.h"
 
-extern void		s48_init_posix_proc(void);
+extern void		s48_init_posix_proc(void),
+			s48_uninit_posix_proc(void);
 static s48_value	posix_fork(void),
 			posix_exec(s48_value program, s48_value lookup_p,
 				   s48_value env, s48_value args),
@@ -30,14 +31,16 @@ static s48_value	posix_fork(void),
 			posix_integer_to_signal(s48_value sig_int),
 			posix_initialize_named_signals(void),
 			posix_request_interrupts(s48_value int_number),  
-			posix_cancel_interrupt_request(s48_value int_number),  
+			posix_cancel_interrupt_request(s48_value sch_signal),
   			posix_kill(s48_value sch_pid, s48_value sch_signal);
 
 static s48_value	enter_signal(int signal);
 static int		extract_signal(s48_value sch_signal);
-static void		signal_map_init();
+static void		signal_map_init(void);
+static void		signal_map_uninit(void);
+static void		cancel_interrupt_requests(void);
 
-static char		**enter_string_array(s48_value strings),
+static char		**enter_byte_vector_array(s48_value strings),
 			*add_dot_slash(char *name);
 
 /*
@@ -75,12 +78,6 @@ static s48_value	posix_unnamed_signal_marker_binding = S48_FALSE;
  * Queue of received interrupts that need to be passed on to Scheme.
  * Kept in a finite array to avoid consing.
  */
-
-/* Arbitrary size of the queue */
-#define INTERRUPT_QUEUE_LENGTH 32
-
-static int      interrupt_queue [INTERRUPT_QUEUE_LENGTH];
-static int	next_interrupt = 0;
 
 /*
  * Install all exported functions in Scheme48.
@@ -122,6 +119,14 @@ s48_init_posix_proc(void)
   S48_GC_PROTECT_GLOBAL(unnamed_signals);
 
   signal_map_init();
+}
+
+void
+s48_uninit_posix_proc(void)
+{
+  /* this will lose our signal handlers without reinstalling them; too bad */
+  cancel_interrupt_requests();
+  signal_map_uninit();
 }
 
 /*
@@ -169,7 +174,7 @@ lookup_pid(pid_t c_pid)
 static s48_value
 lookup_record(s48_value *the_list_loc, int offset, s48_value key)
 {
-  bool		cleanup_p = FALSE;
+  int		cleanup_p = 0;
   s48_value	the_list = *the_list_loc;
 
   /* Clear out initial dropped weaks */
@@ -179,7 +184,7 @@ lookup_record(s48_value *the_list_loc, int offset, s48_value key)
 
   if (the_list != *the_list_loc) {
     *the_list_loc = the_list;
-    cleanup_p = TRUE; }
+    cleanup_p = 1; }
 
   if (the_list == S48_NULL)
     return S48_FALSE;			/* Nothing */
@@ -201,7 +206,7 @@ lookup_record(s48_value *the_list_loc, int offset, s48_value key)
 	s48_value first = S48_UNSAFE_WEAK_POINTER_REF(S48_UNSAFE_CAR(next));
 	if (first == S48_FALSE) {
 	  S48_UNSAFE_SET_CDR(prev, S48_UNSAFE_CDR(next));
-	  cleanup_p = TRUE; }
+	  cleanup_p = 1; }
 	else if (key == S48_UNSAFE_RECORD_REF(first, offset))
 	  found = first;
 	else
@@ -258,7 +263,7 @@ posix_waitpid(void)
       if (errno == ECHILD)		/* no one left to wait for */
 	return S48_FALSE;
       else if (errno != EINTR)
-	s48_raise_os_error(errno);
+	s48_os_error("posix_waitpid", errno, 0);
     }
     else {
       s48_value sch_pid = lookup_pid(c_pid);
@@ -294,7 +299,7 @@ posix_fork(void)
   pid_t child_pid = fork();
 
   if (child_pid < 0)
-    s48_raise_os_error(errno);
+    s48_os_error("posix_fork", errno, 0);
 
   if (child_pid == 0)
     return S48_FALSE;
@@ -317,11 +322,11 @@ static s48_value
 posix_exec(s48_value program, s48_value lookup_p,
 	   s48_value env, s48_value args)
 {
-  char **c_args = enter_string_array(args);
+  char **c_args = enter_byte_vector_array(args);
   char *c_program, *real_c_program;
   int status;
 
-  c_program = s48_extract_string(program);
+  c_program = s48_extract_byte_vector(program);
 
   s48_stop_alarm_interrupts();
 
@@ -332,7 +337,7 @@ posix_exec(s48_value program, s48_value lookup_p,
       status = execvp(c_program, c_args);
     }
   else {
-    char **c_env = enter_string_array(env);
+    char **c_env = enter_byte_vector_array(env);
     
     if (NULL == strchr(c_program, '/'))
       real_c_program = add_dot_slash(c_program);
@@ -349,32 +354,32 @@ posix_exec(s48_value program, s48_value lookup_p,
 
   free(c_args);
   s48_start_alarm_interrupts();
-  s48_raise_os_error(errno);
+  s48_os_error("posix_exec", errno, 0);
 
   /* appease gcc -Wall */
   return S48_FALSE;
 }
 
 /*
- * Convert a list of strings into an array of char pointers.
+ * Convert a list of byte vectors into an array of char pointers.
  */
 
 static char **
-enter_string_array(s48_value strings)
+enter_byte_vector_array(s48_value vectors)
 {
-  int length = S48_UNSAFE_EXTRACT_FIXNUM(s48_length(strings));
+  int length = S48_UNSAFE_EXTRACT_FIXNUM(s48_length(vectors));
   char **result = (char **)malloc((length + 1) * sizeof(char *));
   int i;
 
   if (result == NULL)
-    s48_raise_out_of_memory_error();
+    s48_out_of_memory_error();
   
-  for(i = 0; i < length; i++, strings = S48_UNSAFE_CDR(strings)) {
-    s48_value string = S48_UNSAFE_CAR(strings);
-    if (! S48_STRING_P(string)) {
+  for(i = 0; i < length; i++, vectors = S48_UNSAFE_CDR(vectors)) {
+    s48_value vector = S48_UNSAFE_CAR(vectors);
+    if (! S48_BYTE_VECTOR_P(vector)) {
       free(result);
-      s48_raise_argument_type_error(string); }
-    result[i] = S48_UNSAFE_EXTRACT_STRING(string); }
+      s48_assertion_violation(NULL, "not a byte vector", 1, vector); }
+    result[i] = S48_UNSAFE_EXTRACT_BYTE_VECTOR(vector); }
   result[length] = NULL;
 
   return result;
@@ -391,7 +396,7 @@ add_dot_slash(char *name)
   char *new_name = (char *)malloc((len + 1) * sizeof(char));
   
   if (new_name == NULL)
-    s48_raise_out_of_memory_error();
+    s48_out_of_memory_error();
   
   new_name[0] = '.';
   new_name[1] = '/';
@@ -403,62 +408,6 @@ add_dot_slash(char *name)
 /*
  * Signals
  */
-
-/*
- * These need to be replaced with something that really blocks interrupts.
- * I don't know what that should be.  This is needed in c/unix/events.c as
- * well.
- */
-
-#define block_interrupts()
-#define allow_interrupts()
-
-/*
- * Adds `signum' to the queue of received signals.
- */
-
-static void
-queue_interrupt(int signum)
-{
-  if (next_interrupt == INTERRUPT_QUEUE_LENGTH){
-    perror("Interrupt queue overflow -- report to Scheme 48 maintainers.");
-    exit(-1); 
-  }
-  interrupt_queue[next_interrupt] = signum;
-  next_interrupt++;
-}
-
-/*
- * Returns TRUE if there is a signal to be delivered up to Scheme.
- */
-
-int
-s48_os_signal_pending(void)
-{
-  int i;
-  block_interrupts();
-
-  if (next_interrupt == 0) {
-    allow_interrupts();
-    return FALSE; }
-  else {
-    s48_value interrupt_list = S48_NULL;
-    S48_DECLARE_GC_PROTECT(1);
-    
-    S48_GC_PROTECT_1(interrupt_list);
-
-    /* turn the queue into a scheme list and preserve the order */
-    for (i = next_interrupt; i > 0 ; i--)
-      interrupt_list = s48_cons (s48_enter_fixnum (interrupt_queue  [i - 1]),
-				 interrupt_list);
-    s48_set_os_signals(interrupt_list);
-    
-    S48_GC_UNPROTECT();
-
-    next_interrupt = 0;
-    allow_interrupts();
-    return TRUE; }
-}
 
 /*
  * Simple front for kill().  We have to retry if interrupted.
@@ -510,6 +459,12 @@ signal_map_init()
 #include "s48_signals.h"
 }
 
+static void
+signal_map_uninit(void)
+{
+  free(signal_map);
+}
+
 /*
  * Converts from an OS signal to a canonical signal number.
  * We return -1 if there is no matching named signal.
@@ -542,7 +497,8 @@ posix_initialize_named_signals(void)
   named_signals = S48_SHARED_BINDING_REF(posix_signals_vector_binding);
 
   if(! S48_VECTOR_P(named_signals))
-    s48_raise_argument_type_error(named_signals);
+    s48_assertion_violation("posix_initialize_named_signals", "not a vector", 1,
+			    named_signals);
     
   length = S48_UNSAFE_VECTOR_LENGTH(named_signals);
 
@@ -639,24 +595,24 @@ extract_signal(s48_value sch_signal)
   s48_value type;
 
   if (! S48_RECORD_P(sch_signal))
-    s48_raise_argument_type_error(sch_signal);
+    s48_assertion_violation(NULL, "not a record", 1, sch_signal);
 
   type = S48_UNSAFE_RECORD_TYPE(sch_signal);
 
   if (type == S48_UNSAFE_SHARED_BINDING_REF(posix_named_signal_type_binding)) {
     int canonical = s48_extract_fixnum(S48_UNSAFE_RECORD_REF(sch_signal, 1));
-    if ((0 <= canonical < signal_map_size)
+    if ((0 <= canonical) && (canonical < signal_map_size)
 	&& signal_map[canonical] != -1)
       return signal_map[canonical];
     else
-      s48_raise_argument_type_error(sch_signal); }
+      s48_assertion_violation(NULL, "not a valid signal index", 1, sch_signal); }
 
   else if (type ==
 	   S48_UNSAFE_SHARED_BINDING_REF(posix_unnamed_signal_type_binding))
     return s48_extract_fixnum(S48_UNSAFE_RECORD_REF(sch_signal, 1));
 
   else
-    s48_raise_argument_type_error(sch_signal);
+    s48_assertion_violation(NULL, "not a signal", 1, sch_signal);
 }
 
 /*
@@ -667,16 +623,18 @@ extract_signal(s48_value sch_signal)
 static void
 generic_interrupt_catcher(int signum)
 {
-  queue_interrupt(signum);
+  extern void s48_add_os_signal(long);
+  s48_add_os_signal(signum);
 
   switch (signum) {
   case SIGINT: {
-    extern void		s48_when_keyboard_interrupt(int ign);
     s48_when_keyboard_interrupt(0);
     break; }
   case SIGALRM: {
-    extern void		s48_when_alarm_interrupt(int ign);
     s48_when_alarm_interrupt(0);
+    break; }
+  case SIG_EXTERNAL_EVENT: {
+    s48_when_external_event_interrupt(0);
     break; }
   default:
     NOTE_EVENT; }
@@ -709,15 +667,15 @@ posix_request_interrupts(s48_value sch_signum)
                                 malloc(sizeof(struct sigaction));
     
     if (old == NULL)
-      s48_raise_out_of_memory_error();
+      s48_out_of_memory_error();
 
-    sa.sa_handler = (void(*)) generic_interrupt_catcher;
-    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = generic_interrupt_catcher;
+    sigfillset(&sa.sa_mask);
     sa.sa_flags = 0;
 
     if (sigaction(signum, &sa, old) != 0) {
       free(old);
-      s48_raise_os_error(errno); }
+      s48_os_error("posix_request_interrupts", errno, 1, sch_signum); }
 
     saved_actions[signum] = old; }
     
@@ -729,21 +687,36 @@ posix_request_interrupts(s48_value sch_signum)
  * and remove it from the saved_action array.
  */
 
+static void
+cancel_interrupt_request(int signum)
+{
+  struct sigaction *	old = saved_actions[signum];
+
+  if (old != NULL)
+    {
+      
+      if (sigaction(signum, old, (struct sigaction *) NULL) != 0)
+	s48_os_error(NULL, errno, 1, s48_enter_fixnum(signum));
+      
+      free(old);
+      saved_actions[signum] = NULL; 
+    }
+}
+
 s48_value
 posix_cancel_interrupt_request(s48_value sch_signum)
 {
-  int			signum = s48_extract_fixnum(sch_signum);
-  struct sigaction *	old = saved_actions[signum];
-
-  if (old != NULL) {
-    
-    if (sigaction(signum, old, (struct sigaction *) NULL) != 0)
-      s48_raise_os_error(errno);
-    
-    free(old);
-    saved_actions[signum] = NULL; }
-    
+  cancel_interrupt_request(s48_extract_fixnum(sch_signum));
   return S48_UNSPECIFIC;
 }
 
-
+static void
+cancel_interrupt_requests(void)
+{
+  int signum = 0;
+  while (signum <= MAX_SIGNAL)
+    {
+      cancel_interrupt_request(signum);
+      ++signum;
+    }
+}

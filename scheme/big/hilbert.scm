@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Hilbert vectors are like vectors that grow as large as they need to.
 ; That is, they can be indexed by arbitrarily large nonnegative integers.
@@ -18,6 +18,10 @@
   (make-hilbert height root)
   (height hilbert-height set-hilbert-height!)
   (root hilbert-root set-hilbert-root!))
+
+(define-record-discloser :hilbert
+  (lambda (h)
+    '(sparse-vector)))
 
 (define (make-sparse-vector)
   (make-hilbert 1 (make-vector hilbert-node-size #f)))

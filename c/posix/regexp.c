@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 /*
@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <regex.h> /* POSIX.2 */
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "scheme48.h"
@@ -66,19 +67,19 @@ posix_compile_regexp(s48_value pattern,
   s48_value sch_regex;
   int status;
   S48_DECLARE_GC_PROTECT(1);
-  int flags = S48_EXTRACT_BOOLEAN(extended_p)    ? REG_EXTENDED : 0 |
-              S48_EXTRACT_BOOLEAN(ignore_case_p) ? REG_ICASE    : 0 |
-              S48_EXTRACT_BOOLEAN(submatches_p)  ? 0 : REG_NOSUB |
-              S48_EXTRACT_BOOLEAN(newline_p)     ? REG_NEWLINE  : 0;
+  int flags = (S48_EXTRACT_BOOLEAN(extended_p)    ? REG_EXTENDED : 0) |
+              (S48_EXTRACT_BOOLEAN(ignore_case_p) ? REG_ICASE    : 0) |
+              (S48_EXTRACT_BOOLEAN(submatches_p)  ? 0 : REG_NOSUB) |
+              (S48_EXTRACT_BOOLEAN(newline_p)     ? REG_NEWLINE  : 0);
 
   S48_GC_PROTECT_1(pattern);
 
-  S48_CHECK_STRING(pattern);
+  S48_CHECK_BYTE_VECTOR(pattern);
 
   sch_regex = S48_MAKE_VALUE(regex_t);
 
   status = regcomp(S48_UNSAFE_EXTRACT_VALUE_POINTER(sch_regex, regex_t),
-		   S48_UNSAFE_EXTRACT_STRING(pattern),
+		   S48_UNSAFE_EXTRACT_BYTE_VECTOR(pattern),
 		   flags);
 
   S48_GC_UNPROTECT();
@@ -107,29 +108,30 @@ posix_regexp_match(s48_value sch_regex, s48_value string, s48_value sch_start,
   s48_value result;
 
   int start = s48_extract_fixnum(sch_start);
-  int len = S48_STRING_LENGTH(string);
+  int len = strlen(s48_extract_byte_vector(string));
   /* re_nsub doesn't include the full pattern */
   size_t nmatch = 1 + S48_EXTRACT_VALUE_POINTER(sch_regex, regex_t)->re_nsub;
   regmatch_t *pmatch,
              pmatch_buffer[32];
 
-  int flags = S48_EXTRACT_BOOLEAN(bol_p) ? 0 : REG_NOTBOL |
-              S48_EXTRACT_BOOLEAN(eol_p) ? 0 : REG_NOTEOL;
+  int flags = (S48_EXTRACT_BOOLEAN(bol_p) ? 0 : REG_NOTBOL) |
+              (S48_EXTRACT_BOOLEAN(eol_p) ? 0 : REG_NOTEOL);
 
-  if ((start < 0) || (start >= len))
-    s48_raise_range_error(sch_start,
-			  s48_enter_fixnum(0),
-			  s48_enter_fixnum(len));
+  if ((start < 0) || (start > len))
+    s48_assertion_violation("posix_regexp_match", "start out of range", 3,
+			    sch_start,
+			    s48_enter_fixnum(0),
+			    s48_enter_fixnum(len));
 
   if (nmatch <= 32)
     pmatch = pmatch_buffer;
   else {
     pmatch = (regmatch_t *) malloc(nmatch * sizeof(regmatch_t));
     if (pmatch == NULL)
-      s48_raise_out_of_memory_error(); }
+      s48_out_of_memory_error(); }
     
   status = regexec(S48_EXTRACT_VALUE_POINTER(sch_regex, regex_t),
-		   S48_UNSAFE_EXTRACT_STRING(string) + start,
+		   S48_UNSAFE_EXTRACT_BYTE_VECTOR(string) + start,
 		   nmatch, pmatch, flags);
 
   if (status == REG_NOMATCH)
@@ -185,14 +187,14 @@ posix_regexp_error_message(s48_value pattern,
 {
   regex_t compiled_regex;
   int status;
-  int flags = S48_EXTRACT_BOOLEAN(extended_p)    ? REG_EXTENDED : 0 |
-              S48_EXTRACT_BOOLEAN(ignore_case_p) ? REG_ICASE    : 0 |
-              S48_EXTRACT_BOOLEAN(submatches_p)  ? 0 : REG_NOSUB |
-              S48_EXTRACT_BOOLEAN(newline_p)     ? REG_NEWLINE  : 0;
+  int flags = (S48_EXTRACT_BOOLEAN(extended_p)    ? REG_EXTENDED : 0) |
+              (S48_EXTRACT_BOOLEAN(ignore_case_p) ? REG_ICASE    : 0) |
+              (S48_EXTRACT_BOOLEAN(submatches_p)  ? 0 : REG_NOSUB) |
+              (S48_EXTRACT_BOOLEAN(newline_p)     ? REG_NEWLINE  : 0);
 
   S48_CHECK_STRING(pattern);
 
-  status = regcomp(&compiled_regex, S48_UNSAFE_EXTRACT_STRING(pattern), flags);
+  status = regcomp(&compiled_regex, S48_UNSAFE_EXTRACT_BYTE_VECTOR(pattern), flags);
 
   if (status == 0)
     return S48_FALSE;
@@ -202,10 +204,10 @@ posix_regexp_error_message(s48_value pattern,
     
     buffer_size = regerror(status, &compiled_regex, NULL, 0);
     /* For string lengths C counts the nul, Scheme doesn't. */
-    buffer = s48_make_string(buffer_size - 1, ' ');
+    buffer = s48_make_byte_vector(buffer_size);
     regerror(status,
 	     &compiled_regex,
-	     S48_UNSAFE_EXTRACT_STRING(buffer),
+	     S48_UNSAFE_EXTRACT_BYTE_VECTOR(buffer),
 	     buffer_size);
     
     return buffer; }

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 ; Code for handling interrupts.
 
 ; New interrupt handler vector in *val*
@@ -30,7 +30,7 @@
     (push code)
     (push (enter-fixnum pc)))
   (push-interrupt-state)
-  (push-adlib-continuation! (code+pc->code-pointer *interrupted-byte-call-return-code*
+  (push-adlib-continuation! (code+pc->code-pointer *interrupted-byte-opcode-return-code*
 						   return-code-pc))
   (goto find-and-call-interrupt-handler))
 
@@ -39,6 +39,15 @@
   (push *val*)
   (push-interrupt-state)
   (push-adlib-continuation! (code+pc->code-pointer *interrupted-native-call-return-code*
+						   return-code-pc))
+  (goto find-and-call-interrupt-handler))
+
+(define (handle-native-poll template return-address)
+  (push *val*)
+  (push template)
+  (push return-address)
+  (push-interrupt-state)
+  (push-adlib-continuation! (code+pc->code-pointer *native-poll-return-code*
 						   return-code-pc))
   (goto find-and-call-interrupt-handler))
 
@@ -59,17 +68,7 @@
 ; Ditto, except that we are going to return to the current continuation instead
 ; of continuating with the current template.
 
-(define (push-poll-interrupt-continuation)
-  (push-interrupt-state)
-  (push poll-interrupt-continuation-descriptors)
-  (push-continuation! (code+pc->code-pointer *poll-interrupt-return-code*
-					     return-code-pc)))
-
 (define interrupt-state-descriptors 2)
-
-(define poll-interrupt-continuation-descriptors
-  (enter-fixnum (+ 1		; this number
-		   interrupt-state-descriptors)))
 
 (define (push-interrupt-state)
   (push (current-proposal))
@@ -82,8 +81,8 @@
 
 (define (find-and-call-interrupt-handler)
   (let* ((pending-interrupt (get-highest-priority-interrupt!))
-	 (arg-count (push-interrupt-args pending-interrupt))
-	 (handlers (shared-ref *interrupt-handlers*)))
+	 (handlers (shared-ref *interrupt-handlers*))
+	 (arg-count (push-interrupt-args pending-interrupt)))
     (if (not (vm-vector? handlers))
 	(error "interrupt handler is not a vector"))
     (set! *val* (vm-vector-ref handlers pending-interrupt))
@@ -96,8 +95,11 @@
 ;
 ; For alarm interrupts the interrupted template is passed to the handler
 ;  for use by code profilers.
-; For gc interrupts we push the list of things to be finalized.
+; For gc interrupts we push the list of things to be finalized,
+; the interrupt mask, and whether the GC is running out of space.
 ; For i/o-completion we push the channel and its status.
+; For i/o-error we push the channel and the error code.
+; For external-event, we push the event-type uid.
 
 (define (push-interrupt-args pending-interrupt)
   (cond ((eq? pending-interrupt (enum interrupt alarm))
@@ -105,41 +107,114 @@
 	 (set! *interrupted-template* false)
 	 (push (enter-fixnum *enabled-interrupts*))
 	 2)
-	((eq? pending-interrupt (enum interrupt post-gc))
+	((or (eq? pending-interrupt (enum interrupt post-major-gc))
+	     (eq? pending-interrupt (enum interrupt post-minor-gc)))
 	 (push *finalize-these*)
 	 (set! *finalize-these* null)
 	 (push (enter-fixnum *enabled-interrupts*))
-	 2)
+	 (push (enter-boolean *gc-in-trouble?*))
+	 3)
 	((eq? pending-interrupt (enum interrupt i/o-completion))
+	 ;; we don't know which one it is for each individual channel
 	 (let ((channel (dequeue-channel!)))
 	   (if (not (channel-queue-empty?))
 	       (note-interrupt! (enum interrupt i/o-completion)))
 	   (push channel)
+	   (push (channel-error? channel))
 	   (push (channel-os-status channel))
 	   (push (enter-fixnum *enabled-interrupts*))
-	   3))
+	   4))
 	((eq? pending-interrupt (enum interrupt os-signal))
-	 (push (vm-car *os-signal-list*))
-	 (set! *os-signal-list* (vm-cdr *os-signal-list*))
-	 (if (not (vm-eq? *os-signal-list* null))
+	 (push (enter-fixnum (os-signal-ring-remove!)))
+	 (if (os-signal-ring-ready?)
 	     (note-interrupt! (enum interrupt os-signal)))
 	 (push (enter-fixnum *enabled-interrupts*))
 	 2)
+	((eq? pending-interrupt (enum interrupt external-event))
+	 (receive (uid still-ready?)
+	     (dequeue-external-event!)
+	   (push (enter-fixnum uid))
+	   (if still-ready?
+	       (note-interrupt! (enum interrupt external-event)))
+	   (push (enter-fixnum *enabled-interrupts*))
+	   2))
 	(else
 	 (push (enter-fixnum *enabled-interrupts*))
 	 1)))
 
+;;; Dealing with OS signals
+
+(define *os-signal-ring-length* 32)
+(define *os-signal-ring*
+  (let ((v (make-vector *os-signal-ring-length* 0)))
+    (if (null-pointer? v)
+        (error "out of memory, unable to continue"))
+    v))
+
+(define *os-signal-ring-start* 0) ; index of oldest signal
+(define *os-signal-ring-ready* 0) ; index of last signal for which an
+				  ; os-event has already been generated
+(define *os-signal-ring-end* 0) ; index of newest signal
+
+;; ring-like incrementation
+(define-syntax os-signal-ring-inc!
+  (syntax-rules ()
+    ((os-signal-ring-inc! var)
+     (set! var
+           (if (= var
+                  (- *os-signal-ring-length* 1))
+               0
+               (+ var 1))))))
+
+(define (os-signal-ring-ready?)
+  (not (= *os-signal-ring-ready*
+          *os-signal-ring-start*)))
+
+(define (os-signal-ring-add! sig)
+  (os-signal-ring-inc! *os-signal-ring-end*)
+  (if (= *os-signal-ring-start*
+         *os-signal-ring-end*)
+      (error "OS signal ring too small, report to Scheme 48 maintainers"))
+  (vector-set! *os-signal-ring* *os-signal-ring-end* sig))
+
+(define (os-signal-ring-empty?)
+  (= *os-signal-ring-start*
+     *os-signal-ring-end*))
+
+(define (os-signal-ring-remove!)
+  (if (os-signal-ring-empty?)
+      (error "This cannot happen: OS signal ring empty"))
+  (let ((sig (vector-ref *os-signal-ring* *os-signal-ring-start*)))
+    (set! *os-signal-ring-start* 
+          (if (= *os-signal-ring-start*
+                 (- *os-signal-ring-length* 1))
+              0
+              (+ *os-signal-ring-start* 1)))
+    sig))
+
+
 ; Called from outside when an os-signal event is returned.
+(define (s48-add-os-signal sig)
+  (os-signal-ring-add! sig))
 
-(define (s48-set-os-signals signal-list)
-  (set! *os-signal-list* (vm-append! *os-signal-list* signal-list)))
+; Called from outside to check whether an os-event has to be signalled
+(define (s48-os-signal-pending)
+  (if (= *os-signal-ring-ready*
+         *os-signal-ring-end*)
+      #f
+      (begin
+        (os-signal-ring-inc! *os-signal-ring-ready*)
+        #t)))
 
-(define *os-signal-list* null)
+
+  
 
 ; Called from outside to initialize a new process.
 
 (define (s48-reset-interrupts!)
-  (set! *os-signal-list* null)
+  (set! *os-signal-ring-start* 0)
+  (set! *os-signal-ring-ready* 0)
+  (set! *os-signal-ring-end* 0)
   (set! *enabled-interrupts* 0)
   (pending-interrupts-clear!)
   (set! s48-*pending-interrupt?* #f))
@@ -147,21 +222,10 @@
 (define-opcode poll
   (if (and (interrupt-flag-set?)
            (pending-interrupt?))
-      (begin
-        (push-continuation! (address+ *code-pointer*
-				      (code-offset 0)))
-        (push-poll-interrupt-continuation)
-        (goto find-and-call-interrupt-handler))
-      (goto continue 2)))
+      (goto handle-interrupt)
+      (goto continue 0)))
 	    
-; Return from a call to an interrupt handler.
-
-(define-opcode return-from-poll-interrupt
-  (pop)
-  (s48-pop-interrupt-state)
-  (goto return-values 0 null 0))
-
-(define-opcode resume-interrupted-call-to-byte-code
+(define-opcode resume-interrupted-opcode-to-byte-code
   (pop)
   (s48-pop-interrupt-state)
   (let ((pc (pop)))
@@ -175,6 +239,14 @@
   (set! *val* (pop))
   (let ((protocol-skip (extract-fixnum (pop))))
     (goto really-call-native-code protocol-skip)))
+
+(define-opcode resume-native-poll
+  (pop)                                 ; frame size
+  (s48-pop-interrupt-state)
+  (let* ((return-address (pop))
+         (template (pop)))
+    (set! *val* (pop))
+    (goto post-native-dispatch (s48-jump-native return-address template))))
 
 ; Do nothing much until something happens.  To avoid race conditions this
 ; opcode is called with all interrupts disabled, so it has to return if
@@ -297,7 +369,7 @@
 
 ; Do whatever processing the event requires.
 
-(define (process-event event channel status)
+(define (process-event event id status)
   (cond ((eq? event (enum events alarm-event))
 	 ;; Save the interrupted template for use by profilers.
 	 ;; Except that we have no more templates and no more profiler.
@@ -307,10 +379,15 @@
 	((eq? event (enum events keyboard-interrupt-event))
 	 (interrupt-bit (enum interrupt keyboard)))
 	((eq? event (enum events io-completion-event))
-	 (enqueue-channel! channel status)
+	 (enqueue-channel! id status false)
+	 (interrupt-bit (enum interrupt i/o-completion)))
+	((eq? event (enum events io-error-event))
+	 (enqueue-channel! id status true)
 	 (interrupt-bit (enum interrupt i/o-completion)))
 	((eq? event (enum events os-signal-event))
 	 (interrupt-bit (enum interrupt os-signal)))
+	((eq? event (enum events external-event))
+	 (interrupt-bit (enum interrupt external-event)))
 	((eq? event (enum events no-event))
 	 0)
 	((eq? event (enum events error-event))

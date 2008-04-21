@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; An implementation of Pre-Scheme's memory interface that can detect some
@@ -61,7 +61,7 @@
 ; Memory
 
 (define *memory* (make-vector 16 #f))    ; vector of pages
-(define log-max-size 24)                 ; log of page size
+(define log-max-size 25)                 ; log of page size
 (define address-shift (- log-max-size))  ; turns addresses into page indices
 
 (define max-size (arithmetic-shift 1 log-max-size))  ; page size
@@ -80,7 +80,7 @@
 
 (define (allocate-memory size)
   (cond ((> size max-size)
-	 -1)  ; error result
+	 null-address)  ; error result
 	(else
 	 (if (>= *next-index* (vector-length *memory*))
 	     (let ((new (make-vector (* 2 (vector-length *memory*)))))
@@ -110,7 +110,7 @@
 	  (byte-address (address->vector-index address)))
       (if (and vector (= byte-address 0))
 	  (vector-set! *memory* (arithmetic-shift address address-shift) #f)
-	  (error "bad deallocation address" address)))))
+	  (assertion-violation 'deallocate-memory "bad deallocation address" address)))))
 
 ; Various ways of accessing memory
 
@@ -129,13 +129,22 @@
   (let ((address (address-index address)))
     (let ((vector (address->vector address))
 	  (byte-address (address->vector-index address)))
-      (if (not (= 0 (bitwise-and byte-address 3)))
-	  (error "unaligned address error" address)
-	  (+ (+ (arithmetic-shift (signed-code-vector-ref vector byte-address) 24)
-		(arithmetic-shift (code-vector-ref vector (+ byte-address 1)) 16))
-	     (+ (arithmetic-shift (code-vector-ref vector (+ byte-address 2))  8)
-		(code-vector-ref vector (+ byte-address 3))))))))
-  
+      (if (not (= 0 (bitwise-and byte-address (- bytes-per-cell 1))))
+	  (assertion-violation 'word-ref "unaligned address error" address)
+	  (do ((byte-offset 0 (+ byte-offset 1))
+	       (shift-offset (- bits-per-cell bits-per-byte) 
+			     (- shift-offset bits-per-byte))
+	       (word 0
+		     (+ word
+			(arithmetic-shift ((if (= 0 byte-offset)
+					       signed-code-vector-ref
+					       code-vector-ref)
+					   vector
+					   (+ byte-address byte-offset))
+					  shift-offset))))
+		((or (>= byte-offset bytes-per-cell) (< shift-offset 0))
+		 word))))))
+
 (define (unsigned-byte-set! address value)
   (let ((address (address-index address)))
     (code-vector-set! (address->vector address)
@@ -147,26 +156,27 @@
     (let ((vector (address->vector address))
 	  (byte-address (address->vector-index address)))
       (if (not (= 0 (bitwise-and byte-address 3)))
-	  (error "unaligned address error" address))
-      (code-vector-set! vector    byte-address
-			(bitwise-and 255 (arithmetic-shift value -24)))
-      (code-vector-set! vector (+ byte-address 1)
-			(bitwise-and 255 (arithmetic-shift value -16)))
-      (code-vector-set! vector (+ byte-address 2)
-			(bitwise-and 255 (arithmetic-shift value -8)))
-      (code-vector-set! vector (+ byte-address 3)
-			(bitwise-and 255 value)))))
+	  (assertion-violation 'word-set! "unaligned address error" address))
+      (do ((byte-offset 0 (+ byte-offset 1))
+	   (shift-offset (- bits-per-cell bits-per-byte) 
+			 (- shift-offset bits-per-byte)))
+	  ((or (>= byte-offset bytes-per-cell) (< shift-offset 0)))
+	(code-vector-set! vector 
+			  (+ byte-address byte-offset)
+			  (bitwise-and 255 
+				       (arithmetic-shift value 
+							 (- shift-offset))))))))
 
 ; With the right access to the flonum bits we could actually make these
 ; work.  Something to do later.
 
 (define (flonum-ref address)
   (if #t					; work around type checker bug
-      (error "call to FLONUM-REF" address)))
+      (assertion-violation 'flonum-ref "call to FLONUM-REF" address)))
 
 (define (flonum-set! address value)
   (if #t					; work around type checker bug
-      (error "call to FLONUM-SET!" address value)))
+      (assertion-violation 'flonum-set! "call to FLONUM-SET!" address value)))
 
 ; Block I/O procedures.
 
@@ -176,30 +186,30 @@
 	  (byte-address (address->vector-index address)))
       (do ((i 0 (+ i 1)))
 	  ((>= i count))
-	(write-char (ascii->char (code-vector-ref vector (+ i byte-address)))
+	(write-byte (code-vector-ref vector (+ i byte-address))
 		    port))
       (enum errors no-errors))))
 
 (define (read-block port address count)
   (let ((address (address-index address)))
-    (cond ((not (char-ready? port))
+    (cond ((not (byte-ready? port))
 	   (values 0 #f (enum errors no-errors)))
-	  ((eof-object? (scheme:peek-char port))
+	  ((eof-object? (peek-byte port))
 	   (values 0 #t (enum errors no-errors)))
 	  (else
 	   (let ((vector (address->vector address))
 		 (byte-address (address->vector-index address)))
 	     (let loop ((i 0))
 	       (if (or (= i count)
-		       (not (char-ready? port)))
+		       (not (byte-ready? port)))
 		   (values i #f (enum errors no-errors))
-		   (let ((c (scheme:read-char port)))
-		     (cond ((eof-object? c)
+		   (let ((b (read-byte port)))
+		     (cond ((eof-object? b)
 			    (values i #f (enum errors no-errors)))
 			   (else
 			    (code-vector-set! vector
 					      (+ i byte-address)
-					      (char->ascii c))
+					      b)
 			    (loop (+ i 1))))))))))))
 
 (define (copy-memory! from to count)
@@ -209,13 +219,20 @@
 	  (from-address (address->vector-index from))
 	  (to-vector (address->vector to))
 	  (to-address (address->vector-index to)))
-      (do ((i 0 (+ i 1)))
-	  ((>= i count))
-	(code-vector-set! to-vector
-			  (+ i to-address)
-			  (code-vector-ref from-vector
-					   (+ i from-address)))))))
-
+      (if (>= from-address to-address)
+	  (do ((i 0 (+ i 1)))
+	      ((>= i count))
+	    (code-vector-set! to-vector
+			      (+ i to-address)
+			      (code-vector-ref from-vector
+					       (+ i from-address))))
+	  (do ((i (- count 1) (- i 1)))
+	      ((negative? i))
+	    (code-vector-set! to-vector
+			      (+ i to-address)
+			      (code-vector-ref from-vector
+					       (+ i from-address))))))))
+  
 (define (memory-equal? from to count)
   (let ((from (address-index from))
 	(to (address-index to)))
@@ -258,7 +275,7 @@
 (define (index-of-first-nul vector address)
   (let loop ((i address))
     (cond ((= i (code-vector-length vector))
-	   (error "CHAR-POINTER->STRING called on pointer with no nul termination"))
+	   (assertion-violation 'char-pointer->string "CHAR-POINTER->STRING called on pointer with no nul termination"))
 	  ((= 0 (code-vector-ref vector i))
 	   (- i address))
 	  (else

@@ -2,36 +2,40 @@
 
 $Id: bignum.c,v 9.41 1994/02/09 00:53:27 cph Exp $
 
-Copyright (c) 1989-94 Massachusetts Institute of Technology
+Copyright 1986,1987,1988,1989,1990,1991 Massachusetts Institute of Technology
+Copyright 1992,1993,1994,2004 Massachusetts Institute of Technology
 
-This material was developed by the Scheme project at the Massachusetts
-Institute of Technology, Department of Electrical Engineering and
-Computer Science.  Permission to copy and modify this software, to
-redistribute either the original software or a modified version, and
-to use this software for any purpose is granted, subject to the
-following restrictions and understandings.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
 
-1. Any copy made of this software must include this copyright notice
-in full.
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
-2. Users of this software agree to make their best efforts (a) to
-return to the MIT Scheme project any improvements or extensions that
-they make, so that these may be included in future releases; and (b)
-to inform MIT of noteworthy uses of this software.
+   2. Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
 
-3. All materials developed as a consequence of the use of this
-software shall duly acknowledge such use, in accordance with the usual
-standards of acknowledging credit in academic research.
+   3. The name of the author may not be used to endorse or promote
+      products derived from this software without specific prior
+      written permission.
 
-4. MIT has made no warrantee or representation that the operation of
-this software will be error-free, and MIT is under no obligation to
-provide any services, by way of maintenance, update, or otherwise.
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 
-5. In conjunction with products arising from the use of this material,
-there shall be no use of the name of the Massachusetts Institute of
-Technology nor of any adaptation thereof in any advertising,
-promotional, or sales literature without prior written consent from
-MIT in each case. */
+*/
+
+/* License changed to modified BSD by cph on 2004-11-08.  */
 
 /* Changes for Scheme 48:
  *  - Converted to ANSI.
@@ -46,13 +50,11 @@ MIT in each case. */
 #include "scheme48.h"	/* for S48_GC_PROTECT_GLOBAL */
 #include <stdio.h>
 #include <stdlib.h>	/* abort */
+#include <math.h>
 
 /* Forward references */
 static int bignum_equal_p_unsigned(bignum_type, bignum_type);
-/*
 static enum bignum_comparison bignum_compare_unsigned(bignum_type, bignum_type);
-*/
-static int bignum_compare_unsigned(bignum_type, bignum_type);
 static bignum_type bignum_add_unsigned(bignum_type, bignum_type, int);
 static bignum_type bignum_subtract_unsigned(bignum_type, bignum_type);
 static bignum_type bignum_multiply_unsigned(bignum_type, bignum_type, int);
@@ -94,13 +96,13 @@ static void bignum_destructive_zero(bignum_type);
 */
 
 /* Added for bitwise operations. */
-static bignum_type bignum_magnitude_ash();
+static bignum_type bignum_magnitude_ash(bignum_type arg1, long n);
 static bignum_type bignum_pospos_bitwise_op(int op, bignum_type, bignum_type);
 static bignum_type bignum_posneg_bitwise_op(int op, bignum_type, bignum_type);
 static bignum_type bignum_negneg_bitwise_op(int op, bignum_type, bignum_type);
 static void        bignum_negate_magnitude(bignum_type);
-static long        bignum_unsigned_logcount();
-static int         bignum_unsigned_logbitp();
+static long        bignum_unsigned_logcount(bignum_type arg);
+static int         bignum_unsigned_logbitp(int shift, bignum_type bignum);
 
 static s48_value s48_bignum_zero    = (s48_value) NULL;
 static s48_value s48_bignum_pos_one = (s48_value) NULL;
@@ -337,7 +339,8 @@ int
 s48_bignum_divide(bignum_type numerator, bignum_type denominator,
 		  void* quotient, void * remainder)
 {
-  return bignum_divide(numerator, denominator, quotient, remainder);
+  return bignum_divide(numerator, denominator,
+		       (bignum_type *)quotient, (bignum_type *)remainder);
 }
 
 bignum_type
@@ -483,7 +486,7 @@ s48_bignum_to_long(bignum_type bignum)
 }
 
 bignum_type
-ulong_to_bignum(unsigned long n)
+s48_ulong_to_bignum(unsigned long n)
 {
   bignum_digit_type result_digits [BIGNUM_DIGITS_FOR_LONG];
   bignum_digit_type * end_digits = result_digits;
@@ -538,7 +541,6 @@ s48_bignum_to_ulong(bignum_type bignum)
 bignum_type
 s48_double_to_bignum(double x)
 {
-  extern double frexp ();
   int exponent;
   double significand = (frexp (x, (&exponent)));
   if (exponent <= 0) return (BIGNUM_ZERO ());
@@ -637,7 +639,7 @@ s48_bignum_length_upper_limit(void)
 
 bignum_type
 s48_digit_stream_to_bignum(unsigned int n_digits,
-			   unsigned int *producer(bignum_procedure_context),
+			   unsigned int (*producer)(bignum_procedure_context),
 			   bignum_procedure_context context,
 			   unsigned int radix,
 			   int negative_p)
@@ -679,8 +681,8 @@ s48_digit_stream_to_bignum(unsigned int n_digits,
 void
 s48_bignum_to_digit_stream(bignum_type bignum,
 			   unsigned int radix,
-			   void *consumer(bignum_procedure_context,
-					  bignum_digit_type),
+			   void (*consumer)(bignum_procedure_context,
+					    bignum_digit_type),
 			   bignum_procedure_context context)
 {
   BIGNUM_ASSERT ((radix > 1) && (radix <= BIGNUM_RADIX_ROOT));
@@ -728,7 +730,7 @@ bignum_equal_p_unsigned(bignum_type x, bignum_type y)
     }
 }
 
-static int /* enum bignum_comparison */
+static enum bignum_comparison
 bignum_compare_unsigned(bignum_type x, bignum_type y)
 {
   bignum_length_type x_length = (BIGNUM_LENGTH (x));
@@ -2046,4 +2048,3 @@ bignum_unsigned_logbitp(int shift, bignum_type bignum)
   p = shift % BIGNUM_DIGIT_LENGTH;
   return digit & (1 << p);
 }
-

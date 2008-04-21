@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Compiling primitive procedures and calls to them.
 
@@ -29,8 +29,9 @@
 			       name	; name of primop
 			       (or maybe-nargs 0)
 					; nargs (needed if template used)
+			       maybe-nargs ; need template if nargs
 			       #f	; no env
-			       maybe-nargs))) ; need template if nargs
+			       #f)))    ; no closure
 	(segment->template (proc frame) frame)))))
 
 ; --------------------
@@ -53,9 +54,9 @@
     (let ((arg-specs (vector-ref opcode-arg-specs opcode)))
       (sequentially (if (pair? arg-specs)
                         (sequentially
-                         (lambda-protocol (car arg-specs) #f #f)
+                         (lambda-protocol (car arg-specs) #f #f #f)
                          (instruction (enum op pop)))
-                        (lambda-protocol 0 #f #f))
+                        (lambda-protocol 0 #f #f #f))
                     (instruction opcode)
                     (instruction (enum op return))))))
 
@@ -111,19 +112,18 @@
 	    exact-integer-type))
     ((char=? char<?)
      ,(proc (char-type char-type) boolean-type))
-    (char->ascii
-     ,(proc (char-type) exact-integer-type))
-    (ascii->char
-     ,(proc (exact-integer-type) char-type))
     (string=?
      ,(proc (string-type string-type) boolean-type))
     (open-channel
      ;; Can return #f
-     ,(proc (string-type exact-integer-type boolean-type) value-type))
+     ,(proc (string-type value-type exact-integer-type boolean-type) value-type))
     (cons
      ,(proc (value-type value-type) pair-type))
     (intern
-     ,(proc (string-type) symbol-type))))
+     ,(proc (string-type) symbol-type))
+    (make-weak-pointer
+     ,(proc (value-type) value-type))))
+
 
 ; Can't do I/O until the meta-types interface exports input-port-type and
 ; output-port-type.
@@ -134,7 +134,9 @@
     ((= opcode op-count))
   (let ((arg-specs (vector-ref opcode-arg-specs opcode))
         (name (enumerand->name opcode op)))
-    (cond ((memq name '(call-external-value return-from-interrupt return)))
+    (cond ((memq name '(call-external-value
+			return-from-interrupt return
+			binary-comparison-reduce2)))
           ((null? arg-specs)
            (let ((type (proc () value-type)))
              (define-compiler-primitive name type
@@ -143,7 +145,8 @@
           ((not (number? (car arg-specs))))
 	  ((memq name '(+ * - / = < > <= >=
 			bitwise-ior bitwise-xor bitwise-and
-			make-string closed-apply)))
+			make-string closed-apply
+			encode-char/us-ascii)))
           (else
            (let ((type (get-primop-type name (car arg-specs))))
              (define-compiler-primitive name type
@@ -158,7 +161,8 @@
   (let ((winner? (fixed-arity-procedure-type? type)))
     (let ((nargs (if winner?
                      (procedure-type-arity type)
-                     (error "n-ary simple primitive?!" name type))))
+                     (assertion-violation 'define-simple-primitive
+					  "n-ary simple primitive?!" name type))))
       (define-compiler-primitive name type
         (simple-compilator segment)
         (simple-closed-compilator nargs segment)))))
@@ -173,16 +177,12 @@
 
 (define (simple-closed-compilator nargs segment)
   (lambda (frame)
-    (sequentially (lambda-protocol nargs #f #f)
+    (sequentially (lambda-protocol nargs #f #f #f)
                   (if (< 0 nargs)
                       (instruction (enum op pop))
                       empty-segment)
                   segment
                   (instruction (enum op return)))))
-
-(define (symbol-append . syms)
-  (string->symbol (apply string-append
-                         (map symbol->string syms))))
 
 (define (define-stob-predicate name stob-name)
   (define-simple-primitive name
@@ -200,15 +200,11 @@
   (define-compiler-primitive 'make-double (proc () :double)
     (lambda (node depth frame cont)
       (deliver-value
-        (sequentially
-	  (stack-indirect-instruction (template-offset frame depth)
-				      (literal->index frame 0))
-	  (instruction (enum op push))		; leaves value in *val*
-	  (instruction (enum op make-stored-object) 2 (enum stob double)))
+       (instruction (enum op make-double))
 	cont))
     (cons 0
 	  (lambda (frame)
-	    (sequentially (lambda-protocol 0 #t #f)
+	    (sequentially (lambda-protocol 0 #t #f #f)
 			  (instruction (enum op stack-indirect)
 				       (template-offset frame 1) ; template
 				       (literal->index frame 0))
@@ -374,7 +370,7 @@
 
 ; SIGNAL-CONDITION is the same as TRAP.
 
-(define-simple-primitive 'signal-condition (proc (pair-type) unspecific-type)
+(define-simple-primitive 'signal-condition (proc (value-type) unspecific-type)
   (instruction (enum op trap)))
 
 ; (primitive-catch (lambda (cont) ...))
@@ -395,14 +391,14 @@
 			       (+ depth 1)
 			       frame
 			       (fall-through-cont node 1))
-		      (call-instruction 1 label)	; one argument
+		      (call-instruction 1 (+ depth 1) label) ; one argument
 		      after))))
   (lambda (frame)
-    (sequentially (lambda-protocol 1 #f #f)
+    (sequentially (lambda-protocol 1 #f #f #f)
                   (instruction (enum op current-cont))
 		  (instruction (enum op push))
-		  (instruction (enum op stack-ref 1))
-                  (call-instruction 1 #f))))	; one argument, no return label
+		  (instruction (enum op stack-ref) 1)
+                  (call-instruction 1 (+ (frame-size frame) 1) #f)))) ; one argument, no return label
 
 ; (call-with-values producer consumer)
 
@@ -457,7 +453,7 @@
     (lambda (frame)
       (receive (before depth label after)
 	  (push-continuation-no-protocol 2 frame #f (plain-fall-through-cont))
-	(sequentially (lambda-protocol 2 #f #f)
+	(sequentially (lambda-protocol 2 #f #f #f)
 		      (instruction (enum op stack-ref+push) 1)
 		      (instruction (enum op false))
 		      (instruction (enum op stack-set!) 2)
@@ -506,8 +502,9 @@
     (let ((exp (node-form node)))
       (if (>= (length (cdr exp)) min-nargs)
           (compilator node depth frame cont)
-          (begin (warn "too few arguments to primitive"
-                       (schemify node))
+          (begin (warning 'n-ary-primitive-compilator
+			  "too few arguments to primitive"
+			  (schemify node))
                  (compile-unknown-call node depth frame cont))))))
 
 ; APPLY wants the arguments on the stack, with the final list on top, and the
@@ -527,7 +524,7 @@
 	(receive (before depth label after)
 	    (maybe-push-continuation depth frame cont node)
 	  (sequentially before
-			(push-all-but-last args+rest+proc depth frame #f)
+			(push-all-but-last args+rest+proc depth frame node)
 			;; Operand is number of non-final arguments
 			(using-optional-label (enum op apply)
 					      label
@@ -576,7 +573,8 @@
 					       " arguments where one is expected"))
 			    (schemify node)))
 	    (else
-	     (error "unknown compiler continuation for VALUES" cont)))))
+	     (assertion-violation 'values
+				  "unknown compiler continuation for VALUES" cont)))))
   (lambda (frame)
     (sequentially (nary-primitive-protocol 0)
 		  (instruction (enum op closed-values)))))
@@ -593,48 +591,6 @@
       ((null? args)
        code)))
 
-; (error message irritant1 irritant2)
-;  => (trap (cons 'error (cons message (cons irritant1 (cons irritant2 '())))))
-
-(let ((cons-instruction
-       (instruction (enum op make-stored-object) 2 (enum stob pair))))
-
-  (define-n-ary-compiler-primitive 'error error-type 1
-    (lambda (node depth frame cont)
-      (let* ((exp (node-form node))
-	     (args (cdr exp)))
-	(sequentially
-	  (stack-indirect-instruction (template-offset frame depth)
-				      (literal->index frame 'error))
-	  (instruction (enum op push))
-	  (push-arguments node (+ depth 1) frame)
-	  (stack-indirect-instruction
-	    (template-offset frame
-			     (+ depth 1 (length args)))
-	    (literal->index frame '()))
-	  (apply sequentially
-		 (map (lambda (arg) cons-instruction) args))
-	  cons-instruction
-	  (deliver-value (instruction (enum op trap)) cont))))
-    (cons 2
-	  (lambda (frame)
-	    ; stack at start is: template irritants message
-	    (sequentially (nary-lambda-protocol 1 #t #f)
-			  (instruction (enum op stack-ref) 1)       ; irritants
-			  (instruction (enum op push))
-			  (instruction (enum op stack-ref) 3)       ; message
-			  cons-instruction
-			  (instruction (enum op push))
-			  ; (message . irritants) template irritants message
-			  (instruction (enum op stack-indirect)
-				       1
-				       (literal->index frame 'error))
-			  (instruction (enum op push))
-			  (instruction (enum op stack-ref) 1)
-			  cons-instruction
-			  (instruction (enum op trap))
-			  (instruction (enum op return)))))))
-    
 ; (call-external-value external-routine arg ...)
 
 (define-n-ary-compiler-primitive 'call-external-value value-type 1
@@ -665,9 +621,9 @@
   (n-ary-constructor 'vector vector-type (enum stob vector))
   (n-ary-constructor 'record #f (enum stob record)))
 
-; READ-CHAR, PEEK-CHAR and WRITE-CHAR
+; READ-BYTE, PEEK-BYTE and WRITE-BYTE
 
-(let ((define-char-io
+(let ((define-byte/char-io
 	(lambda (id opcode type)
 	  (define-compiler-primitive id
 	    type
@@ -691,14 +647,20 @@
 			      (instruction (enum op return)))
 	       empty-segment
 	       empty-segment))))))
-  (define-char-io 'read-char
+  (define-byte/char-io 'read-byte
+    (enum op read-byte)
+    (proc (&opt value-type) value-type))
+  (define-byte/char-io 'peek-byte
+    (enum op peek-byte)
+    (proc (&opt value-type) value-type))
+  (define-byte/char-io 'read-char
     (enum op read-char)
     (proc (&opt value-type) value-type))
-  (define-char-io 'peek-char
+  (define-byte/char-io 'peek-char
     (enum op peek-char)
     (proc (&opt value-type) value-type)))
 
-(let ((define-char-io
+(let ((define-byte/char-io
 	(lambda (id opcode type)
 	  (define-compiler-primitive id
 	    type
@@ -724,7 +686,10 @@
 			      (instruction opcode 0)
 			      (instruction (enum op return)))
                 empty-segment))))))
-  (define-char-io 'write-char
+  (define-byte/char-io 'write-byte
+    (enum op write-byte)
+    (proc (integer-type &opt value-type) unspecific-type))
+  (define-byte/char-io 'write-char
     (enum op write-char)
     (proc (char-type &opt value-type) unspecific-type)))
 
@@ -959,5 +924,51 @@
     (instruction (enum op make-string))
     (make-node op/literal #\?)
     (sequentially (integer-literal-instruction (char->ascii #\?))
-		  (instruction (enum op ascii->char)))
+		  (instruction (enum op scalar-value->char)))
     (proc (number-type &opt char-type) string-type)))
+
+; Text encoding/decoding
+
+; These return multiple values, which is why this is more work.
+
+(let ((define-encode/decode
+	(lambda (name type arg-count retval-count
+		      regular bang)
+	  (let ((depth-inc (max (- arg-count 1) retval-count)))
+	    (define-compiler-primitive name type
+	      (lambda (node depth frame cont)
+		(depth-check! frame (+ depth depth-inc))
+		(let ((args (cdr (node-form node))))
+		  (cond
+		   ((return-cont? cont)
+		    (sequentially (push-all-but-last args depth frame node)
+				  (instruction regular)))
+		   ((ignore-values-cont? cont)
+		    (sequentially (push-all-but-last args depth frame node)
+				  (instruction bang)))
+		   ((fall-through-cont? cont)
+		    (generate-trap depth
+				   frame
+				   cont
+				   (string-append "returning " 
+						  (number->string retval-count)
+						  " arguments where one is expected")
+				   (schemify node)))
+		   (else
+		    (assertion-violation 'define-encode/decode
+					 "unknown compiler continuation" (enumerand->name regular op) cont)))))
+	      (direct-closed-compilator regular))))))
+
+  (define-encode/decode 'encode-char 
+    (proc (exact-integer-type char-type value-type exact-integer-type exact-integer-type)
+	  (make-some-values-type (list boolean-type value-type)))
+    5 2
+    (enum op encode-char) (enum op encode-char!))
+
+  (define-encode/decode 'decode-char 
+    (proc (exact-integer-type value-type exact-integer-type exact-integer-type)
+	  (make-some-values-type (list value-type value-type)))
+    4 2
+    (enum op decode-char) (enum op decode-char!)))
+
+  

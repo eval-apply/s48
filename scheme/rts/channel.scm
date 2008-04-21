@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Channel interrupt stuff.
 
@@ -16,27 +16,48 @@
 ; Like all maybe-commits, this returns #T if it successfully committed and
 ; #F if the commit failed.
 
-; MORE is () for writing and (WAIT?) for reading.
+(define (channel-maybe-commit-and-read channel buffer start count condvar wait?)
+  (maybe-commit-no-interrupts
+   (lambda ()
+     (let ((got (channel-maybe-read channel buffer start count wait?)))
+       (cond
+	((not got)
+	 (add-channel-condvar! channel condvar))
+	((cell? got)
+	 (note-channel-result! condvar
+			       (make-read/write-i/o-error 'channel-maybe-read
+							  (cell-ref got)
+							  channel buffer start count wait?)))
+	(else
+	 (note-channel-result! condvar got)))))))
 
-(define (channel-maybe-commit-and-do-it op)
-  (lambda (channel buffer start count condvar . more)
-    (let ((ints (disable-interrupts!)))
-      (if (maybe-commit)
-	  (let ((got (apply op channel buffer start count more)))
-	    (if got
-		(note-channel-result! condvar got)
-		(add-channel-condvar! channel condvar))
-	    (set-enabled-interrupts! ints)
-	    #t)
-	  (begin
-	    (set-enabled-interrupts! ints)
-	    #f)))))
+(define (channel-maybe-commit-and-write channel buffer start count condvar wait?)
+  (maybe-commit-no-interrupts
+   (lambda ()
+     (let ((got (channel-maybe-write channel buffer start count)))
+       (cond
+	((not got)
+	 (add-channel-condvar! channel condvar)
+	 (if wait?
+	     (with-new-proposal (lose)
+	       (maybe-commit-and-wait-for-condvar condvar))))
+	((cell? got)
+	 (note-channel-result! condvar 
+			       (make-read/write-i/o-error 'channel-maybe-write
+							  (cell-ref got)
+							  channel buffer start count wait?)))
+	(else
+	 (note-channel-result! condvar got)))))))
 
-(define channel-maybe-commit-and-read
-  (channel-maybe-commit-and-do-it channel-maybe-read))
-
-(define channel-maybe-commit-and-write
-  (channel-maybe-commit-and-do-it channel-maybe-write))
+(define (make-read/write-i/o-error who status channel buffer start count wait?)
+  (condition
+   (make-i/o-error status)
+   (make-who-condition who)
+   (make-message-condition
+    (os-string->string
+     (byte-vector->os-string
+      (os-error-message status))))
+   (make-irritants-condition (list channel buffer start count wait?))))
 
 ; Set CONDVAR's value to be RESULT.
 
@@ -65,23 +86,18 @@
 ;----------------
 
 (define (channel-maybe-commit-and-close channel close-channel)
-  (let ((ints (disable-interrupts!)))
-    (if (maybe-commit)
-	(let ((condvar (fetch-channel-condvar! channel)))
-	  (if condvar
-	      (begin
-		(channel-abort channel)
-		(close-channel channel)
-		(note-channel-result! condvar
-				      (if (input-channel? channel)
-					  (eof-object)
-					  0)))
-	      (close-channel channel))
-	  (set-enabled-interrupts! ints)
-	  #t)
-	(begin
-	  (set-enabled-interrupts! ints)
-	  #f))))
+  (maybe-commit-no-interrupts
+   (lambda ()
+     (let ((condvar (fetch-channel-condvar! channel)))
+       (if condvar
+	   (begin
+	     (channel-abort channel)
+	     (close-channel channel)
+	     (note-channel-result! condvar
+				   (if (input-channel? channel)
+				       (eof-object)
+				       0)))
+	   (close-channel channel))))))
 
 (define (input-channel? channel)
   (= (channel-status channel)
@@ -103,16 +119,24 @@
 ;
 ; Called with interrupts disabled.
 
-(define (i/o-completion-handler channel status enabled-interrupts)
+(define (i/o-completion-handler channel error? status enabled-interrupts)
   (let ((condvar (fetch-channel-condvar! channel)))
     (if condvar
-	(note-channel-result! condvar status))))
+	(note-channel-result! condvar
+			      (if error?
+				  (condition
+				   (make-i/o-error)
+				   (make-who-condition 'i/o-completion-handler)
+				   (make-message-condition (os-error-message status))
+				   (make-irritants-condition (list channel enabled-interrupts)))
+				  status)))))
+				  
 
 ; Exported procedure
 ; This should check the list for condvars which have no waiters.
 
 (define (waiting-for-i/o?)
-  (abort-unwanted-i/o!)
+  (abort-unwanted-reads!)
   (not (null? (channel-condvars))))
 
 ;----------------
@@ -158,9 +182,20 @@
 		   (else
 		    (loop (cdr condvars) condvars))))))))
   
-; Abort the i/o operations for any channel whose condvar no longer has waiters.
+; Abort the read operations for any channel whose condvar no longer has waiters.
 
-(define (abort-unwanted-i/o!)
+; The main purpose of ABORT-UNWANTED-READS is to abort reads after the
+; reading threads have died.  The Scheme process sticks around until
+; all I/O has been completed and there is no point in waiting for a
+; read if no one wants the result.
+
+; One upon a time, the intention was to have this procedure abort
+; unwanted writes as well.  However, we must not abort writes which
+; come from the automatic buffer flushing routine, which is hard to
+; detect here.  Moreover, the automatic buffer flushing is currently
+; hard to abort.
+
+(define (abort-unwanted-reads!)
   (let ((ints (disable-interrupts!)))
     (let loop ((condvars (channel-condvars)) (okay '()))
       (if (null? condvars)
@@ -169,9 +204,11 @@
 	    (set-enabled-interrupts! ints))
 	  (let ((condvar (cdar condvars)))
 	    (loop (cdr condvars)
-		  (if (condvar-has-waiters? condvar)
+		  (if (or (not (input-channel? (caar condvars)))
+			  (condvar-has-waiters? condvar))
 		      (cons (car condvars) okay)
 		      (begin
 			(channel-abort (caar condvars))
 			(note-channel-result! condvar 0)
 			okay))))))))
+

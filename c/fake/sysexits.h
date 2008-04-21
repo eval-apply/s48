@@ -1,7 +1,6 @@
 /*
  * If we don't have sysexits.h, we provide our own EX_... definitions.
  */
-#include <sysexits.h>
 #if	defined(HAVE_SYSEXITS_H)
 #include <sysexits.h>
 #else

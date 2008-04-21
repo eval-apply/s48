@@ -1,7 +1,9 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Access to Posix process environment
+
+(import-dynamic-externals "=scheme48external/posix")
 
 ; We multiplex a bunch of these to save typing.
 
@@ -69,8 +71,37 @@
 ;----------------
 ; 4.6 Environment Variables
 
-(import-lambda-definition lookup-environment-variable (name) "posix_get_env")
-(import-lambda-definition environment-alist () "posix_get_env_alist")
+; We cheat here by using one type for both the variable names and
+; their values.  The rules are the same for both, after all.
+
+(define (lookup-environment-variable name)
+  (cond
+   ((external-lookup-environment-variable
+     (os-string->byte-vector
+      (x->os-string name)))
+    => x->os-string)
+   (else #f)))
+
+(define (lookup-environment-variable->string name)
+  (cond
+   ((lookup-environment-variable name)
+    => os-string->string)
+   (else #f)))
+   
+(define (environment-alist)
+  (map (lambda (pair)
+	 (cons (x->os-string (car pair))
+	       (x->os-string (cdr pair))))
+       (external-environment-alist)))
+
+(define (environment-alist-as-strings)
+  (map (lambda (pair)
+	 (cons (os-string->string (car pair))
+	       (os-string->string (cdr pair))))
+       (environment-alist)))
+
+(import-lambda-definition external-lookup-environment-variable (name) "posix_get_env")
+(import-lambda-definition external-environment-alist () "posix_get_env_alist")
 
 ;----------------
 ; 4.7 Terminal Identification

@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 /*
@@ -32,7 +32,7 @@ static s48_value	s48_enter_file_options(int options);
 /*
  * Record types imported from Scheme.
  */
-static s48_value	posix_file_options_type_binding = S48_FALSE;
+static s48_value	posix_file_options_enum_set_type_binding = S48_FALSE;
 
 /*
  * Install all exported functions in Scheme48.
@@ -47,9 +47,9 @@ s48_init_posix_io(void)
   S48_EXPORT_FUNCTION(posix_set_close_on_exec);
   S48_EXPORT_FUNCTION(posix_io_flags);
 
-  S48_GC_PROTECT_GLOBAL(posix_file_options_type_binding);
-  posix_file_options_type_binding =
-    s48_get_imported_binding("posix-file-options-type");
+  S48_GC_PROTECT_GLOBAL(posix_file_options_enum_set_type_binding);
+  posix_file_options_enum_set_type_binding =
+    s48_get_imported_binding("posix-file-options-enum-set-type");
 }
 
 /*
@@ -74,7 +74,7 @@ posix_dup(s48_value channel, s48_value new_mode)
 
   if (!S48_CHANNEL_P(channel) ||
       S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_raise_argument_type_error(channel);
+    s48_assertion_violation("posix_dup", "not an open channel", 1, channel);
   
   old_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
   old_mode = S48_UNSAFE_CHANNEL_STATUS(channel);
@@ -124,10 +124,10 @@ posix_dup2(s48_value channel, s48_value new_fd)
 
   if (!S48_CHANNEL_P(channel) ||
       S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_raise_argument_type_error(channel);
+    s48_assertion_violation("posix_dup2", "not an open channel", 1, channel);
 
   if (!S48_FIXNUM_P(new_fd) || new_fd < 0)
-    s48_raise_argument_type_error(new_fd);
+    s48_assertion_violation("posix_dup2", "fd not a nonnegative fixnum", 1, new_fd);
 
   old_c_fd = s48_extract_fixnum(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
   new_c_fd = s48_extract_fixnum(new_fd);
@@ -169,7 +169,7 @@ posix_pipe()
     		status;
   s48_value	in_channel = S48_FALSE,
             	out_channel = S48_FALSE;
-  s48_value 	id = s48_enter_string("pipe");
+  s48_value 	id = s48_enter_string_latin_1("pipe");
 
   S48_DECLARE_GC_PROTECT(3);
   
@@ -205,7 +205,7 @@ posix_close_on_exec_p(s48_value channel)
 
   if (!S48_CHANNEL_P(channel) ||
       S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_raise_argument_type_error(channel);
+    s48_assertion_violation("posix_close_on_exec_p", "not an open channel", 1, channel);
   
   c_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
 
@@ -222,7 +222,7 @@ posix_set_close_on_exec(s48_value channel, s48_value value)
 
   if (!S48_CHANNEL_P(channel) ||
       S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_raise_argument_type_error(channel);
+    s48_assertion_violation("posix_set_close_on_exec", "not an open channel", 1, channel);
 
   c_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
   
@@ -247,7 +247,7 @@ posix_io_flags(s48_value channel, s48_value options)
 
   if (!S48_CHANNEL_P(channel) ||
       S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_raise_argument_type_error(channel);
+    s48_assertion_violation("posix_io_flags", "not an open channel", 1, channel);
 
   c_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
 
@@ -298,8 +298,9 @@ s48_enter_file_options(int file_options)
     (O_RDWR     & file_options ? 02000 : 0) |
     (O_WRONLY   & file_options ? 04000 : 0);
 
-  sch_file_options = s48_make_record(posix_file_options_type_binding);
-  S48_UNSAFE_RECORD_SET(sch_file_options, 0, s48_enter_fixnum(my_file_options));
+  sch_file_options
+    = s48_integer2enum_set(posix_file_options_enum_set_type_binding,
+			   my_file_options);
 
   return sch_file_options;
 }
@@ -310,9 +311,10 @@ s48_extract_file_options(s48_value sch_file_options)
   int	c_file_options;
   long	file_options;
 
-  s48_check_record_type(sch_file_options, posix_file_options_type_binding);
+  s48_check_enum_set_type(sch_file_options,
+			  posix_file_options_enum_set_type_binding);
 
-  file_options = s48_extract_fixnum(S48_UNSAFE_RECORD_REF(sch_file_options, 0));
+  file_options = s48_enum_set2integer(sch_file_options);
 
   c_file_options =
     (00001 & file_options ? O_CREAT    : 0) |

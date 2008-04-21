@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2000 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 ; Translating the node tree into C
 
@@ -55,6 +55,8 @@
 
 (define (write-c-header header out)
   (format out "#include <stdio.h>~%")
+  (format out "#include <string.h>~%")
+  (format out "#include <stdlib.h>~%")
   (format out "#include \"prescheme.h\"~%")
   (for-each (lambda (s)
 	      (display s out)

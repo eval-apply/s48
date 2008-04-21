@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; These need to operate on both bignums and fixnums.
 ;bignum-add
@@ -98,10 +98,12 @@
 	(if div-by-zero?
 	    (values #t
 		    (enter-fixnum 0)   ;just to have a descriptor
-		    (enter-fixnum 0))
+		    (enter-fixnum 0)
+		    (external-bignum->integer x) (external-bignum->integer y))
 	    (values #f
 		    (external-bignum->integer quot)
-		    (external-bignum->integer rem)))))))
+		    (external-bignum->integer rem)
+		    (external-bignum->integer x) (external-bignum->integer y)))))))
 
 (define (shift-space x n)
   (receive (x-size extra)
@@ -196,11 +198,18 @@
 (define (long->external-bignum x)
   (external-bignum-from-long x))
 
+(define (unsigned-long->external-bignum x)
+  (external-bignum-from-unsigned-long x))
+
 ; Converting between longs and bignums
 
 (define (long->bignum x key)
   (set-bignum-preallocation-key! key)
   (enter-bignum (long->external-bignum x)))
+
+(define (unsigned-long->bignum x key)
+  (set-bignum-preallocation-key! key)
+  (enter-bignum (unsigned-long->external-bignum x)))
 
 (define (external-bignum->integer external-bignum)
   (if (external-bignum-fits-in-word? external-bignum
@@ -208,3 +217,4 @@
 				     #t)
       (enter-fixnum (external-bignum->long external-bignum))
       (enter-bignum external-bignum)))
+

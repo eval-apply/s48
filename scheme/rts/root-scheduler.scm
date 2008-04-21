@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; The root scheduler.
 ;
@@ -16,7 +16,7 @@
 					 quantum
 					 abort)
 				      (lambda ()
-					(abort-unwanted-i/o!)
+					(abort-unwanted-reads!)
 					(spawn-output-forcers #t)
 					(wake-some-threads))
 				      housekeeping-quantum)
@@ -49,8 +49,8 @@
 
 (define (root-handler condition next-handler)
   (let ((out (current-error-port)))
-    (cond ((error? condition)
-	   (display "Error while running root thread, thread killed: " out)
+    (cond ((serious-condition? condition)
+	   (display "Serious problem while running root thread, thread killed: " out)
 	   (display (current-thread) out)
 	   (newline out)
 	   (cheap-display-condition condition out)
@@ -62,20 +62,28 @@
 	   (next-handler)))))
 
 (define (cheap-display-condition condition out)
-  (display (case (car condition)
-	     ((error) "Error")
-	     ((exception) "Exception")
-	     ((warning) "Warning")
-	     (else (car condition)))
-	   out)
-  (display ": " out)
-  (display (cadr condition) out)
-  (newline out)
-  (for-each (lambda (irritant)
-	      (display "    " out)
-	      (display irritant out)
-	      (newline out))
-	    (cddr condition)))
+  (call-with-values
+      (lambda () (decode-condition condition))
+    (lambda (type who message stuff)
+      (display (case type
+		 ((error) "Error")
+		 ((assertion-violation) "Assertion violation")
+		 ((serious) "Serious problem")
+		 ((vm-exception) "VM Exception")
+		 ((warning) "Warning")
+		 (else type))
+	       out)
+      (display ": " out)
+      (display " [" out)
+      (display who out)
+      (display "]" out)
+      (display message out)
+      (newline out)
+      (for-each (lambda (irritant)
+		  (display "    " out)
+		  (display irritant out)
+		  (newline out))
+		stuff))))
 	 
 ; Upcall token
 
@@ -99,7 +107,8 @@
 	      (set-enabled-interrupts! all-interrupts)
 	      #t)
 	     ((or time-until-wakeup
-		  (waiting-for-i/o?))
+		  (waiting-for-i/o?)
+		  (waiting-for-external-events?))
 	      (do-some-waiting time-until-wakeup)
 	      (set-enabled-interrupts! all-interrupts)
 	      (root-wait))

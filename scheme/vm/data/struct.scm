@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; This is file struct.scm.
 
@@ -23,11 +23,14 @@
 (define-shared-primitive-data-type closure #f #t)
 (define-shared-primitive-data-type location)
 (define-shared-primitive-data-type cell)
+
 (define-shared-primitive-data-type weak-pointer)
+
 (define-shared-primitive-data-type shared-binding #f #f
   #f
   ()
   (shared-binding-next set-shared-binding-next!))	; hidden from RTS
+
 (define-shared-primitive-data-type port)
 (define-shared-primitive-data-type channel #f #f
   make-channel                           		; hidden from RTS
@@ -38,7 +41,13 @@
    (channel-close-silently? set-channel-close-silently?!))
   ;; none of these are visible to the RTS
   (channel-next      set-channel-next!)
-  (channel-os-status set-channel-os-status!))
+  ;; this is
+  ;; false - if there's nothing going on
+  ;; true - if there's an operation pending
+  ;; the number of bytes transferred - if error? (below) is false
+  ;; the error code - if error? (below) is true
+  (channel-os-status set-channel-os-status!)
+  (channel-error?    set-channel-error?!))
 
 ; Vectors and so on
 
@@ -62,8 +71,8 @@
   (let ((vector (maybe-make-d-vector+gc (enum stob vector)
 					len)))
     (if (false? vector)
-	(error "Out of space, unable to allocate")
-	vector)))
+	(error "Out of space, unable to allocate"))
+    vector))
 
 (define (vm-vector-fill! v val)
   (do ((i 0 (+ i 1)))
@@ -102,41 +111,99 @@
 (define (code-vector-size len)
   (+ stob-overhead (bytes->cells len)))
 
-; Strings are presented as being one character shorter than they really
-; are to hide the null character at the end.
-
+; for small strings only
 (define (vm-make-string length key)
-  (let ((string (make-b-vector (enum stob string) (+ length 1) key)))
-    (b-vector-set! string length 0)
+  (make-b-vector (enum stob string)
+		 (scalar-value-units->bytes length)
+		 key))
+
+(define (vm-make-string+gc length)
+  (let ((string (maybe-make-b-vector+gc (enum stob string)
+					(scalar-value-units->bytes length))))
+    (if (false? string)
+	(error "Out of space, unable to allocate"))
     string))
-(define vm-string?       (stob-predicate (enum stob string)))
-(define vm-string-length (lambda (x) (- (b-vector-length x) 1)))
-(define vm-string-ref    (lambda (s i) (ascii->char (b-vector-ref s i))))
-(define vm-string-set!   (lambda (s i c) (b-vector-set! s i (char->ascii c))))
+
+(define vm-string? (stob-predicate (enum stob string)))
+
+(define (vm-string-length x)
+  (bytes->scalar-value-units (b-vector-length x)))
+
+; deals in code points, not PreScheme characters
+; #### This should be rewritten as a loop the PreScheme compiler can unroll
+(define (vm-string-ref s i)
+  (let ((base (scalar-value-units->bytes i)))
+    (do ((bits 0 (+ bits bits-per-byte))
+	 (j 0 (+ 1 j))
+	 (scalar-value 0
+		     (adjoin-bits (b-vector-ref s (+ base j))
+				  scalar-value
+				  bits)))
+	((>= j bytes-per-scalar-value-unit)
+	 scalar-value))))
+
+;; #### ditto
+(define (vm-string-set! s i c)
+  (let ((base (scalar-value-units->bytes i)))
+    (do ((bits 0 (+ bits bits-per-byte))
+	 (j 0 (+ 1 j))
+	 (shifted c (unsigned-high-bits shifted bits-per-byte)))
+	((>= j bytes-per-scalar-value-unit))
+      (b-vector-set! s (+ base j)
+		     (low-bits shifted bits-per-byte)))
+    (unspecific)))			; avoid type problem
 
 (define (vm-string-size length)
-  (+ stob-overhead (bytes->cells (+ 1 length))))
+  (+ stob-overhead (bytes->cells (scalar-value-units->bytes length))))
 
-; Two calls for converting external (C) strings to S48 strings.
+; Converting external (C, Latin-1) strings to S48 strings.
 
+; for small strings only
 (define (enter-string string key)
-  (really-enter-string string (string-length string) key))
+  (let* ((len (string-length string))
+	 (v (vm-make-string len key)))
+    (copy-string-to-vm-string/latin-1! string len v)
+    v))
+
+(define (enter-string+gc-n string len)
+  (let ((v (vm-make-string+gc len)))
+    (copy-string-to-vm-string/latin-1! string len v)
+    v))
 
 (define (enter-string+gc string)
-  (let* ((z (string-length string))
-	 (key (ensure-space (vm-string-size z))))
-    (really-enter-string string z key)))
+  (enter-string+gc-n string (string-length string)))
 
-(define (really-enter-string string len key)
-  (let ((v (vm-make-string len key)))
-    (do ((i 0 (+ i 1)))
-	((= i len) v)
-      (vm-string-set! v i (string-ref string i)))))
+(define (copy-string-to-vm-string/latin-1! string len v)
+  (do ((i 0 (+ i 1)))
+      ((>= i len))
+    (vm-string-set! v i (char->ascii (string-ref string i))))
+  (unspecific))
+
+(define (copy-vm-string-to-string/latin-1! vm-string start count string)
+  (do ((i 0 (+ 1 i)))
+      ((>= i count))
+    (let ((c (vm-string-ref vm-string i)))
+      (string-set! string (+ i start) 
+		   (if (<= c 255)
+		       (ascii->char c)
+		       #\?))))
+  (unspecific))
+
+(define (copy-vm-string-chars! from from-index to to-index count)
+  (copy-memory! (address+ (address-after-header from)
+			  (* from-index bytes-per-scalar-value-unit))
+		(address+ (address-after-header to)
+			  (* to-index bytes-per-scalar-value-unit))
+		(* count bytes-per-scalar-value-unit)))
 
 ; This depends on our having 0 bytes at the end of strings.
 
-(define (extract-string string)         ; used by OPEN
-  (fetch-nul-terminated-string (address-after-header string)))
+; We should really be doing the NUL termination here, but
+; DEFINE-CONSING-PRIMITIVE doesn't let us do it easily.
+
+(define (extract-low-string code-vector)         ; used by OPEN
+  (assert (code-vector? code-vector))
+  (fetch-nul-terminated-string (address-after-header code-vector)))
   
 (define (vm-string=? s1 s2)
   (assert (and (vm-string? s1) (vm-string? s2)))
@@ -145,6 +212,13 @@
 	 (memory-equal? (address-after-header s1)
 			(address-after-header s2)
 			len))))
+
+;; This is only a very crude approximation for debugging purposes.
+(define (write-vm-string vm-string out)
+  (do ((size (vm-string-length vm-string))
+       (i 0 (+ 1 i)))
+      ((>= i size) 0)			; make type checker happy
+    (write-char (ascii->char (vm-string-ref vm-string i)) out)))  
 
 ; Number predicates
 
@@ -169,23 +243,33 @@
 
 ; Hashing
 
-; The hash function used here is to take the sum of the ascii values
-; of the characters in the string, modulo the symbol table size.
-;
-; This hash function was also compared against some others, e.g.
-; adding in the length as well, and taking only the odd or only the
-; even characters.  It fared about the same as adding the length, and
-; much better than examining only every other character.
-;
-; Perhaps a hash function that is sensitive to the positions of the
-; characters should be tried?  (Consider CADDR, CDADR, CDDAR.)
-;
-; Of course, if we switched to rehashing, a prime modulus would be
-; important.
+; The hash function used here is taken from srfi-13.
 
+;; biggest Unicode scalar value
+(define greatest-character-code #x10FFFF)
+
+;; BOUND has to be the biggest power of two that fulfils the following
+;; equation to make sure that the intermediate calculations of
+;; STRING-HASH are always fixnums:
+;;
+;;     (<= (+ greatest-character-code (* 37 (- BOUND 1))) 
+;;         greatest-fixnum-value)
+(define bound
+  (let ((x (+ (quotient (- greatest-fixnum-value 
+			   greatest-character-code) 37) 1)))
+    (let lp ((i #x10000))
+      (if (>= i x)
+	  i
+	  (lp (+ i i))))))
+
+;; bitmask to cover (- BOUND 1)
+(define mask (- bound 1))
+
+;; string hash
 (define (vm-string-hash s)
-  (let ((n (vm-string-length s)))
-    (do ((i 0 (+ i 1))
-         (h 0 (+ h (char->ascii (vm-string-ref s i)))))
-        ((>= i n) h))))
-
+  (let ((end (vm-string-length s)))
+    (let lp ((i 0) (ans 0))
+      (if (>= i end)
+	  (remainder ans bound)
+	  (lp (+ i 1)
+	      (bitwise-and mask (+ (* 37 ans) (vm-string-ref s i))))))))

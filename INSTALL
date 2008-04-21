@@ -1,10 +1,15 @@
+Scheme 48 installation instructions for Unix
+--------------------------------------------
+
+(for notes on Windows installation, check WINDOWS.txt)
+
 A typical installation would proceed as follows: download the .tgz
 file to your /tmp directory, and then issue the following shell
 commands:
 
   cd /usr/local/src
-  gunzip </tmp/scheme48-0.55.tgz | tar xf -
-  cd scheme48-0.55
+  gunzip </tmp/scheme48-1.9T.tgz | tar xf -
+  cd scheme48-1.9T
   ./configure
   make install
 
@@ -24,8 +29,36 @@ issue the command "make" instead of "make install" to build it, and
 
 to run it.
 
-What follows is generic information about the 'configure' script.
-For installation information specific to Scheme 48, see doc/install.txt.
+Attached to this file is generic information about the 'configure'
+script.  The 'configure' script that ships with Scheme 48 has some
+specific options, however:
+
+--enable-gc=<gc>
+
+configures Scheme 48 with a specific garbage collector (GC).  Two GCs
+ship with the system "twospace" and "bibop": The twospace GC is the
+default---it is simple, but has inferior performance and requires a
+fixed limit on the heap size.  The bibop GC is much more sophisticated
+and faster, and it allows specifying "-h 0" on the command line,
+meaning that the heap will expand as necessary to accomodate the
+program.  Note that this means that a program with, say, infinite
+non-tail recursion will grow the heap indefinitely.
+
+--enable-universal-binary
+
+works only on Apple Macs and means that Scheme 48 will be built as a
+Universal Binary that can run on both PowerPC and Intel Macs.
+
+--enable-force-32bit
+
+forces configuration for a 32-bit executable on a 64-bit system.
+
+--enable-glib
+
+configures Scheme 48 to use the glib event loop.
+
+For more information on how to customize an installation of Scheme 48,
+see doc/install.txt.
 
 ----------------
 
@@ -146,4 +179,6 @@ Makefile(s), the header file containing system-dependent definitions
 
    The file `configure.in' is used to create `configure' by a program
 called `autoconf'.  You only need it if you want to regenerate
-`configure' using a newer version of `autoconf'.
+`configure' using a newer version of `autoconf'.  To do this, run:
+
+env ACLOCAL="aclocal -I m4" autoreconf -v -i

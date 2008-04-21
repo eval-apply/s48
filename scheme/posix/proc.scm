@@ -1,7 +1,9 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; 3.1 Process Creation and Execution
+
+(import-dynamic-externals "=scheme48external/posix")
 ;
 ; FORK returns the child pid in the parent, and #f in the child.
 
@@ -27,14 +29,24 @@
 ; because the first argument may or may not be the name of the program or file).
 ;
 ; (EXEC-WITH-ALIAS program lookup? environment arguments)
-;   program: string, name of file or program
+;   program: byte vector, name of file or program
 ;   lookup?: should the program be looked up in PATH?
 ;   environment: either #f, which uses the parent's environment in the child,
-;            or a list of strings of the form "name=value".
-;   arguments: a list of strings
+;            or a list of byte vectors, representing text of the form "name=value".
+;   arguments: a list of byte vectors
 
-(import-lambda-definition exec-with-alias (program lookup? environment arguments)
+(import-lambda-definition external-exec-with-alias (program lookup? environment arguments)
 			  "posix_exec")
+
+(define (thing->exec-arg-byte-string thing)
+  (os-string->byte-vector (x->os-string thing)))
+
+(define (exec-with-alias program lookup? environment arguments)
+  (external-exec-with-alias (thing->exec-arg-byte-string program)
+			    lookup?
+			    (and environment
+				 (thing->exec-arg-byte-string environment))
+			    (map thing->exec-arg-byte-string arguments)))
 
 ; Four versions of exec():
 ;  - program looked up, use default environment
@@ -88,7 +100,7 @@
   (if (and (process-id? p1)
 	   (process-id? p2))
       (eq? p1 p2)
-      (call-error process-id=? (list p1 p2))))
+      (assertion-violation 'process-id=? "argument type error" p1 p2)))
 
 ; We need to make these in the outside world.
 (define-exported-binding "posix-process-id-type" :process-id)
@@ -108,7 +120,7 @@
 
 (define (wait-for-child-process pid)
   (if (not (process-id? pid))
-      (call-error wait-for-child-process pid))
+      (assertion-violation wait-for-child-process "not a process id" pid))
   (or (process-id-exit-status pid)
       (process-id-terminating-signal pid)
       (begin

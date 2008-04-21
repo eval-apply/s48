@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 /*
@@ -104,7 +104,7 @@ posix_get_login(void)
 {
   char *login = getlogin();
 
-  return (login == NULL) ? S48_FALSE : s48_enter_string(login);
+  return (login == NULL) ? S48_FALSE : s48_enter_byte_string(login);
 }
 
 static s48_value
@@ -112,9 +112,9 @@ posix_get_env(s48_value name)
 {
   char *value;
 
-  value = getenv(s48_extract_string(name));
+  value = getenv(s48_extract_byte_vector(name));
 
-  return (value == NULL) ? S48_FALSE : s48_enter_string(value);
+  return (value == NULL) ? S48_FALSE : s48_enter_byte_string(value);
 }
 
 /*
@@ -138,8 +138,8 @@ posix_get_env_alist(void)
     s48_value value;
     char *name_end = strchr(entry, '=');
 
-    name = s48_enter_substring(entry, name_end - entry);
-    value = s48_enter_substring(name_end + 1, strlen(name_end + 1));
+    name = s48_enter_byte_substring(entry, name_end - entry);
+    value = s48_enter_byte_substring(name_end + 1, strlen(name_end + 1));
     sch_env = s48_cons(s48_cons(name, value), sch_env); }
    
   S48_GC_UNPROTECT();
@@ -167,13 +167,13 @@ posix_get_groups(void)
   grouplist = (gid_t *) malloc(count * sizeof(gid_t));
 
   if (grouplist == NULL)
-    s48_raise_out_of_memory_error();
+    s48_out_of_memory_error();
 
   RETRY_NEG(status, getgroups(count, grouplist));
 
   if (status == -1) {
     free(grouplist);
-    s48_raise_os_error(errno); }
+    s48_os_error("posix_get_groups", errno, 0); }
 
   for(i = count - 1; i > -1; i--) {
     temp = s48_enter_gid(grouplist[i]);
@@ -209,7 +209,7 @@ posix_sys_name(s48_value which)
   default: value = names.machine;
   }
 
-  return s48_enter_string(value);
+  return s48_enter_string_latin_1(value);
 }
 
 /*
@@ -222,7 +222,7 @@ posix_get_terminal_pathname(void)
   char termid[L_ctermid];
   char *status =  ctermid(termid);
   
-  return (*status == '\0') ? S48_FALSE : s48_enter_string(termid);
+  return (*status == '\0') ? S48_FALSE : s48_enter_byte_string(termid);
 }
 
 static s48_value
@@ -232,7 +232,7 @@ posix_tty_name(s48_value channel)
 
   name = ttyname(S48_UNSAFE_EXTRACT_FIXNUM(S48_CHANNEL_OS_INDEX(channel)));
 
-  return (name == NULL) ? S48_FALSE : s48_enter_string(name);
+  return (name == NULL) ? S48_FALSE : s48_enter_byte_string(name);
 }
 
 static s48_value

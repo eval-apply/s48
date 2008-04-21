@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; Stuff in Pre-Scheme that is not in Scheme.
@@ -129,10 +129,3 @@
 
 (define current-error-port current-output-port)
 
-; RECEIVE (from big-scheme)
-
-(define-syntax receive
-  (syntax-rules ()
-    ((receive ?vars ?producer . ?body)
-     (call-with-values (lambda () ?producer)
-		       (lambda ?vars . ?body)))))

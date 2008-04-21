@@ -1,5 +1,5 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; A hash table for writing images.  Objects to be written out are saved in
 ; the table.
@@ -10,7 +10,7 @@
 
 (define-record-type image-location :image-location
   (really-make-image-location new-descriptor next)
-  (new-descriptor integer image-location-new-descriptor)
+  (new-descriptor integer image-location-new-descriptor set-image-location-new-descriptor!)
   (next           integer image-location-next set-image-location-next!))
 
 (define (make-image-location new-descriptor)

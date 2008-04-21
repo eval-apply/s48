@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 #define _WIN32_WINNT 0x0400/* for SetWaitableTimer */
@@ -13,8 +13,6 @@
 #include "scheme48vm.h"
 #include "event.h"
 
-/* from Lars Bergstrom's port */
-
 static void
 set_signal_catcher(int signum, void (*catcher)(int))
 {
@@ -23,12 +21,24 @@ set_signal_catcher(int signum, void (*catcher)(int))
 
 static long keyboard_interrupt_count = 0;
 
-static void
-when_keyboard_interrupt(int ign)
+static VOID CALLBACK
+keyboard_interrupt_callback(DWORD dwParam)
 {
   keyboard_interrupt_count += 1;
   NOTE_EVENT;
-  return;
+}
+
+HANDLE s48_main_thread;
+
+when_keyboard_interrupt(int ign)
+{
+  if (!QueueUserAPC(keyboard_interrupt_callback,
+		    s48_main_thread,
+		    (DWORD) 0))
+    {
+      fprintf(stderr, "QueueUserAPC failed\n");
+      exit(-1);
+    }
 }
 
 static void
@@ -186,8 +196,9 @@ s48_stop_alarm_interrupts(void)
 typedef struct fd_struct {
  int	fd,			/* file descriptor */
 	status;			/* one of the FD_* constants */
- long   chars_processed;
- bool	is_input;		/* iff input */
+ long   os_status;              /* characters processed or error code */
+ psbool has_error;
+ psbool is_input;		/* iff input */
  struct fd_struct	*next;	/* next on same queue */
 } fd_struct;
 
@@ -256,7 +267,7 @@ addque(fd_struct *entry, fdque *que)
 }
 
 
-static bool
+static psbool
 there_are_ready_ports(void)
 {
   return (ready.first != NULL);
@@ -264,42 +275,45 @@ there_are_ready_ports(void)
 
 
 static int
-next_ready_port(long* chars_processed)
+next_ready_port(long* os_status, psbool* has_error)
 {
   fd_struct	*p;
 
   p = rmque(&ready.first, &ready);
   p->status = FD_QUIESCENT;
-  *chars_processed = p->chars_processed;
+  *os_status = p->os_status;
+  *has_error = p->has_error;
   return (p->fd);
 }
 
 /*
  * Put fd on to the queue of ports with ready operations.
- * Return TRUE if successful, and FALSE otherwise.
+ * Return PSTRUE if successful, and PSFALSE otherwise.
  */
 
-bool
-s48_add_ready_fd(long fd, bool is_input, long chars_processed)
+psbool
+s48_add_ready_fd(long fd, psbool is_input, psbool has_error, long os_status)
 {
   fd_struct* data = fds[fd];  /* we created this before */
 
   data->is_input = is_input;
-  data->chars_processed = chars_processed;
+  data->os_status = os_status;
+  data->has_error = has_error;
 
   if (data->status == FD_READY)
-    return (TRUE); /* fd is already ready */
+    return (PSTRUE); /* fd is already ready */
 
+  data->status = FD_READY;
   addque(data, &ready);
 
-  return TRUE;
+  return PSTRUE;
 }
 
 /*
  * Add a new fd_struct for fd.
  */
 static fd_struct	*
-add_fd(long fd, bool is_input)
+add_fd(long fd, psbool is_input)
 {
   struct fd_struct	*new;
 
@@ -315,7 +329,7 @@ add_fd(long fd, bool is_input)
 }
 
 static fd_struct	*
-get_or_create_fd_struct(long fd, bool is_input)
+get_or_create_fd_struct(long fd, psbool is_input)
 {
   if (fds[fd] == NULL)
     return add_fd(fd, is_input);
@@ -323,8 +337,8 @@ get_or_create_fd_struct(long fd, bool is_input)
     return fds[fd];
 }
 
-bool
-s48_add_pending_fd(int fd, bool is_input)
+psbool
+s48_add_pending_fd(int fd, psbool is_input)
 {
   fd_struct* data = get_or_create_fd_struct(fd, is_input);
   if (data)
@@ -335,14 +349,14 @@ s48_add_pending_fd(int fd, bool is_input)
 	  if (poll_time == -1)
 	    poll_time = s48_current_time + poll_interval;
 	}
-      return TRUE;
+      return PSTRUE;
     }
   else
-    return FALSE;
+    return PSFALSE;
     
 }
 
-bool
+psbool
 s48_is_pending(long fd)
 {
   return (fds[fd] != NULL) && (fds[fd]->status == FD_PENDING);
@@ -353,7 +367,7 @@ s48_is_pending(long fd)
  * Remove fd from any queues it is on.  Returns true if the FD was on a queue
  * and false if it wasn't.
  */
-bool
+psbool
 s48_remove_fd(int fd)
 {
   struct fd_struct	*data;
@@ -362,11 +376,11 @@ s48_remove_fd(int fd)
     fprintf(stderr, "ERROR: s48_remove_fd fd %d not in [0, %d)\n",
 	    fd,
 	    FD_SETSIZE);
-    return FALSE;
+    return PSFALSE;
   }
   data = fds[fd];
   if (data == NULL)
-    return FALSE;
+    return PSFALSE;
   if (data->status == FD_PENDING) {
     /* the callback will see this and no-op */
     data->status = FD_QUIESCENT;
@@ -379,7 +393,79 @@ s48_remove_fd(int fd)
   return TRUE;
 }
 
+HANDLE
+s48_create_mutex_semaphore()
+{
+  HANDLE handle = CreateSemaphore(NULL, /* lpSemaphoreAttributes */
+				  0, /* lInitialCount */
+				  1, /* lMaximumCount */
+				  NULL); /* lpName */
 
+  if (handle == NULL)
+    {
+      fprintf(stderr, "error in CreateSemaphore\n");
+      exit(-1);
+    }
+
+  return handle;
+}
+
+static HANDLE external_event_mutex;
+#define LOCK_EXTERNAL_EVENTS WaitForSingleObject(external_event_mutex, INFINITE)
+#define UNLOCK_EXTERNAL_EVENTS ReleaseSemaphore(external_event_mutex, 1, NULL)
+
+long
+s48_dequeue_external_event(char* readyp)
+{
+  long retval;
+  LOCK_EXTERNAL_EVENTS;
+  retval = s48_dequeue_external_eventBUunsafe(readyp);
+  UNLOCK_EXTERNAL_EVENTS;
+  return retval;
+}
+
+static char
+external_event_pending()
+{
+  char retval;
+  LOCK_EXTERNAL_EVENTS;
+  retval = s48_external_event_pendingPUunsafe();
+  UNLOCK_EXTERNAL_EVENTS;
+  return retval;
+}
+
+/* no side effect */
+static char
+external_event_ready()
+{
+  char retval;
+  LOCK_EXTERNAL_EVENTS;
+  retval = s48_external_event_readyPUunsafe();
+  UNLOCK_EXTERNAL_EVENTS;
+  return retval;
+}
+
+VOID CALLBACK
+s48_when_external_event_interrupt(DWORD dwParam)
+{
+  /* do nothing, except possibly interrupt the running SleepEx */
+}
+
+void
+s48_note_external_event(long uid)
+{
+  LOCK_EXTERNAL_EVENTS;
+  s48_note_external_eventBUunsafe(uid);
+  UNLOCK_EXTERNAL_EVENTS;
+  NOTE_EVENT;
+  if (!QueueUserAPC(s48_when_external_event_interrupt,
+		    s48_main_thread,
+		    (DWORD) 0))
+    {
+      fprintf(stderr, "QueueUserAPC failed\n");
+      exit(-1);
+    }
+}
 
 /*
  *  ; Scheme version of the get-next-event procedure
@@ -421,7 +507,6 @@ s48_get_next_event(long *ready_fd, long *status)
 {
   /* extern int s48_os_signal_pending(void); */
 
-  int io_poll_status;
   /*
     fprintf(stderr, "[poll at %d (waiting for %d)]\n", s48_current_time, alarm_time);
     */
@@ -432,18 +517,21 @@ s48_get_next_event(long *ready_fd, long *status)
   }
   if (poll_time != -1 && s48_current_time >= poll_time) {
     SleepEx(0, TRUE);
-    io_poll_status = NO_ERRORS; // ####
-    if (io_poll_status == NO_ERRORS)
-      poll_time = s48_current_time + poll_interval;
-    else {
-      *status = io_poll_status;
-      return (ERROR_EVENT);
-    }
+    poll_time = s48_current_time + poll_interval;
   }
   if (there_are_ready_ports()) {
-    *ready_fd = next_ready_port(status);
-    /* fprintf(stderr, "[i/o completion]\n"); */
-    return (IO_COMPLETION_EVENT);
+    psbool has_error;
+    *ready_fd = next_ready_port(status, &has_error);
+    if (has_error)
+      {
+	/* fprintf(stderr, "[i/o error on port %ld, status %ld]\n", *ready_fd, *status); */
+	return (IO_ERROR_EVENT);
+      }
+    else
+      {
+	/* fprintf(stderr, "[i/o completion on port %ld, status %ld]\n", *ready_fd, *status); */
+	return (IO_COMPLETION_EVENT);
+      }
   }
   if (alarm_time != -1 && s48_current_time >= alarm_time) {
     alarm_time = -1;
@@ -454,36 +542,39 @@ s48_get_next_event(long *ready_fd, long *status)
   if (s48_os_signal_pending())
     return (OS_SIGNAL_EVENT);
   */
+  if (external_event_pending())
+    return (EXTERNAL_EVENT);
   if ((keyboard_interrupt_count == 0)
       &&  (alarm_time == -1 || s48_current_time < alarm_time)
       &&  (poll_time == -1 || s48_current_time < poll_time))
-    s48_Spending_eventsPS = FALSE;
+    s48_Spending_eventsPS = PSFALSE;
   return (NO_EVENT);
 }
 
 int
-s48_wait_for_event(long max_wait, bool is_minutes)
+s48_wait_for_event(long max_wait, psbool is_minutes)
 {
-  int	status;
-
   /* fprintf(stderr, "[waiting]\n"); */
+
+  DWORD dwMilliseconds;
 
   s48_stop_alarm_interrupts();
 
   if (max_wait == -1)
-    max_wait = 0;
+    dwMilliseconds = INFINITE;
+  else if (is_minutes)
+	dwMilliseconds = max_wait * 60 * 1000;
+  else
+    dwMilliseconds = max_wait * (1000 / TICKS_PER_SECOND);
 
-  if (keyboard_interrupt_count >  0)
-    status = NO_ERRORS;
-  else {
-    SleepEx(is_minutes ? max_wait * 60 * 1000 :
-	    max_wait * (1000 / TICKS_PER_SECOND),
-	    TRUE);
-    if (there_are_ready_ports())
-      NOTE_EVENT;
-  }
+  SleepEx(dwMilliseconds,
+          TRUE);
+  if (there_are_ready_ports()
+      || external_event_ready())
+    NOTE_EVENT;
+
   s48_start_alarm_interrupts();
-  return status;
+  return NO_ERRORS;
 }
 
 
@@ -491,6 +582,21 @@ void
 s48_sysdep_init(void)
 {
   startup_real_time_ticks = GetTickCount();
+
+  /* Yes, this is the official hoopla to get at an absolute handle for
+     the current thread.  GetCurrentThread() returns a *constant*. */
+     
+  if (!DuplicateHandle(GetCurrentProcess(),
+		       GetCurrentThread(), GetCurrentProcess(),
+		       &s48_main_thread,
+		       THREAD_ALL_ACCESS, FALSE, 0))
+    {
+      fprintf(stderr, "DuplicateHandle failed\n");
+      exit(-1);
+    }
+
+  external_event_mutex = s48_create_mutex_semaphore();
+  UNLOCK_EXTERNAL_EVENTS;
 
   start_control_c_interrupts();
 
@@ -502,9 +608,3 @@ s48_sysdep_init(void)
   }
 }
 
-/* kludge */
-
-void
-s48_initialize_external_modules()
-{
-}

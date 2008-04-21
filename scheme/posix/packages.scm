@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 (define-interface posix-files-interface
   (export directory-stream?
@@ -14,6 +14,7 @@
 
 	  (file-options :syntax)
 	  file-options-on?
+	  file-options-union
 
 	  make-directory
 	  make-fifo
@@ -86,22 +87,23 @@
 		    (posix-time  posix-time-interface)
 		    (posix-users posix-users-interface))
   (open scheme define-record-types finite-types
-	external-calls
-	external-util
+	external-calls load-dynamic-externals
 	bitwise			;for manipulating protection masks
-	signals			;call-error
+	exceptions
 	posix-file-options
 	channel-i/o
-	channel-ports)
+	channel-ports
+	os-strings)
   (for-syntax (open scheme bitwise))
   (files dir))
 
 (define-structure posix-file-options (export ((file-option file-options)
 					        :syntax)
 					     file-options?
-					     file-options-on?)
-  (open scheme define-record-types finite-types
-	external-calls
+					     file-options-on?
+					     file-options-union)
+  (open scheme define-record-types finite-types enum-sets
+	external-calls load-dynamic-externals
 	bitwise)
   (files file-options))
 
@@ -115,8 +117,8 @@
 	  get-groups
 	  get-login-name
 
-	  lookup-environment-variable
-	  environment-alist
+	  lookup-environment-variable  lookup-environment-variable->string
+	  environment-alist environment-alist-as-strings
 	  ))
 
 (define-interface posix-platform-names-interface
@@ -125,7 +127,9 @@
 
 (define-structures ((posix-process-data posix-process-data-interface)
 		    (posix-platform-names posix-platform-names-interface))
-  (open scheme define-record-types external-calls
+  (open scheme define-record-types
+	external-calls load-dynamic-externals
+	os-strings
 	interrupts
 	posix-processes posix-users posix-time) ; we need these to be loaded
   (files proc-env))
@@ -160,6 +164,8 @@
 	  signal-os-number
 	  integer->signal
 	  name->signal
+          signal=?
+          signal?
 
 	  make-signal-queue
 	  dequeue-signal!
@@ -170,18 +176,22 @@
 	  ))
 
 (define-structure posix-processes posix-processes-interface
-  (open scheme define-record-types finite-types external-calls
+  (open scheme
+	define-record-types finite-types
+	reinitializers
+	external-calls load-dynamic-externals
 	interrupts
 	placeholders
 	weak
 	value-pipes
 	debug-messages
 	session-data
-	signals			;call-error
+	exceptions
 	root-scheduler		;scheme-exit-now
 	channel-ports		;force-channel-output-ports!
 	interrupts		;set-interrupt-handler!
-	architecture)		;interrupts enum
+	architecture		;interrupts enum
+	os-strings)
   (files proc
 	 signal))
 
@@ -209,15 +219,16 @@
 
 (define-structure posix-i/o posix-i/o-interface
   (open scheme
-	external-calls
+	external-calls load-dynamic-externals
 	i/o			;read-block
 	channels
 	channel-i/o
 	channel-ports
-	signals			;call-error
+	exceptions
 	util
 	posix-file-options
 	ports			;port?
+	os-strings
 	architecture
 	enum-case)
   (files io))
@@ -236,9 +247,11 @@
 
 (define-structures ((posix-regexps posix-regexps-interface)
 		    (posix-regexps-internal (export make-match)))
-  (open scheme define-record-types finite-types external-calls
-	signals
-	external-util)
+  (open scheme define-record-types finite-types
+	external-calls load-dynamic-externals
+	(subset big-util (string->immutable-string))
+	exceptions
+	os-strings text-codecs)
   (files regexp))
 
 (define-interface regexps-interface
@@ -248,14 +261,18 @@
 
 	  negate intersection union subtract
 
+	  regexp?
+
 	  lower-case upper-case alphabetic
 	  numeric hexdigit
 	  alphanumeric
-	  punctuation whitespace
+	  punctuation whitespace blank
 	  graphic printing
 	  control
 
 	  sequence one-of text repeat
+
+	  string-start string-end
 
 	  ignore-case use-case
 
@@ -279,7 +296,7 @@
 
 (define-structures ((regexps regexps-interface)
 		    (regexps-internal regexps-internal-interface))
-  (open scheme define-record-types mvlet ascii signals
+  (open scheme define-record-types mvlet ascii unicode exceptions
 	bitwise bigbit
 	reduce
 	(modify posix-regexps (rename (make-regexp make-posix-regexp)))
@@ -308,22 +325,3 @@
 	posix-users
 	posix-regexps))
 
-(define-structure external-util (export immutable-copy-string)
-  (open scheme
-	primitives	;copy-bytes!
-	features)	;immutable? make-immutable!
-  (begin
-    (define (immutable-copy-string string)
-      (if (immutable? string)
-	  string
-	  (let ((copy (copy-string string)))
-	    (make-immutable! copy)
-	    copy)))
-
-    ; Why isn't this available elsewhere?
-
-    (define (copy-string string)
-      (let* ((length (string-length string))
-	     (new (make-string length #\?)))
-	(copy-bytes! string 0 new 0 length)
-	new))))

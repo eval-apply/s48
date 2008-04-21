@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
 ; This is for version 0.28
@@ -9,7 +9,7 @@
 ; We redefine these two so as not to compromise the security of the
 ; built-in exception and interrupt systems:
 ;   primitives
-;   signals
+;   simple-signals
 
 
 ; Suppose you have just done "make image" to build the scheme48 heap image.

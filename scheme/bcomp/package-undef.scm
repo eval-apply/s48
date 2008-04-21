@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; The entry point for all this.
 
@@ -19,32 +19,41 @@
 			    (get-location (thingie-binding x)
 					  package
 					  (thingie-name x)
-					  (thingie-want-type x))))
+					  (thingie-assigned? x))))
 	    ((template? x)
 	     (really-link! x package))))))
 
-; GET-LOCATION returns a location to be stored away in a template.  If the
-; wanted meta-type, which is either `value-type' or `usual-variable-type'
-; (for SET!), matches that in the binding, then we just return the binding's
-; location after noting that we are doing so.
+; GET-LOCATION returns a location to be stored away in a template.  If
+; ASSGINED? (which is #t if the variable is SET!) matches the type of
+; the binding, then we just return the binding's location after noting
+; that we are doing so.
 ;
 ; If the type doesn't match then we make a location and remember that we
 ; have done so.  If correct location becomes available later we will replace
 ; the bogus one (see env/pedit.scm).
 
-(define (get-location binding cenv name want-type)
-  (if (binding? binding)
-      (let ((place (binding-place binding)))
-	(cond ((compatible-types? (binding-type binding) want-type)
-	       (note-caching! cenv name place)
-	       place)
-	      ((variable-type? want-type)
-	       (get-location-for-unassignable cenv name))
-	      (else
-	       (warn "invalid variable reference" name cenv)
-	       (note-caching! cenv name place)
-	       place)))
-      (get-location-for-undefined cenv name)))
+(define (get-location binding cenv name assigned?)
+  (cond
+   ((binding? binding)
+    (let ((place (binding-place binding))
+	  (type (binding-type binding)))
+      (cond
+       ((variable-type? type)
+	(note-caching! cenv name place)
+	place)
+       (assigned?
+	(get-location-for-unassignable cenv name))
+       ((value-type? type)
+	(note-caching! cenv name place)
+	place)
+       (else
+	(warning 'get-location "invalid variable reference" name cenv)
+	(note-caching! cenv name place)
+	place))))
+    (assigned?
+     (get-location-for-undefined cenv name location-for-assignment))
+    (else
+     (get-location-for-undefined cenv name location-for-reference))))
 
 ; Packages have three tables used by env/pedit.scm:
 ;   undefineds
@@ -68,7 +77,7 @@
 (define get-undefined
   (location-on-demand package-undefineds))
 
-(define location-for-assignment
+(define get-undefined-but-assigned
   (location-on-demand package-undefined-but-assigneds))
 
 ; If this package is mutable and it gets NAME from some other structure
@@ -79,13 +88,18 @@
       (if (not (table-ref (package-definitions package) name))
 	  (let loop ((opens (package-opens package)))
 	    (if (not (null? opens))
-		(if (interface-member? (structure-interface (car opens))
-				       name)
-		    (begin (table-set! (package-cached package) name place)
-			   (package-note-caching!
-			    (structure-package (car opens))
-			    name place))
-		    (loop (cdr opens))))))))
+		(call-with-values
+		    (lambda ()
+		      (interface-ref (structure-interface (car opens))
+				     name))
+		  (lambda (internal-name type)
+		    (if internal-name
+			(begin
+			  (table-set! (package-cached package) name place)
+			  (package-note-caching!
+			   (structure-package (car opens))
+			   internal-name place))
+                        (loop (cdr opens))))))))))
 
 ; Find the actual package providing PLACE and remember that it is being used.
 
@@ -105,24 +119,25 @@
       (get-location-for-unassignable (generated-env name)
 				     (generated-name name))
       (let ((package (cenv->package cenv)))
-	(warn "invalid assignment" name)
+	(warning 'get-location-for-unassignable "invalid assignment" name)
 	(if (package? package)
-	    (lambda () (location-for-assignment package name))
+	    (lambda () (get-undefined-but-assigned package name))
 	    (lambda () (make-undefined-location name))))))
 
 ; Get a location for NAME, which is undefined.
 
-(define (get-location-for-undefined cenv name)
+(define (get-location-for-undefined cenv name get-location)
   (if (generated? name)
       (get-location-for-undefined (generated-env name)
-				  (generated-name name))
+				  (generated-name name)
+				  get-location)
       (let ((package (cenv->package cenv)))
 	((or (fluid $note-undefined)
 	     (lambda (cenv name) (values)))
 	   cenv
 	   name)
         (if (package? package)
-	    (let ((place (location-for-reference package name)))
+	    (let ((place (get-location package name)))
 	      (package-note-caching! package name place)
 	      place)
 	    (make-undefined-location name)))))
@@ -144,13 +159,31 @@
 ; Exported for env/pedit.scm.
 
 (define (location-for-reference package name)
-  (let loop ((opens (package-opens package)))
-    (if (null? opens)
-	(get-undefined package name)
-	(if (interface-member? (structure-interface (car opens))
-			       name)
-	    (location-for-reference (structure-package (car opens)) name)
-	    (loop (cdr opens))))))
+  (get-undefined-location package name get-undefined #f))
+
+(define (location-for-assignment package name)
+  (get-undefined-location package name get-undefined-but-assigned #t))
+
+(define (get-undefined-location package name get-undefined warn-assignment?)
+  (let location ((package package)
+		 (name name)
+		 (warn? warn-assignment?))
+    (let loop ((opens (package-opens package)))
+      (if (null? opens)
+	  (get-undefined package name)
+	  (call-with-values
+	      (lambda ()
+		(interface-ref (structure-interface (car opens))
+			       name))
+	    (lambda (internal-name type)
+	      (if internal-name
+		  (begin
+		    (if warn?
+			(warning 'location-for-assignment "invalid assignment" name))
+		    (location (structure-package (car opens))
+			      internal-name
+			      #f))
+		  (loop (cdr opens)))))))))
 
 ;----------------
 ; Maintain and display a list of undefined names.
@@ -195,7 +228,8 @@
 				(generated-name name)
 				name))
 			  (reverse names))))
-	  (apply warn
+	  (apply warning
+		 'print-undefined-names
 		 "undefined variables"
 		 env
 		 names)))))

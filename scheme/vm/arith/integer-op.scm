@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Integer-only primitive operations
 
@@ -34,22 +34,32 @@
 	(else
 	 (goto return-boolean #f))))
 
-(define (vm-number-predicate rationals? doubles?)
+(define-primitive integer?  (any->)
+  (lambda (n)
+    (cond ((or (fixnum? n)
+	       (bignum? n))
+	       (goto return-boolean #t))
+	  ((or (extended-number? n)
+	       (double? n))
+	   (unary-lose n))
+	  (else
+	   (goto return-boolean #f)))))
+
+(define vm-number-predicate
   (lambda (n)
     (cond ((or (fixnum? n)
 	       (bignum? n)
-	       (and rationals? (ratnum? n))
-	       (and doubles? (double? n)))
+	       (ratnum? n)
+	       (double? n))
 	   (goto return-boolean #t))
 	  ((extended-number? n)
 	   (unary-lose n))
 	  (else
 	   (goto return-boolean #f)))))
 
-(define-primitive integer?  (any->) (vm-number-predicate #f #f))
-(define-primitive rational? (any->) (vm-number-predicate #t #t))
-(define-primitive real?     (any->) (vm-number-predicate #t #t))
-(define-primitive complex?  (any->) (vm-number-predicate #t #t))
+(define-primitive rational? (any->) vm-number-predicate)
+(define-primitive real?     (any->) vm-number-predicate)
+(define-primitive complex?  (any->) vm-number-predicate)
 
 ; These assume that ratnums and doubles aren't being used.
 
@@ -84,18 +94,19 @@
 (define-integer-only (numerator   n) n)
 (define-integer-only (denominator n) (enter-fixnum 1))
 
-(define-primitive angle (any->)
+(define-primitive angle (vm-integer->)
   (lambda (n)
     (if (if (fixnum? n)
-	    (fixnum>= n (enter-fixnum 0))
+	    (fixnum> n (enter-fixnum 0))
 	    (bignum-nonnegative? n))
 	(goto return (enter-fixnum 0))
 	(unary-lose n))))
 
 (define-primitive magnitude (vm-integer->) 
-  (lambda (x) (if (fixnum? x)
-		  (enter-integer (abs x) (ensure-space long-as-integer-size))
-		  (integer-abs x))))
+  (lambda (x)
+    (if (fixnum? x)
+	(goto return-integer (abs (extract-fixnum x)))
+	(goto return (integer-abs x)))))
 
 ; These all just raise an exception and let the run-time system do the work.
 
@@ -214,17 +225,14 @@
 	   (call-with-values
 	    (lambda ()
 	      (integer-divide x y))
-	    (lambda (div-by-zero? quot rem)
+	    (lambda (div-by-zero? quot rem x y)
 	      (if (and (not div-by-zero?)
 		       (fixnum? rem)
 		       (= (enter-fixnum 0) rem))
 		  (goto return quot)
 		  (binary-lose x y)))))
 	  ((and (double? x) (double? y))
-	   (let ((result (flonum-divide x y)))
-	     (if (false? result)
-		 (binary-lose x y)
-		 (goto return result))))
+	   (goto return (flonum-divide x y)))
 	  (else
 	   (binary-lose x y)))))
 

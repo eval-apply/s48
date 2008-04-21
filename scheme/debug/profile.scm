@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; This was a fun hack, but I didn't get much useful information out of
 ; it -- a profiler that only samples at points allowed by the VM's
@@ -10,8 +10,8 @@
 
 '
 (define-structure profiler (export profile)
-  (open scheme-level-2 handle exception ;interrupts
-	architecture continuation signals condition template
+  (open scheme-level-2 handle vm-exception ;interrupts
+	architecture continuation simple-signals condition template
 	table structure-refs debug-data sort
 	clock) ;schedule-interrupt
   (files (misc profile)))
@@ -24,8 +24,8 @@
 	(let ((foo (continuation-template k0)))
 	  (with-handler
 	      (lambda (c punt)
-		(if (and (interrupt? c)
-			 (eq? (interrupt-type c) interrupt/alarm))
+		(if (and (interrupt-condition? c)
+			 (eqv? (interrupt-source c) interrupt/alarm))
 		    (primitive-catch
 		      (lambda (k)
 			(record-profile-information! k foo table)

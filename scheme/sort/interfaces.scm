@@ -92,38 +92,58 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; heap-sort  < v [start end] -> vector
-;;; heap-sort! < v        -> unspecific
+;;; vector-heap-sort  < v [start end] -> vector
+;;; vector-heap-sort! < v        -> unspecific
 
 (define-interface vector-heap-sort-interface
-  (export (heap-sort (proc ((proc (:value :value) :boolean)
-			    :vector 
-			    &opt :exact-integer :exact-integer)
-			   :vector))
-	  (heap-sort! (proc ((proc (:value :value) :boolean) :vector) :unspecific))))
+  (export (vector-heap-sort (proc ((proc (:value :value) :boolean)
+				   :vector 
+				   &opt :exact-integer :exact-integer)
+				  :vector))
+	  (vector-heap-sort! (proc ((proc (:value :value) :boolean) :vector) :unspecific))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; insert-sort  < v [start end] -> vector
-;;; insert-sort! < v [start end] -> unspecific
+;;; vector-insert-sort  < v [start end] -> vector
+;;; vector-insert-sort! < v [start end] -> unspecific
 ;;;
 ;;; internal:
-;;; %insert-sort! < v start end -> unspecific
+;;; %vector-insert-sort! < v start end -> unspecific
 
 (define-interface vector-insertion-sort-interface
-  (export (insert-sort (proc ((proc (:value :value) :boolean)
-			      :vector 
-			      &opt :exact-integer :exact-integer)
-			     :vector))
-	  (insert-sort! (proc ((proc (:value :value) :boolean)
-			       :vector 
-			       &opt :exact-integer :exact-integer)
-			      :unspecific))))
+  (export (vector-insert-sort (proc ((proc (:value :value) :boolean)
+				     :vector 
+				     &opt :exact-integer :exact-integer)
+				    :vector))
+	  (vector-insert-sort! (proc ((proc (:value :value) :boolean)
+				      :vector 
+				      &opt :exact-integer :exact-integer)
+				     :unspecific))))
 
 (define-interface vector-insertion-sort-internal-interface
-  (export (%insert-sort! (proc ((proc (:value :value) :boolean)
-				:vector 
-				:exact-integer :exact-integer)
-			       :unspecific))))
+  (export (%vector-insert-sort! (proc ((proc (:value :value) :boolean)
+				       :vector 
+				       :exact-integer :exact-integer)
+				      :unspecific))))
+
+(define-interface vector-quick-sort-interface
+  (export (vector-quick-sort (proc ((proc (:value :value) :boolean)
+				    :vector 
+				    &opt :exact-integer :exact-integer)
+				   :vector))
+	  (vector-quick-sort! (proc ((proc (:value :value) :boolean)
+				     :vector 
+				     &opt :exact-integer :exact-integer)
+				    :unspecific))))
+
+(define-interface vector-quick-sort3-interface
+  (export (vector-quick-sort3 (proc ((proc (:value :value) :exact-integer)
+				     :vector 
+				     &opt :exact-integer :exact-integer)
+				    :vector))
+	  (vector-quick-sort3! (proc ((proc (:value :value) :exact-integer)
+				      :vector 
+				      &opt :exact-integer :exact-integer)
+				     :unspecific))))
 
 ;;; The general sort interface:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -152,7 +172,7 @@
 ;;;
 ;;; vector-delete-neighbor-dups v = [start end] -> vector
 
-(define-interface sort-interface
+(define-interface sorting-interface
   (compound-interface
    sorted-interface
    (export
@@ -185,15 +205,15 @@
 	   :vector))
 
     ((vector-sort! vector-stable-sort!)
-     (proc ((proc (:value :value) :boolean) :vector) :unspecific)))
+     (proc ((proc (:value :value) :boolean) :vector) :unspecific))
 
-   (list-delete-neighbor-dups
-    (proc ((proc (:value :value) :boolean)
-	   :value)
-	  :value))
-   (vector-delete-neighbor-dups
-    (proc ((proc (:value :value) :boolean)
-	   :vector
-	   &opt
-	   :exact-integer :exact-integer)
-	  :vector))))
+    (list-delete-neighbor-dups
+     (proc ((proc (:value :value) :boolean)
+	    :value)
+	   :value))
+    (vector-delete-neighbor-dups
+     (proc ((proc (:value :value) :boolean)
+	    :vector
+	    &opt
+	    :exact-integer :exact-integer)
+	   :vector)))))

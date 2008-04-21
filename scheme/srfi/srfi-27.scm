@@ -33,6 +33,8 @@
 ;   MG, September 2002: merged in mrg32k2a.scm, move package definitons to
 ;                       more-packages.scm, renamed from srfi-27-b.scm to srfi-27.scm
 
+(import-dynamic-externals "=scheme48external/srfi-27")
+
 (define-record-type :random-source
   (:random-source-make
    state-ref
@@ -51,15 +53,16 @@
 
 
 (define (:random-source-current-time)
-  (time-seconds (current-time)))
+  (current-time))
 
-					; interface to core generator
+;; interface to core generator
 
 (import-lambda-definition mrg32k3a-pack-state1 (state))
 (import-lambda-definition mrg32k3a-unpack-state1 (state))
 (import-lambda-definition mrg32k3a-random-range ())
 (import-lambda-definition mrg32k3a-random-integer (state range))
 (import-lambda-definition mrg32k3a-random-real (state))
+(import-lambda-definition current-time ())
 
 (define (mrg32k3a-pack-state state)
   (mrg32k3a-pack-state1

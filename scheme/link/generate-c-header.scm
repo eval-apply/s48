@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; [This is a kludge.  Richard is loathe to include it in the
 ; distribution.  But now the system itself uses it, so we're stuck.]
@@ -50,6 +50,13 @@
 	    (format #t "#ifndef _H_SCHEME48~%")
 	    (format #t "#define _H_SCHEME48~%")
 	    (newline)
+	    (format #t "#include <scheme48arch.h>~%")
+	    (newline)
+	    (format #t "#ifdef __cplusplus~%")
+	    (format #t "extern \"C\"~%")
+	    (format #t "{~%")
+	    (format #t "#endif~%")
+	    (newline)
 	    (copy-file c-in-file)
 	    (newline)
 	    (tag-stuff tag-list)
@@ -65,6 +72,13 @@
 	    (newline)
 	    (enumeration-stuff channel-status-list
 		       "S48_CHANNEL_STATUS_~A S48_UNSAFE_ENTER_FIXNUM(~D)")
+	    (newline)
+	    (format #t "#include <scheme48write-barrier.h>")
+	    (newline)
+	    (format #t "#ifdef __cplusplus~%")
+	    (format #t "/* closing brace for extern \"C\" */~%")
+	    (format #t "}~%")
+	    (format #t "#endif~%")
 	    (newline)
 	    (format #t "#endif /* _H_SCHEME48 */")
 	    (newline)))))))
@@ -89,7 +103,7 @@
       (c-define "S48_~A    (S48_MISC_IMMEDIATE(~D))" name i)))
   (newline)
   (c-define "S48_UNSAFE_ENTER_CHAR(c) (S48_CHAR | ((c) << 8))")
-  (c-define "S48_UNSAFE_EXTRACT_CHAR(x) ((unsigned char)((x) >> 8))")
+  (c-define "S48_UNSAFE_EXTRACT_CHAR(x) ((long)((x) >> 8))")
   (c-define "S48_CHAR_P(x) ((((long) (x)) & 0xff) == S48_CHAR)"))
 
 (define (stob-stuff stob-list stob-data)
@@ -108,7 +122,7 @@
 	       "long __stob_set_i = (i); "
 	       "s48_value __stob_set_v = (v); "
 	       "if (S48_STOB_IMMUTABLEP(__stob_set_x)) "
-	       "s48_raise_argument_type_error(__stob_set_x); "
+	       "s48_assertion_violation(NULL, \"immutable stob\", 1, __stob_set_x); "
 	       "else { "
 	       "S48_WRITE_BARRIER((__stob_set_x), "
 	       "(char *) (&S48_STOB_REF((__stob_set_x), (__stob_set_i))),"
@@ -123,7 +137,7 @@
 	       "long __stob_set_i = (i); "
 	       "char __stob_set_v = (v); "
 	       "if (S48_STOB_IMMUTABLEP(__stob_set_x)) "
-	       "s48_raise_argument_type_error(__stob_set_x); "
+	       "s48_assertion_violation(NULL, \"immutable stob\", 1, __stob_set_x); "
 	       "else "
 	       "*(&S48_STOB_BYTE_REF((__stob_set_x), (__stob_set_i))) = (__stob_set_v); "
 	       "} while (0)"))
@@ -131,7 +145,7 @@
     (c-define "S48_STOB_HEADER(x) (S48_STOB_REF((x),-1))")
     (c-define "S48_STOB_ADDRESS(x) (&(S48_STOB_HEADER(x)))")
     (c-define "S48_STOB_BYTE_LENGTH(x) (S48_STOB_HEADER(x) >> 8)")
-    (c-define "S48_STOB_DESCRIPTOR_LENGTH(x) (S48_STOB_HEADER(x) >> 10)")
+    (c-define "S48_STOB_DESCRIPTOR_LENGTH(x) (S48_STOB_BYTE_LENGTH(x) >> S48_LOG_BYTES_PER_CELL)")
     (c-define "S48_STOB_IMMUTABLEP(x) ((S48_STOB_HEADER(x)>>7) & 1)")
     (c-define "S48_STOB_MAKE_IMMUTABLE(x) ((S48_STOB_HEADER(x)) |= (1<<7))")
     (newline)
@@ -187,10 +201,13 @@
 			  type)
 		(c-define "S48_UNSAFE_~A_SET(x, i, v) S48_BYTE_STOB_SET((x), (i), (v))"
 			  type))
-	      '("BYTE_VECTOR" "STRING"))
+	      '("BYTE_VECTOR"))
     (c-define "S48_UNSAFE_BYTE_VECTOR_LENGTH(x) (S48_STOB_BYTE_LENGTH(x))")
-    (c-define "S48_UNSAFE_STRING_LENGTH(x) (S48_STOB_BYTE_LENGTH(x) - 1)")
-    (c-define "S48_UNSAFE_EXTRACT_STRING(x) (S48_ADDRESS_AFTER_HEADER((x), char))")
+    (c-define "S48_UNSAFE_EXTRACT_BYTE_VECTOR(x) (S48_ADDRESS_AFTER_HEADER((x), char))")
+
+    (c-define "S48_STRING_LENGTH(s) (s48_string_length(s))")
+    (c-define "S48_STRING_REF(s, i) (s48_string_ref((s), (i)))")
+    (c-define "S48_STRING_SET(s, i, v) (s48_string_set((s), (i), (v)))")
 
     (c-define (string-append "S48_EXTRACT_EXTERNAL_OBJECT(x, type) "
 			     "((type *)(S48_ADDRESS_AFTER_HEADER(x, long)+1))"))))

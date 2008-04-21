@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2000 by Richard Kelsey.  See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
 ; Type checking nodes.
 
@@ -109,7 +109,8 @@
 	 type/boolean)
 	((char? value)
 	 type/char)
-	((integer? value)
+	((and (integer? value)
+	      (exact? value))
 	 type/integer)
 	((real? value)
 	 type/float)
@@ -225,16 +226,28 @@
   (let ((depth (+ depth 1))
 	(uid (unique-id))
 	(proc (node-form proc)))
-    (do ((names (cadr proc) (cdr names))
-	 (vals args (cdr vals)))
-	((null? names))
-      (let ((type (schemify-type (infer-type (car vals) depth) depth)))
-	(if (type-scheme? type)
-	    (set-node-type! (car names) type)
-	    (unify! (initialize-name-node-type (car names) uid depth)
-		    type
-		    node))))
-    (infer-any-type (caddr proc) depth return?)))
+    (let ((all-names (cadr proc)))
+
+      (define (arity-mismatch)
+	(format #t "Arity mismatch ~S ~S~%" (map schemify all-names) (map schemify args))
+	(if *currently-checking*
+	    (format #t "~% while reconstructing the type of '~S'" *currently-checking*))
+	(error "type error"))
+
+      (do ((names all-names (cdr names))
+	   (vals args (cdr vals)))
+	  ((null? names)
+	   (if (not (null? vals))
+	       (arity-mismatch)))
+	(if (null? vals)
+	    (arity-mismatch))
+	(let ((type (schemify-type (infer-type (car vals) depth) depth)))
+	  (if (type-scheme? type)
+	      (set-node-type! (car names) type)
+	      (unify! (initialize-name-node-type (car names) uid depth)
+		      type
+		      node))))
+      (infer-any-type (caddr proc) depth return?))))
 
 (define (rule-for-primitives node depth primitive args return?)
   ((primitive-inference-rule primitive)
@@ -269,25 +282,15 @@
 				(or (not (null? (cdr exps)))
 				    return?)))))))
 
-; It would be nice if we could just try to unify the two arms and return
-; type/unit if we lost, but unification has side-effects.
-
 (define-inference-rule 'if
   (lambda (node depth return?)
-    (let* ((args (cdr (node-form node)))
-	   (true-type (infer-any-type (cadr args) depth return?))
-	   (false-type (infer-any-type (caddr args) depth return?)))
-      (unify! (infer-type (car args) depth) type/boolean node)
-      (cond ((eq? true-type type/null)
-	     false-type)
-	    ((eq? false-type type/null)
-	     true-type)
-	    (else
-	     (unify! true-type false-type node)
-	     (if (or (eq? true-type type/unit)
-		     (eq? false-type type/unit))
-		 type/unit
-		 true-type))))))
+    (let ((args (cdr (node-form node))))
+      (let ((test-type (infer-type (car args) depth))
+	    (true-type (infer-any-type (cadr args) depth return?))
+	    (false-type (infer-any-type (caddr args) depth return?)))
+	(unify! test-type type/boolean node)
+	(unify! true-type false-type node)
+	true-type))))
 
 ; Unions haven't been completely implemented yet.
 ;

@@ -1,4 +1,4 @@
-/* Copyright (c) 1993-2000 by Richard Kelsey and Jonathan Rees.
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
 #include <stdio.h>
@@ -6,14 +6,12 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <string.h>
+
+#include <windows.h>
+
 #include "io.h"
 #include "scheme48.h"
-
-#undef TRUE
-#define	TRUE	(0 == 0)
-#undef FALSE
-#define	FALSE	(! TRUE)
-#define	bool	char
+#include "c-mods.h"
 
 /* read a character while ignoring interrupts */
 
@@ -50,38 +48,38 @@ s48_read_char(FILE *port)
 /* called when getc(port) returned EOF */
 
 char
-ps_read_char(FILE *port, bool *eofp, long *status, bool peekp)
+ps_read_char(FILE *port, psbool *eofp, long *status, psbool peekp)
 {
-  bool errorp;
+  psbool errorp;
   int result;
 
   result = s48_read_char(port);     /* read past any interruptions */
   if (result != EOF) {
     if (peekp)
       ungetc(result, port);
-    *eofp = FALSE;
+    *eofp = PSFALSE;
     *status = NO_ERRORS;
     return result; }
   else {
     errorp = ferror(port);
     clearerr(port);
     if (errorp) {
-      *eofp = FALSE;
+      *eofp = PSFALSE;
       *status = errno;
       return 0; }
     else {
-      *eofp = TRUE;
+      *eofp = PSTRUE;
       *status = NO_ERRORS;
       return 0; } }
 }
 
 long
-ps_read_integer(FILE *port, bool *eofp, long *status)
+ps_read_integer(FILE *port, psbool *eofp, long *status)
 {
   long result;
   int ch;
-  bool negate;
-  bool errorp;
+  psbool negate;
+  psbool errorp;
 
   /* eat whitespace */
   do { READ_CHAR(port, ch); }
@@ -89,23 +87,23 @@ ps_read_integer(FILE *port, bool *eofp, long *status)
 
   /* read optional sign */
   if (ch == '-') {
-    negate = TRUE;
+    negate = PSTRUE;
     READ_CHAR(port, ch); }
   else
-    negate = FALSE;
+    negate = PSFALSE;
 
   if (ch < '0' || '9' < ch) {
     if (ch != EOF) {
-      *eofp = FALSE;
+      *eofp = PSFALSE;
       *status = EINVAL; }  /* has to be something */
     else {
       errorp = ferror(port);
       clearerr(port);
       if (errorp) {
-	*eofp = FALSE;
+	*eofp = PSFALSE;
 	*status = errno; }
       else {
-	*eofp = TRUE;
+	*eofp = PSTRUE;
 	*status = 0; } }
     result = 0; }
   else {
@@ -117,7 +115,7 @@ ps_read_integer(FILE *port, bool *eofp, long *status)
       result = (10 * result) + (ch - '0'); }
     if (ch != EOF)
       ungetc(ch, port);
-    *eofp = FALSE;
+    *eofp = PSFALSE;
     *status = 0; }
   return (negate ? -result : result);
 }
@@ -197,15 +195,15 @@ ps_write_string(char *string, FILE *port)
 }
 
 long
-ps_read_block(FILE *port, char *buffer, long count, bool *eofp, long *status)
+ps_read_block(FILE *port, char *buffer, long count, psbool *eofp, long *status)
 {
   int got = 0;
-  bool errorp;
+  psbool errorp;
 
   while(TRUE) {
     got += fread(buffer, sizeof(char), count - got, port);
     if (got == count) {
-      *eofp = FALSE;
+      *eofp = PSFALSE;
       *status = NO_ERRORS;
       return got;}
     else if (ferror(port) && errno == EINTR)
@@ -300,4 +298,11 @@ ps_close(FILE *stream)
     return 0;
   else
     return errno;
+}
+
+char*
+s48_get_os_string_encoding(void)
+{
+  /* really UTF-8of16, but that doesn't matter at the Scheme level */
+  return "UTF-8";
 }

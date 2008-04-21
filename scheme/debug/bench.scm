@@ -1,10 +1,10 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Tiny benchmarking image.
 
 ; This returns the result of calling recursive FIB on its first argument.
 
-(define (start arg in out error)
+(define (start arg in in-encoding out out-encoding error error-encoding)
   (fib (string->integer (vector-ref arg 0))))
 
 (define (string->integer s)

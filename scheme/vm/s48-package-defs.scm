@@ -1,8 +1,8 @@
-; Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 
-(define-structures ((vm-utilities vm-utilities-interface))
-  (open prescheme)
+(define-structure vm-utilities vm-utilities-interface
+  (open scheme prescheme)
   (files (util vm-utilities))
   (begin
 ;    (define-syntax assert
@@ -13,9 +13,9 @@
     	  (error "assertion failed")))
     ))
 
-(define-structures ((external external-interface))
+(define-structure external external-interface
   (open scheme bitwise ps-memory)
-  (for-syntax (open scheme signals)) ; for error
+  (for-syntax (open scheme)) ; for error
   (files (util external)))
 
 (define-structures ((channel-io channel-interface)
@@ -27,12 +27,3 @@
 					close-input-port close-output-port
 					errors)))
   (files (util s48-channel)))
-
-; The number of usable bits in a small integer.
-
-(define-structures ((system-spec (export useful-bits-per-word)))
-  (open prescheme)
-  (begin
-    (define useful-bits-per-word 30)   ; in Scheme 48
-    ))
-
