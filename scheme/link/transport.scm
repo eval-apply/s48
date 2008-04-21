@@ -143,7 +143,7 @@
   (transport-two-slot (enum stob closure)
                       closure-template closure-template-offset
                       closure-env      closure-env-offset
-                      #t))  ; ***
+                      #f))
 
 (define transport-pair
   (transport-two-slot (enum stob pair)

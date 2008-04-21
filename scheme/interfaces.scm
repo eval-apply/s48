@@ -153,8 +153,8 @@
 (define-interface closures-interface
   (export closure?
 	  make-closure
-	  closure-env
-	  closure-template))
+	  closure-env set-closure-env!
+	  closure-template set-closure-template!))
 
 (define-interface byte-vectors-interface
   (export byte-vector?

@@ -601,7 +601,7 @@
     (cell cell? make-cell
       (cell-ref cell-set!))
     (closure closure? make-closure
-      (closure-template) (closure-env))
+      (closure-template set-closure-template!) (closure-env set-closure-env!))
     (weak-pointer weak-pointer? #f ; make-weak-pointer is an op
       (weak-pointer-ref))
     (shared-binding shared-binding? make-shared-binding
