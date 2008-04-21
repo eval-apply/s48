@@ -563,7 +563,7 @@ DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		build/dummy build/*.wxs 				\
 		build/*.bmp build/*.ico					\
 		build/scheme48-config.in				\
-		c/*.[ch] c/*/*.[ch] c/*/*.ci c/*.exp			\
+		c/*.[ch] c/*/*.[ch] c/*/*.ci c/*.exp c/*.def		\
 		c/scheme48.h.in						\
 		c/scheme48write-barrier.h c/scheme48arch.h.in		\
 		emacs/*.el gdbinit					\
