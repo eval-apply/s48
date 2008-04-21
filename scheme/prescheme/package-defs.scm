@@ -20,7 +20,7 @@
 	platform
 	signals ; #### replace by EXCEPTIONS at some point in the future
 	define-record-types
-	(subset util (receive))
+	receiving
 	bigbit)   ; make sure that bignum bitwise operations are loaded
   (optimize auto-integrate)
   (begin
