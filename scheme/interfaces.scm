@@ -77,7 +77,6 @@
 	  make-double
 	  make-extended-number
 	  make-immutable!
-	  make-mutable!
 	  make-record
 	  make-template
 	  make-weak-pointer
@@ -144,9 +143,7 @@
   (export closure?
 	  make-closure
 	  closure-env
-	  closure-template
-	  set-closure-env!
-	  set-closure-template!))
+	  closure-template))
 
 (define-interface byte-vectors-interface
   (export byte-vector?
