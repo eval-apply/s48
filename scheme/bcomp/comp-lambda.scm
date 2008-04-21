@@ -38,8 +38,7 @@
     (sequentially
       (really-compile-flat-lambda name vars body free-vars depth frame)
       env-code
-      (instruction (enum op make-stored-object) 2 (enum stob closure))
-      (instruction (enum op make-immutable!)))))
+      (instruction (enum op make-stored-object) 2 (enum stob closure)))))
 
 ; Save the current locations of the free variables, compile the lambda, and
 ; then restore the old locations.

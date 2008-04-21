@@ -15,8 +15,7 @@
 	    (literal->index frame (primop-closed-template name)))
 	  (instruction (enum op push))
 	  (instruction (enum op false))		; no environment
-	  (instruction (enum op make-stored-object) 2 (enum stob closure))
-	  (instruction (enum op make-immutable!)))
+	  (instruction (enum op make-stored-object) 2 (enum stob closure)))
 	cont))))
 
 (define (primop-closed-template name)
