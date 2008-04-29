@@ -412,7 +412,7 @@ install: enough dirs \
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.def $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48-external.exp $(DESTDIR)$(incdir)
 # install Scheme source files
-	for stub in env big sort opt misc link posix cml srfi; do	\
+	for stub in env big sort opt misc link posix cml srfi r6rs; do	\
 		for f in $(srcdir)/scheme/$$stub/*.scm; do		\
 			$(INSTALL_DATA) $$f $(DESTDIR)$(SHARE)/$$stub || exit 1;	\
 		done;							\
@@ -470,11 +470,11 @@ c/scheme48.def: c/scheme48.h c/fd-io.h c/event.h
 	$(CAT_EXPORTS) >> $(srcdir)/c/scheme48.def
 
 dirs:
-	for dir in $(libdir) $(bindir) $(incdir) $(datadir); do			 \
+	for dir in $(libdir) $(bindir) $(incdir) $(datadir); do		 \
 		$(srcdir)/mkinstalldirs $(DESTDIR)$$dir || exit 1;	 \
 	done
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(LIB)
-	for dir in rts env big sort opt misc link posix cml srfi; do	  \
+	for dir in rts env big sort opt misc link posix cml srfi r6rs; do   \
 		$(srcdir)/mkinstalldirs $(DESTDIR)$(SHARE)/$$dir || exit 1; \
 	done
 
@@ -634,7 +634,7 @@ PACKAGES=scheme/packages.scm scheme/rts-packages.scm scheme/alt-packages.scm \
 	 scheme/comp-packages.scm scheme/initial-packages.scm \
 	 scheme/link-packages.scm scheme/env-packages.scm \
 	 scheme/sort/packages.scm scheme/more-packages.scm \
-	 scheme/cml/packages.scm \
+	 scheme/cml/packages.scm scheme/r6rs/packages.scm \
 	 build/filenames.scm
 
 $(srcdir)/build/filenames.make: $(PACKAGES)
