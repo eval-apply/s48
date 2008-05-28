@@ -7,27 +7,40 @@
 
 ;; profiling information for each template
 (define-record-type profinfo :profinfo
-  (make-profinfo template callers totaltime occurs)
+  (make-profinfo template callers occurs hist)
   profinfo?
   (template  profinfo-template)                           ; scheme code template
   (callers   profinfo-callers   profinfo-set-callers!)    ; table of callerinfos
-  (totaltime profinfo-totaltime profinfo-set-totaltime!)  ; comu self independent of caller
   (occurs    profinfo-occurs    profinfo-set-occurs!)
-  (tself     profinfo-tself     profinfo-set-tself!)
+  (hist      profinfo-hist      profinfo-set-hist!)
   (tchild    profinfo-tchild    profinfo-set-tchild!)
+  (toporder  profinfo-toporder  profinfo-set-toporder!)
+  (dfn       profinfo-dfn       profinfo-set-dfn!)        ; depth-first number
+  (cycle     profinfo-cycle     profinfo-set-cycle!)
   )
 
 ;; hash function for callers table in profiling information
 (define (profinfo-id pi)
   (template-id (profinfo-template pi)))
 
+(define-record-type cycleinfo :cycleinfo
+  (make-cycleinfo number members)
+  cycleinfo?
+  (number  cycleinfo-number)                                 ; consecutive numbering
+  (members cycleinfo-members cycleinfo-set-members!)         ; member profinfos
+  (tchild  cycleinfo-tchild  cycleinfo-set-tchild!)
+  )
+
+(define *cycles* #f)
+
 ;; profiling data for template when being called by CALLER
 (define-record-type callerinfo :callerinfo
-  (make-callerinfo caller calls totaltime)
+  (make-callerinfo caller calls)
   callerinfo?
-  (caller    callerinfo-caller)                               ; caller profinfo
-  (calls     callerinfo-calls     callerinfo-set-calls!)      ; number of calls
-  (totaltime callerinfo-totaltime callerinfo-set-totaltime!)) ; total time run
+  (caller    callerinfo-caller)                            ; caller profinfo
+  (calls     callerinfo-calls  callerinfo-set-calls!)      ; number of calls
+  (tself     callerinfo-tself  callerinfo-set-tself!)      ; time spent in called self
+  (tchild    callerinfo-tchild callerinfo-set-tchild!))    ; time spent in children of called
 
 ;; represents a stack entry (while profiling)
 (define-record-type stackentry :stackentry
@@ -71,6 +84,11 @@
       (table-ref *templates* (stackentry-template stack-entry))
       #f))
 
+;; debug display
+(define (ddisplay x)
+;  (display x)
+  #f)
+
 ;;; MAIN
 
 (define (profile command)
@@ -85,11 +103,15 @@
 			     port)
   (calculate-tick-rate!)
   (receive results (do-profile thunk)
+	   (depth-numbering)
 	   (propagate-times)
 	   (display-result-overview port)
-	   (display-flat-result port)
-	   (newline port)
-	   (display-tree-result port)
+	   (if (> *samples* 0)
+	       (begin
+		 (display-flat-result port)
+		 (newline port)
+		 (display-tree-result port))
+	       (display "No data collected!\n" port))
 	   (apply values results)))
 
 (define (do-profile thunk)
@@ -228,54 +250,44 @@
   (display (total-run-time) port)
   (display "ms" port)
   (newline port)
-  (display "** Sampled run time: " port)
-  (display (round (total-sampled-run-time)) port)
-  (display "ms" port)
-  (newline port)
   
   (display "** Samples: " port)
   (display *samples* port)
+  (newline port)
   (newline port))
 
 (define (display-flat-result port)
   
   (display "** Flat result (times in ms): " port)
   (newline port)
-
+  (newline port)
+  
   ;; gprof:
   ;;      %   cumulative   self              self     total           
   ;;   time   seconds   seconds    calls  ms/call  ms/call  name
-
-  ; first caption row
-  (display-w "" 7 port)
-  (display-w "meas" 7 port)
-  (display-w "meas" 7 port)
-  (display-w "hist" 7 port)
-  (display-w "hist" 7 port)
-  (display-w "" 7 port)
-  (display-w "" 14 port)
-  (display-w "" 8 port)
-  (display-w "" 5 port)
-  (newline)
   
-  
-  ; third caption row
   (display-w "time" 7 port)
   (display-w "cumu" 7 port)
   (display-w "self" 7 port)
-  (display-w "cumu" 7 port)
-  (display-w "self" 7 port)
-  (display-w "hist" 7 port)
+  (display-w "(hist)" 12 port)
   (display-w "calls" 14 port)
   (display-w "ms/call" 9 port)
-  (display-w "name" 5 port)
-  (newline)
-  
-  (table-walk (lambda (template profinfo)
+  (display-w "name" 7 port)
+  (newline port)
+
+  ;; sort and print
+  (let ((lst '())) 
+    (table-walk (lambda (template profinfo)
+		  (set! lst (cons profinfo lst)))
+		*templates*)
+    (set! lst (list-sort (lambda (a b) 
+			   (>= (profinfo-hist a)
+			       (profinfo-hist b)))
+			 lst))
+    (for-each (lambda (profinfo)
 		(display-profinfo-flat profinfo port)
 		(newline port))
-	      *templates*)
-  )
+	      lst)))
 
 ;; display data "gprof call graph"-like
 (define (display-tree-result port)
@@ -283,41 +295,33 @@
   (display "** Tree result (times in ms): " port)
   (newline port)
 
-;  index % time    self  children    called     name
-  
-  (display-w "" 7 port)
-  (display-w "meas" 7 port)
-  (display-w "hist" 7 port)
-  (display-w "hist" 7 port)
-  (display-w "" 7 port)
-  (display-w "" 12 port)
-  (display-w "" 5 port)
-  (newline)
-  
-  (display-w "time" 7 port)
-  (display-w "time" 7 port)
-  (display-w "" 7 port)
-  (display-w "" 7 port)
-  (display-w "" 7 port)
-  (display-w "" 12 port)
-  (display-w "" 5 port)
-  (newline)
-  
-  (display-w "share" 7 port)
-  (display-w "total" 7 port)
+  (newline port)
+  (display-w "i" 3 port)
+  (display-w "time" 8 port)
   (display-w "self" 7 port)
   (display-w "child" 7 port)
-  (display-w "hist" 7 port)
+  (display-w "(hist)" 12 port)
   (display-w "calls" 12 port)
-  (display-w "name" 5 port)
-  (newline)
+  (display-w "name" 7 port)
+  (newline port)
 
-  
-  (table-walk (lambda (template profinfo)
+  ;; sort and print
+  (let ((sorted-templates 
+	    (get-sorted-templates (lambda (pi) (- (profinfo-occurs pi)))))
+	(toporder 0))
+    (for-each (lambda (profinfo)
+		(profinfo-set-toporder! profinfo toporder)
+		(set! toporder (+ toporder 1)))
+	      sorted-templates)
+    (for-each (lambda (profinfo)
 		(display-profinfo-tree profinfo port)
 		(display "==========================================================================================" port)
 		(newline port))
-	      *templates*)
+	      sorted-templates))
+  
+  (for-each (lambda (cyc)
+	      (display-cycle-tree cyc port))
+	    *cycles*)
   )
 
 ;; Are there no functions for this!?
@@ -341,106 +345,203 @@
 
   (let* ((template     (profinfo-template            profinfo))
 	 (occurs       (profinfo-occurs              profinfo))
-	 (callers      (profinfo-callers             profinfo))
 	 (calls        (profinfo-total-calls         profinfo))
 	 (reccalls     (profinfo-total-reccalls      profinfo))
 	 (nonreccalls  (profinfo-total-nonreccalls   profinfo))
-	 (totaltime    (profinfo-real-totaltime      profinfo))
-	 (selftime     (profinfo-selftime            profinfo))
-	 (tself        (profinfo-tself               profinfo))
-	 (tchild       (profinfo-tchild              profinfo))
-	 (ttotal       (+ tself tchild))
-	 (timeshare    (save/ selftime (total-sampled-run-time)))
-	 (ms/call      (save/ totaltime calls)))
+	 (hist         (profinfo-hist                profinfo))
+	 (timeshare    (save/ hist *samples*))
+	 (ms/call      (save/ (occurs->ms occurs) calls)))
 
     (display-w (number-as-percent-string timeshare)  7 port)
-    (display-w-nr totaltime 7 port)
-    (display-w-nr selftime 7 port)
-    (display-w-nr (occurs->ms ttotal) 7 port)
-    (display-w-nr (occurs->ms tself) 7 port)
-    (display-w-nr occurs 7 port)
+    (display-w-nr (occurs->ms occurs) 7 port)
+    (display-w-nr (occurs->ms hist) 7 port)
+    (display-sep-nz-nrs occurs hist "+" 12 port)
     (display-sep-nz-nrs nonreccalls reccalls "+" 14 port)
     (display-w-nr ms/call 9 port)
    
-    (display " " port)
-    (display-location template port))) ; name
+    (display "   " port)
+    (display-location template port) ; name
+    ))
 
+(define (display-cycle-tree cycleinfo port)
+  (let* ((number    (cycleinfo-number    cycleinfo))
+	 (members   (cycleinfo-members   cycleinfo))
+	 (callers   (cycleinfo-called-from cycleinfo))
+	 (intcalls  (cycleinfo-internal-calls cycleinfo))
+	 (extcalls  (cycleinfo-external-calls cycleinfo))
+	 (hist      (cycleinfo-hist     cycleinfo))
+	 (tchild    (cycleinfo-tchild    cycleinfo))
+	 (fromextcalls     (sumup-calls-int/ext-cycle cycleinfo #f))
+	 (ttotal    (+ hist tchild))
+	 (timeshare (save/ ttotal *samples*)))
+
+    ;; print cycle callers
+    (for-each
+     (lambda (caller-pi)
+       (let* ((calls        (cycleinfo-calls-from  cycleinfo caller-pi))
+	      (tchild       (/ (* tchild calls) fromextcalls)))
+	 (display-w "" 3 port)
+	 (display-w "" 8 port)
+	 (display-w-nr (occurs->ms hist) 7 port)
+	 (display-w-nr (occurs->ms tchild) 7 port)
+	 (display-w "" 12 port)
+	 (display-sep-nz-nrs calls fromextcalls "/" 12 port)
+	 
+	 (display "      " port)
+	 (display-profinfo-name caller-pi port)
+	 (newline port)))
+     callers)
+    
+    
+    ;; print primary line
+    (display-w-nr number 3 port)
+    (display-w (number-as-percent-string timeshare) 8 port)
+    (display-w-nr (occurs->ms hist) 7 port)
+    (display-w-nr (occurs->ms tchild) 7 port)
+    (display-w "" 12 port)
+    (display-sep-nz-nrs extcalls intcalls "+" 12 port)
+    
+    (display "   " port)
+    (display "<cycle " port)
+    (display number port)
+    (display " as a whole>" port)
+    (newline port)
+
+    ;; print cycle members
+    (for-each
+     (lambda (member-pi)
+       (let* ((intcalls     (calls-int/ext-cycle cycleinfo member-pi #t))
+	      (occurs       (profinfo-occurs              member-pi))
+	      (hist         (profinfo-hist                member-pi))
+	      (tchild       (cycleinfo-tchild-member      cycleinfo member-pi)))
+	 (display-w "" 3 port)
+	 (display-w "" 8 port)
+	 (display-w-nr (occurs->ms hist) 7 port)
+	 (display-w-nr (occurs->ms tchild) 7 port)
+	 (display-w-nr occurs 12 port)
+	 (display-w-nr intcalls 12 port)
+	 
+	 (display "      " port)
+	 (display-profinfo-name member-pi port)
+	 (newline port)))
+     members)
+    
+    ;; print functions called out of the cycle
+    (for-each
+     (lambda (called-pi)
+       (let* ((nonreccalls  (profinfo-total-nonreccalls   called-pi))
+	      (calls        (cycleinfo-calls-to cycleinfo called-pi)))
+	 (display-w "" 3 port)
+	 (display-w "" 8 port)
+	 (display-w-nr 0 7 port)
+	 (display-w-nr 0 7 port)
+	 (display-w "" 12 port)
+	 (display-sep-nrs calls nonreccalls "/" 12 port)
+	 
+	 (display "      " port)
+	 (display-profinfo-name called-pi port)
+	 (newline port)))
+     (cycleinfo-called-externals cycleinfo))))
+
+
+
+;; TODO: clean up unused variables
 (define (display-profinfo-tree primary-pi port)
   (let* ((template     (profinfo-template            primary-pi))
+	 (toporder     (profinfo-toporder            primary-pi))
+	 (dfn          (profinfo-dfn                 primary-pi))
 	 (callers      (profinfo-callers             primary-pi))
 	 (occurs       (profinfo-occurs              primary-pi))
 	 (calls        (profinfo-total-calls         primary-pi))
 	 (reccalls     (profinfo-total-reccalls      primary-pi))
 	 (nonreccalls  (profinfo-total-nonreccalls   primary-pi))
-	 (tself        (profinfo-tself               primary-pi))
+	 (upcalls      (profinfo-total-upcalls       primary-pi))
+	 (hist         (profinfo-hist                primary-pi))
 	 (tchild       (profinfo-tchild              primary-pi))
-	 (totaltime    (profinfo-real-totaltime      primary-pi))
-	 (timeshare    (save/ totaltime (total-sampled-run-time)))
-	 (ms/call      (save/ totaltime calls)))
-
+	 (primary-cyc  (profinfo-cycle               primary-pi))
+	 (timeshare    (save/ occurs *samples*))
+	 (ms/call      (save/ (occurs->ms occurs) calls)))
+    
     ;; print parents
     (if (= (table-size callers) 0)
-	(begin (display-w " " 47 port) (display "      <spontaneous>" port) (newline))
-	(table-walk (lambda (caller-pi cinfo)
-		      (if (not (eq? caller-pi primary-pi))
-			  (let* ((template  (profinfo-template caller-pi))
-				 (occurs    (profinfo-occurs   caller-pi))
-				 (calls     (callerinfo-calls      cinfo))
-				 (totaltime (callerinfo-totaltime  cinfo))
-				 (share     (/ calls nonreccalls))
-				 (tself-share  (* tself  share))  ; TODO: correct when recursive function?
-				 (tchild-share (* tchild share)))
+	(begin (display-w " " 49 port) (display "      <spontaneous>" port) (newline))
+	(table-walk
+	 (lambda (caller-pi cinfo)
+	   (if (neq? caller-pi primary-pi)
+	       (let* ((template     (profinfo-template caller-pi))
+		      (dfn          (profinfo-dfn      caller-pi))
+		      (occurs       (profinfo-occurs   caller-pi))
+		      (caller-cyc   (profinfo-cycle    caller-pi))
+		      (calls        (callerinfo-calls  cinfo))
+		      (share        (/ calls upcalls))
+		      (tself-share  (* hist   share))  ; TODO: correct when recursive function?
+		      (tchild-share (* tchild share)))
+		 (display-w "" 3 port)
+		 (display-w "" 8 port)
 
-			    (display-w "" 7 port)
-			    (display-w-nr totaltime 7 port)
-			    (display-w-nr (occurs->ms tself-share) 7 port)
-			    (display-w-nr (occurs->ms tchild-share) 7 port)
-			    (display-w-nr occurs 7 port)
-			    (display-sep-nrs calls nonreccalls "/" 12 port)
-			    
-			    (display "      " port)
-			    (display-location template port)
-			    (newline))))
-		    callers))
+		 (if (neq? caller-cyc primary-cyc)
+		     (begin
+		       (display-w-nr (occurs->ms tself-share) 7 port)
+		       (display-w-nr (occurs->ms tchild-share) 7 port))
+		     (begin
+		       (display-w "" 7 port)
+		       (display-w "" 7 port)))
+		     
+		 (display-w-nr occurs 12 port)
+		 (display-sep-nrs calls nonreccalls "/" 12 port)
+		 
+		 (display "      " port)
+		 (display-profinfo-name caller-pi port)
+		 (newline port))))
+	 callers))
     
     ;; print primary line
-    (display-w (number-as-percent-string timeshare)  7 port)
-    (display-w-nr totaltime 7 port)
-    (display-w-nr (occurs->ms tself) 7 port)
+    (display-w-nr toporder 3 port)
+    (display-w (number-as-percent-string timeshare) 8 port)
+    (display-w-nr (occurs->ms hist) 7 port)
     (display-w-nr (occurs->ms tchild) 7 port)
-    (display-w-nr occurs 7 port)
+    (display-sep-nz-nrs occurs hist "+" 12 port)
     (display-sep-nz-nrs nonreccalls reccalls "+" 12 port)
     
     (display "   " port)
-    (display-location template port)
-    (newline)
+    (display-profinfo-name primary-pi port)
+    (newline port)
     
     ;; print children
-    (for-each (lambda (called-pi)
-		(if (not (eq? called-pi primary-pi))
-		    (let* ((template     (profinfo-template          called-pi))
-			   (occurs       (profinfo-occurs            called-pi))
-			   (cinfo        (profinfo-get-callerinfo    called-pi primary-pi))
-			   (nonreccalls  (profinfo-total-nonreccalls called-pi))
-			   (tself        (profinfo-tself             called-pi))
-			   (tchild       (profinfo-tchild            called-pi))
-			   (calls        (callerinfo-calls           cinfo))
-			   (totaltime    (callerinfo-totaltime       cinfo))
-			   (share        (/ calls nonreccalls))
-			   (tself-share  (* tself  share))  ; TODO: correct when recursive function?
-			   (tchild-share (* tchild share)))
-		      
-		      (display-w "" 7 port)
-		      (display-w-nr totaltime 7 port)
-		      (display-w-nr (occurs->ms tself-share) 7 port)
-		      (display-w-nr (occurs->ms tchild-share) 7 port)
-		      (display-w-nr occurs 7 port)
-		      (display-sep-nrs calls nonreccalls "/" 12 port)
-		      
-		      (display "      " port)
-		      (display-location template port)
-		      (newline))))
-	      (profinfo-calls primary-pi))))
+    (for-each
+     (lambda (called-pi)
+       (if (not (eq? called-pi primary-pi))
+	   (let* ((template     (profinfo-template            called-pi))
+		  (dfn          (profinfo-dfn                 called-pi))
+		  (occurs       (profinfo-occurs              called-pi))
+		  (calls        (number-of-calls   primary-pi called-pi))
+		  (nonreccalls  (profinfo-total-nonreccalls   called-pi))
+		  (upcalls      (profinfo-upcalls  primary-pi called-pi))
+		  (hist         (profinfo-hist                called-pi))
+		  (tchild       (profinfo-tchild              called-pi))
+		  (called-cyc   (profinfo-cycle               called-pi))
+		  (share        (/ calls upcalls))
+		  (tself-share  (* hist  share))  ; TODO: correct when recursive function?
+		  (tchild-share (* tchild share)))
+	     
+	     (display-w "" 3 port)
+	     (display-w "" 8 port)
+	     
+	     (if (neq? called-cyc primary-cyc)
+		 (begin
+		   (display-w-nr (occurs->ms tself-share) 7 port)
+		   (display-w-nr (occurs->ms tchild-share) 7 port))
+		 (begin
+		   (display-w "" 7 port)
+		   (display-w "" 7 port)))
+	     
+	     (display-w-nr occurs 12 port)
+	     (display-sep-nrs calls nonreccalls "/" 12 port)
+	     
+	     (display "      " port)
+	     (display-profinfo-name called-pi port)
+	     (newline port))))
+     (profinfo-calls primary-pi))))
 
 
 ;; displays functionname and file of a code template
@@ -457,11 +558,29 @@
 	  (if (pair? (cdr names))
 	      (begin (display " in " port)
 		     (loop (cdr names))))))))
-  
+
+(define (display-profinfo-name pi port)
+  (let* ((template (profinfo-template pi))
+	 (dfn      (profinfo-dfn      pi))
+	 (cyc      (profinfo-cycle    pi)))
+    
+    (display-location template port)
+
+    (if cyc
+	(begin
+	  (display " <cycle " port)
+	  (display (cycleinfo-number cyc))
+	  (display ">" port)))
+    
+    (display " [" port)
+    (display dfn port)
+    (display "]" port)
+    ))
+
 ;;; DATA CALCULATION
 
 (define (occurs->ms occs)
-  (round (/ (* occs (total-sampled-run-time))
+  (round (/ (* occs (total-run-time))
 	    *samples*)))
 
 (define (total-run-time)
@@ -470,52 +589,194 @@
 	(- *end-time* *start-time*)
 	#f))
 
-(define (total-sampled-run-time)
-    (let ((tsrt 0))
-      (table-walk (lambda (template profinfo)
-		    (set! tsrt (+ tsrt (profinfo-selftime profinfo))))
-		  *templates*)
-      tsrt))
+;;; cycle stuff
 
-(define (profinfo-real-totaltime pi)
-  (let ((t (profinfo-totaltime pi)))
-    (if t t 0)))
+(define (make-new-cycleinfo)
+  (let ((new (make-cycleinfo (length *cycles*) '())))
+    new))
+
+(define (cycleinfo-add ci)
+  (if (not (memq? ci *cycles*))
+      (set! *cycles* (cons ci *cycles*))))
+
+(define (cycleinfo-add-member ci member)
+  (let ((members (cycleinfo-members ci)))
+    (if (not (memq? member members))
+	(cycleinfo-set-members! ci (cons member members)))))
+
+;; is profinfo a member of cycle ci?
+(define (cycleinfo-member? ci profinfo)
+  (memq? profinfo
+	 (cycleinfo-members ci)))
+  
+(define (cycleinfo-foreach-member ci f)
+  (for-each f (cycleinfo-members ci)))
+
+;; number of calls to function called-pi from cycle or from outside of cycle
+(define (calls-int/ext-cycle ci called-pi internal)
+  (let ((cnt-calls 0)
+	(caller-list (profinfo-callers called-pi)))
+    (table-walk (lambda (caller-pi cinfo)
+		  (if (and (eq? (cycleinfo-member? ci caller-pi)
+				internal)
+			   (neq? caller-pi called-pi))
+		      (set! cnt-calls (+ cnt-calls (callerinfo-calls cinfo)))))
+		caller-list)
+    cnt-calls))
+
+;; sum up internal calls of the cycle or calls from outside into the cycle
+(define (sumup-calls-int/ext-cycle ci internal)
+  (let ((cnt-calls 0))
+    (cycleinfo-foreach-member
+     ci
+     (lambda (member-pi)
+       (set! cnt-calls (+ cnt-calls (calls-int/ext-cycle ci member-pi internal)))))
+    cnt-calls))
+
+;; calls done in the cycle internally
+(define (cycleinfo-internal-calls ci)
+  (sumup-calls-int/ext-cycle ci #t))
+
+;; calls done from outside into the cycle
+(define (cycleinfo-external-calls ci)
+  (sumup-calls-int/ext-cycle ci #f))
+
+;; time spent in the functions of the cycle itself
+(define (cycleinfo-hist ci)
+  (let ((tt 0))
+    (cycleinfo-foreach-member
+     ci
+     (lambda (pi)
+       (set! tt (+ tt
+		   (profinfo-hist pi)))))
+    tt))
 
 
-(define (profinfo-get-callerinfo called caller)
-  (let ((caller-list (profinfo-callers called)))
-    (table-ref caller-list caller)))
+;; list of function profinfos the called cycle ci
+(define (cycleinfo-called-from ci)
+  (let ((lst '()))
+    (cycleinfo-foreach-member
+     ci
+     (lambda (member-pi)
+       (let ((caller-list (profinfo-callers member-pi)))
+	 ;; add share of every function called from this cycle-function to total
+	 (table-walk (lambda (caller-pi cinfo)
+		     (if (and (not (cycleinfo-member? ci caller-pi))
+			      (not (memq? caller-pi lst)))
+			 (set! lst (cons caller-pi lst))))
+		   caller-list))))
+    lst))
+
+;; list of function profinfos called from cycle ci
+(define (cycleinfo-called-externals ci)
+  (let ((lst '()))
+    (cycleinfo-foreach-member
+     ci
+     (lambda (member-pi)
+       (let ((called-list (profinfo-calls member-pi)))
+	 ;; add share of every function called from this cycle-function to total
+	 (for-each (lambda (called-pi)
+		     (if (and (not (cycleinfo-member? ci called-pi))
+			      (not (memq? called-pi lst)))
+			 (set! lst (cons called-pi lst))))
+		   called-list))))
+    lst))
+
+;; calls from cycle ci to some other function
+(define (cycleinfo-calls-to ci called-pi)
+  (let ((cnt-calls 0))
+    (cycleinfo-foreach-member
+     ci
+     (lambda (member-pi)
+       (set! cnt-calls (+ cnt-calls
+			  (number-of-calls member-pi called-pi)))))
+    cnt-calls))
+
+;; calls to cycle ci from some other function
+(define (cycleinfo-calls-from ci caller-pi)
+  (let ((cnt-calls 0))
+    (cycleinfo-foreach-member
+     ci
+     (lambda (member-pi)
+       (set! cnt-calls (+ cnt-calls
+			  (number-of-calls caller-pi member-pi)))))
+    cnt-calls))
+
+
+;; time spent in functions outside the cycle called from member-pi
+(define (cycleinfo-tchild-member ci member-pi)
+  (let ((tt 0)
+	(called-list (profinfo-calls member-pi)))
+    ;; add share of every function called from this cycle-function to total
+    (for-each (lambda (called-pi)
+		(if (and (not (eq? called-pi
+				   member-pi))
+			 (not (cycleinfo-member? ci called-pi)))
+		    (let* ((thiscalls  (number-of-calls member-pi called-pi))
+			   (totalcalls (profinfo-total-nonreccalls called-pi))
+			   (occs       (profinfo-occurs            called-pi))
+			   (share (/ (* occs thiscalls)
+				     totalcalls)))
+		      (set! tt (+ tt share)))))
+	      called-list)
+    tt))
+
+;; time spent in functions outside the cycle, called from the cycle
+(define (cycleinfo-tchild ci)
+  (let ((tt 0))
+    (cycleinfo-foreach-member
+     ci
+     (lambda (caller-pi)
+       (set! tt (+ tt (cycleinfo-tchild-member ci caller-pi)))))
+    tt))
+
+(define (get-callerinfo caller called)
+  (let* ((caller-list (profinfo-callers called))
+	 (cinfo (table-ref caller-list caller)))
+    cinfo))
+
+(define (number-of-calls caller called)
+  (let ((cinfo (get-callerinfo caller called)))
+    (if cinfo
+	(callerinfo-calls cinfo)
+	0)))
+
+
+;; total number of calls from caller to the member or its whole cycle
+;; (without recursive and cyclic)
+(define (profinfo-upcalls caller-pi called-pi)
+  (let* ((cyc-called   (profinfo-cycle  called-pi))
+	 (nonrec-calls (profinfo-total-nonreccalls called-pi)))
+    (if cyc-called
+	(cycleinfo-calls-from cyc-called caller-pi)
+	nonrec-calls)))
+
+;; total number of calls from caller to the member or its whole cycle
+;; (without recursive and cyclic)
+(define (profinfo-total-upcalls called-pi)
+  (let* ((cyc-called   (profinfo-cycle  called-pi))
+	 (nonrec-calls (profinfo-total-nonreccalls called-pi)))
+    (if cyc-called
+	(sumup-calls-int/ext-cycle cyc-called #f)
+	nonrec-calls)))
+
+;; number of calls from inside of it's own cycle
+(define (profinfo-total-cycliccalls pi)
+  (let ((cyc (profinfo-cycle pi)))
+    (if cyc
+(calls-int/ext-cycle cyc pi #t)
+0)))
+
+
 
 ;; returns a list of all profinfos the function calls
-(define (profinfo-calls caller)
+(define (profinfo-calls caller-pi)
   (let ((lst '()))
-    (table-walk (lambda (template profinfo)
-		  (if (profinfo-get-callerinfo profinfo caller)
-		      (set! lst (cons profinfo lst))))
+    (table-walk (lambda (template called-pi)
+		  (if (> (number-of-calls caller-pi called-pi) 0)
+		      (set! lst (cons called-pi lst))))
 		*templates*)
     (remove-duplicates lst)))
-
-(define (profinfo-total-calls-done caller)
-  (let ((cnt 0))
-    (for-each (lambda (pi)
-		(let ((cinfo (profinfo-get-callerinfo pi caller)))
-		  (set! cnt (+ cnt (callerinfo-calls cinfo))))
-		)
-	      (profinfo-calls caller))
-    cnt))
-  
-;; calculates the time spent in the function itself
-;; by subtracting the time spent in childrens, when called by this function
-(define (profinfo-selftime caller-pi)
-  (let ((selftime (profinfo-real-totaltime caller-pi))
-	(called-list (profinfo-calls caller-pi)))
-    (for-each (lambda (called-pi)
-		(if (not (eq? called-pi caller-pi)) ; recursive count to self
-		    (let* ((cinfo (profinfo-get-callerinfo called-pi caller-pi))
-			   (ci-tt (callerinfo-totaltime cinfo)))
-		      (set! selftime (- selftime ci-tt)))))
-	      called-list)
-    selftime))
 
 ;; total non-recursive calls of this function
 (define (profinfo-total-nonreccalls pi)
@@ -539,53 +800,195 @@
 		cs)
     total))
 
-; returns the callinfo (calls, totaltime) for CALLED being called by CALLER
-(define (profinfo-get-callerinfo called caller)
-  (let ((caller-table (profinfo-callers called)))
-    (table-ref caller-table caller)))
+(define (get-sorted-templates property)
+  (let ((lst '())) 
+    (table-walk (lambda (template profinfo)
+		  (set! lst (cons profinfo lst)))
+		*templates*) 
+    (set! lst (list-sort (lambda (a b) 
+			   (< (property a)
+			      (property b)))
+			 lst))
+    lst))
 
-(define (propagate-time-of-child called-pi)
-  (let ((caller-list (profinfo-callers           called-pi))
-	(totalcalls  (profinfo-total-nonreccalls called-pi))
-	(occs        (profinfo-occurs            called-pi)))
-    (table-walk (lambda (caller-pi cinfo)
-		  (if (not (eq? caller-pi
-				called-pi))
-		      (let* ((thiscalls (callerinfo-calls cinfo))
-			     (share (round (/ (* occs thiscalls)
-					      totalcalls))))
-			; (display "share of ")
-			; (display (profinfo-template caller-pi))
-			; (display ": ")
-			; (display share)
-			; (display "/")
-			; (display occs)
-			; (newline)
-			(profinfo-set-tchild! caller-pi
-					      (+ (profinfo-tchild caller-pi)
-						 share)))))
-		caller-list)))
+(define (propagate-time-from-children caller-pi)
+  (ddisplay "progating time for ")
+  (ddisplay (profinfo-template caller-pi))
+  (ddisplay " from children...\n")
+  (let ((called-list (profinfo-calls caller-pi)))
+    (for-each
+     (lambda (called-pi)
+       (let* ((cinfo        (get-callerinfo    caller-pi called-pi))
+	      (called-cyc   (profinfo-cycle              called-pi))
+	      (caller-cyc   (profinfo-cycle    caller-pi))
+	      (calls        (callerinfo-calls  cinfo))
+	      (share        0)
+	      (childshare   0))
 
-(define (propagate-finish pi)
-  (let ((self (- (profinfo-occurs pi)
-		 (profinfo-tchild pi))))
-  (profinfo-set-tself! pi (if (< self 0) 0 self)))) ; bug
+	 (ddisplay (profinfo-template caller-pi))
+	 (ddisplay "  -->  ")
+	 (ddisplay (profinfo-template called-pi))
+	 
+	 (if (and (neq? caller-pi called-pi)
+		  (or (not called-cyc) (neq? called-cyc caller-cyc)))
+	     (begin
+		(let ((ctself
+		       (if called-cyc
+			   (cycleinfo-hist called-cyc)
+			   (profinfo-hist  called-pi)))
+		      (ctchild
+		       (if called-cyc
+			   (cycleinfo-tchild called-cyc)
+			   (profinfo-tchild  called-pi)))
+		      (nonreccalls
+		       (if called-cyc
+			   (cycleinfo-external-calls called-cyc)
+			   (profinfo-total-nonreccalls  called-pi))))
+		  (ddisplay " ctself: ")
+		  (ddisplay ctself)
+		  (ddisplay ", ctchild: ")
+		  (ddisplay ctchild)
+		  (ddisplay ", nrc: ")
+		  (ddisplay nonreccalls)
+		  (set! share      (/ (* ctself  calls) nonreccalls))
+		  (set! childshare (/ (* ctchild calls) nonreccalls))
+		)))
+
+	 
+	 (ddisplay ", calls ")
+	 (ddisplay (round calls))
+	 (ddisplay ", share ")
+	 (ddisplay (round share))
+	 (ddisplay ", childshare ")
+	 (ddisplay (round childshare))
+	 (ddisplay "\n")
+
+	 ;; add shares to arc information
+	 (callerinfo-set-tself!  cinfo share)
+	 (callerinfo-set-tchild! cinfo childshare)
+
+	 ;; add everything to child share for parent
+	 (profinfo-set-tchild! caller-pi
+			       (+ (profinfo-tchild caller-pi)
+				  (+ share childshare)))
+	 (if caller-cyc
+	     (cycleinfo-set-tchild! caller-cyc
+				    (+ (cycleinfo-tchild caller-cyc)
+				       (+ share childshare))))
+	 ))
+     called-list)))
 
 (define (propagate-times)
   ;; zero out
   (table-walk (lambda (template profinfo)
-		(profinfo-set-tself! profinfo 0)
 		(profinfo-set-tchild! profinfo 0))
 	      *templates*)
-  ;; propagate
-  (table-walk (lambda (template profinfo)
-		(propagate-time-of-child profinfo))
-	      *templates*)
-  ;; finish
-  (table-walk (lambda (template profinfo)
-		(propagate-finish profinfo))
-	      *templates*)
+  (for-each (lambda (cyc)
+	      (cycleinfo-set-tchild! cyc 0))
+	      *cycles*)
+
+  (for-each propagate-time-from-children
+	    (get-sorted-templates (lambda (pi) (- (profinfo-dfn pi)))))
   )
+
+
+;;; returns the function everything originates from,
+;;; the one that has no caller
+;;; TODO: this can return #f, when root is in a cycle
+(define (get-root-function)
+  (call-with-current-continuation
+   (lambda (return)
+     (table-walk (lambda (template profinfo)
+		   (if (= (table-size (profinfo-callers profinfo)) 0)
+		       (return profinfo)))
+		 *templates*)
+     (begin
+       (display "root is in a cycle, needs to be fixed!\n")
+       #f 
+       ))))
+
+
+;;; number function by their depth in the call stack
+(define (profinfo-dfn-set? pi)
+  (number? (profinfo-dfn pi)))
+(define (profinfo-dfn-busy? pi)
+  (eq? (profinfo-dfn pi) 'busy))
+
+(define (build-cycle dfn-stack top-pi)
+  ;; is it just a recursive call?
+  (if (not (eq? (car dfn-stack) top-pi))
+      (begin
+	;; move down the stack till we find ourselves again, adding
+	;; every function to our cycle
+	(let ((cyc (make-new-cycleinfo)))
+	  
+	  (let loop ((stack dfn-stack))
+	    (let* ((pi     (car stack))
+		   (pi-cyc (profinfo-cycle pi)))
+	      
+	      (cycleinfo-add-member cyc pi)
+	      
+	      ;; if this function is in a cycle already, we all belong to this cycle too
+	      (if pi-cyc
+		  (begin
+		    ;; copy members to this cycle
+		    (for-each (lambda (memb)
+				(cycleinfo-add-member pi-cyc memb))
+			      (cycleinfo-members cyc))
+		    (set! cyc pi-cyc)))
+	      
+	      (if (and (not (null? (cdr stack)))
+		       (not (eq? pi top-pi)))
+		  (loop (cdr stack)))))
+	  
+	    ;; add cycle globally
+	    (cycleinfo-add cyc)
+	    
+	    ;; update cycle information in profinfos
+	    (for-each (lambda (memb)
+			(profinfo-set-cycle! memb cyc))
+		      (cycleinfo-members cyc))
+	    ))))
+	  
+	 
+;;; numbers all functions by their depth in the call stack
+(define (depth-numbering)
+  (let ((dfn-counter (table-size *templates*)))
+    (letrec ((depth-number-function
+	      (lambda (dfn-stack cur-pi)
+		;; already set?
+		(if (not (profinfo-dfn-set? cur-pi))
+		    (begin
+		      ;; is it busy? must be a cycle
+		      (if (profinfo-dfn-busy? cur-pi)
+			  (build-cycle dfn-stack cur-pi)
+			  ;; no cycle
+			  (begin
+			    ;; pre-visit
+			    (profinfo-set-dfn! cur-pi 'busy)
+			    
+			    ;; process children
+			    (for-each (lambda (called-pi)
+					(depth-number-function (cons cur-pi dfn-stack)
+							       called-pi))
+				      (profinfo-calls cur-pi))
+			    
+			    (set! dfn-counter (- dfn-counter 1))
+			    
+			    ;; post-visit
+			    (profinfo-set-dfn! cur-pi dfn-counter)
+			    )))))))
+
+      ;; zero out
+      (set! *cycles* '())
+      (table-walk (lambda (template profinfo)
+		    (profinfo-set-dfn! profinfo 'notset)
+		    (profinfo-set-cycle! profinfo #f))
+		  *templates*)
+      
+      ;; find root and number from there
+      (if (get-root-function)
+	  (depth-number-function '() (get-root-function))))))
 
 
 ;;; RECORDING DATA (while target is running)
@@ -608,7 +1011,7 @@
 	       => (lambda (ci)
 		    (callerinfo-set-calls! ci (+ 1 (callerinfo-calls ci)))))
 	      (else
-	       (table-set! cs caller (make-callerinfo caller 1 0)))))))
+	       (table-set! cs caller (make-callerinfo caller 1)))))))
 
 
 ;; duplicate from sort/vector-util
@@ -661,34 +1064,31 @@
     (- passed (/ mid 2))))
 
 ;; process the stack entries that have the seen "bit" not set.
-;; calculate the approximated run time
-(define (post-process-stack! stack)
-  (if stack
-      (let loop ((stack  stack)
-		 (caller-se #f))
+(define (post-process-stack! call-stack)
+  (if call-stack
+      (let loop ((stack          call-stack)
+		 (caller-se      #f)
+		 (seen-templates '()))
 	(if (not (null? stack))
 	    (let* ((called-se (car stack))
 		   (called-pi (get-profinfo called-se))
+		   (template  (stackentry-template called-se))
 		   (reccalls  (stackentry-reccalls called-se)))
-	      (if (= reccalls 0)
+	      (if (and (= reccalls 0)
+		       (not (memq? template seen-templates)))
 		  (begin
 		    ;; record occurance
 		    (profinfo-set-occurs! called-pi
-					  (+ (profinfo-occurs called-pi) 1))
-		    
-		    ;; process unseen
-		    (if (not (seen? called-se))
-			(let* ((caller-pi  (get-profinfo caller-se))
-			       (cinfo      (profinfo-get-callerinfo called-pi caller-pi))
-			       (pi-tt      (profinfo-totaltime called-pi))
-			       (timepassed (time-passed called-se)))
-			  (profinfo-set-totaltime! called-pi (+ pi-tt timepassed))
-			  (if cinfo
-			      (callerinfo-set-totaltime! cinfo
-							 (+ (callerinfo-totaltime cinfo)
-							    timepassed)))))))
+					  (+ (profinfo-occurs called-pi) 1))))
+
+	      ;; if top element, count as running
+	      (if (null? (cdr stack))
+		  (profinfo-set-hist! called-pi
+				      (+ (profinfo-hist called-pi) 1)))
+	      
 	      (loop (cdr stack)
-		    called-se))))))
+		    called-se
+		    (cons template seen-templates)))))))
 
 
 (define (record-call! caller-se called-se)
@@ -705,8 +1105,7 @@
 	  (set! called-profinfo
 		(make-profinfo called-template
 			       (make-table profinfo-id)
-			       0
-			       0))
+			       0 0))
 	  (table-set! *templates* called-template called-profinfo)))
 
     ;; if we know the caller, count it
@@ -726,6 +1125,9 @@
 	#f)))
 
 (define (process-stack-traces!)
+;  (display "\n\n")
+;  (display "processing stack traces:\n")
+;  (newline)
   ;; go from bottom to top and count calls
   (let loop ((pos 0)
 	     (stack *cur-stack*)
@@ -733,7 +1135,10 @@
 	     (diff-found #f))
     (if (not (null? stack))
 	(let ((new-se (car stack)))
-	  
+;	  (display pos)
+;	  (display " - ")
+;	  (display (stackentry-template new-se))
+;	  (newline)
 	  ;; compare with last stack
 	  (let ((old-se (list-ref-or-default *last-stack* pos #f))
 		(rcdcall #f))
@@ -792,11 +1197,6 @@
 
 ;; main record function (called from interrupt handler)
 (define (record-continuation! cont)
-
-;;  display ticks
-;  (display (- (run-time) *start-time*))
-;  (display "ms: rec")
-;  (newline)
   
   ;; init
   (set! *cur-stack* '())
