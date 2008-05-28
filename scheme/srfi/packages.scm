@@ -841,5 +841,7 @@
 
 (define-structure srfi-95 srfi-95-interface
   (open scheme srfi-63
-	(subset exceptions (assertion-violation)))
+	(modify sorting (prefix olin:))
+	(modify list-merge-sort (prefix olin:))
+	(modify vector-merge-sort (prefix olin:)))
   (files srfi-95))

@@ -17,11 +17,15 @@
         formats)
   (files srfi-19-check))
 
+(define-structure srfi-95-test (export srfi-95-tests)
+  (open scheme test-suites srfi-63 srfi-95)
+  (files srfi-95-check))
+
 (define-structure portable-srfi-test (export portable-srfi-tests)
   (open scheme test-suites
-	srfi-13-test srfi-14-test)
+	srfi-13-test srfi-14-test srfi-95-test)
   (begin
-    (define-test-suite portable-srfi-tests (srfi-13-tests srfi-14-tests))))
+    (define-test-suite portable-srfi-tests (srfi-13-tests srfi-14-tests srfi-95-tests))))
 
 (define-structure srfi-test (export portable-srfi-tests posix-srfi-tests srfi-tests)
   (open scheme test-suites
