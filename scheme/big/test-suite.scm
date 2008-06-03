@@ -171,21 +171,23 @@
 (define-syntax check-exception-that
   (syntax-rules ()
     ((check-exception-that ?actual ?matcher)
-     (let ((matcher ?matcher))
-       (guard
-	(c
-	 ((not (matches? matcher c))
-	  (register-failure!
-	   (make-check-exception-failure (fluid $test-case)
-					 '?actual #f c matcher)))
-	 (else (values)))
+     (check-exception-that* (lambda () ?actual) '?actual ?matcher))))
+
+(define (check-exception-that* actual-thunk actual-exp matcher)
+  (guard
+   (c
+    ((not (matches? matcher c))
+     (register-failure!
+      (make-check-exception-failure (fluid $test-case)
+				    actual-exp #f c matcher)))
+    (else (values)))
 	
-	(call-with-values
-	    (lambda () ?actual))
-	(lambda actual-vals
-	  (register-failure!
-	   (make-check-exception-failure (fluid $test-case)
-					 '?actual actual-vals #f matcher))))))))
+   (call-with-values
+       actual-thunk
+     (lambda actual-vals
+       (register-failure!
+	(make-check-exception-failure (fluid $test-case)
+				      actual-exp actual-vals #f matcher))))))
 
 ; special case: inexact
 (define (=within tolerance)
