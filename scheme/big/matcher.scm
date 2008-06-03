@@ -102,3 +102,26 @@
 			     (and (matches? (car matchers) (car els))
 				  (loop (cdr matchers) (cdr els))))))))
 		  `(list-of ,@matchers))))
+
+(define (vector-of . matchers)
+  (let* ((matchers (list->vector matchers))
+	 (count (vector-length matchers)))
+    (make-matcher (lambda (x)
+		    (and (vector? x)
+			 (= count (vector-length x))
+			 (let loop ((i 0))
+			   (if (= i count)
+			       #t
+			       (and (matches? (vector-ref matchers i))
+				    (loop (+ 1 i)))))))
+		  `(vector-of ,matchers))))
+
+(define (pair-of car-matcher cdr-matcher)
+  (make-matcher (lambda (x)
+		  (and (pair? x)
+		       (matches? car-matcher (car x))
+		       (matches? cdr-matcher (cdr x))))
+		`(pair-of ,car-matcher ,cdr-matcher)))
+
+
+   

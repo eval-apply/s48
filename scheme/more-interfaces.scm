@@ -605,7 +605,7 @@
 	  is-within
 	  member-of
 	  all-of any-of list-where-all list-where-any
-	  list-of))
+	  list-of vector-of pair-of))
 
 (define-interface test-suites-interface 
   (export ((define-test-suite define-test-case define-test-cases) :syntax)
