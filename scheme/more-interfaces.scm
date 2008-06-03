@@ -604,7 +604,8 @@
 	  is-true is-false is-null
 	  is-within
 	  member-of
-	  all-of any-of list-where-all list-where-any))
+	  all-of any-of list-where-all list-where-any
+	  list-of))
 
 (define-interface test-suites-interface 
   (export ((define-test-suite define-test-case define-test-cases) :syntax)

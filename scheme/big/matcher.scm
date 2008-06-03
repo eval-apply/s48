@@ -51,7 +51,8 @@
 
 (define (is-within val epsilon)
   (make-matcher (lambda (x)
-		  (< (magnitude (- val x )) epsilon))
+		  (and (number? x)
+		       (< (magnitude (- val x )) epsilon)))
 		`(is-within ,val ,epsilon)))
 
 (define (member-of list)
@@ -74,14 +75,30 @@
 
 (define (list-where-all matcher)
   (make-matcher (lambda (l)
-		  (every? (lambda (x)
-			    (matches? matcher x))
-			  l))
+		  (and (list? l)
+		       (every? (lambda (x)
+				 (matches? matcher x))
+			       l)))
 		`(list-where-each ,matcher)))
 
 (define (list-where-any matcher)
   (make-matcher (lambda (l)
-		  (any? (lambda (x)
-			    (matches? matcher x))
-			  l))
+		  (and (list? l)
+		       (any? (lambda (x)
+			       (matches? matcher x))
+			     l)))
 		`(list-where-any ,matcher)))
+
+(define (list-of . matchers)
+  (let ((count (length matchers)))
+    (make-matcher (lambda (x)
+		    (and (list? x)
+			 (let loop ((matchers matchers)
+				    (els x))
+			   (cond
+			    ((null? matchers) (null? els))
+			    ((null? els) #f)
+			    (else
+			     (and (matches? (car matchers) (car els))
+				  (loop (cdr matchers) (cdr els))))))))
+		  `(list-of ,@matchers))))
