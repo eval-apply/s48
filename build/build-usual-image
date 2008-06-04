@@ -17,9 +17,10 @@ $vm -i $initial -a batch <<EOF
 ,load =scheme48/packages.scm
 ,load =scheme48/more-interfaces.scm
 ,load =scheme48/link-packages.scm
-,load =scheme48/env-packages.scm
 ,load =scheme48/sort/interfaces.scm
 ,load =scheme48/sort/packages.scm
+,load =scheme48/pre-env-packages.scm
+,load =scheme48/env-packages.scm
 ,load =scheme48/more-packages.scm
 ,load =scheme48/r6rs/packages.scm
 ,load =scheme48/net/packages.scm
