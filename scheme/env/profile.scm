@@ -98,21 +98,22 @@
                              (lambda () (execute-command command)))
                          (current-output-port)))
 
-
 (define (profile-and-display thunk
 			     port)
   (calculate-tick-rate!)
-  (receive results (do-profile thunk)
-	   (depth-numbering)
-	   (propagate-times)
-	   (display-result-overview port)
-	   (if (> *samples* 0)
-	       (begin
-		 (display-flat-result port)
-		 (newline port)
-		 (display-tree-result port))
-	       (display "No data collected!\n" port))
-	   (apply values results)))
+  (call-with-values (lambda () (do-profile thunk))
+    (lambda results
+      (begin
+	(depth-numbering)
+	(propagate-times)
+	(display-result-overview port)
+	(if (> *samples* 0)
+	    (begin 
+	      (display-flat-result port)
+	      (newline port)
+	      (display-tree-result port))
+	    (display "No data collected!\n" port))
+	(apply values results)))))
 
 (define (do-profile thunk)
   (set! *start-time* (run-time))
@@ -280,10 +281,10 @@
     (table-walk (lambda (template profinfo)
 		  (set! lst (cons profinfo lst)))
 		*templates*)
-    (set! lst (list-sort (lambda (a b) 
+    (set! lst (sort-list lst
+			 (lambda (a b) 
 			   (>= (profinfo-hist a)
-			       (profinfo-hist b)))
-			 lst))
+			       (profinfo-hist b)))))
     (for-each (lambda (profinfo)
 		(display-profinfo-flat profinfo port)
 		(newline port))
@@ -467,7 +468,7 @@
 	(begin (display-w " " 49 port) (display "      <spontaneous>" port) (newline))
 	(table-walk
 	 (lambda (caller-pi cinfo)
-	   (if (neq? caller-pi primary-pi)
+	   (if (not (eq? caller-pi primary-pi))
 	       (let* ((template     (profinfo-template caller-pi))
 		      (dfn          (profinfo-dfn      caller-pi))
 		      (occurs       (profinfo-occurs   caller-pi))
@@ -479,7 +480,7 @@
 		 (display-w "" 3 port)
 		 (display-w "" 8 port)
 
-		 (if (neq? caller-cyc primary-cyc)
+		 (if (not (eq? caller-cyc primary-cyc))
 		     (begin
 		       (display-w-nr (occurs->ms tself-share) 7 port)
 		       (display-w-nr (occurs->ms tchild-share) 7 port))
@@ -527,7 +528,7 @@
 	     (display-w "" 3 port)
 	     (display-w "" 8 port)
 	     
-	     (if (neq? called-cyc primary-cyc)
+	     (if (not (eq? called-cyc primary-cyc))
 		 (begin
 		   (display-w-nr (occurs->ms tself-share) 7 port)
 		   (display-w-nr (occurs->ms tchild-share) 7 port))
@@ -577,6 +578,22 @@
     (display "]" port)
     ))
 
+;;; useful stuff
+
+(define (memq? x l)
+  (let loop ((l l))
+    (cond ((null? l)       #f)
+	  ((eq? x (car l)) #t)
+	  (else            (loop (cdr l))))))
+
+(define (remove-duplicates list)
+  (do ((list list (cdr list))
+       (res  '()  (if (memq? (car list) res)
+                      res
+                      (cons (car list) res))))
+      ((null? list)
+       res)))
+
 ;;; DATA CALCULATION
 
 (define (occurs->ms occs)
@@ -619,7 +636,7 @@
     (table-walk (lambda (caller-pi cinfo)
 		  (if (and (eq? (cycleinfo-member? ci caller-pi)
 				internal)
-			   (neq? caller-pi called-pi))
+			   (not (eq? caller-pi called-pi)))
 		      (set! cnt-calls (+ cnt-calls (callerinfo-calls cinfo)))))
 		caller-list)
     cnt-calls))
@@ -805,10 +822,10 @@
     (table-walk (lambda (template profinfo)
 		  (set! lst (cons profinfo lst)))
 		*templates*) 
-    (set! lst (list-sort (lambda (a b) 
+    (set! lst (sort-list lst
+			 (lambda (a b) 
 			   (< (property a)
-			      (property b)))
-			 lst))
+			      (property b)))))
     lst))
 
 (define (propagate-time-from-children caller-pi)
@@ -829,8 +846,8 @@
 	 (ddisplay "  -->  ")
 	 (ddisplay (profinfo-template called-pi))
 	 
-	 (if (and (neq? caller-pi called-pi)
-		  (or (not called-cyc) (neq? called-cyc caller-cyc)))
+	 (if (and (not (eq? caller-pi called-pi))
+		  (or (not called-cyc) (not (eq? called-cyc caller-cyc))))
 	     (begin
 		(let ((ctself
 		       (if called-cyc

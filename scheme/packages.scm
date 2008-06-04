@@ -195,9 +195,10 @@
 				run-time-structures
 				compiler-structures))
   (files ;; more-interfaces, when not flatloading
-         env-packages
 	 ;; (sort interfaces), when not flatloading
 	 (sort packages)
+         pre-env-packages
+         env-packages
 	 more-packages))
 
 
@@ -460,7 +461,7 @@
 	    placeholders
 	    pp
 	    previews
-	    ;profile
+	    profiler
 	    queues
 	    shared-objects
 	    time

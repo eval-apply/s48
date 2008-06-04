@@ -200,7 +200,7 @@
    debug-commands-interface
    inspect-commands-interface
    disassemble-commands-interface
-   ;profile-commands-interface
+   profile-commands-interface
    ))
 
 (define-interface package-commands-internal-interface
@@ -568,15 +568,6 @@
 
 (define-interface reinitializers-interface
   (export (define-reinitializer :syntax)))
-
-(define-interface locks-interface
-  (export lock?
-	  make-lock
-	  obtain-lock
-	  maybe-obtain-lock
-	  release-lock
-	  with-lock
-	  lock-owner))		;really should be internal
 
 (define-interface value-pipes-interface
   (export make-pipe
