@@ -64,6 +64,12 @@
 	sockets udp-sockets)
   (files (net socket-check)))
 
+(define-structure tconc-queue-test
+  (export tconc-queue-tests)
+  (open scheme test-suites matchers tconc-queue
+	srfi-34 srfi-42 conditions)
+  (files (big tconc-queue-check)))
+
 (define-structure package-mutation-test (export package-mutation-tests)
   (open scheme test-suites
 	packages compiler built-in-structures handle conditions
