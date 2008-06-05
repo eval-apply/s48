@@ -1015,77 +1015,76 @@ inline static void call_internal_write_barrier2(Area* maybe_area, s48_address ad
 
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
 static void append_tconc(s48_value tconc, s48_value tlc) {
-  /* A tconc is a pair, whose car points to the first pair of a list
-     and whose cdr points to the last pair of this list. */
-
-  s48_value newpair;
-  s48_value tconc_car;
-  s48_value tconc_cdr;
+  s48_value tconc_car, tconc_cdr, newpair, pair_header;
+  long size_in_bytes;
+  Space *to_space;
+  Area *area;
+  s48_address data_addr;
 
   assert(S48_PAIR_P(tconc));
   assert(S48_TRANSPORT_LINK_CELL_P(tlc));
+  assert(s48_memory_map_ref(S48_ADDRESS_AT_HEADER(tconc))->action == GC_ACTION_IGNORE);
 
-  /* Though the tconc must already be in the "to space", it's car and
-     cdr could still point to the "from space", because the tconc
-     itself may not have been traced and updated yet, so do it now. */
-  //assert(s48_memory_map_ref(S48_ADDRESS_AT_HEADER(tconc))->action == GC_ACTION_IGNORE); // fails sometimes, for unknown reasons
-  tconc_cdr = s48_trace_value(S48_UNSAFE_CDR(tconc));
-  tconc_car = s48_trace_value(S48_UNSAFE_CAR(tconc));
+  tconc_car = S48_UNSAFE_CAR(tconc);
+  tconc_cdr = S48_UNSAFE_CDR(tconc);
 
-  S48_UNSAFE_SET_CDR(tconc, tconc_cdr);
-  S48_UNSAFE_SET_CAR(tconc, tconc_car);
+  /* A tconc is a pair, whose car points to the first pair of a list
+     and whose cdr points to the last pair of this list. */
+  assert(S48_PAIR_P(tconc_car) && S48_PAIR_P(tconc_cdr));
 
-  if (S48_PAIR_P(tconc_car) && S48_PAIR_P(tconc_cdr)) {
-    /* create the new pair */
-
-    /* No other way to know the size of a pair? This is not nice. */
-    
-    long size_in_bytes = S48_STOB_OVERHEAD_IN_BYTES + S48_CELLS_TO_BYTES(2);
-    Space* to_space = generations[0].current_space;
-    Area* area = to_space->small_area;
-    if (size_in_bytes > AREA_REMAINING(area)) {
-      area = allocate_small_area(to_space, size_in_bytes);
-    }
-    s48_address data_addr = area->frontier + S48_STOB_OVERHEAD_IN_A_UNITS;
-    newpair = S48_ADDRESS_TO_STOB_DESCRIPTOR(data_addr);
-
-    /* copy header of tconc_car, to avoid all the nasty calculations here
-       (no standard functions available!?) */
-    assert(S48_STOB_OVERHEAD_IN_BYTES == sizeof(s48_value));
-    s48_value pair_header = *((long*)S48_ADDRESS_AT_HEADER(tconc_car));
-    *((s48_value*)S48_ADDRESS_AT_HEADER(newpair)) = pair_header;
-
-    area->frontier = data_addr + S48_HEADER_LENGTH_IN_A_UNITS(pair_header);
-
-    S48_UNSAFE_SET_CAR(newpair, S48_FALSE);
-    S48_UNSAFE_SET_CDR(newpair, S48_FALSE);
-    
-    /* enqueue the tlc in the tconc queue */
-    S48_UNSAFE_SET_CAR(tconc_cdr, tlc);
-    S48_UNSAFE_SET_CDR(tconc_cdr, newpair);
-    S48_UNSAFE_SET_CDR(tconc, newpair);
-
-    /* ...and set the tconc and pair field to null (false). */
-    S48_UNSAFE_SET_TRANSPORT_LINK_CELL_TCONC(tlc, S48_FALSE);
+  /* No other way to know the size of a pair? This is not nice. */
+  size_in_bytes = S48_STOB_OVERHEAD_IN_BYTES + S48_CELLS_TO_BYTES(2);
+  to_space = generations[0].current_space;
+  area = to_space->small_area;
+  if (size_in_bytes > AREA_REMAINING(area)) {
+    area = allocate_small_area(to_space, size_in_bytes);
   }
-  /* else: silently ignoring malformed tconc */
+  assert(size_in_bytes <= AREA_REMAINING(area));
+  data_addr = area->frontier + S48_STOB_OVERHEAD_IN_A_UNITS;
+  newpair = S48_ADDRESS_TO_STOB_DESCRIPTOR(data_addr);
+
+  /* Copy header of tconc_car, to avoid all the nasty calculations here
+     (no standard functions available!?) */
+  assert(S48_STOB_OVERHEAD_IN_BYTES == sizeof(s48_value));
+  pair_header = *((long*)S48_ADDRESS_AT_HEADER(tconc_car));
+  *((s48_value*) S48_ADDRESS_AT_HEADER(newpair)) = pair_header;
+
+  area->frontier = data_addr + S48_HEADER_LENGTH_IN_A_UNITS(pair_header);
+
+  S48_UNSAFE_SET_CAR(newpair, S48_FALSE);
+  S48_UNSAFE_SET_CDR(newpair, S48_FALSE);
+  
+  /* enqueue the tlc in the tconc queue */
+  S48_UNSAFE_SET_CAR(tconc_cdr, tlc);
+  S48_UNSAFE_SET_CDR(tconc_cdr, newpair);
+  S48_UNSAFE_SET_CDR(tconc, newpair);
+  
+  /* ...and set the tconc and pair field to null (false). */
+  S48_UNSAFE_SET_TRANSPORT_LINK_CELL_TCONC(tlc, S48_FALSE);
+
+  /* Trace the new area. */
+  while (area->trace < area->frontier) {
+    s48_address end = area->frontier;
+    s48_trace_locationsB(area->trace, end);
+    area->trace = end;
+  }
 }
 
-inline static char tlc_key_moves_in_gc_p(s48_value key) {
-  /* because the key is always older than the tlc, a test for a broken
+inline static char s48_value_moves_in_gc_p(s48_value value) {
+  /* Because the key is always older than the TLC, a test for a broken
      heart would seem enough here, but because the bibop not
      necessarily traces all older locations before all younger ones
      (e.g. if things are in different small/large/weak areas), we have
      to take a look at the area, and return if it will be collected in
      the current collection: */
 
-  if (S48_STOB_P(key)) {
-    if (BROKEN_HEART_P(S48_STOB_HEADER(key)))
+  if (S48_STOB_P(value)) {
+    if (BROKEN_HEART_P(S48_STOB_HEADER(value)))
       return TRUE;
     else {
-      Area* key_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(key));
-      assert(key_area->action != GC_ACTION_ERROR);
-      return (key_area->action != GC_ACTION_IGNORE);
+      Area* value_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(value));
+      assert(value_area != NULL && value_area->action != GC_ACTION_ERROR);
+      return (value_area->action != GC_ACTION_IGNORE);
     }
   }
   else
@@ -1101,29 +1100,32 @@ static void trace_transport_link_cell(s48_address contents_pointer,
   key = S48_UNSAFE_TRANSPORT_LINK_CELL_KEY(tlc);
 
   /* Remember if the (old) key has moved or will move in this GC... */
-  key_moved_p = tlc_key_moves_in_gc_p(key);
+  key_moved_p = s48_value_moves_in_gc_p(key);
 
   /* ...trace the current tlc to make sure that every pointer is up-to-date. */
   s48_trace_locationsB(contents_pointer, contents_pointer + size);
+
   /* Hint: we cannot compare pointers here to check for a moved key,
      because large objects are never actually moved. */
 
   if (key_moved_p) {
     s48_value tconc = S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc);
-    /* If the tconc field is a pair... */
-    if (S48_FALSE_P(tconc))
-      {} /* ignore */
-    else if (S48_PAIR_P(tconc)) {
-      /* ...then add the tlc to the end of the tconc queue. */
-      append_tconc(tconc, tlc);
+    /* If the tconc field is a pair as well as its car and cdr are pairs... */
+    if (S48_PAIR_P(tconc)) {
+      /* Though the tconc must already be in the "to space", it's car and
+	 cdr could still point to the "from space", because the tconc
+	 itself may not have been traced and updated yet, so do it now. */
+      S48_UNSAFE_SET_CAR(tconc, s48_trace_value(S48_UNSAFE_CAR(tconc)));
+      S48_UNSAFE_SET_CDR(tconc, s48_trace_value(S48_UNSAFE_CDR(tconc)));
+      if (S48_PAIR_P(S48_UNSAFE_CAR(tconc)) &&
+	  S48_PAIR_P(S48_UNSAFE_CDR(tconc))) {
+	/* ...then add the tlc to the end of the tconc queue. */
+	append_tconc(tconc, tlc);
+      }
     }
-    else
-      {} /*printf("Warning: malformed tlc at %p.\n", S48_ADDRESS_AT_HEADER(tlc));*/
   }
-  assert(S48_TRANSPORT_LINK_CELL_P(tlc));
 }
-
-#endif // S48_HAVE_TRANSPORT_LINK_CELLS
+#endif /* S48_HAVE_TRANSPORT_LINK_CELLS */
 
 /* EKG checks for broken hearts - only used internally in
    s48_trace_locationsB */
