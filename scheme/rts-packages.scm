@@ -443,6 +443,11 @@
   (files (big queue))
   (optimize auto-integrate))
 
+(define-structure tconc-queue tconc-queue-interface
+  (open scheme-level-1 low-exceptions)
+  (files (big tconc-queue))
+  (optimize auto-integrate))
+
 ; No longer used
 ;(define-structure linked-queues (compound-interface 
 ;                                 queues-interface
