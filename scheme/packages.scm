@@ -285,6 +285,7 @@
 	    templates
 	    text-codecs
 	    threads
+	    tlc-table
 	    util
 	    vm-data
 	    weak)
