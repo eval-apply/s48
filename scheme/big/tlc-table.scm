@@ -4,26 +4,40 @@
 ;; Ghuloum, Dybvig 2007
 
 ;; TODO
-;;  - mutable/immutable, tlc-table-mutable?
-;;  - initial size if no size given
-;;  - shall the hashtable grow/shrink over time?
-;;  - equal-hash
-;;  - string-ci-hash
-;;  - symbol-hash
-;;  - tlc-table-copy
+;;  - R6RS conformance:
+;;    - mutable/immutable, tlc-table-mutable?
+;;    - constructors without size argument
+;;    - initial size if no size given
+;;    - shall the hashtable grow/shrink over time?
+;;    - equal-hash
+;;    - string-ci-hash
+;;    - symbol-hash
+;;    - tlc-table-copy
 
 ;; record type for table
 
 (define-record-type tlc-table :tlc-table
-  (really-make-tlc-table size buckets hash-function 
-			 equivalence-function tconc)
+  (really-make-tlc-table buckets-size buckets hash-function 
+			 equivalence-function tconc
+			 count loc)
   tlc-table?
-  (size tlc-table-size)                                 ; number of buckets
+  (buckets-size tlc-table-buckets-size)                 ; number of buckets
   (buckets tlc-table-buckets)                           ; vector of buckets
   (hash-function tlc-table-hash-function)               ; hash function
   (equivalence-function tlc-table-equivalence-function) ; equivalence function
-  (tconc tlc-table-tconc))      ; to track the links that need rehashing
+  (tconc tlc-table-tconc)             ; to track the links that need rehashing
+  (count tlc-table-count set-tlc-table-count!)   ; number of elements in table
+  (loc tlc-table-loc set-tlc-table-loc!))   ; doubly-linked list with all TLCs
 
+;; record type for value
+
+(define-record-type tlc-value :tlc-value
+  (make-tlc-value value prev-tlc next-tlc)
+  tlc-value?
+  (value tlc-value-value set-tlc-value-value!)
+  (prev-tlc tlc-value-prev-tlc set-tlc-value-prev-tlc!)
+  (next-tlc tlc-value-next-tlc set-tlc-value-next-tlc!))
+  
 ;; minimal size of a tlc table
 (define *tlc-table-min-size* 1)
 
@@ -45,7 +59,7 @@
 	 (buckets (make-vector size))
 	 (tconc (and use-tconc-queue (make-tconc-queue))))
     (tlc-table-initialize-buckets! buckets)
-    (really-make-tlc-table size buckets hash-function equiv-function tconc)))
+    (really-make-tlc-table size buckets hash-function equiv-function tconc 0 #f)))
 
 ;; default hash functions
 
@@ -61,7 +75,7 @@
 	v)))
 
 (define (tlc-table-calculate-hash table object)
-  (tlc-table-hash-value (tlc-table-size table)
+  (tlc-table-hash-value (tlc-table-buckets-size table)
 			((tlc-table-hash-function table) object)))
 
 ;; access link chains
@@ -76,13 +90,21 @@
 
 (define (tlc-table-insert-link table link)
   (let* ((key (transport-link-cell-key link))
-	 (index (tlc-table-calculate-hash table (transport-link-cell-key link))))
+	 (index (tlc-table-calculate-hash table 
+					  (transport-link-cell-key link))))
     (set-transport-link-cell-next! link (tlc-table-entry table index))
     (set-tlc-table-entry! table index link)))
 
 (define (tlc-table-add table key value)
-  (let ((link (make-transport-link-cell key value (tlc-table-tconc table) #f)))
-    (tlc-table-insert-link table link)))
+  (let* ((tlc-value (make-tlc-value value #f (tlc-table-loc table)))
+	 (link (make-transport-link-cell key tlc-value 
+					 (tlc-table-tconc table) #f)))
+    (tlc-table-insert-link table link)
+    (if (tlc-table-loc table)
+	(set-tlc-value-prev-tlc! (transport-link-cell-value
+				  (tlc-table-loc table)) link))
+    (set-tlc-table-loc! table link)
+    (set-tlc-table-count! table (+ 1 (tlc-table-count table)))))
 
 ;; get index of link chain
 
@@ -109,7 +131,16 @@
       (if (eq? chain link)
 	  (set-tlc-table-entry! table index
 				(transport-link-cell-next link))
-	  (delete-loop chain)))))
+	  (delete-loop chain))
+      (let* ((tlc-value (transport-link-cell-value link))
+	     (prev-tlc (tlc-value-prev-tlc tlc-value))
+	     (next-tlc (tlc-value-next-tlc tlc-value)))
+	(if prev-tlc
+	    (set-tlc-value-next-tlc! (transport-link-cell-value prev-tlc) next-tlc)
+	    (set-tlc-table-loc! table next-tlc))
+	(if next-tlc
+	    (set-tlc-value-prev-tlc! (transport-link-cell-value next-tlc) prev-tlc)))
+      (set-tlc-table-count! table (- (tlc-table-count table) 1)))))
 
 ;; lookup
 
@@ -125,7 +156,7 @@
   (tlc-table-delete-link table link)
   (tlc-table-add table 
 		 (transport-link-cell-key link) 
-		 (transport-link-cell-value link)))
+		 (tlc-value-value (transport-link-cell-value link))))
 
 (define (tlc-table-rehash-lookup table key)
   (let ((tconc (tlc-table-tconc table)))
@@ -183,12 +214,16 @@
 
 (define make-tlc-table make-eq-tlc-table)
 
+;; size
+
+(define tlc-table-size tlc-table-count)
+
 ;; lookup
 
 (define (tlc-table-ref table key not-found)
   (let ((x (tlc-table-lookup-link table key)))
     (if x
-	(transport-link-cell-value x)
+	(tlc-value-value (transport-link-cell-value x))
 	not-found)))
 
 ;; set
@@ -196,7 +231,8 @@
 (define (tlc-table-set! table key value)
   (let ((x (tlc-table-lookup-link table key)))
     (if x
-	(set-transport-link-cell-value! x value)
+	(let ((tlc-value (transport-link-cell-value x)))
+	  (set-tlc-value-value! tlc-value value))
 	(tlc-table-add table key value))))
 
 ;; delete
@@ -217,21 +253,55 @@
 (define (tlc-table-update! table key proc not-found)
   (let ((x (tlc-table-lookup-link table key)))
     (if x
-	(set-transport-link-cell-value! 
-	 x
-	 (proc (transport-link-cell-value x)))
+	(let ((tlc-value (transport-link-cell-value x)))
+	  (set-tlc-value-value! 
+	   tlc-value
+	   (proc (tlc-value-value tlc-value))))
 	not-found)))
 
 ;; clear
 
 (define (tlc-table-clear! table)
   (tlc-table-initialize-buckets! (tlc-table-buckets table))
-  (tconc-queue-clear! (tlc-table-tconc table)))
+  (tconc-queue-clear! (tlc-table-tconc table))
+  (set-tlc-table-count! table 0)
+  (set-tlc-table-loc! table #f))
+
+;; keys
+
+(define (tlc-table-keys table)
+  (let ((keys (make-vector (tlc-table-count table))))
+    (let loop ((tlc (tlc-table-loc table))
+	       (count 0))
+      (if tlc
+	  (begin
+	    (vector-set! keys count (transport-link-cell-key tlc))
+	    (loop
+	     (tlc-value-next-tlc (transport-link-cell-value tlc))
+	     (+ count 1))))
+      keys)))
+
+;; keys & values
+
+(define (tlc-table-entries table)
+  (let ((keys (make-vector (tlc-table-count table)))
+	(vals (make-vector (tlc-table-count table))))
+    (let loop ((tlc (tlc-table-loc table))
+	       (count 0))
+      (if tlc
+	  (begin
+	    (vector-set! keys count (transport-link-cell-key tlc))
+	    (vector-set! vals count (tlc-value-value
+				     (transport-link-cell-value tlc)))
+	    (loop
+	     (tlc-value-next-tlc (transport-link-cell-value tlc))
+	     (+ count 1))))
+      (values keys vals))))
 
 ;; debugging
 
 (define (tlc-table-distribution table)
-  (let loop-table ((n (- (tlc-table-size table) 1))
+  (let loop-table ((n (- (tlc-table-buckets-size table) 1))
 		   (distribution '()))
     (let ((count
 	   (let loop-chain ((x (tlc-table-entry table n))
@@ -247,8 +317,18 @@
 		    (if (or (eq? x (cdr tconc))
 			    (not (pair? x)))
 			count
-			(loop-tconc (cdr x) (+ count 1))))))))
+			(loop-tconc (cdr x) (+ count 1)))))))
+	  (count-loc
+	   (let loop ((tlc (tlc-table-loc table))
+		      (count 0))
+	     (if tlc
+		 (loop (tlc-value-next-tlc (transport-link-cell-value tlc))
+		       (+ count 1))
+		 count))))
       (if (> n 0)
 	  (loop-table (- n 1) (cons (cons n count) distribution))
-	  (cons (cons -1 count-tconc)
-		(cons (cons n count) distribution))))))
+	  (list (cons 'tconc count-tconc)
+		(cons 'count (tlc-table-count table))
+		(cons 'loc count-loc)
+		(cons 'buckets
+		      (cons (cons n count) distribution)))))))

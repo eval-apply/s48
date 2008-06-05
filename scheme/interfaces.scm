@@ -944,6 +944,8 @@
 	  tlc-table-contains?
 	  tlc-table-update!
 	  tlc-table-clear!
+	  tlc-table-keys
+	  tlc-table-entries
 	  tlc-table-equivalence-function
 	  tlc-table-hash-function
 	  tlc-table-distribution))
