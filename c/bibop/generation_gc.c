@@ -1014,84 +1014,94 @@ inline static void call_internal_write_barrier2(Area* maybe_area, s48_address ad
 }
 
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
-
-static void append_tconc(s48_value tconc, s48_value value) {
-  /* a tconc is a pair, whose cdr points the the last pair of a list */
+static void append_tconc(s48_value tconc, s48_value tlc) {
+  /* A tconc is a pair, whose car points to the first pair of a list
+     and whose cdr points to the last pair of this list. */
 
   s48_value newpair;
+  s48_value tconc_car;
+  s48_value tconc_cdr;
 
-  if (S48_PAIR_P(tconc) && (S48_PAIR_P(S48_UNSAFE_CDR(tconc)))) {
+  assert(S48_PAIR_P(tconc));
+  assert(S48_TRANSPORT_LINK_CELL_P(tlc));
+
+  /* Though the tconc must already be in the "to space", it's car and
+     cdr could still point to the "from space", because the tconc
+     itself may not have been traced and updated yet, so do it now. */
+  S48_UNSAFE_SET_CDR(tconc, s48_trace_value(S48_UNSAFE_CDR(tconc)));
+  
+  tconc_car = S48_UNSAFE_CAR(tconc);
+  tconc_cdr = S48_UNSAFE_CDR(tconc);
+  if (S48_PAIR_P(tconc_car) && S48_PAIR_P(tconc_cdr)) {
     /* We have to use the usual allocation functions, cause we might
        need a new area, but another gc must not be triggered of
        course, as we are just doing one right now. */
     s48_forbid_gcB();
-
+    
     /* create the new pair */
     /* No other way to know the size of a pair? This is not nice. */
-    newpair = s48_allocate_stob(S48_STOBTYPE_PAIR, S48_CELLS_TO_BYTES(2));
-    S48_UNSAFE_SET_CAR(newpair, value);
-    S48_UNSAFE_SET_CDR(newpair, S48_NULL);
-
-    /* append it */
-    S48_UNSAFE_SET_CDR(S48_UNSAFE_CDR(tconc), newpair);
+    newpair = s48_allocate_stob(S48_STOBTYPE_PAIR, 2);
+    S48_UNSAFE_SET_CAR(newpair, S48_FALSE);
+    S48_UNSAFE_SET_CDR(newpair, S48_FALSE);
+    /* keep the newpair alive */
+    newpair = s48_trace_value(newpair);
+    
+    /* enqueue the tlc in the tconc queue */
+    S48_UNSAFE_SET_CAR(tconc_cdr, tlc);
+    S48_UNSAFE_SET_CDR(tconc_cdr, newpair);
     S48_UNSAFE_SET_CDR(tconc, newpair);
 
+    /* ...and set the tconc and pair field to null (false). */
+    S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc) = S48_FALSE;
     s48_allow_gcB();
   }
-  else {
-    /* invalid tconc - do something more severe than a printf? */
-    assert(S48_PAIR_P(tconc));
-    assert(S48_PAIR_P(S48_CDR(tconc)));
-    printf("ignoring invalid tconc\n");
-  }
+  /* else: silently ignoring malformed tconc */
 }
 
-static void forwarding_transport_link_cell(s48_value tlc) {
-  s48_value tconc;
+inline static char tlc_key_moves_in_gc_p(s48_value key) {
+  /* because the key is always older than the tlc, a test for a broken
+     heart would seem enough here, but because the bibop not
+     necessarily traces all older locations before all younger ones
+     (e.g. if things are in different small/large/weak areas), we have
+     to take a look at the area, and return if it will be collected in
+     the current collection: */
 
+  /* if a previous, additional test for a broken heart would be faster
+     is untested. */
+
+  Area* key_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(key));
+  assert(key_area->action != GC_ACTION_ERROR);
+  return (key_area->action != GC_ACTION_IGNORE);
+}
+
+static void trace_transport_link_cell(s48_address contents_pointer,
+				      long size) {
+  s48_value tlc = S48_ADDRESS_TO_STOB_DESCRIPTOR(contents_pointer);
+  s48_value key;
+  char key_moved_p;
   assert(S48_TRANSPORT_LINK_CELL_P(tlc));
+  key = S48_UNSAFE_TRANSPORT_LINK_CELL_KEY(tlc);
 
-  /* if the tconc field is non-null (false) */
-  tconc = S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc);
-  if (S48_FALSE_P(tconc)) {
-    /* tlc aready seen */
-  }
-  else if (S48_PAIR_P(tconc)) {
-    /* and the key has moved */
-    s48_value key = S48_UNSAFE_TRANSPORT_LINK_CELL_KEY(tlc);
-    if (S48_STOB_P(key) && (BROKEN_HEART_P(S48_STOB_HEADER(key)))) {
+  /* Remember if the (old) key is valid and has moved or will move in this GC... */
+  key_moved_p = BROKEN_HEART_P(key) 
+                || (S48_STOB_P(key) && tlc_key_moves_in_gc_p(key));
 
-      /* then add the tlc to the end of the tconc... */
-      /* this allocates a new pair, which will contain the address of
-	 the old tlc, but it will be traced and updated later. */
+  /* ...trace the current tlc to make sure that every pointer is up-to-date. */
+  s48_trace_locationsB(contents_pointer, contents_pointer + size);
+  /* Hint: we cannot compare pointers here to check for a moved key,
+     because large objects are never actually moved. */
+
+  if (key_moved_p) {
+    s48_value tconc = S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc);
+    /* If the tconc field is a pair... */
+    if (S48_PAIR_P(tconc)) {
+      /* ...then add the tlc to the end of the tconc queue. */
       append_tconc(tconc, tlc);
-
-      /* and set the tconc field to null (false) */
-      S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc) = S48_FALSE;
     }
-    /* else: key not moved - safe because the key object must always
-       be younger than the tlc */
-  }
-  else {
-    /* invalid tconc field - do something more severe than a printf? */
-    assert(0);
-    printf("ignoring invalid tlc tconc field\n");
   }
 }
 
 #endif // S48_HAVE_TRANSPORT_LINK_CELLS
-
-/* called when stob is about to be forwarded (also called for large
- objects which are never really copied) */
-inline static void forwarding_object_hook(s48_value stob) {
-
-#if (S48_HAVE_TRANSPORT_LINK_CELLS)
-   if (S48_TRANSPORT_LINK_CELL_P(stob)) {
-     forwarding_transport_link_cell(stob);
-   }
-#endif
-
-}
 
 /* EKG checks for broken hearts - only used internally in
    s48_trace_locationsB */
@@ -1105,7 +1115,6 @@ inline static void forwarding_object_hook(s48_value stob) {
       addr = next;\
       goto loop;\
     } else {\
-      forwarding_object_hook(trace_stob_stob); \
       copy_header = header;\
       copy_thing = trace_stob_stob;\
       goto label;\
@@ -1148,6 +1157,11 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
        extern void s48_trace_continuation(char *, long); /* BIBOP-specific */
        s48_trace_continuation(next, size);
        addr = next + size;
+     }
+     else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_TRANSPORT_LINK_CELL) {
+       unsigned long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
+       trace_transport_link_cell(next, size);
+       addr = next + size;
      } else {
        addr = next;
      }
@@ -1187,8 +1201,6 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
        goto loop;
      } break;
      case GC_ACTION_MARK_LARGE: {
-       forwarding_object_hook(trace_stob_stob);
-
        copy_to_space = from_area->target_space;
        mark_large(from_area, copy_to_space);
        /* a large object has been "copied" */
@@ -1201,13 +1213,13 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
        return; /* Never reached */
      } break;
      default: {
-       s48_gc_error("got unexpected gc-action in the %i generation", from_area->generation_index + 1);
+       s48_gc_error("got unexpected gc-action %d in the %i generation", from_area->action, from_area->generation_index + 1);
        return; /* Never reached */
      }
      }
    }
    else {
-     s48_gc_error("illegal stob descriptor found while tracing address 0x%X called from %s",
+     s48_gc_error("illegal stob descriptor found while tracing address %p called from %s",
 		  addr, called_from);
      return; /* Never reached */
    }
