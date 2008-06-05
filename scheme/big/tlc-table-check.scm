@@ -2,6 +2,9 @@
 
 (define-test-suite tlc-table-tests)
 
+;;; most of the test cases are adapted from Eric Knauel's test cases
+;;; he wrote for his id-tables
+
 (define max-table-size 1023)
 (define table-step 23)
 (define min-collect-times 2)
@@ -508,5 +511,136 @@
       (check-that
        (tlc-table-ref table o #f)
        (is-false))))))
+
+;; helper function for checking entries: check if the order and number
+;; of keys and values returned by tlc-table-entries is correct.
+(define (check-entries t n)
+  (call-with-values
+      (lambda ()
+	(tlc-table-entries t))
+    (lambda (keys values)
+      (for-each
+       (lambda (key value)
+	 (check (tlc-table-ref t key #f)
+		=> value))
+       (vector->list keys)
+       (vector->list values))
+      (check 
+       (vector-length keys)
+       => (vector-length (tlc-table-keys t)))
+      (check 
+       (vector-length keys)
+       => (tlc-table-size t))
+      (check (tlc-table-size t) => n))))
+
+;; check entries for empty tables
+(define-test-case empty-entries tlc-table-tests
+  (do-ec
+   (:range size 1 max-table-size table-step)
+   (let ((t (make-tlc-table size)))
+     (check-entries t 0))))
+
+;; check entries for one-element tables
+(define-test-case one-element-entries tlc-table-tests
+  (do-ec
+   (:range size 1 max-table-size table-step)
+   (let ((t (make-tlc-table size))
+	 (p (cons 23 42)))
+     (tlc-table-set! t p p)
+     (check-entries t 1))))
+
+;; check entries for filled tables (unmovable keys)
+(define-test-case set-entries/unmovable tlc-table-tests
+  (do-ec
+   (:range size 1 (quotient max-table-size 3) table-step)
+   (let ((t (make-tlc-table size)))
+     (check-entries t 0)
+     (do-ec
+      (:range i 1 (* 3 size))
+      (begin
+	(tlc-table-set! t i (cons i i))
+	(check-entries t i))))))
+
+;; check entries with set and delete (unmovable keys)
+(define-test-case set-delete-entries/unmovable tlc-table-tests
+  (do-ec
+   (:range size 1 (quotient max-table-size 3) table-step)
+   (let ((t (make-tlc-table size)))
+     (check-entries t 0)
+     (do-ec
+      (:range i 1 (* 3 size))
+      (begin
+	(tlc-table-set! t i (cons i i))
+	(tlc-table-set! t (+ i (* 3 size)) (cons i i))
+	(check-that (tlc-table-delete! t i #f)
+		    (opposite (is-false)))
+	(check-entries t i))))))
+
+;; check entries with set, delete, and clear (unmovable keys)
+(define-test-case set-delete-clear-entries/unmovable tlc-table-tests
+  (do-ec
+   (:range size 1 (quotient max-table-size 3) table-step)
+   (let ((t (make-tlc-table size)))
+     (check-entries t 0)
+     (do-ec
+      (:range i 1 (* 3 size))
+      (begin
+	(tlc-table-clear! t)
+	(check (tlc-table-size t) => 0)
+	(tlc-table-set! t i (cons i i))
+	(tlc-table-set! t (+ i (* 3 size)) (cons i i))
+	(check-that (tlc-table-delete! t i #f)
+		    (opposite (is-false)))
+	(check-entries t 1))))))
+
+;; check entries for filled and cleared tables
+(define-test-case set-entries tlc-table-tests
+  (do-ec
+   (:range size 1 (quotient max-table-size 3) table-step)
+   (let ((t (make-tlc-table size)))
+     (tlc-table-clear! t)
+     (check-entries t 0)
+     (do-ec
+      (:range i 1 (* 3 size))
+      (begin
+	(tlc-table-set! t (cons i i) (cons i i))
+	(check-entries t i))))))
+
+;; fill a table with objects, delete some, and retrieve the others
+;; after n collections
+(define-test-case set-collect-delete-entries tlc-table-tests
+  (do-ec
+   (:range size 1 (quotient max-table-size 3) table-step)
+   (let* ((t (make-tlc-table size))
+	  (n (* 3 size))
+	  (objs (list-ec (: i n) (cons i n)))
+	  (delobjs (list-ec (: i n) (cons i n))))
+     (do-ec
+      (:list o delobjs)
+      (tlc-table-set! t o o))
+     (check-entries t n)
+     (collect-n-times (random-number min-collect-times max-collect-times))
+     (do-ec
+      (:list o objs)
+      (tlc-table-set! t o o))
+     (check-entries t (* 2 n))
+     (collect-n-times (random-number min-collect-times max-collect-times))
+     (do-ec
+      (:list o delobjs)
+      (check-that
+       (tlc-table-delete! t o #f)
+       (opposite (is-false))))
+     (check-entries t n)
+     (collect-n-times (random-number min-collect-times max-collect-times))
+     (do-ec
+      (:list o delobjs)
+      (check-that
+       (tlc-table-ref t o #f)
+       (is-false)))
+     (check-entries t n)
+     (do-ec
+      (:list o objs)
+      (check (tlc-table-ref t o #f) => o))
+     (check-entries t n))))
 
 ;; TODO: random set/collect/delete/ref weak/non-weak stress test
