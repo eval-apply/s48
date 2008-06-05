@@ -112,6 +112,15 @@
 	  wait
 	  weak-pointer-ref
 	  weak-pointer?
+	  make-transport-link-cell
+	  transport-link-cell?
+	  transport-link-cell-key
+	  transport-link-cell-value 
+	  set-transport-link-cell-value!
+	  transport-link-cell-tconc 
+	  set-transport-link-cell-tconc!
+	  transport-link-cell-next 
+	  set-transport-link-cell-next!
 	  write-byte
 	  write-char
 	  encode-char

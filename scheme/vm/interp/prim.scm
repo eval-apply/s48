@@ -376,6 +376,16 @@
       (goto continue-with-value
 	    weak-pointer
 	    0))))
+
+(define-primitive make-transport-link-cell (any-> any-> any-> any->)
+  (lambda (key value tconc next)
+    (let ((transport-link-cell 
+	   (make-transport-link-cell-stob key value tconc next
+					  (ensure-space 5))))
+	  (goto continue-with-value
+		transport-link-cell
+		0))))
+
 ;----------------
 ; Misc
 

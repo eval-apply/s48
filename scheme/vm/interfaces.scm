@@ -73,6 +73,8 @@
 	  	
 	  immutable? make-immutable!
 	  make-weak-pointer
+
+	  make-transport-link-cell-stob
 	  ))
 
 (define-interface allocation-interface
@@ -214,6 +216,12 @@
 	  location? location-size make-location contents set-contents! location-id
 	  cell? cell-size make-cell cell-ref cell-set!
 	  weak-pointer? weak-pointer-size make-weak-pointer weak-pointer-ref
+
+	  transport-link-cell? make-transport-link-cell-stob
+	  transport-link-cell-key
+	  transport-link-cell-value set-transport-link-cell-value!
+	  transport-link-cell-tconc set-transport-link-cell-tconc!
+	  transport-link-cell-next set-transport-link-cell-next!
 
 	  shared-binding? shared-binding-size make-shared-binding
 	  shared-binding-name shared-binding-is-import?

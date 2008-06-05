@@ -236,6 +236,9 @@
   ;; weak-pointers
   (make-weak-pointer 1)
 
+  ;; transport link cells
+  (make-transport-link-cell 4)
+
   ;; Optimistic concurrency
   (current-proposal)
   (set-current-proposal! 1)
@@ -629,8 +632,8 @@
       (channel-id)
       (channel-os-index)
       (channel-close-silently?))
-    (transport-link-cell transport-link-cell? make-transport-link-cell
-      (transport-link-cell-key) ; must always be younger, hence no mutator
+    (transport-link-cell transport-link-cell? make-transport-link-cell-stob
+      (transport-link-cell-key) ; may never be younger than TLC, hence no mutator
       (transport-link-cell-value set-transport-link-cell-value!)
       (transport-link-cell-tconc set-transport-link-cell-tconc!)
       (transport-link-cell-next set-transport-link-cell-next!))
