@@ -937,7 +937,7 @@
           table-size
 	  table-ref
 	  table-set!
-	  table-walk
+	  table-walk table->entry-list
 	  make-table-immutable!
 
 	  string-hash symbol-hash
