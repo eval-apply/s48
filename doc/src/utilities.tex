@@ -769,6 +769,7 @@ For example, \code{make-integer-table} could be defined
 \proto{table-ref}{ table key}{value or {\tt \#f}}
 \protonoresultnoindex{table-set!}{ table key value}\mainschindex{table-set"!}
 \protonoresult{table-walk}{ procedure table}
+\proto{table->entry-list}{ table}{list of pairs}
 \end{protos}
 \noindent
 \code{Table?} is the predicate for tables.
@@ -776,6 +777,8 @@ For example, \code{make-integer-table} could be defined
  in \cvar{table}.
 \code{Table-walk} applies \cvar{procedure}, which must accept two arguments,
  to every associated key and non-\code{\#f} value in \code{table}.
+\code{Table->entry-list} returns a list with pairs of the keys and values of
+the table.
 
 \begin{protos}
 \proto{default-hash-function}{ value}{integer}
