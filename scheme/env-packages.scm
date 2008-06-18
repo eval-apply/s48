@@ -411,12 +411,12 @@
 
 ; Execution profiler.
 
-(define-structures ((profiler (export profile))
-		    (profile-commands profile-commands-interface))
-  (open scheme
-        (modify primitives (prefix primitives:)
-                           (expose collect time memory-status))
-        interrupts
+(define-structures ((profiler         profiler-interface)
+					(profile-commands profile-commands-interface))
+	(open scheme
+		  (modify primitives (prefix primitives:)
+	              (expose collect time memory-status))
+	interrupts
 	architecture
 	session-data
 	continuations
@@ -425,12 +425,12 @@
 	disclosers
 	primitives
 	tables
-        command-processor
+	command-processor
 	environments
 	sort
-        define-record-types
+	define-record-types
 	debug-data
 	debugging
 	cells
 	locks)
-  (files (env profile)))
+	(files (env profile)))
