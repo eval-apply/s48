@@ -148,6 +148,57 @@
    
 (define-interface profile-commands-interface
   (export profile))
+
+(define-interface profiler-interface
+  (export profile-run
+	  make-empty-profile-data
+	  profile-set-interrupt-time!
+
+	  ;; general data
+	  profile-data-starttime
+	  profile-data-endtime
+	  profile-data-runtime
+	  profile-data-samples
+	  profile-data-templates
+	  profile-data-cycles
+	  profile-data-root
+
+	  ;; printing
+	  profile-display ; everything
+	  profile-display-overview
+	  profile-display-flat
+	  profile-display-tree
+
+	  profile-display-profinfo-flat
+	  profile-display-profinfo-tree
+	  profile-display-cycle-tree
+
+	  ;; specific data
+	  profinfo-callers
+	  profinfo-occurs
+	  profinfo-hist
+	  profinfo-tchild
+	  profinfo-toporder
+	  profinfo-dfn
+	  profinfo-cycle
+	  profinfo-timeshare
+	  profinfo-total-ms
+	  profinfo-self-ms
+	  profinfo-total-calls
+	  profinfo-total-nonreccalls
+	  profinfo-total-reccalls
+	  profinfo-total-upcalls
+
+	  cycleinfo-number
+	  cycleinfo-members
+	  cycleinfo-tchild
+
+	  callerinfo-caller
+	  callerinfo-calls
+	  callerinfo-tself
+	  callerinfo-tchild
+	  ))
+
    
 (define-interface package-commands-interface
   (export in
