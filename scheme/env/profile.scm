@@ -7,7 +7,7 @@
 
 ;; profiling information for each template
 (define-record-type profinfo :profinfo
-  (make-profinfo template callers occurs hist)
+  (make-profinfo template callers occurs hist memoryuse)
   profinfo?
   (template  profinfo-template)                           ; scheme code template
   (callers   profinfo-callers   profinfo-set-callers!)    ; table of callerinfos
@@ -17,7 +17,7 @@
   (toporder  profinfo-toporder  profinfo-set-toporder!)
   (dfn       profinfo-dfn       profinfo-set-dfn!)        ; depth-first number
   (cycle     profinfo-cycle     profinfo-set-cycle!)
-  )
+  (memoryuse profinfo-memoryuse profinfo-set-memoryuse!))
 
 (define-record-type cycleinfo :cycleinfo
   (make-cycleinfo number members)
@@ -60,6 +60,11 @@
 (define *profiler-thisrun* #f)
 
 (define *active-profile-data* #f)
+
+(define *last-gc-count* 0)
+(define *cur-gc-count* 0)
+(define *last-avail-memory* 0)
+(define *cur-avail-memory* 0)
 
 (define interrupt/alarm (enum interrupt alarm))
 
@@ -139,6 +144,7 @@
 	(set! *last-stack* #f)
 	(set! *profiler-thisrun* #f)
 	(set! *profiler-lastrun* #f)
+	(set! *last-gc-count* -1)
 	(release-lock *profiler-lock*)
 
 	(set-profile-data-root!      prof-data "root")
@@ -245,6 +251,13 @@
       (display-w "" w port)
       (display-w-nr n w port)))
 
+(define (display-w-mem n w port)
+  (if (> n 10000000)
+      (display-w (string-append (number->string (round (/ n 1000000))) "M") w port)
+      (if (> n 10000)
+	  (display-w (string-append (number->string (round (/ n 1000))) "k") w port)
+	  (display-w (string-append (number->string (round n)) " ") w port))))
+
 (define (display-sep-nrs nr1 nr2 sep w port)
   (display-w
    (string-append (number->string nr1) sep (number->string nr2))
@@ -305,7 +318,7 @@
   (display-w "time" 7 port)
   (display-w "cumu" 7 port)
   (display-w "self" 7 port)
-  (display-w "(hist)" 12 port)
+  (display-w "mem" 12 port)
   (display-w "calls" 14 port)
   (display-w "ms/call" 9 port)
   (display-w "name" 7 port)
@@ -384,17 +397,18 @@
 	 (reccalls     (profinfo-total-reccalls      profinfo))
 	 (nonreccalls  (profinfo-total-nonreccalls   profinfo))
 	 (hist         (profinfo-hist                profinfo))
+	 (memuse       (profinfo-memoryuse           profinfo))
 	 (timeshare    (profinfo-timeshare prof-data profinfo))
 	 (ttotal       (profinfo-total-ms  prof-data profinfo))
 	 (tself        (profinfo-self-ms   prof-data profinfo))
 	 (ms/call      (save/ (occurs->ms prof-data occurs) calls)))
 
-    (if (neq? template (profile-data-root prof-data))
+    (if (not (eq? template (profile-data-root prof-data)))
 	(begin
 	  (display-w (number-as-percent-string timeshare)  7 port)
 	  (display-w-nr ttotal 7 port)
 	  (display-w-nr tself  7 port)
-	  (display-sep-nz-nrs occurs hist "+" 12 port)
+	  (display-w-mem memuse 12 port)
 	  (display-sep-nz-nrs nonreccalls reccalls "+" 14 port)
 	  (display-w-nr ms/call 9 port)
 	  
@@ -502,7 +516,7 @@
     
     ;; print parents
     (if (= (table-size callers) 0)
-	(if (neq? template (profile-data-root prof-data))
+	(if (not (eq? template (profile-data-root prof-data)))
 	    (begin (display-w " " 49 port) (display "      <spontaneous>" port) (newline)))
 	(table-walk
 	 (lambda (caller-pi cinfo)
@@ -833,7 +847,7 @@
   (let ((occurs (profinfo-occurs profinfo)))
     (occurs->ms prof-data occurs)))
 
-(define (profinfo-selfms prof-data profinfo)
+(define (profinfo-self-ms prof-data profinfo)
   (let ((hist (profinfo-hist profinfo)))
     (occurs->ms prof-data hist)))
   
@@ -1119,30 +1133,38 @@
 
 ;; process the stack entries that have the seen "bit" not set.
 (define (post-process-stack! prof-data call-stack)
-  (if call-stack
-      (let loop ((stack          call-stack)
-		 (caller-se      #f)
-		 (seen-templates '()))
-	(if (not (null? stack))
-	    (let* ((called-se (car stack))
-		   (called-pi (get-profinfo prof-data called-se))
-		   (template  (stackentry-template called-se))
-		   (reccalls  (stackentry-reccalls called-se)))
-	      (if (and (= reccalls 0)
-		       (not (memq? template seen-templates)))
-		  (begin
-		    ;; record occurance
-		    (profinfo-set-occurs! called-pi
-					  (+ (profinfo-occurs called-pi) 1))))
-
-	      ;; if top element, count as running
-	      (if (null? (cdr stack))
-		  (profinfo-set-hist! called-pi
-				      (+ (profinfo-hist called-pi) 1)))
-	      
-	      (loop (cdr stack)
-		    called-se
-		    (cons template seen-templates)))))))
+  (let ((gone-stackentries '()))
+    (if call-stack
+	(let loop ((stack          call-stack)
+		   (caller-se      #f)
+		   (seen-templates '()))
+	  (if (not (null? stack))
+	      (let* ((called-se (car stack))
+		     (called-pi (get-profinfo prof-data called-se))
+		     (template  (stackentry-template called-se))
+		     (reccalls  (stackentry-reccalls called-se)))
+		
+		(if (and (= reccalls 0)
+			 (not (memq? template seen-templates)))
+		    (begin
+		      ;; record occurance
+		      (profinfo-set-occurs! called-pi
+					    (+ (profinfo-occurs called-pi) 1))))
+		
+		;; if top element, count as running
+		(if (null? (cdr stack))
+		    (profinfo-set-hist! called-pi
+					(+ (profinfo-hist called-pi) 1)))
+		
+		;; if gone, record it
+		(if (not (stackentry-seen called-se))
+		    (set! gone-stackentries
+			  (cons called-se gone-stackentries)))
+		     
+		(loop (cdr stack)
+		      called-se
+		      (cons template seen-templates))))))
+    gone-stackentries))
 
 
 (define (record-call! prof-data caller-se called-se)
@@ -1159,7 +1181,7 @@
 	  (set! called-profinfo
 		(make-profinfo called-template
 			       (make-table profinfo-id)
-			       0 0))
+			       0 0 0))
 	  (table-set! (profile-data-templates prof-data) called-template called-profinfo)))
 
     ;; if we know the caller, count it
@@ -1179,63 +1201,68 @@
 	#f)))
 
 (define (process-stack-traces! prof-data)
-  ;; record root template
-  ;(if (not (null? *cur-stack*))
-  ;    (let ((root (stackentry-template (car *cur-stack*))))
-;	(if (and *root-template* (neq? *root-template* root))
-;	    (begin
-;	      (display "Root template changed from ")
-;	      (display *root-template*)
-;	      (display " to ")
-;	      (display root)
-;	      (display ".\nRoot is being tail-called, ")
-;	      (display "this may result in errorneous profiling data.")
-;	      (newline)))
-;	(set! *root-template* root)))
+  (let ((stat-new-funcs  '())
+	(stat-gone-funcs '())
+	(stat-new-caller  #f)
+	(stat-top         #f))
   
-  ;; go from bottom to top and count calls
-  (let loop ((pos 0)
-	     (stack *cur-stack*)
-	     (caller-se #f)
-	     (diff-found #f))
-    (if (not (null? stack))
-	(let ((new-se (car stack)))
-	  ;; compare with last stack
-	  (let ((old-se (list-ref-or-default *last-stack* pos #f))
-		(rcdcall #f))
-	    (if (or (not old-se)  ; not on old stack
-		    diff-found)
-		(begin
-		  (set! rcdcall #t)
-		  (set! diff-found #t))
-		(if (not (eq? (stackentry-template old-se)        ; other template => other func
-			      (stackentry-template new-se)))
-		    (begin
-		      (set! rcdcall #t)
-		      (set! diff-found #t))
-		    ;; same template...
-		    (let ((old-cont (stackentry-cont old-se))
-			  (new-cont (stackentry-cont new-se)))
-		      (if (not (eq? old-cont new-cont))    ; other continuation, something changed
-			  (begin
-			    (set! diff-found #t) ; remember change upwards...
-			    (if (and (eq? (continuation-pc old-cont)   ; same pc and arg-count, else
-					  (continuation-pc new-cont))  ; may be just other place in func
-				     (eq? (continuation-code old-cont)
-					  (continuation-code new-cont))
-				     (compare-continuation-args old-cont new-cont)) ; detects most tailcalls
+    ;; go from bottom to top and count calls
+    (let loop ((pos 0)
+	       (stack *cur-stack*)
+	       (caller-se #f)
+	       (diff-found #f))
+      (if (not (null? stack))
+	  (let ((new-se (car stack)))
+	    ;; compare with last stack
+	    (let ((old-se (list-ref-or-default *last-stack* pos #f))
+		  (rcdcall #f)
+		  (old-diff-found diff-found))
+	      (if (or (not old-se)  ; not on old stack
+		      diff-found)
+		  (begin
+		    (set! rcdcall #t)
+		    (set! diff-found #t))
+		  (if (not (eq? (stackentry-template old-se)        ; other template => other func
+				(stackentry-template new-se)))
+		      (begin
+			(set! rcdcall #t)
+			(set! diff-found #t))
+		      ;; same template...
+		      (let ((old-cont (stackentry-cont old-se))
+			    (new-cont (stackentry-cont new-se)))
+			(if (not (eq? old-cont new-cont))    ; other continuation, something changed
+			    (begin
+			      (set! diff-found #t) ; remember change upwards...
+			      (if (and (eq? (continuation-pc old-cont)   ; same pc and arg-count, else
+					    (continuation-pc new-cont))  ; may be just other place in func
+				       (eq? (continuation-code old-cont)
+					    (continuation-code new-cont))
+				       (compare-continuation-args old-cont new-cont)) ; detects most tailcalls
 				  (set! rcdcall #t)))))))
-	   
-	    (if rcdcall
-		(record-call! prof-data caller-se new-se)
-		(seen! old-se new-se))
-	    
-	    (loop (+ pos 1)
-		  (cdr stack)
-		  new-se
-		  diff-found)))))
-  
-  (post-process-stack! prof-data *last-stack*))
+
+	      (if (and caller-se
+		       (not (eq? diff-found
+				 old-diff-found)))
+		    (set! stat-new-caller caller-se))
+	      
+	      (if rcdcall
+		  (begin  ; new call to fun
+		    (set! stat-new-funcs (cons new-se stat-new-funcs))
+		    (record-call! prof-data caller-se new-se))
+		  (seen! old-se new-se))
+	      
+	      (loop (+ pos 1)
+		    (cdr stack)
+		    new-se
+		    diff-found)))
+	  (set! stat-top caller-se)))
+
+    (set! stat-gone-funcs
+	  (post-process-stack! prof-data *last-stack*))
+
+    (analyze-memory-usage prof-data stat-top stat-new-funcs stat-new-caller stat-gone-funcs)
+    
+    ))
 
 
 (define (record-template! cont template)
@@ -1260,9 +1287,11 @@
 (define (record-continuation! prof-data cont)
   
   ;; init
-  (set! *cur-stack* '())
+  (set! *cur-stack*        '())
   (set! *profiler-lastrun* *profiler-thisrun*)
   (set! *profiler-thisrun* (run-time)) ; we cap this here, profiler could run some time
+  (set! *cur-avail-memory* (available-memory))
+  (set! *cur-gc-count*     (get-current-gc-count))
   (set-profile-data-samples! prof-data (+ 1 (profile-data-samples prof-data)))
   
   ;; record the current template
@@ -1286,7 +1315,12 @@
   
 	;; save old stack
 	(set! *last-stack* *cur-stack*)
-	(set-unseen-all!))))
+	(set-unseen-all!)))
+
+  ;; save memory status
+  (set! *last-avail-memory* (available-memory))
+  (set! *last-gc-count*     (get-current-gc-count))
+  )
 
 
 
@@ -1299,3 +1333,52 @@
              (if (template? elt)
                  elt
                  (loop (+ i 1))))))))
+
+
+
+;;;;;; HEAP PROFILER
+
+(define (available-memory)
+  (primitives:memory-status (enum memory-status-option available) #f))
+
+(define (get-current-gc-count)
+  (primitives:memory-status (enum memory-status-option gc-count) #f))
+
+(define (gc-running-meanwhile?)
+  (> *cur-gc-count* *last-gc-count*))
+
+(define (analyze-memory-usage prof-data top new caller gone)
+  (if (gc-running-meanwhile?)
+      (begin
+	;; we need to know the free memory after GC to fix this
+	(ddisplay "gc was running, crediting no memory usage...\n")
+	#f)
+      (begin
+	(let* ((usage (- *last-avail-memory*
+			 *cur-avail-memory*))
+	       (cntnew  (length new))
+	       (cntgone (length gone))
+	       (dotop   (and top
+			     (= cntnew 0)
+			     (= cntgone 0)))
+	       (totcnt (+ (if caller 1 0)
+			  cntnew
+			  cntgone))
+	       (avgusage (/ usage totcnt))
+	       (addmem (lambda (se amount)
+			 (let ((pi (get-profinfo prof-data se)))
+			   (profinfo-set-memoryuse!
+			    pi
+			    (+ (profinfo-memoryuse pi)
+			       amount))))))
+
+	  (if (< usage 0)
+	      (display "usage < 0, somehow memory got free with no GC run!?\n")
+	      ;; if the template at the top still the same, add all memory to it
+	      (if dotop
+		  (addmem top usage)
+		  ;; else distribute memory usage to all relevant templates
+		  (begin
+		    (if caller (addmem caller avgusage))
+		    (for-each (lambda (se) (addmem se avgusage)) new)
+		    (for-each (lambda (se) (addmem se avgusage)) gone))))))))
