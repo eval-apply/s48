@@ -180,6 +180,7 @@
 	  profinfo-tchild
 	  profinfo-toporder
 	  profinfo-dfn
+	  profinfo-memory
 	  profinfo-cycle
 	  profinfo-timeshare
 	  profinfo-total-ms
