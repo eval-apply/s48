@@ -41,7 +41,7 @@
 (define-method &disclose ((obj :cell))
   (if (cell-unassigned? obj)
       (list 'uninitialized-cell)
-      (list 'cell)))
+      (list 'cell (cell-ref obj))))
 
 ;; this overwrites the method defined in rts/continuation.scm
 
