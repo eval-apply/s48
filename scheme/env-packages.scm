@@ -432,5 +432,7 @@
 	debug-data
 	debugging
 	cells
-	locks)
+	locks
+	low-exceptions
+	)
 	(files (env profile)))
