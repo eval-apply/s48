@@ -150,13 +150,16 @@
   (export profile))
 
 (define-interface profiler-interface
-  (export profile-run
+  (export
+	  profile-thunk
 	  make-empty-profile-data
 	  profile-set-interrupt-time!
 
 	  ;; general data
 	  profile-data-starttime
 	  profile-data-endtime
+	  profile-data-memoryuse
+	  profile-data-gcruns
 	  profile-data-runtime
 	  profile-data-samples
 	  profile-data-templates
@@ -197,8 +200,7 @@
 	  callerinfo-caller
 	  callerinfo-calls
 	  callerinfo-tself
-	  callerinfo-tchild
-	  ))
+	  callerinfo-tchild))
 
    
 (define-interface package-commands-interface

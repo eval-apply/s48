@@ -223,6 +223,265 @@ If no \cvar{command} is given, the \code{config} package becomes the
     Display name of file containing \cvar{procedure}'s source code.
 \end{description}
 
+
+\section{Profiling commands}
+\label{profiling-commands}
+
+Scheme~48 includes a basic statistical profiler, with support for flat and call-graph profiles.
+In addition to call- and runtimes also the heap memory usage is analyzed.
+The profiler is, in its current implementation, solely based on sampling and therefore has only
+limited accuracy.
+Any evaluation can be profiled with the following command:
+
+\begin{description}
+
+\item \code{,profile \cvar{command}}\\
+    Evaluate \cvar{command} under the profiler, printing the profiling result and making the
+    return value(s) of \cvar{command} the new focus object.
+
+\end{description}
+
+The output of the profiler is explained on the basis of the following piece of senseless code:
+
+\begin{example}
+(define (c x)
+  (if (= x 0)
+      0
+      (+ 1 (c (- x 1)))))
+
+(define (b x)
+  (let ((y (- x 1)))
+    (if (> y 0)
+        (begin
+          (c y)
+          (a y)
+          (+ 1 (a y)))
+        0)))
+
+(define (a x)
+  (let ((y (- x 1)))
+    (if (> y 0)
+        (begin
+          (c y)
+          (b y)
+          (+ 1 (b y)))
+        0)))
+
+(define (main x)
+  (+ 1 (a x)))
+\end{example}
+
+The profiler produces the following output:
+
+\begin{example}
+> ,profile (main 21)
+
+** Samples:        60 (approx. one per 40ms)
+** Interrupt time: 50ms
+** Real run time:  2430ms
+** Total memory:   22k
+** GC runs:        0
+
+** Flat result (times in ms): 
+
+   time   cumu   self   mem    calls  ms/call   name
+ 61.66%   1498   1498    2k    37+51       17   c
+  25.0%   2430    608   10k      436        6   b
+ 13.33%   2430    324   10k      442        5   a
+   0.0%   2430      0    0k        1     2430   main
+
+** Tree result (times in ms): 
+
+ i    time self  child  mem    calls   name
+ 0  100.0%    0   2430   0k        0   <profiler> [0]
+              0   2430   0k      1/1      main [1]
+============================================================
+                             441/442      b <cycle 0> [3]
+            324    891  10k    1/442      main [1]
+ 1  100.0%  324    891  10k      442   a <cycle 0> [2]
+            891      0   1k    22/37      c [4]
+                             436/436      b <cycle 0> [3]
+============================================================
+                             436/436      a <cycle 0> [2]
+ 2  100.0%  608    608  10k      436   b <cycle 0> [3]
+            608      0   1k    15/37      c [4]
+                             441/442      a <cycle 0> [2]
+============================================================
+              0   2430   0k      1/1      <profiler> [0]
+ 3  100.0%    0   2430   0k        1   main [1]
+            324    891  10k    1/442      a <cycle 0> [2]
+============================================================
+            608      0   1k    15/37      b <cycle 0> [3]
+            891      0   1k    22/37      a <cycle 0> [2]
+ 4  61.66% 1498      0   2k    37+51   c [4]
+============================================================
+            932   1498  20k      1/1      main [1]
+ 0  100.0%  932   1498  20k    1+877   <cycle 0 as a whole>
+            324    891  10k      441      a <cycle 0> [2]
+            608    608  10k      436      b <cycle 0> [3]
+              0      0   2k    37/37      c [4]
+
+\end{example}
+
+The formatting of the output is based on the output of gprof.
+At first, general information about the profiling is shown:
+\begin{itemize}
+	\item \code{samples}: total number of samples taken and the
+		average time between two samples
+	\item \code{interrupt time}: theoretical interrupt time, the time between
+		two samples
+	\item \code{real run time}: the total run time of the evaluation, simple measurement
+		from beginning to the end of the evaluation
+	\item \code{total memory}: the total amount of memory used by the program, here in kilobytes
+	\item \code{GC runs}: the number of times the garbage collector was running while evaluating
+\end{itemize}
+
+The flat profile gives overall statistics for each function in the program:
+\begin{itemize}
+\item \code{time}:
+	percentage of time the function has in the program (based on "self")
+\item \code{cumu}:
+	total cumulative time the function was running
+\item \code{self}:
+	total time the function was running itself (without children)
+\item \code{mem}:
+	approximated memory usage of the function
+\item \code{calls}:
+	the number of non-recursive calls to the function. Recursive calls are displayed after an
+	optionally appended "+" to former number (see \code{c}).
+\item \code{ms/call}:
+	estimate of the time per call (with children), based on non-recursive calls and "cumu".
+\item \code{name}:
+	the name of the function and the file it is defined in
+\end{itemize}
+
+The tree result displays profiling information depending on the caller of a particular function.
+As in gprof output, for each function there is a "entry". Entries are separated by lines full of "=".
+Each entry displays the callers (indented), the function itself and the function called (indented).
+The meaning of the fields depends on the type of the entry, for example:
+
+\begin{example}
+ i    time self  child  mem    calls   name
+            324    891  10k    1/442      main [1]
+ 1  100.0%  324    891  10k      442   a <cycle 0> [2]
+            891      0   1k    22/37      c [4]
+\end{example}
+
+Every function has a unique index number \code{i} (here ``1''), based on the position in the
+call-graph. It is used to quickly find the corresponding entry. The number is appended to
+the function name (in brackets).
+The meaning of the ``cycle'' suffix is explained below.
+
+Callers (here \code{main}):
+\begin{itemize}
+	\item \code{self}:
+		time spent directly in \code{a} when called by \code{main}
+	\item \code{child}:
+		time spent in children of \code{a} when called by \code{main}
+	\item \code{mem}:
+		memory usage of \code{a} when called by \code{main}
+	\item \code{calls}:
+		two numbers:
+		number of calls to \code{a} from \code{main}
+		and
+		total number of non-recursive calls to \code{a}
+\end{itemize}
+
+Primary line (here \code{a}):
+\begin{itemize}
+	\item \code{time}:
+		total percentage of time \code{a} was running
+	\item \code{self}:
+		total time spent directly in \code{a}
+	\item \code{child}:
+		total time spent in children of \code{a}
+	\item \code{mem}:
+		total memory usage of \code{a}
+	\item \code{calls}:
+		the total number of non-recursive calls to \code{a}. Recursive calls are
+		displayed after an optionally appended "+" to former number.
+\end{itemize}
+
+Called (here \code{c}):
+\begin{itemize}
+	\item \code{self}:
+		time spent directly in \code{c} when called by \code{a}
+	\item \code{child}:
+		time spent in children of \code{c} when called by \code{a}
+	\item \code{mem}:
+		memory usage of \code{c} when called by \code{a}
+	\item \code{calls}:
+		two numbers:
+		number of calls to \code{c} from \code{a}
+		and
+		total number of non-recursive calls to \code{c}
+\end{itemize}
+
+A special treatment is needed for mutual-recursive functions. In the example,
+\code{a} calls \code{b} and \code{b} calls \code{a}. This is called a \textit{cycle}.
+If \code{a} would call another function \code{d} and \code{d} would call \code{a}, all three
+functions form a cycle.
+
+Cycles have a separate entry in the call graph.
+This entry consists of the callers into the cycle, the primary line of the cycle,
+the member functions of the cycle and the external functions called by the cycle:
+
+\begin{example}
+            932   1498  20k      1/1      main [1]
+ 0  100.0%  932   1498  20k    1+877   <cycle 0 as a whole>
+            324    891  10k      441      a <cycle 0> [2]
+            608    608  10k      436      b <cycle 0> [3]
+              0      0   2k    37/37      c [4]
+\end{example}
+
+Callers (here \code{main}):
+\begin{itemize}
+	\item the meaning of the fields are the same
+	as above. The member functions of the cycle are seen as a whole.
+\end{itemize}
+
+Primary line:
+\begin{itemize}
+	\item \code{time}:
+		total percentage of time any function of the cycle was running
+	\item \code{self}:
+		total time spent directly in a function of the cycle
+	\item \code{child}:
+		total time spent in external children of \code{a}
+	\item \code{mem}:
+		sum of memory usage of all cycle member functions
+	\item \code{calls}:
+		the total number of external calls to the \code{cycle} and the total number
+		of calls in the cycle internally
+\end{itemize}
+
+Member functions:
+\begin{itemize}
+	\item the meaning of the fields are the same as above, except\ldots
+	\item \code{calls}: the number of calls to the member function from within the cycle
+\end{itemize}
+
+External functions (here \code{c}):
+\begin{itemize}
+	\item the meaning of the fields are the same as with the member functions, except\ldots
+	\item \code{calls}: the number of calls to the external function from the cycle
+		and
+		the total number of non-recursive calls to the external function
+\end{itemize}
+
+
+In the current implementation there are some issues that need to be considered.
+In the default configuration, samples are taken every 50 milliseconds. Functions with a by-call
+runtime shorter that the interrupt time are likely to be profiled inaccurate or may not be seen at all.
+
+Because the interrupt is shared with the thread system, profiling may cause performance issues
+with multi-threaded programs. Also programs with deep recursions (resulting in a large stack of
+continuations) can cause the profiler to use a significant percentage of the total run time.
+
+Because Scheme~48 optimizes tail-calls, the profiler can not ``see'' tail-calls. Also, in some situations,
+the output of the profiler may show that functions directly call their ``grandchildren''.
+
+
 \section{Settings}
 
 There are a number of settings that control the behavior of the
