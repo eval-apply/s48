@@ -841,7 +841,7 @@ queue_ready_ports(psbool wait, long seconds, long ticks)
       return errno;
   }
 }
-#elif defined HAVE_SIGNAL
+#elif defined HAVE_SELECT
 /*
  * Call select() on the pending ports and move any ready ones to the ready
  * queue.  If wait is true, seconds is either -1 (wait forever) or the
