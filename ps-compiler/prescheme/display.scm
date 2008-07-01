@@ -176,6 +176,8 @@
 	 (desyntaxify thing))
 	((primop? thing)
 	 (primop-id thing))
+	((operator? thing)
+	 (operator-name thing))
 	((primitive? thing)
 	 (primitive-id thing))
 	((variable? thing)
