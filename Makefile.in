@@ -309,8 +309,8 @@ $(VM): c/main.o $(OBJS) $(GC_OBJS) $(UNIX_OBJS) $(LIBOBJS) $(EXTERNAL_OBJECTS) \
 	c/scheme48.exp c/scheme48.def
 	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) -o $@ c/main.o		\
 		$(OBJS) $(GC_OBJS) $(UNIX_OBJS)				\
-		$(LIBOBJS) $(LIBS)					\
-		$(EXTERNAL_OBJECTS)
+		$(LIBOBJS)						\
+		$(EXTERNAL_OBJECTS)  $(LIBS)
 	# Cygwin
 	if test -x /usr/bin/dlltool; then \
 		dlltool --dllname $(VM).exe --output-lib $(VM).a --def $(srcdir)/c/scheme48.def; \
