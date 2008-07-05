@@ -103,4 +103,6 @@ listed here):
       build-initial-image.bat Windows batch file for creating build/initial.image
       i-know-what-i-am-doing.bat Windows batch file for compiling VM to C
       scheme48.wxs      WiX script for generating scheme48.msi
+      build/{UnicodeData.txt,PropList.txt,SpecialCasing.txt,CaseFolding.txt,CompositionExclusions.txt}
+                        Unicode data files
     emacs/		Emacs support
