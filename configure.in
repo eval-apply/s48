@@ -28,6 +28,7 @@ AC_INIT(c/prescheme.h)
      S48_CREATE_BUILD_DIRS
      S48_LDFLAGS
      AC_ISC_POSIX
+     AC_SYS_LARGEFILE
      S48_INLINE
      AC_PROG_INSTALL
      AC_CHECK_LIB(m, main)

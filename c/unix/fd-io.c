@@ -1,6 +1,9 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+/* NB: sysdep.h must come first in order for LFS to be enabled
+   properly */
+#include "sysdep.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +14,6 @@
 #include <errno.h>              /* for errno, (POSIX?/ANSI) */
 #include <string.h>		/* FD_ZERO sometimes needs this */
 #include <locale.h>		/* ISO C99 */
-#include "sysdep.h"
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
