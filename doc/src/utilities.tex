@@ -1099,14 +1099,15 @@ After profiling data can be retrieved with the following accessors:
 \begin{protos}
 	\proto{profile-data-starttime}{ profile-data}{number}
 	\proto{profile-data-endtime}{ profile-data}{number}
+	\proto{profile-data-interrupttime}{ profile-data}{number}
 	\proto{profile-data-memoryuse}{ profile-data}{number}
 	\proto{profile-data-gcruns}{ profile-data}{number}
 	\proto{profile-data-runtime}{ profile-data}{number}
 	\proto{profile-data-samples}{ profile-data}{number}
-
-	\proto{profile-data-templates}{ profile-data}{table of templates}
-	\proto{profile-data-cycles}{ profile-data}{table of cycleinfo}
-	\proto{profile-data-root}{ profile-data}{profinfo}
+%
+%	\proto{profile-data-templates}{ profile-data}{table of templates}
+%	\proto{profile-data-cycles}{ profile-data}{table of cycleinfo}
+%	\proto{profile-data-root}{ profile-data}{profinfo}
 \end{protos}
 
 Times are in milliseconds, memory usage in bytes.
@@ -1114,7 +1115,7 @@ The profiling data structures for single functions or cycles can be
 retrieved by the \code{profile-data-templates} and \code{profile-data-cycles}
 tables.
 
-The following functions produce the output put as described in section \ref{section:profiling-commands}.
+The following functions produce the same output as the \code{,profile} command.
 They all take a optional port argument. Default is the \cvar{current-output-port}.
 
 \begin{protos}
@@ -1131,6 +1132,53 @@ They all take a optional port argument. Default is the \cvar{current-output-port
 \code{profile-display} prints the full output of the profiler.
 The other \code{profile-display-\ldots} functions only display the respective part of the output.
 
+The single fields in the flat profile can be retrieved with the following accessors:
+
+\begin{protos}
+	\protonoresult{profile-function-calls}{ profile-data names}
+	\protonoresult{profile-function-reccalls}{ profile-data names}
+	\protonoresult{profile-function-nonreccalls}{ profile-data names}
+	\protonoresult{profile-function-occurs}{ profile-data names}
+	\protonoresult{profile-function-hist}{ profile-data names}
+	\protonoresult{profile-function-memoryuse}{ profile-data names}
+	\protonoresult{profile-function-timeshare}{ profile-data names}
+	\protonoresult{profile-function-time-cumulative}{ profile-data names}
+	\protonoresult{profile-function-time-self}{ profile-data names}
+\end{protos}
+
+Here is \cvar{names} the list of names specifying the function, optionally
+with it's module. For example, \code{names = ("dynamic-wind", "wind")}
+would specify the \code{dynamic-wind} function in the module \code{wind}, if
+it was seen while profiling. If two or more functions match, the first one
+is used. If no function matches, the functions return \code{\#\{Unspecific\}}.
+
+\cvar{names} can also be a plain string, as in
+\code{profile-display-function-flat prof-data "module"}. This will display
+all flat function profiles which have ``module'' either as name or module.
+
+The meanings of the fields the functions return are as follows:
+\begin{itemize}
+	\item \code{calls}:
+		total number of calls (recursive and non-recursive) to the function
+	\item \code{reccalls}: 
+		total number of recursive calls to the function
+	\item \code{nonreccalls}: 
+		total number of non-recursive calls to the function
+	\item \code{occurs}: 
+		number of times the function was seen on stack while profiling
+	\item \code{hist}: 
+		number of times the function was seen running while profiling
+	\item \code{memoryuse}: 
+		bytes of memory used by the function
+	\item \code{timeshare}: 
+		percentage of time used by the function itself (number from 0 to 1)
+	\item \code{time-cumulative}: 
+		total time in ms the function was on call-stack
+	\item \code{time-self}: 
+		total time in ms the function actively running
+\end{itemize}
+
+
 The following shows a short example of the usage of the profiler interface, where \code{main}
 is the function to be profiled:
 \begin{example}
@@ -1145,11 +1193,20 @@ is the function to be profiled:
 (profile-display-flat prof-data (current-output-port))
 (profile-display-tree prof-data)
 
-(table-walk (lambda (template profinfo)
-              (display (profinfo-total-calls profinfo))
-              (newline))
-            (profile-data-templates prof-data))
+; print only function "a"
+(profile-display-function-flat prof-data '("a"))
+
+; print only function "a" in file "x.scm"
+(profile-display-function-flat prof-data '("a" "x.scm"))
+
+; print percentage of time "a" was running
+(display (* (profile-function-timeshare prof-data '("a")) 100))
 \end{example}
+
+% (table-walk (lambda (template profinfo)
+%               (display (profinfo-total-calls profinfo))
+%               (newline))
+%             (profile-data-templates prof-data))
 
 
 \section{Macros for writing loops}
