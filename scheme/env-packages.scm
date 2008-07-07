@@ -433,6 +433,5 @@
 	debugging
 	cells
 	locks
-	low-exceptions
-	)
+	low-exceptions)
 	(files (env profile)))

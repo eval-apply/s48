@@ -153,9 +153,9 @@
   (export
 	  profile-thunk
 	  make-empty-profile-data
-	  profile-set-interrupt-time!
 
 	  ;; general data
+	  profile-data-set-interrupttime!
 	  profile-data-starttime
 	  profile-data-endtime
 	  profile-data-memoryuse
@@ -171,36 +171,22 @@
 	  profile-display-overview
 	  profile-display-flat
 	  profile-display-tree
+  
+	  profile-display-function-flat
+	  profile-display-function-tree
+	  profile-display-function-cycle
 
-	  profile-display-profinfo-flat
-	  profile-display-profinfo-tree
-	  profile-display-cycle-tree
-
-	  ;; specific data
-	  profinfo-callers
-	  profinfo-occurs
-	  profinfo-hist
-	  profinfo-tchild
-	  profinfo-toporder
-	  profinfo-dfn
-	  profinfo-memory
-	  profinfo-cycle
-	  profinfo-timeshare
-	  profinfo-total-ms
-	  profinfo-self-ms
-	  profinfo-total-calls
-	  profinfo-total-nonreccalls
-	  profinfo-total-reccalls
-	  profinfo-total-upcalls
-
-	  cycleinfo-number
-	  cycleinfo-members
-	  cycleinfo-tchild
-
-	  callerinfo-caller
-	  callerinfo-calls
-	  callerinfo-tself
-	  callerinfo-tchild))
+	  ;; flat accessors
+	  profile-function-calls
+	  profile-function-reccalls
+	  profile-function-nonreccalls
+	  profile-function-occurs
+	  profile-function-hist
+	  profile-function-memoryuse
+	  profile-function-timeshare
+	  profile-function-time-cumulative
+	  profile-function-time-self
+  ))
 
    
 (define-interface package-commands-interface

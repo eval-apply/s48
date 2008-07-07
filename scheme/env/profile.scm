@@ -52,7 +52,7 @@
 (define *interrupt-time* #f)            ; (theoretical) ms between interrupts
 
 (define *saved-interrupt-handler* #f)   ; non-profiler interrupt handler
-(define *profiler-continuation* #f)     ; profiler's top continuation
+(define *profiler-continuation*   #f)   ; profiler's top continuation
 
 (define *profiler-lock* (make-lock))    ; exclusive lock for interrupt handler
 
@@ -61,21 +61,40 @@
 
 (define *active-profile-data* #f)
 
-(define *start-gc-count* 0)
-(define *last-gc-count* 0)
-(define *cur-gc-count* 0)
+(define *start-gc-count*    0)
+(define *last-gc-count*     0)
+(define *cur-gc-count*      0)
 (define *last-avail-memory* 0)
-(define *cur-avail-memory* 0)
+(define *cur-avail-memory*  0)
 
 (define interrupt/alarm (enum interrupt alarm))
 
-(define default-interrupt-time 50)
+;;; Sampling interrupt time (with setting)
+
+(define *profiler-default-interrupt-time* 50)
+
+(define (positive-integer? n)
+  (and (integer? n)
+       (exact? n)
+       (positive? n)))
+
+(define (profiler-default-interrupt-time)
+  *profiler-default-interrupt-time*)
+
+(define (set-profiler-default-interrupt-time! interrupt-time)
+  (set! *profiler-default-interrupt-time* interrupt-time))
+
+(add-setting 'profiler-interrupt-time positive-integer?
+	     profiler-default-interrupt-time
+	     set-profiler-default-interrupt-time!
+	     "profiler sampling interrupt time in milliseconds")
 
 
 ;;; Miscellaneous global stuff
 
 (define-record-type profile-data :profile-data
   (make-profile-data)
+  (interrupttime profile-data-interrupttime set-profile-data-interrupttime!)
   (starttime profile-data-starttime set-profile-data-starttime!)
   (endtime   profile-data-endtime   set-profile-data-endtime!)
   (root      profile-data-root      set-profile-data-root!)
@@ -87,8 +106,9 @@
 
 (define (make-empty-profile-data)
   (let ((pd (make-profile-data)))
-    (set-profile-data-memoryuse! pd 0)
-    (set-profile-data-cycles! pd '())
+    (set-profile-data-memoryuse! pd   0)
+    (set-profile-data-cycles!    pd '())
+    (set-profile-data-interrupttime! pd (profiler-default-interrupt-time))
   pd))
 
 (define (run-time)
@@ -99,15 +119,9 @@
 ;  (display x)
   #f)
 
-;; we overwrite template-id because of our special "root" template
-(define (prof-template-id t)
-  (if (string? t)
-      0
-      (template-id t)))
-
 ;; hash function for callers table in profiling information
 (define (profinfo-id pi)
-  (prof-template-id (profinfo-template pi)))
+  (template-id (profinfo-template pi)))
 
 
 (define (profiler-continuation? cont)
@@ -121,8 +135,59 @@
       (get-profinfo-from-template prof-data (stackentry-template stack-entry))
       #f))
 
-(define (profile-set-interrupt-time! t)
-  (set! *interrupt-time* t))
+(define (get-template-name-and-modules prof-data template)
+  (if (eq? template (profile-data-root prof-data))
+      (cons '<profiler> '())
+      (let ((ddata (template-debug-data template)))
+	(if (not (and (debug-data? ddata)
+		      (pair? (debug-data-names ddata))))
+	    (cons (string-append "anonymous"
+				 (if (debug-data? ddata)
+				     (number->string (debug-data-uid ddata))
+				     (if (number? ddata)
+					 (number->string ddata)
+					 "?")))
+		  '())
+	    (let loop ((names (debug-data-names ddata))
+		       (lst   '()))
+	      (set! lst (cons (or (car names) "anonymous") lst))
+	      (if (pair? (cdr names))
+		  (loop (cdr names) lst)
+		  (reverse lst)))))))
+
+(define (same-name? a b)
+  (string=? (if (symbol? a)
+		(symbol->string a)
+		a)
+	    (if (symbol? b)
+		(symbol->string b)
+		b)))
+
+(define (profile-data-find prof-data names)
+  (let ((found-lst '()))
+    (table-walk
+     (lambda (template pi)
+       (let loop ((names names)
+		  (tempnames (get-template-name-and-modules prof-data template)))
+	 (if (string? names)
+	     ;; only string given, search match in path
+	     (if (pair? tempnames)
+		 (if (same-name? names (car tempnames))
+		     (set! found-lst (cons pi found-lst))
+		     (loop names (cdr tempnames))))
+	     ;; list of strings given, requires full path matching
+	     (if (not (pair? names))
+		 (set! found-lst (cons pi found-lst))
+		 (if (and (pair? tempnames)
+			  (same-name? (car names) (car tempnames)))
+		     (loop (cdr names) (cdr tempnames)))))))
+     (profile-data-templates prof-data))
+    found-lst))
+
+(define (do-for-first-matching fun prof-data names)
+  (let ((pis (profile-data-find prof-data names)))
+    (if (pair? pis)
+	(fun (car pis)))))
 
 ;;; MAIN
 
@@ -150,6 +215,13 @@
 
 
 (define (profile-thunk prof-data thunk . opt-args)
+
+  (if (not (eq? (profile-data-samples prof-data)
+		(unspecific)))
+      (error 'profile-thunk
+	     "a profile-data record can be used only once"))
+
+  (set! *interrupt-time* #f)
   
   ;; optional arguments: interrupt-time ...
   (case (length opt-args)
@@ -157,10 +229,10 @@
      (let ((int-time (car opt-args)))
        (set! *interrupt-time* int-time))))
   
-  ;; default interrupt time, if not set
+  ;; profile-data interrupt time, if not set
   (if (not *interrupt-time*)
-      (set! *interrupt-time* default-interrupt-time))
-
+      (set! *interrupt-time* (profile-data-interrupttime prof-data)))
+  
   (if *profiler-continuation*
       (error
        'profile-thunk
@@ -175,11 +247,17 @@
 	(set! *last-gc-count*       *start-gc-count*)
 	(release-lock *profiler-lock*)
 
-	(set-profile-data-root!      prof-data "root")
-	(set-profile-data-templates! prof-data (make-table prof-template-id))
-	(set-profile-data-samples!   prof-data 0)
-	(set-profile-data-starttime! prof-data (run-time))
-
+	;; init profile-data
+	(set-profile-data-templates!     prof-data (make-table template-id))
+	(set-profile-data-samples!       prof-data 0)
+	(set-profile-data-starttime!     prof-data (run-time))
+	(set-profile-data-interrupttime! prof-data *interrupt-time*)
+	;; this is more flexible than generating a own template
+	(primitive-cwcc
+	 (lambda (cont)
+	   (set-profile-data-root! prof-data
+				   (continuation-template cont))))
+	
 	(call-with-values
 	    (lambda ()
 	      (dynamic-wind
@@ -204,28 +282,28 @@
 		    ;; do necessary calculations
 		    (depth-numbering prof-data)
 		    (propagate-times prof-data)
+		    (toporder-numbering prof-data)
 		    
 		    (set! *active-profile-data*   #f))))
 	  (lambda results
 	    (apply values results))))))
-	
+
+;(define (fib x)
+;  (if (< x 2)
+;      1
+;      (+ (fib (- x 1)) (fib (- x 2)))))
+
+;; TODO: calculate useful time, if possible...
+;(define calculate-tick-rate!
+;  (lambda ()
+;    (let ((start-time (run-time)))
+;      (fib 30)  ; chosen more or less at random.
+;      (let ((end-time (run-time)))
+;	(set! *interrupt-time* (quotient (- end-time start-time) 50))
+;      (newline)))))
 
 
 ;;; INTERRUPT HANDLING
-
-(define (fib x)
-  (if (< x 2)
-      1
-      (+ (fib (- x 1)) (fib (- x 2)))))
-
-;; TODO: calculate useful time, if possible...
-(define calculate-tick-rate!
-  (lambda ()
-    (let ((start-time (run-time)))
-      (fib 30)  ; chosen more or less at random.
-      (let ((end-time (run-time)))
-	(set! *interrupt-time* (quotient (- end-time start-time) 50))
-      (newline)))))
 
 (define (start-periodic-interrupts!)
   (schedule-interrupt *interrupt-time*))
@@ -310,6 +388,23 @@
        (number->string nr1))
    w
    port))
+
+;; Are there no functions for this!?
+(define (number-as-percent-string nr)
+  (if nr
+      (let* ((expanded (truncate (* 10000 nr)))
+	     (afterdot (round (inexact->exact (modulo expanded 100))))
+	     (full     (round (inexact->exact (quotient (- expanded afterdot) 100)))))
+	(string-append (number->string full)
+		       "."
+		       (number->string afterdot)
+		       "%"))
+      "?"))
+
+(define (save/ a b)
+  (if (= b 0)
+      #f
+      (/ a b)))
 
 (define (parse-port-arg opt-port)
   (if (null? opt-port)
@@ -416,16 +511,9 @@
     
     ;; sort and print
     (let ((sorted-templates 
-	   (get-sorted-templates prof-data (lambda (pi) (- (profinfo-occurs pi)))))
-	  (toporder 0))
+	   (get-sorted-templates prof-data (lambda (pi) (- (profinfo-occurs pi))))))
       (for-each (lambda (profinfo)
-		  (profinfo-set-toporder! profinfo toporder)
-		  (set! toporder (+ toporder 1)))
-		sorted-templates)
-      (for-each (lambda (profinfo)
-		  (profile-display-profinfo-tree prof-data profinfo port)
-		  (display "==========================================================================================" port)
-		  (newline port))
+		  (profile-display-profinfo-tree prof-data profinfo port))
 		sorted-templates))
 
     (if cycles
@@ -433,22 +521,32 @@
 		    (profile-display-cycle-tree prof-data cyc port))
 		  cycles))))
 
-;; Are there no functions for this!?
-(define (number-as-percent-string nr)
-  (if nr
-      (let* ((expanded (truncate (* 10000 nr)))
-	     (afterdot (round (inexact->exact (modulo expanded 100))))
-	     (full     (round (inexact->exact (quotient (- expanded afterdot) 100)))))
-	(string-append (number->string full)
-		       "."
-		       (number->string afterdot)
-		       "%"))
-      "?"))
 
-(define (save/ a b)
-  (if (= b 0)
-      #f
-      (/ a b)))
+(define (profile-function-calls prof-data names)
+  (do-for-first-matching profinfo-total-calls prof-data names))
+(define (profile-function-reccalls prof-data names)
+  (do-for-first-matching profinfo-total-reccalls prof-data names))
+(define (profile-function-nonreccalls prof-data names)
+  (do-for-first-matching profinfo-total-nonreccalls prof-data names))
+(define (profile-function-occurs prof-data names)
+  (do-for-first-matching profinfo-occurs prof-data names))
+(define (profile-function-hist prof-data names)
+  (do-for-first-matching profinfo-hist prof-data names))
+(define (profile-function-memoryuse prof-data names)
+  (do-for-first-matching profinfo-memoryuse prof-data names))
+(define (profile-function-timeshare prof-data names)
+  (do-for-first-matching (lambda (pi) (profinfo-timeshare prof-data pi)) prof-data names))
+(define (profile-function-time-cumulative prof-data names)
+  (do-for-first-matching (lambda (pi) (profinfo-total-ms prof-data pi)) prof-data names))
+(define (profile-function-time-self prof-data names)
+  (do-for-first-matching (lambda (pi) (profinfo-self-ms prof-data pi)) prof-data names))
+
+(define (profile-display-function-flat prof-data names . opt-port)
+  (let ((port (parse-port-arg opt-port))
+	(pis  (profile-data-find prof-data names)))
+    (for-each (lambda (pi)
+		(profile-display-profinfo-flat prof-data pi port))
+	      pis)))
 
 (define (profile-display-profinfo-flat prof-data profinfo port)
 
@@ -478,6 +576,15 @@
 	  (newline port)
 	  ))))
 
+(define (profile-display-function-cycle prof-data names . opt-port)
+  (let ((port (parse-port-arg opt-port))
+	(pis  (profile-data-find prof-data names)))
+    (for-each (lambda (pi)
+		(let ((ci (profinfo-cycle pi)))
+		  (if ci
+		      (profile-display-cycle-tree prof-data ci port))))
+	      pis)))
+
 (define (profile-display-cycle-tree prof-data cycleinfo port)
   (let* ((number    (cycleinfo-number         cycleinfo))
 	 (members   (cycleinfo-members        cycleinfo))
@@ -491,6 +598,10 @@
 	 (ttotal    (+ hist tchild))
 	 (timeshare (save/ ttotal (profile-data-samples prof-data))))
 
+    (display "=============================================" port)
+    (display "=============================================" port)
+    (newline port)
+    
     ;; print cycle callers
     (for-each
      (lambda (caller-pi)
@@ -569,6 +680,13 @@
      (cycleinfo-called-externals prof-data cycleinfo))))
 
 
+(define (profile-display-function-tree prof-data names . opt-port)
+  (let ((port (parse-port-arg opt-port))
+	(pis  (profile-data-find prof-data names)))
+    (for-each (lambda (pi)
+		(profile-display-profinfo-tree prof-data pi port))
+	      pis)))
+
 (define (profile-display-profinfo-tree prof-data primary-pi port)
   (let* ((template     (profinfo-template            primary-pi))
 	 (toporder     (profinfo-toporder            primary-pi))
@@ -586,6 +704,10 @@
 	 (timeshare    (save/ occurs (profile-data-samples prof-data)))
 	 (ms/call      (save/ (occurs->ms prof-data occurs) calls)))
     
+    (display "=============================================" port)
+    (display "=============================================" port)
+    (newline port)
+		  
     ;; print parents
     (if (= (table-size callers) 0)
 	(if (not (eq? template (profile-data-root prof-data)))
@@ -622,7 +744,7 @@
 		 (display-profinfo-name prof-data caller-pi port)
 		 (newline port))))
 	 callers))
-    
+
     ;; print primary line
     (display-w-nr toporder 3 port)
     (display-w (number-as-percent-string timeshare) 8 port)
@@ -678,20 +800,14 @@
 
 ;; displays functionname and file of a code template
 (define (display-location prof-data template port)
-  (if (eq? template (profile-data-root prof-data))
-      (display "<profiler>" port)
-      (let ((ddata (template-debug-data template)))
-	(if (not (and (debug-data? ddata)
-		      (pair? (debug-data-names ddata))))
-	    (write `(anonymous ,(if (debug-data? ddata)
-				    (debug-data-uid ddata)
-				    ddata))
-		   port)
-	    (let loop ((names (debug-data-names ddata)))
-	      (write (or (car names) '(anonymous)) port)
-	      (if (pair? (cdr names))
-		  (begin (display " in " port)
-			 (loop (cdr names)))))))))
+  (let loop ((names (get-template-name-and-modules prof-data template)))
+    (if (string? (car names)) (display "\"" port))
+    (display (car names) port)
+    (if (string? (car names)) (display "\"" port))
+    (if (pair? (cdr names))
+	(begin (display " in " port)
+	       (loop (cdr names))))))
+
 
 (define (display-profinfo-name prof-data pi port)
   (let* ((template (profinfo-template pi))
@@ -701,15 +817,14 @@
     (display-location prof-data template port)
 
     (if cyc
-	(Begin
+	(begin
 	  (display " <cycle " port)
 	  (display (cycleinfo-number cyc))
 	  (display ">" port)))
     
     (display " [" port)
     (display dfn port)
-    (display "]" port)
-    ))
+    (display "]" port)))
 
 ;;; useful stuff
 
@@ -799,8 +914,7 @@
     (cycleinfo-foreach-member
      ci
      (lambda (pi)
-       (set! tt (+ tt
-		   (profinfo-hist pi)))))
+       (set! tt (+ tt (profinfo-hist pi)))))
     tt))
 
 (define (cycleinfo-memoryuse ci)
@@ -808,8 +922,7 @@
     (cycleinfo-foreach-member
      ci
      (lambda (pi)
-       (set! tt (+ tt
-		   (profinfo-memoryuse pi)))))
+       (set! tt (+ tt (profinfo-memoryuse pi)))))
     tt))
 
 
@@ -882,15 +995,6 @@
 	      called-list)
     tt))
 
-;; time spent in functions outside the cycle, called from the cycle
-(define (xxxxxxxxxcycleinfo-calc-tchild prof-data ci)
-  (let ((tt 0))
-    (cycleinfo-foreach-member
-     ci
-     (lambda (caller-pi)
-       (set! tt (+ tt (cycleinfo-tchild-member prof-data ci caller-pi)))))
-    tt))
-
 (define (get-callerinfo caller called)
   (let* ((caller-list (profinfo-callers called))
 	 (cinfo (table-ref caller-list caller)))
@@ -901,7 +1005,6 @@
     (if cinfo
 	(callerinfo-calls cinfo)
 	0)))
-
 
 ;; total number of calls from caller to the member or its whole cycle
 ;; (without recursive and cyclic)
@@ -1026,7 +1129,6 @@
 		  (set! childshare (/ (* ctchild calls) nonreccalls))
 		)))
 
-	 
 	 (ddisplay ", calls ")
 	 (ddisplay (round calls))
 	 (ddisplay ", share ")
@@ -1107,6 +1209,15 @@
 	    ))))
 	  
 	 
+(define (toporder-numbering prof-data)
+  (let ((sorted-templates 
+	 (get-sorted-templates prof-data (lambda (pi) (- (profinfo-occurs pi)))))
+	  (toporder 0))
+    (for-each (lambda (profinfo)
+		(profinfo-set-toporder! profinfo toporder)
+		(set! toporder (+ toporder 1)))
+	      sorted-templates)))
+
 ;;; numbers all functions by their depth in the call stack
 (define (depth-numbering prof-data)
   (let ((dfn-counter (table-size (profile-data-templates prof-data))))
@@ -1154,9 +1265,9 @@
 
 
 (define (last-stackentry)
-    (if (null? *cur-stack*)
-	#f
-	(car *cur-stack*)))
+  (if (null? *cur-stack*)
+      #f
+      (car *cur-stack*)))
 
 
 ;; adds one call to the profinfo of CALLED
@@ -1192,12 +1303,11 @@
 	      default)))
       default))
 
-(define set-unseen-all!
-  (lambda ()
+(define (set-unseen-all!)
     (and *last-stack*
 	 (for-each (lambda (se)
 		     (stackentry-set-seen! se #f))
-		   *last-stack*))))
+		   *last-stack*)))
 
 (define (seen? stackentry)
   (and stackentry
@@ -1367,8 +1477,7 @@
 	  
 	  ;; consider recursion (disabled)
 	  (set! *cur-stack*
-		(cons nse *cur-stack*))
-	  ))))
+		(cons nse *cur-stack*))))))
 
 
 ;; main record function (called from interrupt handler)
@@ -1394,7 +1503,7 @@
 		(loop parent))))
 
   ;; record our root template
-  (record-template! "root" (profile-data-root prof-data))
+  (record-template! #f (profile-data-root prof-data))
   
   ;; process the stack built above
   (if (not (null? *cur-stack*))
@@ -1438,27 +1547,25 @@
   (if (gc-running-meanwhile?)
       (begin
 	;; we need to know the free memory after GC to fix this
-	(ddisplay "gc was running, crediting no memory usage...\n")
 	#f)
       (begin
-	(let* ((usage (- *last-avail-memory*
-			 *cur-avail-memory*))
-	       (cntnew  (length new))
-	       (cntgone (length gone))
-	       (dotop   (and top
-			     (= cntnew 0)
-			     (= cntgone 0)))
-	       (totcnt (+ (if caller 1 0)
-			  cntnew
-			  cntgone))
+	(let* ((usage    (- *last-avail-memory*
+			    *cur-avail-memory*))
+	       (cntnew   (length new))
+	       (cntgone  (length gone))
+	       (dotop    (and top
+			      (= cntnew 0)
+			      (= cntgone 0)))
+	       (totcnt   (+ (if caller 1 0)
+			    cntnew
+			    cntgone))
 	       (avgusage (/ usage totcnt))
-	       (addmem (lambda (se amount)
-			 (let ((pi (get-profinfo prof-data se)))
-			   (profinfo-set-memoryuse!
-			    pi
-			    (+ (profinfo-memoryuse pi)
-			       amount))))))
-
+	       (addmem   (lambda (se amount)
+			   (let ((pi (get-profinfo prof-data se)))
+			     (profinfo-set-memoryuse!
+			      pi
+			      (+ (profinfo-memoryuse pi)
+				 amount))))))
 	  (if (< usage 0)
 	      (warning
 	       'profile-analyse-memory-usage
