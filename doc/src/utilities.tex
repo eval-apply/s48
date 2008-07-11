@@ -1080,30 +1080,29 @@ The profiler can be used programmatically from within the code and
 its results can be processed dynamically.
 
 The structure \code{profiler} offers basic data structures and functions.
-All functions need a \code{profile-data} record argument, which can be created with
+All functions need a \code{profile-data} record argument that can be created with
 \code{make-empty-profile-data}.
 
 \begin{protos}
 	\proto{make-empty-profile-data}{}{profile-data}
-	\proto{profile-thunk}{profile-data thunk}{value}
-	\proto{profile-thunk}{profile-data thunk interrupt-time}{value}
+	\proto{profile-thunk}{ profile-data thunk [interrupt-time]}{value}
 \end{protos}
 
-With \code{profile-thunk} a thunk is run under the profiler. The data is stored in
-the profile-data record given as argument. Optionally the timeout for the profiler interrupt
-can be given (in milliseconds). The return value of \code{profile-thunk} is the return value
+\code{profile-thunk} executes a thunk under the profiler. The data is stored in
+the \cvar{profile-data} record passed as argument. Optionally the timeout for the profiler interrupt
+can be passed (in milliseconds). The return value of \code{profile-thunk} is the return value
 of \code{thunk}.
 
-After profiling data can be retrieved with the following accessors:
+After profiling data, can be retrieved with the following accessors:
 
 \begin{protos}
 	\proto{profile-data-starttime}{ profile-data}{number}
 	\proto{profile-data-endtime}{ profile-data}{number}
-	\proto{profile-data-interrupttime}{ profile-data}{number}
+	\proto{profile-data-runtime}{ profile-data}{number}
 	\proto{profile-data-memoryuse}{ profile-data}{number}
 	\proto{profile-data-gcruns}{ profile-data}{number}
-	\proto{profile-data-runtime}{ profile-data}{number}
 	\proto{profile-data-samples}{ profile-data}{number}
+	\proto{profile-data-interrupttime}{ profile-data}{number}
 %
 %	\proto{profile-data-templates}{ profile-data}{table of templates}
 %	\proto{profile-data-cycles}{ profile-data}{table of cycleinfo}
@@ -1111,22 +1110,16 @@ After profiling data can be retrieved with the following accessors:
 \end{protos}
 
 Times are in milliseconds, memory usage in bytes.
-The profiling data structures for single functions or cycles can be
-retrieved by the \code{profile-data-templates} and \code{profile-data-cycles}
-tables.
 
-The following functions produce the same output as the \code{,profile} command.
-They all take a optional port argument. Default is the \cvar{current-output-port}.
+The following functions produce the same output as the \code{,profile} command
+(see section \ref{profiling-commands}).
+They all take an optional \cvar{port} argument. Default is the \code{current-output-port}.
 
 \begin{protos}
-	\protonoresult{profile-display}{ profile-data}
-	\protonoresult{profile-display}{ profile-data port}
-	\protonoresult{profile-display-overview}{ profile-data}
-	\protonoresult{profile-display-overview}{ profile-data port}
-	\protonoresult{profile-display-flat}{ profile-data}
-	\protonoresult{profile-display-flat}{ profile-data port}
-	\protonoresult{profile-display-tree}{ profile-data}
-	\protonoresult{profile-display-tree}{ profile-data port}
+	\protonoresult{profile-display}{ profile-data [port]}
+	\protonoresult{profile-display-overview}{ profile-data [port]}
+	\protonoresult{profile-display-flat}{ profile-data [port]}
+	\protonoresult{profile-display-tree}{ profile-data [port]}
 \end{protos}
 
 \code{profile-display} prints the full output of the profiler.
@@ -1152,11 +1145,11 @@ would specify the \code{dynamic-wind} function in the module \code{wind}, if
 it was seen while profiling. If two or more functions match, the first one
 is used. If no function matches, the functions return \code{\#\{Unspecific\}}.
 
-\cvar{names} can also be a plain string, as in
-\code{profile-display-function-flat prof-data "module"}. This will display
-all flat function profiles which have ``module'' either as name or module.
+The argument \cvar{names} can also be a plain string, as in
+\code{(profile-display-function-flat prof-data "module")}. This will display
+all flat function profiles that have ``module'' either as name or module.
 
-The meanings of the fields the functions return are as follows:
+The meanings of the fields that the functions return are as follows:
 \begin{itemize}
 	\item \code{calls}:
 		total number of calls (recursive and non-recursive) to the function

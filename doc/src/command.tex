@@ -228,7 +228,7 @@ If no \cvar{command} is given, the \code{config} package becomes the
 \label{profiling-commands}
 
 Scheme~48 includes a basic statistical profiler, with support for flat and call-graph profiles.
-In addition to call- and runtimes also the heap memory usage is analyzed.
+In addition to call- and runtimes the heap memory usage is estimated as well.
 The profiler is, in its current implementation, solely based on sampling and therefore has only
 limited accuracy.
 Any evaluation can be profiled with the following command:
@@ -323,15 +323,17 @@ i    time self child  mem    calls  name
 
 \end{example}
 
-The formatting of the output is based on the output of gprof.
-At first, general information about the profiling is shown:
+The formatting of the output is based on the output of
+GNU gprof \footnote{part of the GNU Binary Utilities: http://www.gnu.org/software/binutils/}.
+
+First, general information about the profiling is shown:
 \begin{itemize}
 	\item \code{samples}: total number of samples taken and the
 		average time between two samples
 	\item \code{interrupt time}: theoretical interrupt time, the time between
 		two samples
 	\item \code{real run time}: the total run time of the evaluation, simple measurement
-		from beginning to the end of the evaluation
+		from the beginning to the end of the evaluation
 	\item \code{total memory}: the total amount of memory used by the program, here in kilobytes
 	\item \code{GC runs}: the number of times the garbage collector was running while evaluating
 \end{itemize}
@@ -339,7 +341,7 @@ At first, general information about the profiling is shown:
 The flat profile gives overall statistics for each function in the program:
 \begin{itemize}
 \item \code{time}:
-	percentage of time the function has in the program (based on "self")
+	percentage of time the function has in the program (based on "\code{self}")
 \item \code{cumu}:
 	total cumulative time the function was running
 \item \code{self}:
@@ -348,9 +350,9 @@ The flat profile gives overall statistics for each function in the program:
 	approximated memory usage of the function
 \item \code{calls}:
 	the number of non-recursive calls to the function. Recursive calls are displayed after an
-	optionally appended "+" to former number (see \code{c}).
+	optionally appended "+" to former number (see function \code{c} in example output above).
 \item \code{ms/call}:
-	estimate of the time per call (with children), based on non-recursive calls and "cumu".
+	estimate of the time per call (with children), based on non-recursive calls and "\code{cumu}".
 \item \code{name}:
 	the name of the function and the file it is defined in
 \end{itemize}
@@ -470,19 +472,81 @@ External functions (here \code{c}):
 \end{itemize}
 
 
-In the current implementation there are some issues that need to be considered.
-In the default configuration, samples are taken every 50 milliseconds. Functions with a by-call
-runtime shorter that the interrupt time are likely to be profiled inaccurate or may not be seen at all.
+In the current implementation, there are some issues that need to be considered:
+in the default configuration, samples are taken every 50 milliseconds. Functions with a by-call
+runtime shorter than the interrupt time are likely to be profiled inaccurate or may not be seen at all.
+
+The default interrupt time can be set with the \code{profiler-interrupt-time} command processor setting,
+see \ref{settings}. For example, \code{,set profiler-interrupt-time 200} sets the
+default profiler sampling interrupt time to 200ms.
+
 
 Because the interrupt is shared with the thread system, profiling may cause performance issues
-with multi-threaded programs. Also programs with deep recursions (resulting in a large stack of
+with multi-threaded programs. Also, programs with deep recursions (resulting in a large stack of
 continuations) can cause the profiler to use a significant percentage of the total run time.
 
-Because Scheme~48 optimizes tail-calls, the profiler can not ``see'' tail-calls. Also, in some situations,
+Scheme~48 optimizes tail-calls. Thus, the profiler can not ``see'' tail-calls and in some situations,
 the output of the profiler may show that functions directly call their ``grandchildren''.
 
 
+\subsection{How the profiler works}
+
+The profiler is based on taking samples of the current stack of continuations, the {\it call-stack}.
+Therefore it schedules the {\tt alarm}-interrupt at a regular interval specified by the \code{profiler-interrupt-time}
+command processor setting. Because the thread system uses the alarm interrupt as well, the profiler interrupt handler
+calls the handler of the thread system after processing the sample.
+
+The profiler interrupt handler first captures the current continuation and follows the continuation-stack
+down to the continuation of the \code{profile-thunk} function, which called the thunk to be profiled.
+Each continuation with the corresponding code template is stored in a stack of \code{stackentry} records.
+
+This \code{*cur-stack*} is compared from bottom to top with the \code{*last-stack*},
+the stack captured while the prior sampling interrupt.
+The statistics gathered are stored in \code{profinfo} records.
+
+For each stack-entry in the \code{*cur-stack*}, several possibilities exist in
+conjunction to the entry at the same depth in the \code{*last-stack*}:
+\begin{itemize}
+	\item there is no such entry: the continuation must be the result of a new call
+	\item both entries are the same continuation: nothing changed, the function is still running
+	\item entries are not the same continuation:
+		the following entries up in the stack must have changed. If the templates of the current
+		entries are the same, the continuation counts as the still same call to the function (but at another
+		expression in the function). A such situation only counts as a new call if the continuation
+		object has changed, but the continuation program-counter, arguments and the template stayed the same.
+\end{itemize}
+As we ascend in the call-stack, changes in the lower levels indicate that all entries above have to be new calls.
+This way, the profiler gathers information about how often a template is called by another template.\\
+
+Additionally, every time a function is seen, we record this "occurance". If the function is a the top of
+the stack, it is currently running. Based on these numbers, the average interrupt time and the number of calls,
+we can estimate the self and child times.
+
+While running, the profiler collects information about the heap memory usage as well.
+After comparing the current with the last stack, the profiler knows which functions finished, which functions are new
+and who which function called the new functions. These informations are used to distribute the difference in
+heap memory usage between the prior and the current sample.
+The profiler uses the \code{memory-status} primitive for retrieving available heap space and the number of
+garbage collector runs (\code{gc-count}).
+Difference in used memory between two samples is distributed by the following principles:
+\begin{itemize}
+	\item if \code{gc-count} increased, distribution can not be done
+	\item if the same continuation is still at top, credit its template with all used memory between the two samplings
+	\item if there are stackentry-templates gone or new, distribute the used memory {\it equally} between them:
+		\begin{itemize}
+			\item gone templates could have used some memory before ``returning''
+			\item new  templates could have used some memory while running
+			\item the caller of new templates could have used some memory between the calling of gone and new functions
+		\end{itemize}
+\end{itemize}
+
+After collection of the data, functions are numbered and cycles are detected by ascending in the
+call tree. Time is being propagated from top to bottom, remembering self and child times. Most
+of the time, cycles are being considered as one function.
+
+
 \section{Settings}
+\label{settings}
 
 There are a number of settings that control the behavior of the
  command processor; most of them are booleans.
@@ -589,6 +653,10 @@ are printed.
 \item \code{condition-writing-length} (positive integer)\\
 This controls the maximum length to which conditions
 are printed.
+
+\item \code{profiler-interrupt-time} (positive integer)\\
+This controls the time between two profiler sampling interrupts
+(in milliseconds, see section \ref{profiling-commands}).
 
 \item \code{trace-writing-length} (positive integer)\\
 This controls the maximum length to which tracing
