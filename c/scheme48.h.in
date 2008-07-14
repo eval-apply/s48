@@ -66,6 +66,10 @@ S48_EXTERN s48_ref_t  s48_make_global_ref(s48_value obj);
 S48_EXTERN void       s48_free_global_ref(s48_ref_t ref);
 S48_EXTERN s48_ref_t  s48_local_to_global_ref(s48_ref_t ref);
 
+/* local bufs */
+S48_EXTERN void *s48_make_local_buf (s48_call_t call, size_t s);
+S48_EXTERN void s48_free_local_buf (s48_call_t call, void *buffer);
+
 /* subcalls */
 S48_EXTERN s48_call_t s48_make_subcall(s48_call_t call);
 S48_EXTERN void       s48_free_subcall(s48_call_t subcall);
