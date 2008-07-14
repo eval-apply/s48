@@ -837,7 +837,9 @@ s48_ref_t
 s48_inet_pton(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_src)
 {
   sa_family_t af = s48_extract_af(call, sch_af);
+#ifndef _WIN32
   int status;
+#endif
 
   switch (af)
     {

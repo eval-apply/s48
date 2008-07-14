@@ -1,6 +1,8 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+#define NO_OLD_FFI 1
+
 #define _WIN32_WINNT 0x0400 /* for QueueUserAPC */
 
 #include <winsock2.h>
@@ -1270,12 +1272,12 @@ s48_fd_io_init()
  */
 
 socket_t
-s48_extract_socket_fd(s48_value sch_channel)
+s48_extract_socket_fd(s48_call_t call, s48_ref_t sch_channel)
 {
-  S48_CHECK_CHANNEL(sch_channel);
+  s48_check_channel_2(call, sch_channel);
   {
     long socket_fd
-      = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(sch_channel));
+      = s48_unsafe_extract_long_2(call, s48_unsafe_channel_os_index_2(call, sch_channel));
     stream_descriptor_t* stream_descriptor = &(stream_descriptors[socket_fd]);
     callback_data_t* callback_data = &(stream_descriptor->callback_data);
     socket_t socket = stream_descriptor->socket_data.socket;
@@ -1283,14 +1285,14 @@ s48_extract_socket_fd(s48_value sch_channel)
   }
 }
 
-static s48_value
-s48_socket(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
+static s48_ref_t
+s48_socket(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_type, s48_ref_t sch_protocol)
 {
   long fd;
-  int af = s48_extract_af(sch_af);
-  int socktype = s48_extract_socket_type(sch_type);
-  int protocol = s48_extract_fixnum(sch_protocol);
-  s48_value channel;
+  int af = s48_extract_af(call, sch_af);
+  int socktype = s48_extract_socket_type(call, sch_type);
+  int protocol = s48_extract_long_2(call, sch_protocol);
+  s48_ref_t channel;
   stream_descriptor_t* stream_descriptor;
 
   SOCKET socket = WSASocket(af, socktype, protocol,
@@ -1299,20 +1301,20 @@ s48_socket(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
 			    WSA_FLAG_OVERLAPPED);
 
   if (socket == INVALID_SOCKET)
-    s48_os_error("s48_socket", WSAGetLastError(), 3,
-		 sch_af, sch_type, sch_protocol);
+    s48_os_error_2(call, "s48_socket", WSAGetLastError(), 3,
+		   sch_af, sch_type, sch_protocol);
 
   fd = allocate_fd(STREAM_SOCKET);
   stream_descriptor = &(stream_descriptors[fd]);
   stream_descriptor->socket_data.socket = socket;
 
-  channel = s48_add_channel(S48_CHANNEL_STATUS_SPECIAL_INPUT,
-			    s48_enter_string_latin_1("socket"), fd);
+  channel = s48_add_channel_2(call, s48_channel_status_special_input_2(call),
+			      s48_enter_string_latin_1_2(call, "socket"), fd);
 
-  if (!S48_CHANNEL_P(channel))
+  if (!s48_channel_p_2(call, channel))
     {
       ps_close_fd(fd);
-      s48_raise_scheme_exception(s48_extract_fixnum(channel), 0);
+      s48_raise_scheme_exception_2(call, s48_extract_long_2(call, channel), 0);
     }
 
   return channel;
@@ -1325,29 +1327,28 @@ do {								\
       s48_os_error(NULL, WSAGetLastError(), 0);			\
  } while (0)
 
-static s48_value
-s48_socketpair(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
+static s48_ref_t
+s48_socketpair(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_type, s48_ref_t sch_protocol)
 {
   int status;
-  s48_value sch_channel0 = S48_UNSPECIFIC, sch_channel1 = S48_UNSPECIFIC;
-  s48_value sch_result;
-  int af = s48_extract_af(sch_af);
-  int socktype = s48_extract_socket_type(sch_type);
-  int protocol = s48_extract_fixnum(sch_protocol);
+  s48_ref_t sch_channel0, sch_channel1;
+  s48_ref_t sch_result;
+  int af = s48_extract_af(call, sch_af);
+  int socktype = s48_extract_socket_type(call, sch_type);
+  int protocol = s48_extract_long_2(call, sch_protocol);
   socket_t listener, socket0, socket1;
   long fd0, fd1;
   stream_descriptor_t* stream_descriptor;
   struct sockaddr_in addr;
   socklen_t salen = sizeof(addr);
-  S48_DECLARE_GC_PROTECT(2);
 
   listener = WSASocket(af, socktype, protocol,
 		      NULL,
 		      0, /* reserved */
 		      WSA_FLAG_OVERLAPPED);
   if (listener == INVALID_SOCKET)
-    s48_os_error("s48_socketpair", WSAGetLastError(), 3,
-		 sch_af, sch_type, sch_protocol);
+    s48_os_error_2(call, "s48_socketpair", WSAGetLastError(), 3,
+		   sch_af, sch_type, sch_protocol);
   
   addr.sin_family = AF_INET;
   addr.sin_port = 0;
@@ -1363,14 +1364,14 @@ s48_socketpair(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
 		      0, /* reserved */
 		      WSA_FLAG_OVERLAPPED);
   if (socket1 == INVALID_SOCKET)
-    s48_os_error("s48_socketpair", WSAGetLastError(), 3,
-		 sch_af, sch_type, sch_protocol);
+    s48_os_error_2(call, "s48_socketpair", WSAGetLastError(), 3,
+		   sch_af, sch_type, sch_protocol);
   
   RETRY_OR_RAISE_NEG(status, connect(socket1, (struct sockaddr*) &addr, salen));
   socket0 = accept(listener, (struct sockaddr*) &addr, &salen);
   if (socket0 == INVALID_SOCKET)
-    s48_os_error("s48_socketpair", WSAGetLastError(), 3,
-		 sch_af, sch_type, sch_protocol);
+    s48_os_error_2(call, "s48_socketpair", WSAGetLastError(), 3,
+		   sch_af, sch_type, sch_protocol);
   
   closesocket(listener);
 
@@ -1382,13 +1383,11 @@ s48_socketpair(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
   stream_descriptor = &(stream_descriptors[fd1]);
   stream_descriptor->socket_data.socket = socket1;
 
-  S48_GC_PROTECT_2(sch_channel0, sch_channel1);
-  sch_channel0 = s48_add_channel(S48_CHANNEL_STATUS_INPUT,
-				 s48_enter_string_latin_1("socket"), fd0);
-  sch_channel1 = s48_add_channel(S48_CHANNEL_STATUS_INPUT,
-				 s48_enter_string_latin_1("socket"), fd1);
-  sch_result = s48_cons(sch_channel0, sch_channel1);
-  S48_GC_UNPROTECT();
+  sch_channel0 = s48_add_channel_2(call, s48_channel_status_input_2(call),
+				   s48_enter_string_latin_1_2(call, "socket"), fd0);
+  sch_channel1 = s48_add_channel_2(call, s48_channel_status_input_2(call),
+				   s48_enter_string_latin_1_2(call, "socket"), fd1);
+  sch_result = s48_cons_2(call, sch_channel0, sch_channel1);
   return sch_result;
 }
 
@@ -1398,12 +1397,12 @@ s48_socketpair(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
  * We have to versions, one for calling from C and one for calling from Scheme.
  */
 
-static s48_value
-dup_socket_channel(long socket_fd)
+static s48_ref_t
+dup_socket_channel(s48_call_t call, long socket_fd)
 {
   long output_fd;
   SOCKET output_socket;
-  s48_value output_channel;
+  s48_ref_t output_channel;
   stream_descriptor_t* stream_descriptor = &(stream_descriptors[socket_fd]);
   callback_data_t* callback_data = &(stream_descriptor->callback_data);
   SOCKET socket = stream_descriptor->socket_data.socket;
@@ -1415,8 +1414,8 @@ dup_socket_channel(long socket_fd)
 			 GetCurrentProcessId(),
 			 &protocolInfo)
       == SOCKET_ERROR)
-    s48_os_error(NULL, WSAGetLastError(), 1,
-		 s48_enter_fixnum(socket_fd));
+    s48_os_error_2(call, NULL, WSAGetLastError(), 1,
+		   s48_enter_long_2(call, socket_fd));
 
   output_socket = WSASocket(AF_INET,
 			    SOCK_STREAM,
@@ -1425,8 +1424,8 @@ dup_socket_channel(long socket_fd)
 			    0, /* reserved */
 			    WSA_FLAG_OVERLAPPED);
   if (output_socket == INVALID_SOCKET)
-    s48_os_error(NULL, WSAGetLastError(), 1,
-		 s48_enter_fixnum(socket_fd));
+    s48_os_error_2(call, NULL, WSAGetLastError(), 1,
+		   s48_enter_long_2(call, socket_fd));
   
   buf_size = 0;
   setsockopt(output_socket,
@@ -1438,28 +1437,28 @@ dup_socket_channel(long socket_fd)
   output_stream_descriptor = &(stream_descriptors[output_fd]);
   output_stream_descriptor->socket_data.socket = output_socket;
 
-  output_channel = s48_add_channel(S48_CHANNEL_STATUS_OUTPUT,
-				   s48_enter_string_latin_1("socket connection"),
-				   output_fd);
+  output_channel = s48_add_channel_2(call, s48_channel_status_output_2(call),
+				     s48_enter_string_latin_1_2(call, "socket connection"),
+				     output_fd);
   
-  if (!S48_CHANNEL_P(output_channel))
+  if (!s48_channel_p_2(call, output_channel))
     {
       ps_close_fd(output_fd);
-      s48_raise_scheme_exception(s48_extract_fixnum(output_channel), 0);
+      s48_raise_scheme_exception_2(call, s48_extract_long_2(call, output_channel), 0);
     }
 
   return output_channel;
 }
 
-static s48_value
-s48_dup_socket_channel(s48_value channel)
+static s48_ref_t
+s48_dup_socket_channel(s48_call_t call, s48_ref_t channel)
 {
   int socket_fd;
 
-  S48_CHECK_CHANNEL(channel);
-  socket_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
+  s48_check_channel_2(call, channel);
+  socket_fd = s48_unsafe_extract_long_2(call, s48_unsafe_channel_os_index_2(call, channel));
   
-  return dup_socket_channel(socket_fd);
+  return dup_socket_channel(call, socket_fd);
 }
 
 /*
@@ -1508,25 +1507,25 @@ hatch_thread_proc(LPVOID lpParameter)
   return 0;
 }
 
-static s48_value
-s48_accept(s48_value channel, s48_value retry_p)
+static s48_ref_t
+s48_accept(s48_call_t call, s48_ref_t channel, s48_ref_t retry_p)
 {
   long socket_fd;
   BOOL status;
-  s48_value input_channel;
+  s48_ref_t input_channel;
   stream_descriptor_t* stream_descriptor;
   callback_data_t* callback_data;
   SOCKET socket;
   SOCKET accept_socket;
   DWORD bytecount;
 
-  S48_CHECK_CHANNEL(channel);
-  socket_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
+  s48_check_channel_2(call, channel);
+  socket_fd = s48_unsafe_extract_long_2(call, s48_unsafe_channel_os_index_2(call, channel));
   stream_descriptor = &(stream_descriptors[socket_fd]);
   callback_data = &(stream_descriptor->callback_data);
   socket = stream_descriptor->socket_data.socket;
 
-  if (retry_p == S48_FALSE)
+  if (s48_false_p_2(call, retry_p))
     /* first time */
     {
       callback_data->overlap.Offset = 0; /* just making sure */
@@ -1543,8 +1542,8 @@ s48_accept(s48_value channel, s48_value retry_p)
 				0, /* reserved */
 				WSA_FLAG_OVERLAPPED);
       if (accept_socket == INVALID_SOCKET)
-	s48_os_error("s48_accept", WSAGetLastError(), 2,
-		     channel, retry_p);
+	s48_os_error_2(call, "s48_accept", WSAGetLastError(), 2,
+		       channel, retry_p);
       
       stream_descriptor->socket_data.hatched_socket = accept_socket;
 
@@ -1575,10 +1574,10 @@ s48_accept(s48_value channel, s48_value retry_p)
 	  status = TRUE;
 	}
       else if (GetLastError() == ERROR_IO_INCOMPLETE)
-	return S48_FALSE; /* still not done */
+	return s48_false_2(call); /* still not done */
       else
-	s48_os_error("s48_accept", WSAGetLastError(), 2,
-		     channel, retry_p);
+	s48_os_error_2(call, "s48_accept", WSAGetLastError(), 2,
+		       channel, retry_p);
     }
 			 
   /*
@@ -1604,17 +1603,17 @@ s48_accept(s48_value channel, s48_value retry_p)
 		     (char *)&socket, 
 		     sizeof(socket))
 	  != 0)
-	s48_os_error("s48_accept", WSAGetLastError(), 2,
-		     channel, retry_p);
+	s48_os_error_2(call, "s48_accept", WSAGetLastError(), 2,
+		       channel, retry_p);
 
-      input_channel = s48_add_channel(S48_CHANNEL_STATUS_INPUT,
-				      s48_enter_string_latin_1("socket connection"),
-				      accept_socket_fd);
+      input_channel = s48_add_channel_2(call, s48_channel_status_input_2(call),
+					s48_enter_string_latin_1_2(call, "socket connection"),
+					accept_socket_fd);
 
-      if (!S48_CHANNEL_P(input_channel))
+      if (!s48_channel_p_2(call, input_channel))
 	{
 	  ps_close_fd(accept_socket_fd);
-	  s48_raise_scheme_exception(s48_extract_fixnum(input_channel), 0);
+	  s48_raise_scheme_exception_2(call, s48_extract_long_2(call, input_channel), 0);
 	};
     
       return input_channel;
@@ -1626,7 +1625,7 @@ s48_accept(s48_value channel, s48_value retry_p)
       HANDLE thread_handle;
 
       if (!s48_add_pending_fd(socket_fd, PSTRUE))
-	s48_out_of_memory_error();
+	s48_out_of_memory_error_2(call);
 
       stream_descriptor->socket_data.hatch_callback = accept_callback;
       thread_handle = CreateThread(NULL, /* lpThreadAttributes */
@@ -1635,14 +1634,14 @@ s48_accept(s48_value channel, s48_value retry_p)
 				   stream_descriptor,
 				   0, /* dwCreationFlags, */
 				   &id);
-      return S48_FALSE;
+      return s48_false_2(call);
     }
   
-  s48_os_error("s48_accept", WSAGetLastError(), 2,
-	       channel, retry_p);
+  s48_os_error_2(call, "s48_accept", WSAGetLastError(), 2,
+		 channel, retry_p);
   
   /* not reachable: */
-  return S48_FALSE;
+  return s48_false_2(call);
 }
 
 /* Connect a socket to an address.
@@ -1666,10 +1665,10 @@ connect_callback(DWORD dwParam)
   s48_add_ready_fd(callback_data->fd, PSFALSE, PSFALSE, (long)0);
 }
 
-static s48_value
-s48_connect(s48_value sch_channel,
-	    s48_value sch_address,
-	    s48_value sch_retry_p)
+static s48_ref_t
+s48_connect(s48_call_t call, s48_ref_t sch_channel,
+	    s48_ref_t sch_address,
+	    s48_ref_t sch_retry_p)
 {
   long socket_fd;
   stream_descriptor_t* stream_descriptor;
@@ -1677,8 +1676,8 @@ s48_connect(s48_value sch_channel,
   SOCKET socket;
   int status;
 
-  S48_CHECK_CHANNEL(sch_channel);
-  socket_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(sch_channel));
+  s48_check_channel_2(call, sch_channel);
+  socket_fd = s48_unsafe_extract_long_2(call, s48_unsafe_channel_os_index_2(call, sch_channel));
   stream_descriptor = &(stream_descriptors[socket_fd]);
   callback_data = &(stream_descriptor->callback_data);
   socket = stream_descriptor->socket_data.socket;
@@ -1694,8 +1693,8 @@ s48_connect(s48_value sch_channel,
    */
 
   status = WSAConnect(socket,
-		      (const struct sockaddr*)S48_EXTRACT_VALUE_POINTER(sch_address, struct sockaddr),
-		      S48_VALUE_SIZE(sch_address),
+		      (const struct sockaddr*)s48_extract_value_pointer_2(call, sch_address, struct sockaddr),
+		      s48_value_size_2(call, sch_address),
 		      NULL, /* lpCallerData */
 		      NULL, /* lpCalleeData */
 		      NULL, /* lpSQOS */
@@ -1707,8 +1706,8 @@ s48_connect(s48_value sch_channel,
   if (status == 0)
     /* success */
     {
-      S48_STOB_SET(sch_channel, S48_CHANNEL_STATUS_OFFSET, S48_CHANNEL_STATUS_INPUT);
-      return dup_socket_channel(socket_fd);
+      s48_unsafe_stob_set_2(call, sch_channel, s48_channel_status_offset, s48_channel_status_input_2(call));
+      return dup_socket_channel(call, socket_fd);
     }
   else if (WSAGetLastError() == WSAEWOULDBLOCK)
     {
@@ -1716,7 +1715,7 @@ s48_connect(s48_value sch_channel,
       HANDLE thread_handle;
 
       if (!s48_add_pending_fd(socket_fd, PSFALSE))
-	s48_out_of_memory_error();
+	s48_out_of_memory_error_2(call);
 
       stream_descriptor->socket_data.hatch_callback = connect_callback;
       thread_handle = CreateThread(NULL, /* lpThreadAttributes */
@@ -1731,17 +1730,17 @@ s48_connect(s48_value sch_channel,
 						  NULL); /* name */
       if (WSAEventSelect(socket, callback_data->overlap.hEvent, FD_ACCEPT)
 	  != 0)
-	s48_os_error("s48_connect", WSAGetLastError(), 3,
-		     sch_channel, sch_address, sch_retry_p);
+	s48_os_error_2(call, "s48_connect", WSAGetLastError(), 3,
+		       sch_channel, sch_address, sch_retry_p);
       
-      return S48_FALSE;
+      return s48_false_2(call);
     }
   else
-    s48_os_error("s48_connect", WSAGetLastError(), 3,
-		 sch_channel, sch_address, sch_retry_p);
+    s48_os_error_2(call, "s48_connect", WSAGetLastError(), 3,
+		   sch_channel, sch_address, sch_retry_p);
 
   /* not reachable */
-  return S48_FALSE;
+  return s48_false_2(call);
 }
 
 /*
@@ -1750,28 +1749,28 @@ s48_connect(s48_value sch_channel,
  */
 
 
-static s48_value
-s48_recvfrom(s48_value sch_channel,
-	     s48_value sch_buffer, s48_value sch_start, s48_value sch_count,
-	     s48_value sch_flags,
-	     s48_value sch_want_sender_p,
-	     s48_value sch_retry_p)
+static s48_ref_t
+s48_recvfrom(s48_call_t call, s48_ref_t sch_channel,
+	     s48_ref_t sch_buffer, s48_ref_t sch_start, s48_ref_t sch_count,
+	     s48_ref_t sch_flags,
+	     s48_ref_t sch_want_sender_p,
+	     s48_ref_t sch_retry_p)
 {
-  int retry_p = !(S48_EQ_P(sch_retry_p, S48_FALSE));
-  int want_sender_p = !(S48_EQ_P(sch_want_sender_p, S48_FALSE));
-  int flags = s48_extract_msg_flags(sch_flags);
-  size_t buffer_size = S48_BYTE_VECTOR_LENGTH(sch_buffer);
-  size_t start = s48_extract_unsigned_integer(sch_start);
-  size_t count = s48_extract_unsigned_integer(sch_count);
+  int retry_p = !(s48_false_p_2(call, sch_retry_p));
+  int want_sender_p = !(s48_false_p_2(call, sch_want_sender_p));
+  int flags = s48_extract_msg_flags(call, sch_flags);
+  size_t buffer_size = s48_byte_vector_length_2(call, sch_buffer);
+  size_t start = s48_extract_unsigned_long_2(call, sch_start);
+  size_t count = s48_extract_unsigned_long_2(call, sch_count);
   long socket_fd
-    = S48_UNSAFE_EXTRACT_FIXNUM(S48_CHANNEL_OS_INDEX(sch_channel));
+    = s48_unsafe_extract_long_2(call, s48_channel_os_index_2(call, sch_channel));
   stream_descriptor_t* stream_descriptor = &(stream_descriptors[socket_fd]);
   callback_data_t* callback_data = &(stream_descriptor->callback_data);
   socket_t socket = stream_descriptor->socket_data.socket;
 
   if ((start + count) > buffer_size)
-    s48_assertion_violation("s48_sendto", "buffer start or count is wrong", 3,
-			    sch_buffer, sch_start, sch_count);
+    s48_assertion_violation_2(call, "s48_sendto", "buffer start or count is wrong", 3,
+			      sch_buffer, sch_start, sch_count);
 
   if (!retry_p)
     {
@@ -1812,73 +1811,70 @@ s48_recvfrom(s48_value sch_channel,
 	  || (WSAGetLastError() == WSA_IO_PENDING))
 	{
 	  if (! (s48_add_pending_fd(socket_fd, PSTRUE)))
-	    s48_out_of_memory_error();
-	  return S48_FALSE;
+	    s48_out_of_memory_error_2(call);
+	  return s48_false_2(call);
 	}
       else
-	s48_os_error("s48_recvfrom", WSAGetLastError(), 7,
-		     sch_channel, sch_buffer, sch_start, sch_count,
-		     sch_flags, sch_want_sender_p, sch_retry_p);
+	s48_os_error_2(call, "s48_recvfrom", WSAGetLastError(), 7,
+		       sch_channel, sch_buffer, sch_start, sch_count,
+		       sch_flags, sch_want_sender_p, sch_retry_p);
     }
   else
     {
       /* rebound */
       size_t size = callback_data->current_size;
-      memcpy(s48_extract_byte_vector(sch_buffer) + start,
+      memcpy(s48_extract_byte_vector_2(call, sch_buffer) + start,
 	     callback_data->current, size);
       callback_data->current_size = 0;
       callback_data->current = stream_descriptor->callback_data.buffer;
 
       if (want_sender_p)
 	{
-	  s48_value sch_count = S48_UNSPECIFIC, sch_saddr = S48_UNSPECIFIC;
-	  s48_value sch_result;
-	  S48_DECLARE_GC_PROTECT(2);
-	  S48_GC_PROTECT_2(sch_count, sch_saddr);
-	  sch_count = s48_enter_unsigned_integer(size);
+	  s48_ref_t sch_count, sch_saddr;
+	  s48_ref_t sch_result;
+	  sch_count = s48_enter_unsigned_long_2(call, size);
 	  sch_saddr
-	    = s48_enter_sockaddr((struct sockaddr *)&stream_descriptor->socket_data.recv_address,
+	    = s48_enter_sockaddr(call, (struct sockaddr *)&stream_descriptor->socket_data.recv_address,
 				 stream_descriptor->socket_data.recv_address_len);
-	  sch_result = s48_cons(sch_count, sch_saddr);
-	  S48_GC_UNPROTECT();
+	  sch_result = s48_cons_2(call, sch_count, sch_saddr);
 	  return sch_result;
 	}
       else
-	return s48_enter_unsigned_integer(size);
+	return s48_enter_unsigned_long_2(call, size);
     }
 }
 
-static s48_value
-s48_sendto(s48_value sch_channel,
-	   s48_value sch_buffer, s48_value sch_start, s48_value sch_count,
-	   s48_value sch_flags,
-	   s48_value sch_saddr,
-	   s48_value sch_retry_p)
+static s48_ref_t
+s48_sendto(s48_call_t call, s48_ref_t sch_channel,
+	   s48_ref_t sch_buffer, s48_ref_t sch_start, s48_ref_t sch_count,
+	   s48_ref_t sch_flags,
+	   s48_ref_t sch_saddr,
+	   s48_ref_t sch_retry_p)
 {
-  int retry_p = !(S48_EQ_P(sch_retry_p, S48_FALSE));
+  int retry_p = !(s48_false_p_2(call, sch_retry_p));
   const struct sockaddr *sa
-    = S48_EXTRACT_VALUE_POINTER(sch_saddr, const struct sockaddr);
-  socklen_t salen = S48_VALUE_SIZE(sch_saddr);
-  int flags = s48_extract_msg_flags(sch_flags);
-  size_t buffer_size = S48_BYTE_VECTOR_LENGTH(sch_buffer);
-  size_t start = s48_extract_unsigned_integer(sch_start);
-  size_t count = s48_extract_unsigned_integer(sch_count);
+    = s48_extract_value_pointer_2(call, sch_saddr, const struct sockaddr);
+  socklen_t salen = s48_value_size_2(call, sch_saddr);
+  int flags = s48_extract_msg_flags(call, sch_flags);
+  size_t buffer_size = s48_byte_vector_length_2(call, sch_buffer);
+  size_t start = s48_extract_unsigned_long_2(call, sch_start);
+  size_t count = s48_extract_unsigned_long_2(call, sch_count);
   long socket_fd
-    = S48_UNSAFE_EXTRACT_FIXNUM(S48_CHANNEL_OS_INDEX(sch_channel));
+    = s48_unsafe_extract_long_2(call, s48_channel_os_index_2(call, sch_channel));
   stream_descriptor_t* stream_descriptor = &(stream_descriptors[socket_fd]);
   callback_data_t* callback_data = &(stream_descriptor->callback_data);
   socket_t socket = stream_descriptor->socket_data.socket;
 
   if ((start + count) > buffer_size)
-    s48_assertion_violation("s48_sendto", "buffer start or count is wrong", 3,
-			    sch_buffer, sch_start, sch_count);
+    s48_assertion_violation_2(call, "s48_sendto", "buffer start or count is wrong", 3,
+			      sch_buffer, sch_start, sch_count);
   
   if (!retry_p)
     {
 	DWORD numberOfBytesSent;
 	DWORD flags = 0;
 	int wsa_status;
-	char* buffer = s48_extract_byte_vector(sch_buffer) + start;
+	char* buffer = s48_extract_byte_vector_2(call, sch_buffer) + start;
 
 	maybe_grow_callback_data_buffer(callback_data, count);
 	
@@ -1896,26 +1892,26 @@ s48_sendto(s48_value sch_channel,
 			       1,
 			       &numberOfBytesSent,
 			       flags,
-			       S48_EXTRACT_VALUE_POINTER(sch_saddr, struct sockaddr),
-			       S48_VALUE_SIZE(sch_saddr),
+			       s48_extract_value_pointer_2(call, sch_saddr, struct sockaddr),
+			       s48_value_size_2(call, sch_saddr),
 			       (LPOVERLAPPED)callback_data,
 			       send_completed);
 	if ((wsa_status == 0)
 	    | (WSAGetLastError() == WSA_IO_PENDING))
 	  {
 	    if (! (s48_add_pending_fd(socket_fd, PSFALSE)))
-	      s48_out_of_memory_error();
+	      s48_out_of_memory_error_2(call);
 	    
-	    return S48_FALSE;
+	    return s48_false_2(call);
 	  }
 	else
-	  s48_os_error("s48_sendto", WSAGetLastError(), 7,
-		       sch_channel, sch_buffer, sch_start, sch_count,
-		       sch_flags, sch_saddr, sch_retry_p);
+	  s48_os_error_2(call, "s48_sendto", WSAGetLastError(), 7,
+			 sch_channel, sch_buffer, sch_start, sch_count,
+			 sch_flags, sch_saddr, sch_retry_p);
     }
   else
     /* rebound */
-    return s48_enter_integer(stream_descriptor->file_regular_data.current_offset);
+    return s48_enter_long_2(call, stream_descriptor->file_regular_data.current_offset);
 }
 
 void

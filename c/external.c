@@ -11,7 +11,6 @@
 #include "scheme48.h"
 #include "scheme48vm.h"
 #include "bignum.h"
-#include "sysdep.h"
 #include "ffi.h"
 
 /*
@@ -939,9 +938,6 @@ s48_system_2(s48_call_t call, s48_ref_t string)
 static long
 raise_scheme_exception_prelude(long why, long nargs)
 {
-  int i;
-  va_list irritants;
-
   s48_setup_external_exception(why, nargs);
   
   if (11 < nargs) {   /* DO NOT INCREASE THIS NUMBER */
