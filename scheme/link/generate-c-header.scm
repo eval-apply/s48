@@ -110,6 +110,11 @@
     (let ((name (downcase (car tags))))
       (c-define "s48_~A_tag ~D" name i)
       (c-define "s48_~A_p_2(c,x) (((long)s48_deref(x) & 3L) == s48_~A_tag)" name name)))
+  ;; The write barrier of the bibop garbage collector needs S48_STOB_P.
+  ;; Make sure it is defined for the combination of BIBOP and new FFI.
+  (format #t "#if defined(S48_GC_BIBOP) && defined(NO_OLD_FFI)~%")
+  (c-define "S48_STOB_P(x) (((long)(x) & 3L) == s48_stob_tag)")
+  (format #t "#endif~%")
   (newline)
   (c-define "s48_unsafe_enter_long_as_fixnum_2(c, n)   (s48_make_local_ref(c,(s48_value)((n) << 2)))")
   (c-define "s48_unsafe_extract_long_2(c, x) ((long)s48_deref(x) >> 2)"))

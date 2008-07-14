@@ -64,6 +64,7 @@ S48_EXTERN void       s48_free_local_ref_array(s48_call_t call, s48_ref_t *refs,
 /* global refs */
 S48_EXTERN s48_ref_t  s48_make_global_ref(s48_value obj);
 S48_EXTERN void       s48_free_global_ref(s48_ref_t ref);
+S48_EXTERN s48_ref_t  s48_local_to_global_ref(s48_ref_t ref);
 
 /* subcalls */
 S48_EXTERN s48_call_t s48_make_subcall(s48_call_t call);
@@ -218,7 +219,7 @@ S48_EXTERN void s48_raise_scheme_exception_2(s48_call_t call, long type, long na
 
 #define s48_shared_binding_check_2(c, binding) \
   do { if (s48_deref(s48_shared_binding_ref_2(c, binding)) == _s48_value_unspecific) \
-      s48_raise_scheme_exception_2(c, S48_EXCEPTION_UNBOUND_EXTERNAL_NAME, 1, \
+      s48_raise_scheme_exception_2(c, s48_exception_unbound_external_name, 1, \
 				   s48_shared_binding_name_2(c, binding)); \
   } while(0)
 

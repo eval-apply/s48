@@ -22,16 +22,16 @@
 #include "unix.h"
 
 extern void		s48_posix_init_user(void);
-static s48_value	posix_getpwuid(s48_value uid),
-			posix_getpwnam(s48_value user_name),
-			posix_getgrgid(s48_value gid),
-			posix_getgrnam(s48_value group_name);
+static s48_ref_t	posix_getpwuid(s48_call_t call, s48_ref_t uid),
+			posix_getpwnam(s48_call_t call, s48_ref_t user_name),
+			posix_getgrgid(s48_call_t call, s48_ref_t gid),
+			posix_getgrnam(s48_call_t call, s48_ref_t group_name);
 
 /*
  * Record types imported from Scheme.
  */
-static s48_value	posix_user_id_type_binding = S48_FALSE,
-			posix_group_id_type_binding = S48_FALSE;
+static s48_ref_t	posix_user_id_type_binding,
+                        posix_group_id_type_binding;
 
 /*
  * Install all exported functions in Scheme48 and import and protect the
@@ -45,11 +45,9 @@ s48_init_posix_user(void)
   S48_EXPORT_FUNCTION(posix_getgrgid);
   S48_EXPORT_FUNCTION(posix_getgrnam);
 
-  S48_GC_PROTECT_GLOBAL(posix_user_id_type_binding);
-  posix_user_id_type_binding = s48_get_imported_binding("posix-user-id-type");
+  posix_user_id_type_binding = s48_get_imported_binding_2("posix-user-id-type");
     
-  S48_GC_PROTECT_GLOBAL(posix_group_id_type_binding);
-  posix_group_id_type_binding = s48_get_imported_binding("posix-group-id-type");
+  posix_group_id_type_binding = s48_get_imported_binding_2("posix-group-id-type");
 }
 
 /* ****************************************************************
@@ -59,13 +57,13 @@ s48_init_posix_user(void)
 /*
  * Convert a uid into a Scheme uid record.
  */
-s48_value
-s48_enter_uid(uid_t uid)
+s48_ref_t
+s48_enter_uid(s48_call_t call, uid_t uid)
 {
-  s48_value	sch_uid;
+  s48_ref_t	sch_uid;
 
-  sch_uid = s48_make_record(posix_user_id_type_binding);
-  S48_UNSAFE_RECORD_SET(sch_uid, 0, s48_enter_fixnum(uid));
+  sch_uid = s48_make_record_2(call, posix_user_id_type_binding);
+  s48_unsafe_record_set_2(call, sch_uid, 0, s48_enter_long_2(call, uid));
 
   return sch_uid;
 }
@@ -75,23 +73,23 @@ s48_enter_uid(uid_t uid)
  * Convert a Scheme uid record into a uid_t.
  */
 uid_t
-s48_extract_uid(s48_value uid)
+s48_extract_uid(s48_call_t call, s48_ref_t uid)
 {
-  s48_check_record_type(uid, posix_user_id_type_binding);
+  s48_check_record_type_2(call, uid, posix_user_id_type_binding);
 
-  return s48_extract_fixnum(S48_UNSAFE_RECORD_REF(uid, 0));
+  return s48_extract_long_2(call, s48_unsafe_record_ref_2(call, uid, 0));
 }
 
 /*
  * Convert a gid into a Scheme gid record.
  */
-s48_value
-s48_enter_gid(gid_t gid)
+s48_ref_t
+s48_enter_gid(s48_call_t call, gid_t gid)
 {
-  s48_value	sch_gid;
+  s48_ref_t	sch_gid;
 
-  sch_gid = s48_make_record(posix_group_id_type_binding);
-  S48_UNSAFE_RECORD_SET(sch_gid, 0, s48_enter_fixnum(gid));
+  sch_gid = s48_make_record_2(call, posix_group_id_type_binding);
+  s48_unsafe_record_set_2(call, sch_gid, 0, s48_enter_long_2(call, gid));
 
   return sch_gid;
 }
@@ -100,116 +98,103 @@ s48_enter_gid(gid_t gid)
  * Convert a Scheme gid record into a gid_t.
  */
 gid_t
-s48_extract_gid(s48_value gid)
+s48_extract_gid(s48_call_t call, s48_ref_t gid)
 {
-  s48_check_record_type(gid, posix_group_id_type_binding);
+  s48_check_record_type_2(call, gid, posix_group_id_type_binding);
 
-  return s48_extract_fixnum(S48_UNSAFE_RECORD_REF(gid, 0));
+  return s48_extract_long_2(call, s48_unsafe_record_ref_2(call, gid, 0));
 }
 
 /* ****************************************************************
  * Getting user and group information.
  */
 
-static s48_value enter_user_data(struct passwd *data);
+static s48_ref_t enter_user_data(s48_call_t call, struct passwd *data);
 
-static s48_value
-posix_getpwuid(s48_value uid)
+static s48_ref_t
+posix_getpwuid(s48_call_t call, s48_ref_t uid)
 {
   struct passwd *data;
   
-  RETRY_OR_RAISE_NULL(data, getpwuid(s48_extract_uid(uid)));
+  RETRY_OR_RAISE_NULL(data, getpwuid(s48_extract_uid(call, uid)));
 
-  return enter_user_data(data);
+  return enter_user_data(call, data);
 }
 
-static s48_value
-posix_getpwnam(s48_value name)
+static s48_ref_t
+posix_getpwnam(s48_call_t call, s48_ref_t name)
 {
   struct passwd *data;
   
-  RETRY_OR_RAISE_NULL(data, getpwnam(S48_UNSAFE_EXTRACT_BYTE_VECTOR(name)));
+  RETRY_OR_RAISE_NULL(data, getpwnam(s48_unsafe_extract_byte_vector_2(call, name)));
 
-  return enter_user_data(data);
+  return enter_user_data(call, data);
 }
 
 /*
  * returns a list of components
  */
 
-static s48_value
-enter_user_data(struct passwd *data)
+static s48_ref_t
+enter_user_data(s48_call_t call, struct passwd *data)
 {
-  s48_value sch_data = S48_FALSE;
-  s48_value temp = S48_UNSPECIFIC;
-  S48_DECLARE_GC_PROTECT(2);
+  s48_ref_t sch_data, temp;
 
-  S48_GC_PROTECT_2(sch_data, temp);
-
-  sch_data = S48_NULL;
-  temp = s48_enter_byte_string(data->pw_shell);
-  sch_data = s48_cons(temp, sch_data);
-  temp = s48_enter_byte_string(data->pw_dir);
-  sch_data = s48_cons(temp, sch_data);
-  temp = s48_enter_gid(data->pw_gid);
-  sch_data = s48_cons(temp, sch_data);
-  temp = s48_enter_uid(data->pw_uid);
-  sch_data = s48_cons(temp, sch_data);
-  temp = s48_enter_byte_string(data->pw_name);
-  sch_data = s48_cons(temp, sch_data);
-  
-  S48_GC_UNPROTECT();
+  sch_data = s48_null_2(call);
+  temp = s48_enter_byte_string_2(call, data->pw_shell);
+  sch_data = s48_cons_2(call, temp, sch_data);
+  temp = s48_enter_byte_string_2(call, data->pw_dir);
+  sch_data = s48_cons_2(call, temp, sch_data);
+  temp = s48_enter_gid(call, data->pw_gid);
+  sch_data = s48_cons_2(call, temp, sch_data);
+  temp = s48_enter_uid(call, data->pw_uid);
+  sch_data = s48_cons_2(call, temp, sch_data);
+  temp = s48_enter_byte_string_2(call, data->pw_name);
+  sch_data = s48_cons_2(call, temp, sch_data);
   
   return sch_data;
 }
 
-static s48_value
-enter_group_data(struct group *data)
+static s48_ref_t
+enter_group_data(s48_call_t call, struct group *data)
 {
-  s48_value sch_data = S48_FALSE;
-  s48_value members = S48_FALSE;
-  s48_value temp = S48_UNSPECIFIC;
-  S48_DECLARE_GC_PROTECT(3);
+  s48_ref_t sch_data, members, temp;
   int length;
   char **names;
 
-  S48_GC_PROTECT_3(sch_data, members, temp);
-
   for(length = 0, names = data->gr_mem; *names != NULL; length++, names++);
-  members = s48_make_vector(length, S48_FALSE);
+  members = s48_make_vector_2(call, length, s48_false_2(call));
   for(length = 0, names = data->gr_mem; *names != NULL; length++, names++) {
-    temp = s48_enter_byte_string(*names);
-    S48_UNSAFE_VECTOR_SET(members, length, temp);
+    temp = s48_enter_byte_string_2(call, *names);
+    s48_unsafe_vector_set_2(call, members, length, temp);
   }
 
-  sch_data = S48_NULL;
-  sch_data = s48_cons(members, sch_data);
-  temp = s48_enter_gid(data->gr_gid);
-  sch_data = s48_cons(temp, sch_data);
-  temp = s48_enter_byte_string(data->gr_name);
-  sch_data = s48_cons(temp, sch_data);
-  
-  S48_GC_UNPROTECT();
+  sch_data = s48_null_2(call);
+  sch_data = s48_cons_2(call, members, sch_data);
+  temp = s48_enter_gid(call, data->gr_gid);
+  sch_data = s48_cons_2(call, temp, sch_data);
+  temp = s48_enter_byte_string_2(call, data->gr_name);
+  sch_data = s48_cons_2(call, temp, sch_data);
   
   return sch_data;
 }
 
-static s48_value
-posix_getgrgid(s48_value gid)
+static s48_ref_t
+posix_getgrgid(s48_call_t call, s48_ref_t gid)
 {
   struct group *data;
   
-  RETRY_OR_RAISE_NULL(data, getgrgid(s48_extract_gid(gid)));
+  RETRY_OR_RAISE_NULL(data, getgrgid(s48_extract_gid(call, gid)));
 
-  return enter_group_data(data);
+  return enter_group_data(call, data);
 }
 
-static s48_value
-posix_getgrnam(s48_value name)
+static s48_ref_t
+posix_getgrnam(s48_call_t call, s48_ref_t name)
 {
   struct group *data;
   
-  RETRY_OR_RAISE_NULL(data, getgrnam(S48_UNSAFE_EXTRACT_BYTE_VECTOR(name)));
+  RETRY_OR_RAISE_NULL(data, getgrnam(s48_unsafe_extract_byte_vector_2(call, name)));
 
-  return enter_group_data(data);
+  return enter_group_data(call, data);
 }

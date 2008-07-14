@@ -1152,6 +1152,12 @@ s48_out_of_memory_error()
   s48_raise_scheme_exception(S48_EXCEPTION_OUT_OF_MEMORY, 0);
 }
 
+void
+s48_out_of_memory_error_2(s48_call_t call)
+{
+  s48_raise_scheme_exception_2(call, S48_EXCEPTION_OUT_OF_MEMORY, 0);
+}
+
 /* For internal use by the VM: */
 
 void

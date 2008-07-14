@@ -25,14 +25,14 @@
 
 (define (open-directory-stream name)
   (let ((dir (make-directory-box name
-				 (call-imported-binding posix-opendir
+				 (call-imported-binding-2 posix-opendir
 							(os-string->byte-vector (x->os-string name))))))
     (add-finalizer! dir close-directory-stream)
     dir))
 
 (define (read-directory-stream directory)
   (cond
-   ((call-imported-binding posix-readdir (directory-c-dir directory))
+   ((call-imported-binding-2 posix-readdir (directory-c-dir directory))
     => x->os-string)
    (else #f)))
 
@@ -40,7 +40,7 @@
   (let ((c-dir (directory-c-dir directory)))
     (if c-dir
 	(begin
-	  (call-imported-binding posix-closedir c-dir)
+	  (call-imported-binding-2 posix-closedir c-dir)
 	  (set-directory-c-dir! directory #f)))))
 
 ; The C calls we use.
@@ -66,10 +66,10 @@
 
 (define (working-directory)
   (x->os-string
-   (call-imported-binding posix-working-directory #f)))
+   (call-imported-binding-2 posix-working-directory #f)))
 
 (define (set-working-directory! name)
-  (call-imported-binding posix-working-directory 
+  (call-imported-binding-2 posix-working-directory 
 			 (os-string->byte-vector (x->os-string name))))
 
 (import-definition posix-working-directory)
@@ -85,7 +85,7 @@
 
 (define (open-file path options . mode)
   (let* ((input? (file-options-on? options (file-options read-only)))
-	 (channel (call-imported-binding posix-open
+	 (channel (call-imported-binding-2 posix-open
 					 (os-string->byte-vector
 					  (x->os-string path))
 					 options
@@ -115,7 +115,7 @@
 	      (os-string->byte-vector (x->os-string existing))
 	      (os-string->byte-vector (x->os-string new))))
 
-(import-lambda-definition file-stuff (op arg1 arg2) "posix_file_stuff")
+(import-lambda-definition-2 file-stuff (op arg1 arg2) "posix_file_stuff")
 
 ;----------------
 ; 5.4 Special File Creation
@@ -194,19 +194,19 @@
 ; The following are stat(), lstat(), and fstat().
 
 (define (get-file-info name)
-  (call-imported-binding posix-file-info
+  (call-imported-binding-2 posix-file-info
 			 (os-string->byte-vector (x->os-string name))
 			 #t file-types))
 
 (define (get-file/link-info name)
-  (call-imported-binding posix-file-info
+  (call-imported-binding-2 posix-file-info
 			 (os-string->byte-vector (x->os-string name))
 			 #f file-types))
 
 (define (get-port-info port)
   (let ((channel (port->channel port)))
     (if channel
-	(call-imported-binding posix-file-info channel #f file-types)
+	(call-imported-binding-2 posix-file-info channel #f file-types)
 	(assertion-violation 'get-port-info "port without channel" port))))
 
 ;----------------
@@ -345,8 +345,8 @@
 (define (time>=? time1 time2)
   (not (time<? time1 time2)))
 
-(import-lambda-definition current-time () "posix_time")
-(import-lambda-definition time->string (time) "posix_ctime")
+(import-lambda-definition-2 current-time () "posix_time")
+(import-lambda-definition-2 time->string (time) "posix_ctime")
 
 ;----------------
 ; Dates - what a mess.
@@ -427,8 +427,8 @@
 	  (os-string->byte-vector
 	   (x->os-string name)))))
 
-(import-lambda-definition external-user-id->user-info (user-id) "posix_getpwuid")
-(import-lambda-definition external-name->user-info (name) "posix_getpwnam")
+(import-lambda-definition-2 external-user-id->user-info (user-id) "posix_getpwuid")
+(import-lambda-definition-2 external-name->user-info (name) "posix_getpwnam")
 
 ;----------------
 ; Groups
@@ -476,8 +476,8 @@
 	  (os-string->byte-vector
 	   (x->os-string name)))))
 
-(import-lambda-definition external-group-id->group-info (group-id) "posix_getgrgid")
-(import-lambda-definition external-name->group-info (name) "posix_getgrnam")
+(import-lambda-definition-2 external-group-id->group-info (group-id) "posix_getgrgid")
+(import-lambda-definition-2 external-name->group-info (name) "posix_getgrnam")
 
 ;----------------
 ; Rest of 5.6

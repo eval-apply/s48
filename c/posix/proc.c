@@ -23,24 +23,24 @@
 
 extern void		s48_init_posix_proc(void),
 			s48_uninit_posix_proc(void);
-static s48_value	posix_fork(void),
-			posix_exec(s48_value program, s48_value lookup_p,
-				   s48_value env, s48_value args),
-  			posix_enter_pid(s48_value pid),
-  			posix_waitpid(void),
-			posix_integer_to_signal(s48_value sig_int),
-			posix_initialize_named_signals(void),
-			posix_request_interrupts(s48_value int_number),  
-			posix_cancel_interrupt_request(s48_value sch_signal),
-  			posix_kill(s48_value sch_pid, s48_value sch_signal);
+static s48_ref_t	posix_fork(s48_call_t call),
+			posix_exec(s48_call_t call, s48_ref_t program, s48_ref_t lookup_p,
+				   s48_ref_t env, s48_ref_t args),
+  			posix_enter_pid(s48_call_t call, s48_ref_t pid),
+  			posix_waitpid(s48_call_t call),
+			posix_integer_to_signal(s48_call_t call, s48_ref_t sig_int),
+			posix_initialize_named_signals(s48_call_t call),
+			posix_request_interrupts(s48_call_t call, s48_ref_t int_number),  
+			posix_cancel_interrupt_request(s48_call_t call, s48_ref_t sch_signal),
+  			posix_kill(s48_call_t call, s48_ref_t sch_pid, s48_ref_t sch_signal);
 
-static s48_value	enter_signal(int signal);
-static int		extract_signal(s48_value sch_signal);
+static s48_ref_t	enter_signal(s48_call_t call, int signal);
+static int		extract_signal(s48_call_t call, s48_ref_t sch_signal);
 static void		signal_map_init(void);
 static void		signal_map_uninit(void);
 static void		cancel_interrupt_requests(void);
 
-static char		**enter_byte_vector_array(s48_value strings),
+static char		**enter_byte_vector_array(s48_call_t call, s48_ref_t strings),
 			*add_dot_slash(char *name);
 
 /*
@@ -53,26 +53,26 @@ static char		**enter_byte_vector_array(s48_value strings),
  * images.
  */
 
-static s48_value child_pids = S48_NULL;
-static s48_value unnamed_signals = S48_NULL;
+static s48_ref_t child_pids;
+static s48_ref_t unnamed_signals;
 
-static s48_value lookup_record(s48_value *list_loc, int offset, s48_value key);
+static s48_ref_t lookup_record(s48_call_t call, s48_ref_t *list_loc, int offset, s48_ref_t key);
 
 /*
  * Record types imported from Scheme.
  */
 
-static s48_value 	posix_process_id_type_binding = S48_FALSE;
-static s48_value	posix_named_signal_type_binding = S48_FALSE;
-static s48_value	posix_unnamed_signal_type_binding = S48_FALSE;
+static s48_ref_t 	posix_process_id_type_binding;
+static s48_ref_t	posix_named_signal_type_binding;
+static s48_ref_t	posix_unnamed_signal_type_binding;
 
 /*
  * Vector of Scheme signal objects imported from Scheme, and a marker that
  * is put in unnamed signals.
  */
 
-static s48_value	posix_signals_vector_binding = S48_FALSE;
-static s48_value	posix_unnamed_signal_marker_binding = S48_FALSE;
+static s48_ref_t	posix_signals_vector_binding;
+static s48_ref_t	posix_unnamed_signal_marker_binding;
 
 /*
  * Queue of received interrupts that need to be passed on to Scheme.
@@ -95,28 +95,23 @@ s48_init_posix_proc(void)
   S48_EXPORT_FUNCTION(posix_cancel_interrupt_request);
   S48_EXPORT_FUNCTION(posix_kill);
 
-  S48_GC_PROTECT_GLOBAL(posix_process_id_type_binding);
   posix_process_id_type_binding =
-    s48_get_imported_binding("posix-process-id-type");
+    s48_get_imported_binding_2("posix-process-id-type");
 
-  S48_GC_PROTECT_GLOBAL(posix_named_signal_type_binding);
   posix_named_signal_type_binding =
-    s48_get_imported_binding("posix-named-signal-type");
+    s48_get_imported_binding_2("posix-named-signal-type");
 
-  S48_GC_PROTECT_GLOBAL(posix_unnamed_signal_type_binding);
   posix_unnamed_signal_type_binding =
-    s48_get_imported_binding("posix-unnamed-signal-type");
+    s48_get_imported_binding_2("posix-unnamed-signal-type");
 
-  S48_GC_PROTECT_GLOBAL(posix_signals_vector_binding);
   posix_signals_vector_binding =
-    s48_get_imported_binding("posix-signals-vector");
+    s48_get_imported_binding_2("posix-signals-vector");
 
-  S48_GC_PROTECT_GLOBAL(posix_unnamed_signal_marker_binding);
   posix_unnamed_signal_marker_binding =
-    s48_get_imported_binding("posix-unnamed-signal-marker");
+    s48_get_imported_binding_2("posix-unnamed-signal-marker");
 
-  S48_GC_PROTECT_GLOBAL(child_pids);
-  S48_GC_PROTECT_GLOBAL(unnamed_signals);
+  child_pids = s48_make_global_ref(_s48_value_null);
+  unnamed_signals = s48_make_global_ref(_s48_value_null);
 
   signal_map_init();
 }
@@ -133,21 +128,25 @@ s48_uninit_posix_proc(void)
  * Box a process id in a Scheme record.
  */
 
-static s48_value
-make_pid(pid_t c_pid)
+static s48_ref_t
+make_pid(s48_call_t call, pid_t c_pid)
 {
-  s48_value weak;
-  s48_value sch_pid = s48_make_record(posix_process_id_type_binding);
+  s48_ref_t weak, temp;
+  s48_ref_t sch_pid = s48_make_record_2(call, posix_process_id_type_binding);
 
-  S48_UNSAFE_RECORD_SET(sch_pid, 0, s48_enter_fixnum(c_pid));
-  S48_UNSAFE_RECORD_SET(sch_pid, 1, S48_FALSE);	/* return status */
-  S48_UNSAFE_RECORD_SET(sch_pid, 2, S48_FALSE);	/* terminating signal */
-  S48_UNSAFE_RECORD_SET(sch_pid, 3, S48_FALSE);	/* placeholder for waiting threads */
+  s48_unsafe_record_set_2(call, sch_pid, 0, s48_enter_long_2(call, c_pid));
+  s48_unsafe_record_set_2(call, sch_pid, 1, s48_false_2(call));	/* return status */
+  s48_unsafe_record_set_2(call, sch_pid, 2, s48_false_2(call));	/* terminating signal */
+  s48_unsafe_record_set_2(call, sch_pid, 3, s48_false_2(call));	/* placeholder for waiting threads */
 
-  weak = s48_make_weak_pointer(sch_pid);
+  weak = s48_make_weak_pointer_2(call, sch_pid);
 
-  child_pids = s48_cons(weak, child_pids);
-  
+  temp = child_pids;
+
+  child_pids = s48_local_to_global_ref(s48_cons_2(call, weak, child_pids));
+
+  s48_free_global_ref(temp);
+
   return sch_pid;
 }
 
@@ -156,10 +155,10 @@ make_pid(pid_t c_pid)
  * on the way.
  */
 
-static s48_value
-lookup_pid(pid_t c_pid)
+static s48_ref_t
+lookup_pid(s48_call_t call, pid_t c_pid)
 {
-  return lookup_record(&child_pids, 0, s48_enter_fixnum(c_pid));
+  return lookup_record(call, &child_pids, 0, s48_enter_long_2(call, c_pid));
 }
 
 /*
@@ -171,43 +170,44 @@ lookup_pid(pid_t c_pid)
  * This is too much C code!  It should all be done in Scheme.
  */
 
-static s48_value
-lookup_record(s48_value *the_list_loc, int offset, s48_value key)
+static s48_ref_t
+lookup_record(s48_call_t call, s48_ref_t *the_list_loc, int offset, s48_ref_t key)
 {
   int		cleanup_p = 0;
-  s48_value	the_list = *the_list_loc;
+  s48_ref_t	the_list = *the_list_loc;
 
   /* Clear out initial dropped weaks */
-  while (the_list != S48_NULL &&
-	 S48_UNSAFE_WEAK_POINTER_REF(S48_UNSAFE_CAR(the_list)) == S48_FALSE)
-    the_list = S48_UNSAFE_CDR(the_list);
+  while (!s48_null_p_2(call, the_list) &&
+	 s48_false_p_2(call,
+		       s48_unsafe_weak_pointer_ref_2(call, s48_unsafe_car_2(call, the_list))))
+    the_list = s48_unsafe_cdr_2(call, the_list);
 
   if (the_list != *the_list_loc) {
     *the_list_loc = the_list;
     cleanup_p = 1; }
 
-  if (the_list == S48_NULL)
-    return S48_FALSE;			/* Nothing */
+  if (s48_null_p_2(call, the_list))
+    return s48_false_2(call);			/* Nothing */
 
   {
-    s48_value first = S48_UNSAFE_WEAK_POINTER_REF(S48_UNSAFE_CAR(the_list));
+    s48_ref_t first = s48_unsafe_weak_pointer_ref_2(call, s48_unsafe_car_2(call, the_list));
 
-    if (key == S48_UNSAFE_RECORD_REF(first, offset))
+    if (s48_eq_p_2(call, key, s48_unsafe_record_ref_2(call, first, offset)))
       /* Found it first thing.  We skip the cleanup, but so what. */
       return first;
 
     {
       /* Loop down. */
-      s48_value	found = S48_FALSE;
-      s48_value prev = the_list;
-      s48_value next = S48_UNSAFE_CDR(prev);
-      for(; next != S48_NULL && found == S48_FALSE;
-	  next = S48_UNSAFE_CDR(prev)) {
-	s48_value first = S48_UNSAFE_WEAK_POINTER_REF(S48_UNSAFE_CAR(next));
-	if (first == S48_FALSE) {
-	  S48_UNSAFE_SET_CDR(prev, S48_UNSAFE_CDR(next));
+      s48_ref_t	found = s48_false_2(call);
+      s48_ref_t prev = the_list;
+      s48_ref_t next = s48_unsafe_cdr_2(call, prev);
+      for(; !s48_null_p_2(call, next) && s48_false_p_2(call, found);
+	  next = s48_unsafe_cdr_2(call, prev)) {
+	s48_ref_t first = s48_unsafe_weak_pointer_ref_2(call, s48_unsafe_car_2(call, next));
+	if (s48_false_p_2(call, first)) {
+	  s48_unsafe_set_cdr_2(call, prev, s48_unsafe_cdr_2(call, next));
 	  cleanup_p = 1; }
-	else if (key == S48_UNSAFE_RECORD_REF(first, offset))
+	else if (s48_eq_p_2(call, key, s48_unsafe_record_ref_2(call, first, offset)))
 	  found = first;
 	else
 	  prev = next; }
@@ -216,10 +216,10 @@ lookup_record(s48_value *the_list_loc, int offset, s48_value key)
     
       if (cleanup_p) {
 	
-	for(; next != S48_NULL; next = S48_UNSAFE_CDR(next)) {
-	  s48_value first = S48_UNSAFE_WEAK_POINTER_REF(S48_UNSAFE_CAR(next));
-	  if (first == S48_FALSE)
-	    S48_UNSAFE_SET_CDR(prev, S48_UNSAFE_CDR(next)); } }
+	for(; !s48_null_p_2(call, next); next = s48_unsafe_cdr_2(call, next)) {
+	  s48_ref_t first = s48_unsafe_weak_pointer_ref_2(call, s48_unsafe_car_2(call, next));
+	  if (s48_false_p_2(call, first))
+	    s48_unsafe_set_cdr_2(call, prev, s48_unsafe_cdr_2(call, next)); } }
       
       return found; } }
 }
@@ -228,21 +228,21 @@ lookup_record(s48_value *the_list_loc, int offset, s48_value key)
  * If we already have this process, return it, else make a new one.
  */
 
-s48_value
-s48_enter_pid(pid_t c_pid)
+s48_ref_t
+s48_enter_pid(s48_call_t call, pid_t c_pid)
 {
-  s48_value sch_pid = lookup_pid(c_pid);
-  return sch_pid == S48_FALSE ? make_pid(c_pid) : sch_pid;
+  s48_ref_t sch_pid = lookup_pid(call, c_pid);
+  return s48_false_p_2(call, sch_pid) ? make_pid(call, c_pid) : sch_pid;
 }
 
 /*
  * Version of above for calling from Scheme.
  */
 
-static s48_value
-posix_enter_pid(s48_value sch_pid)
+static s48_ref_t
+posix_enter_pid(s48_call_t call, s48_ref_t sch_pid)
 {
-  return s48_enter_pid(s48_extract_fixnum(sch_pid));
+  return s48_enter_pid(call, s48_extract_long_2(call, sch_pid));
 }
 
 /*
@@ -253,38 +253,32 @@ posix_enter_pid(s48_value sch_pid)
  * This does not looked for stopped children, only terminated ones.
  */
 
-static s48_value
-posix_waitpid(void)
+static s48_ref_t
+posix_waitpid(s48_call_t call)
 {
   while(1==1) {
     int stat;
     pid_t c_pid = waitpid(-1, &stat, WNOHANG);
     if (c_pid == -1) {
       if (errno == ECHILD)		/* no one left to wait for */
-	return S48_FALSE;
+	return s48_false_2(call);
       else if (errno != EINTR)
-	s48_os_error("posix_waitpid", errno, 0);
+	s48_os_error_2(call, "posix_waitpid", errno, 0);
     }
     else {
-      s48_value sch_pid = lookup_pid(c_pid);
-      s48_value temp = S48_UNSPECIFIC;
-      S48_DECLARE_GC_PROTECT(2);
-      
-      S48_GC_PROTECT_2(sch_pid, temp);
+      s48_ref_t sch_pid = lookup_pid(call, c_pid);
+      s48_ref_t temp = s48_unspecific_2(call);
 
-      if (sch_pid != S48_FALSE) {
+      if (!s48_false_p_2(call, sch_pid)) {
 	if (WIFEXITED(stat))
-	  S48_UNSAFE_RECORD_SET(sch_pid, 1, s48_enter_fixnum(WEXITSTATUS(stat)));
+	  s48_unsafe_record_set_2(call, sch_pid, 1, s48_enter_long_2(call, WEXITSTATUS(stat)));
 	else {
-	  temp = enter_signal(WTERMSIG(stat));
-	  S48_UNSAFE_RECORD_SET(sch_pid, 2, temp);
+	  temp = enter_signal(call, WTERMSIG(stat));
+	  s48_unsafe_record_set_2(call, sch_pid, 2, temp);
 	}
 
-	S48_GC_UNPROTECT();
 	return sch_pid;
       }
-      else
-     	S48_GC_UNPROTECT();
     }
   }
 }
@@ -293,18 +287,18 @@ posix_waitpid(void)
  * Fork and exec.
  */
 
-static s48_value
-posix_fork(void)
+static s48_ref_t
+posix_fork(s48_call_t call)
 {
   pid_t child_pid = fork();
 
   if (child_pid < 0)
-    s48_os_error("posix_fork", errno, 0);
+    s48_os_error_2(call, "posix_fork", errno, 0);
 
   if (child_pid == 0)
-    return S48_FALSE;
+    return s48_false_2(call);
   else
-    return make_pid(child_pid);
+    return make_pid(call, child_pid);
 }
 
 /*
@@ -318,26 +312,26 @@ posix_fork(void)
  * of the program, if it does not already contain a `/'.
  */
 
-static s48_value
-posix_exec(s48_value program, s48_value lookup_p,
-	   s48_value env, s48_value args)
+static s48_ref_t
+posix_exec(s48_call_t call, s48_ref_t program, s48_ref_t lookup_p,
+	   s48_ref_t env, s48_ref_t args)
 {
-  char **c_args = enter_byte_vector_array(args);
+  char **c_args = enter_byte_vector_array(call, args);
   char *c_program, *real_c_program;
   int status;
 
-  c_program = s48_extract_byte_vector(program);
+  c_program = s48_extract_byte_vector_2(call, program);
 
   s48_stop_alarm_interrupts();
 
-  if (env == S48_FALSE)
-    if (lookup_p == S48_FALSE)
+  if (s48_false_p_2(call, env))
+    if (s48_false_p_2(call, lookup_p))
       status = execv(c_program, c_args);
     else {
       status = execvp(c_program, c_args);
     }
   else {
-    char **c_env = enter_byte_vector_array(env);
+    char **c_env = enter_byte_vector_array(call, env);
     
     if (NULL == strchr(c_program, '/'))
       real_c_program = add_dot_slash(c_program);
@@ -354,10 +348,10 @@ posix_exec(s48_value program, s48_value lookup_p,
 
   free(c_args);
   s48_start_alarm_interrupts();
-  s48_os_error("posix_exec", errno, 0);
+  s48_os_error_2(call, "posix_exec", errno, 0);
 
   /* appease gcc -Wall */
-  return S48_FALSE;
+  return s48_false_2(call);
 }
 
 /*
@@ -365,21 +359,21 @@ posix_exec(s48_value program, s48_value lookup_p,
  */
 
 static char **
-enter_byte_vector_array(s48_value vectors)
+enter_byte_vector_array(s48_call_t call, s48_ref_t vectors)
 {
-  int length = S48_UNSAFE_EXTRACT_FIXNUM(s48_length(vectors));
+  int length = s48_unsafe_extract_long_2(call, s48_length_2(call, vectors));
   char **result = (char **)malloc((length + 1) * sizeof(char *));
   int i;
 
   if (result == NULL)
     s48_out_of_memory_error();
   
-  for(i = 0; i < length; i++, vectors = S48_UNSAFE_CDR(vectors)) {
-    s48_value vector = S48_UNSAFE_CAR(vectors);
-    if (! S48_BYTE_VECTOR_P(vector)) {
+  for(i = 0; i < length; i++, vectors = s48_unsafe_cdr_2(call, vectors)) {
+    s48_ref_t vector = s48_unsafe_car_2(call, vectors);
+    if (! s48_byte_vector_p_2(call, vector)) {
       free(result);
-      s48_assertion_violation(NULL, "not a byte vector", 1, vector); }
-    result[i] = S48_UNSAFE_EXTRACT_BYTE_VECTOR(vector); }
+      s48_assertion_violation_2(call, NULL, "not a byte vector", 1, vector); }
+    result[i] = s48_unsafe_extract_byte_vector_2(call, vector); }
   result[length] = NULL;
 
   return result;
@@ -413,18 +407,18 @@ add_dot_slash(char *name)
  * Simple front for kill().  We have to retry if interrupted.
  */
 
-s48_value
-posix_kill(s48_value sch_pid, s48_value sch_signal)
+s48_ref_t
+posix_kill(s48_call_t call, s48_ref_t sch_pid, s48_ref_t sch_signal)
 {
   int status;
 
-  s48_check_record_type(sch_pid, posix_process_id_type_binding);
+  s48_check_record_type_2(call, sch_pid, posix_process_id_type_binding);
 
   RETRY_OR_RAISE_NEG(status,
-		     kill(s48_extract_fixnum(S48_UNSAFE_RECORD_REF(sch_pid, 0)),
-			  extract_signal(sch_signal)));
+		     kill(s48_extract_long_2(call, s48_unsafe_record_ref_2(call, sch_pid, 0)),
+			  extract_signal(call, sch_signal)));
 
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
 /*
@@ -486,33 +480,34 @@ lookup_signal(int c_signal) {
  * its value in the current OS.
  */
 
-static s48_value
-posix_initialize_named_signals(void)
+static s48_ref_t
+posix_initialize_named_signals(s48_call_t call)
 {
   int i, length;
-  s48_value named_signals;
+  s48_ref_t named_signals;
 
-  S48_SHARED_BINDING_CHECK(posix_signals_vector_binding);
+  s48_shared_binding_check_2(call, posix_signals_vector_binding);
 
-  named_signals = S48_SHARED_BINDING_REF(posix_signals_vector_binding);
+  named_signals = s48_shared_binding_ref_2(call, posix_signals_vector_binding);
 
-  if(! S48_VECTOR_P(named_signals))
-    s48_assertion_violation("posix_initialize_named_signals", "not a vector", 1,
-			    named_signals);
+  if(! s48_vector_p_2(call, named_signals))
+    s48_assertion_violation_2(call, 
+			      "posix_initialize_named_signals", "not a vector", 1,
+			      named_signals);
     
-  length = S48_UNSAFE_VECTOR_LENGTH(named_signals);
+  length = s48_unsafe_vector_length_2(call, named_signals);
 
   for(i = 0; i < length; i++) {
-    s48_value signal = S48_UNSAFE_VECTOR_REF(named_signals, i);
-    int canonical = s48_extract_fixnum(S48_UNSAFE_RECORD_REF(signal, 1));
+    s48_ref_t signal = s48_unsafe_vector_ref_2(call, named_signals, i);
+    int canonical = s48_extract_long_2(call, s48_unsafe_record_ref_2(call, signal, 1));
     int c_signal = signal_map[canonical];
-    s48_value scm_signal = (c_signal == -1) ?
-                           S48_FALSE :
-                           s48_enter_fixnum(c_signal);
+    s48_ref_t scm_signal = (c_signal == -1) ?
+                           s48_false_2(call) :
+                           s48_enter_long_2(call, c_signal);
     
-    S48_UNSAFE_RECORD_SET(signal, 2, scm_signal); }
+    s48_unsafe_record_set_2(call, signal, 2, scm_signal); }
 
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
 /*
@@ -520,27 +515,27 @@ posix_initialize_named_signals(void)
  * list of unnamed signals.
  */
 
-static s48_value
-make_unnamed_signal(s48_value fx_signal)
+static s48_ref_t
+make_unnamed_signal(s48_call_t call, s48_ref_t fx_signal)
 {
-  s48_value weak = S48_UNSPECIFIC;
-  s48_value unnamed = s48_make_record(posix_unnamed_signal_type_binding);
-  S48_DECLARE_GC_PROTECT(1);
+  s48_ref_t weak, temp;
+  s48_ref_t unnamed = s48_make_record_2(call, posix_unnamed_signal_type_binding);
 
-  S48_GC_PROTECT_1(weak);
-
-  S48_UNSAFE_RECORD_SET(unnamed,
-			0,
-			S48_UNSAFE_SHARED_BINDING_REF(
+  s48_unsafe_record_set_2(call,
+			  unnamed,
+			  0,
+			  s48_unsafe_shared_binding_ref_2(call,
 			      posix_unnamed_signal_marker_binding));
-  S48_UNSAFE_RECORD_SET(unnamed, 1, fx_signal);
-  S48_UNSAFE_RECORD_SET(unnamed, 2, S48_NULL);		/* No queues */
+  s48_unsafe_record_set_2(call, unnamed, 1, fx_signal);
+  s48_unsafe_record_set_2(call, unnamed, 2, s48_null_2(call));	/* No queues */
 
-  weak = s48_make_weak_pointer(unnamed);
+  weak = s48_make_weak_pointer_2(call, unnamed);
 
-  unnamed_signals = s48_cons(weak, unnamed_signals);
+  temp = unnamed_signals;
 
-  S48_GC_UNPROTECT();
+  unnamed_signals = s48_cons_2(call, weak, unnamed_signals);
+
+  s48_free_global_ref(temp);
 
   return unnamed;
 }
@@ -551,36 +546,37 @@ make_unnamed_signal(s48_value fx_signal)
  * named signals are retrieved from a vector sent down by the Scheme code.
  */
 
-static s48_value
-enter_signal(int c_signal)
+static s48_ref_t
+enter_signal(s48_call_t call, int c_signal)
 {
   int canonical = lookup_signal(c_signal);
 
   if (canonical == -1) {
-    s48_value fx_signal = s48_enter_fixnum(c_signal);
-    s48_value unnamed = lookup_record(&unnamed_signals, 1, fx_signal);
+    s48_ref_t fx_signal = s48_enter_long_2(call, c_signal);
+    s48_ref_t unnamed = lookup_record(call, &unnamed_signals, 1, fx_signal);
     
-    if (unnamed != S48_FALSE)
+    if (!s48_false_p_2(call, unnamed))
       return unnamed;
     else
-      return make_unnamed_signal(fx_signal); }
+      return make_unnamed_signal(call, fx_signal); }
   else
-    return S48_VECTOR_REF(S48_SHARED_BINDING_REF(posix_signals_vector_binding),
-			  canonical);
+    return s48_vector_ref_2(call,
+			    s48_shared_binding_ref_2(call, posix_signals_vector_binding),
+			    canonical);
 }
 
 /*
  * Wrapper for enter_signal() for calling from Scheme.
  */
 
-static s48_value
-posix_integer_to_signal(s48_value signal_int)
+static s48_ref_t
+posix_integer_to_signal(s48_call_t call, s48_ref_t signal_int)
 {
-  if (S48_FIXNUM_P(signal_int))
-    return enter_signal(s48_extract_fixnum(signal_int));
+  if (s48_fixnum_p_2(call, signal_int))
+    return enter_signal(call, s48_extract_long_2(call, signal_int));
   else
     /* really should do an integer? test here */
-    return S48_FALSE;
+    return s48_false_2(call);
 }
 
 /*
@@ -590,29 +586,29 @@ posix_integer_to_signal(s48_value signal_int)
  */
 
 static int
-extract_signal(s48_value sch_signal)
+extract_signal(s48_call_t call, s48_ref_t sch_signal)
 {
-  s48_value type;
+  s48_ref_t type;
 
-  if (! S48_RECORD_P(sch_signal))
-    s48_assertion_violation(NULL, "not a record", 1, sch_signal);
+  if (! s48_record_p_2(call, sch_signal))
+    s48_assertion_violation_2(call, NULL, "not a record", 1, sch_signal);
 
-  type = S48_UNSAFE_RECORD_TYPE(sch_signal);
+  type = s48_unsafe_record_type_2(call, sch_signal);
 
-  if (type == S48_UNSAFE_SHARED_BINDING_REF(posix_named_signal_type_binding)) {
-    int canonical = s48_extract_fixnum(S48_UNSAFE_RECORD_REF(sch_signal, 1));
+  if (s48_eq_p_2(call, type, s48_unsafe_shared_binding_ref_2(call, posix_named_signal_type_binding))) {
+    int canonical = s48_extract_long_2(call, s48_unsafe_record_ref_2(call, sch_signal, 1));
     if ((0 <= canonical) && (canonical < signal_map_size)
 	&& signal_map[canonical] != -1)
       return signal_map[canonical];
     else
-      s48_assertion_violation(NULL, "not a valid signal index", 1, sch_signal); }
+      s48_assertion_violation_2(call, NULL, "not a valid signal index", 1, sch_signal); }
 
-  else if (type ==
-	   S48_UNSAFE_SHARED_BINDING_REF(posix_unnamed_signal_type_binding))
-    return s48_extract_fixnum(S48_UNSAFE_RECORD_REF(sch_signal, 1));
+  else if (s48_eq_p_2(call, type,
+		      s48_unsafe_shared_binding_ref_2(call, posix_unnamed_signal_type_binding)))
+    return s48_extract_long_2(call, s48_unsafe_record_ref_2(call, sch_signal, 1));
 
   else
-    s48_assertion_violation(NULL, "not a signal", 1, sch_signal);
+    s48_assertion_violation_2(call, NULL, "not a signal", 1, sch_signal);
 }
 
 /*
@@ -656,10 +652,10 @@ struct sigaction *saved_actions[MAX_SIGNAL + 1] = {NULL};
  * our own.
  */
 
-s48_value
-posix_request_interrupts(s48_value sch_signum)
+s48_ref_t
+posix_request_interrupts(s48_call_t call, s48_ref_t sch_signum)
 {
-  int			signum = s48_extract_fixnum(sch_signum);
+  int			signum = s48_extract_long_2(call, sch_signum);
   struct sigaction	sa;
 
   if (saved_actions[signum] == NULL) {
@@ -675,11 +671,11 @@ posix_request_interrupts(s48_value sch_signum)
 
     if (sigaction(signum, &sa, old) != 0) {
       free(old);
-      s48_os_error("posix_request_interrupts", errno, 1, sch_signum); }
+      s48_os_error_2(call, "posix_request_interrupts", errno, 1, sch_signum); }
 
     saved_actions[signum] = old; }
     
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
 /*
@@ -696,18 +692,19 @@ cancel_interrupt_request(int signum)
     {
       
       if (sigaction(signum, old, (struct sigaction *) NULL) != 0)
-	s48_os_error(NULL, errno, 1, s48_enter_fixnum(signum));
+	/* THIS IS STILL OLD FFI!  FIX THIS! */
+	s48_os_error_2(NULL, NULL, errno, 1, s48_enter_fixnum(signum));
       
       free(old);
       saved_actions[signum] = NULL; 
     }
 }
 
-s48_value
-posix_cancel_interrupt_request(s48_value sch_signum)
+s48_ref_t
+posix_cancel_interrupt_request(s48_call_t call, s48_ref_t sch_signum)
 {
-  cancel_interrupt_request(s48_extract_fixnum(sch_signum));
-  return S48_UNSPECIFIC;
+  cancel_interrupt_request(s48_extract_long_2(call, sch_signum));
+  return s48_unspecific_2(call);
 }
 
 static void
