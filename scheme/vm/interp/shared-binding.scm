@@ -94,9 +94,10 @@
     (save-temp1! name)
     (let ((key (ensure-space shared-binding-size)))
       (let ((name (recover-temp1!))
-	    (value (recover-temp0!)))
-	(shared-binding-set! (lookup-imported-binding name key)
-			     value)))))
+	    (value (recover-temp0!))
+	    (binding (lookup-imported-binding name key)))
+	(shared-binding-set! binding value)
+	binding))))
 
 (define (s48-get-imported-binding name)
   (save-temp0! (enter-string+gc name))

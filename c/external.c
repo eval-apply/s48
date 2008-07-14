@@ -1954,10 +1954,10 @@ s48_get_imported_binding_local_2(s48_call_t call, char *name)
   return s48_make_local_ref(call, s48_get_imported_binding(name)); 
 }
 
-void
+s48_ref_t
 s48_define_exported_binding_2(s48_call_t call, char *name, s48_ref_t binding)
 {
-  s48_define_exported_binding(name, s48_deref(binding));
+  return s48_make_local_ref(call, s48_define_exported_binding(name, s48_deref(binding)));
 }
 
 s48_value
