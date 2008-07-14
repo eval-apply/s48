@@ -48,6 +48,14 @@ struct ref_group
   struct ref allocated;
 };
 
+struct buf_group;
+
+struct buf_group
+{
+  void *buffer;
+  struct buf_group *next, *prev;
+};
+
 struct s48_call_s
 {
   s48_call_t older_call;
@@ -55,6 +63,7 @@ struct s48_call_s
   s48_call_t child;
   s48_call_t next_subcall, prev_subcall;
   struct ref_group *local_refs;
+  struct buf_group *local_bufs;
 };
 
 
@@ -70,6 +79,9 @@ static struct ref_group *
 make_ref_group (void)
 {
   struct ref_group *g = (struct ref_group *) malloc (sizeof (struct ref_group));
+  if (g == NULL)
+    s48_out_of_memory_error();
+
   g->clumps = 0;
   g->free = 0;
   g->allocated.next = &g->allocated;
@@ -101,6 +113,9 @@ make_ref (struct ref_group *g, s48_value obj)
   } else {
     struct ref_clump *new =
       (struct ref_clump *) malloc (sizeof (struct ref_clump));
+    if (new == NULL)
+      s48_out_of_memory_error();
+
     new->next = g->clumps;
     g->clumps = new;
     r = &new->refs[0];
@@ -221,17 +236,109 @@ walk_global_refs (void (*func) (s48_ref_t ref, void *closure),
 }
 
 
+/* BUFS */
+
+struct buf_group *
+make_buf_group (void)
+{
+  struct buf_group *g = (struct buf_group *) malloc (sizeof (struct buf_group));
+  if (g == NULL)
+    s48_out_of_memory_error();
+#ifdef DEBUG_FFI
+  fprintf (stderr, "make buf group %x\n", g);
+#endif
+  return g;
+}
+
+void
+free_buf (struct buf_group *b)
+{
+#ifdef DEBUG_FFI
+  fprintf (stderr, "free buf %x\n", b);
+#endif
+  free (b->buffer);
+  free (b);
+}
+
+void
+free_buf_group (struct buf_group *g)
+{
+  struct buf_group *b, *next;
+#ifdef DEBUG_FFI
+  fprintf (stderr, "free buf group %x\n", g);
+#endif
+  for (b = g; b; b = next) {
+    next = b->next;
+    free_buf (b);
+  }
+}
+
+void *
+s48_make_local_buf (s48_call_t call, size_t s)
+{
+  struct buf_group *g = make_buf_group ();
+#ifdef DEBUG_FFI
+  fprintf (stderr, "make buf with size %x\n", s);
+#endif
+  g->buffer = (void *) calloc (1, s);
+  if (g->buffer == NULL)
+    s48_out_of_memory_error();
+  g->prev = NULL;
+  g->next = call->local_bufs;
+  call->local_bufs = g;
+  return g->buffer;
+}
+
+void
+s48_free_local_buf (s48_call_t call, void *buffer)
+{
+  struct buf_group *prev, *b, *next;
+
+  if (! call->local_bufs)
+    return;
+
+#ifdef DEBUG_FFI
+  fprintf (stderr, "free buf %x\n", buffer);
+#endif
+
+  if (buffer == call->local_bufs->buffer) {
+    b = call->local_bufs;
+    call->local_bufs = call->local_bufs->next;
+    free_buf (b);
+    return;
+  }
+  
+  prev = call->local_bufs;
+  b = call->local_bufs->next;
+  while (b) {
+    if (b == b->buffer) {
+      next = b->next;
+      prev = b->prev;
+      prev->next = next;
+      next->prev = prev;
+    free_buf (b);
+      b = NULL;
+    } else {
+      b = b->next;
+    }
+  }
+}
+
+
 /* CALLS */
 
 static s48_call_t
 really_make_call (s48_call_t older_call)
 {
   s48_call_t new = (s48_call_t ) malloc (sizeof (struct s48_call_s));
+  if (new == NULL)
+    s48_out_of_memory_error();
   memset (new, 0, sizeof (*new));
   new->local_refs = make_ref_group ();
   new->older_call = older_call;
   new->subcall_parent = NULL;
   new->child = NULL;
+  new->local_bufs = NULL;
   return new;
 }
 
@@ -258,6 +365,7 @@ free_call (s48_call_t call)
     } while (c != c->child);
   }
   free_ref_group (call->local_refs);
+  free_buf_group (call->local_bufs);
 #ifdef DEBUG_FFI
   fprintf (stderr, "free_call\n");
   fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
@@ -288,6 +396,8 @@ s48_call_t
 s48_make_subcall (s48_call_t call)
 {
   s48_call_t new = (s48_call_t ) malloc (sizeof (struct s48_call_s));
+  if (new == NULL)
+    s48_out_of_memory_error();
   memset (new, 0, sizeof (*new));
   new->local_refs = make_ref_group ();
   new->older_call = NULL;
