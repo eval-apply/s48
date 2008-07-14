@@ -380,6 +380,7 @@
   (export extended-vm
 
 	  external-call
+	  external-call-2
 
 	  real-time
 	  run-time
@@ -426,6 +427,8 @@
 
 	  argument-type-violation
 	  range-violation
+
+	  trace-external-calls
 	  ))
 
 (define-interface event-interface

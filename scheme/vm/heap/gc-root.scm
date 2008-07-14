@@ -127,7 +127,8 @@
 (add-gc-root!
   (lambda () 
     (trace-external-root-stack)
-    (trace-permanent-external-roots)))
+    (trace-permanent-external-roots)
+    (trace-external-calls)))
 
 (define (trace-external-root-stack)
   (let loop ((frame *external-root-stack*))

@@ -133,7 +133,7 @@
     ((= opcode op-count))
   (let ((arg-specs (vector-ref opcode-arg-specs opcode))
         (name (enumerand->name opcode op)))
-    (cond ((memq name '(call-external-value
+    (cond ((memq name '(call-external-value call-external-value-2
 			return-from-interrupt return
 			binary-comparison-reduce2)))
           ((null? arg-specs)
@@ -597,6 +597,13 @@
   (lambda (frame)
     (sequentially (nary-primitive-protocol 1)
                   (instruction (enum op call-external-value))
+                  (instruction (enum op return)))))
+
+(define-n-ary-compiler-primitive 'call-external-value-2 value-type 1
+  #f                                         ;Could be done
+  (lambda (frame)
+    (sequentially (nary-primitive-protocol 1)
+                  (instruction (enum op call-external-value-2))
                   (instruction (enum op return)))))
 
 (let ((n-ary-constructor

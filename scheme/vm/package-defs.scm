@@ -315,7 +315,8 @@
 (define-structure external-gc-roots external-gc-roots-interface
   (open prescheme ps-memory
 	memory data
-	gc gc-roots)
+	gc gc-roots
+	(subset external (trace-external-calls)))
   (files (heap gc-root)))
 
 ;----------------------------------------------------------------

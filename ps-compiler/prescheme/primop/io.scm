@@ -32,6 +32,7 @@
 (define-scheme-primop error-string type/string)
 
 (define-scheme-primop call-external-value io type/integer)
+(define-scheme-primop call-external-value-2 io type/integer)
 
 (define-nonsimple-scheme-primop read-block io)
 (define-scheme-primop write-block io type/status)

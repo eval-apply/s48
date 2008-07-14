@@ -54,6 +54,7 @@
 (define-interface primitives-interface
   (export add-finalizer!
 	  call-external-value
+	  call-external-value-2
 	  channel-parameter
 	  checked-record-ref
 	  checked-record-set!
