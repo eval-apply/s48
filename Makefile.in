@@ -225,7 +225,7 @@ $(POSIX_EXTERNAL) : $(POSIX_OBJECTS)
 # End of POSIX rules
 
 c/srfi-27.o: c/srfi-27.c $(SCHEME48HS)
-	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
+	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -DNO_OLD_FFI -o $@ $<
 
 $(SRFI_27_EXTERNAL) : c/srfi-27.o
 	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
