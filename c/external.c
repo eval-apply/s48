@@ -11,6 +11,7 @@
 #include "scheme48.h"
 #include "scheme48vm.h"
 #include "bignum.h"
+#include "sysdep.h"
 #include "ffi.h"
 
 /*
@@ -30,13 +31,13 @@ static struct s_jmp_buf	current_return_point;
 /*
  * The name of the procedure we are currently executing; used for error messages.
  */
-static s48_value current_procedure;
+static s48_ref_t current_procedure = NULL;
 
 /*
  * Stack of Scheme stack-block records which represent portions of the process
  * stack.
  */
-static s48_value current_stack_block = S48_FALSE;
+static s48_ref_t current_stack_block = NULL;
 
 /*
  * These need to agree with the record definition in callback.scm.
@@ -47,6 +48,19 @@ static s48_value current_stack_block = S48_FALSE;
 #define STACK_BLOCK_THREAD(stack_block)	S48_UNSAFE_RECORD_REF(stack_block, 3)
 #define STACK_BLOCK_NEXT(stack_block)	S48_UNSAFE_RECORD_REF(stack_block, 4)
 
+#define STACK_BLOCK_FREE_2(c, stack_block)	\
+  s48_unsafe_record_ref_2(c, stack_block, 0)
+#define STACK_BLOCK_UNWIND_2(c, stack_block)	\
+  s48_unsafe_record_ref_2(c, stack_block, 1)
+#define STACK_BLOCK_PROC_2(c, stack_block)	\
+  s48_unsafe_record_ref_2(c, stack_block, 2)
+#define STACK_BLOCK_THREAD_2(c, stack_block)	\
+  s48_unsafe_record_ref_2(c, stack_block, 3)
+#define STACK_BLOCK_NEXT_2(c, stack_block)	\
+  s48_unsafe_record_ref_2(c, stack_block, 4)
+
+#define s48_push_2(c, x) s48_push(s48_deref(x))
+
 #ifdef DEBUG_FFI
 /*
  * For debugging.
@@ -55,7 +69,7 @@ static s48_value current_stack_block = S48_FALSE;
 static int callback_depth()
 {
   int depth = 0;
-  s48_value stack = current_stack_block;
+  s48_value stack = s48_deref(current_stack_block);
 
   for(; stack != S48_FALSE; depth++, stack = STACK_BLOCK_NEXT(stack));
 
@@ -71,13 +85,14 @@ static s48_value external_return_value;
 
 /* Exports to Scheme */
 static s48_value	s48_clear_stack_top(void);
+static s48_ref_t	s48_clear_stack_top_2(s48_call_t call);
 static s48_value	s48_system(s48_value string);
 
 /* Imports from Scheme */
-static s48_value 	the_record_type_binding = S48_FALSE;
-static s48_value 	stack_block_type_binding = S48_FALSE;
-static s48_value 	callback_binding = S48_FALSE;
-static s48_value 	delay_callback_return_binding = S48_FALSE;
+static s48_ref_t 	the_record_type_binding       = NULL;
+static s48_ref_t 	stack_block_type_binding      = NULL;
+static s48_ref_t 	callback_binding              = NULL;
+static s48_ref_t 	delay_callback_return_binding = NULL;
 
 #ifdef DEBUG_FFI
 static s48_value	s48_trampoline(s48_value proc, s48_value nargs);
@@ -87,30 +102,30 @@ static s48_ref_t        s48_trampoline_2(s48_call_t call, s48_ref_t proc, s48_re
 void
 s48_initialize_external()
 {
-  S48_GC_PROTECT_GLOBAL(the_record_type_binding);
-  the_record_type_binding = s48_get_imported_binding("s48-the-record-type");
+  the_record_type_binding = 
+    s48_get_imported_binding_2("s48-the-record-type");
 
-  S48_GC_PROTECT_GLOBAL(stack_block_type_binding);
-  stack_block_type_binding = s48_get_imported_binding("s48-stack-block-type");
+  stack_block_type_binding = 
+    s48_get_imported_binding_2("s48-stack-block-type");
 
-  S48_GC_PROTECT_GLOBAL(callback_binding);
-  callback_binding = s48_get_imported_binding("s48-callback");
+  callback_binding = 
+    s48_get_imported_binding_2("s48-callback");
 
-  S48_GC_PROTECT_GLOBAL(delay_callback_return_binding);
   delay_callback_return_binding =
-    s48_get_imported_binding("s48-delay-callback-return");
+    s48_get_imported_binding_2("s48-delay-callback-return");
 
-  S48_GC_PROTECT_GLOBAL(current_stack_block);
-  S48_GC_PROTECT_GLOBAL(current_procedure);
+  current_stack_block = s48_make_global_ref(_s48_value_false);
+  current_procedure = s48_make_global_ref(_s48_value_false);
 
   S48_EXPORT_FUNCTION(s48_clear_stack_top);
+  S48_EXPORT_FUNCTION(s48_clear_stack_top_2);
   S48_EXPORT_FUNCTION(s48_system);
-
-  s48_init_ffi();
 
 #ifdef DEBUG_FFI
   S48_EXPORT_FUNCTION(s48_trampoline);
   S48_EXPORT_FUNCTION(s48_trampoline_2);
+
+  init_debug_ffi ();
 #endif
 }
 
@@ -174,7 +189,7 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
 
   int throw_reason;
 
-  current_procedure = name;
+  s48_setref(current_procedure, name);
 
   S48_CHECK_VALUE(sch_proc);
   S48_CHECK_STRING(name);
@@ -254,17 +269,17 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
     /* Clear any free stack-blocks off of the top of the stack-block stack and
        then longjmp past the corresponding portions of the process stack. */
     
-    if (current_stack_block != S48_FALSE &&
-	STACK_BLOCK_FREE(current_stack_block) == S48_TRUE) {
+    if (s48_deref(current_stack_block) != S48_FALSE &&
+	STACK_BLOCK_FREE(s48_deref(current_stack_block)) == S48_TRUE) {
 
       s48_value bottom_free_block;
       
       do {
-	bottom_free_block = current_stack_block;
-	current_stack_block = STACK_BLOCK_NEXT(current_stack_block);
+	bottom_free_block = s48_deref(current_stack_block);
+	s48_setref(current_stack_block, STACK_BLOCK_NEXT(s48_deref(current_stack_block)));
       }
-      while (current_stack_block != S48_FALSE &&
-	     STACK_BLOCK_FREE(current_stack_block) == S48_TRUE);
+      while (s48_deref(current_stack_block) != S48_FALSE &&
+	     STACK_BLOCK_FREE(s48_deref(current_stack_block)) == S48_TRUE);
       
 #ifdef DEBUG_FFI
       fprintf(stderr, "[Freeing stack blocks from %d to %d]\n",
@@ -289,8 +304,8 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
 
   /* Check to see if a thread is waiting to return to the next block down. */
      
-  if (current_stack_block != S48_FALSE &&
-      STACK_BLOCK_THREAD(current_stack_block) != S48_FALSE) {
+  if (s48_deref(current_stack_block) != S48_FALSE &&
+      STACK_BLOCK_THREAD(s48_deref(current_stack_block)) != S48_FALSE) {
 #ifdef DEBUG_FFI
     fprintf(stderr, "[releasing return at %d]\n", callback_depth());
 #endif
@@ -302,12 +317,12 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
 	= s48_resetup_external_exception(S48_EXCEPTION_CALLBACK_RETURN_UNCOVERED,
 					 2);
       s48_push(old_exception);
-      s48_push(current_stack_block);
+      s48_push(s48_deref(current_stack_block));
       external_return_value = S48_UNSPECIFIC;
     }
     else {
       s48_setup_external_exception(S48_EXCEPTION_CALLBACK_RETURN_UNCOVERED, 2);
-      s48_push(current_stack_block);
+      s48_push(s48_deref(current_stack_block));
       s48_push(external_return_value);
       external_return_value = S48_UNSPECIFIC;
     }
@@ -383,7 +398,7 @@ s48_external_ecall(s48_call_t call,
 
   int throw_reason;
 
-  current_procedure = name;
+  s48_setref(current_procedure, name);
 
   S48_CHECK_VALUE(sch_proc);
   S48_CHECK_STRING(name);
@@ -472,17 +487,17 @@ s48_external_ecall(s48_call_t call,
     /* Clear any free stack-blocks off of the top of the stack-block stack and
        then longjmp past the corresponding portions of the process stack. */
     
-    if (current_stack_block != S48_FALSE &&
-	STACK_BLOCK_FREE(current_stack_block) == S48_TRUE) {
+    if (!s48_false_p_2(new_call, current_stack_block) &&
+	s48_true_p_2(new_call, STACK_BLOCK_FREE_2(new_call, current_stack_block))) {
 
-      s48_value bottom_free_block;
+      s48_ref_t bottom_free_block;
       
       do {
-	bottom_free_block = current_stack_block;
-	current_stack_block = STACK_BLOCK_NEXT(current_stack_block);
+	s48_setref(bottom_free_block, s48_deref(current_stack_block));
+	s48_setref(current_stack_block, s48_deref(STACK_BLOCK_NEXT_2(new_call, current_stack_block)));
       }
-      while (current_stack_block != S48_FALSE &&
-	     STACK_BLOCK_FREE(current_stack_block) == S48_TRUE);
+      while (!s48_false_p_2(new_call, current_stack_block) &&
+	     s48_false_p_2(new_call, STACK_BLOCK_FREE_2(new_call, current_stack_block)));
       
 #ifdef DEBUG_FFI
       fprintf(stderr, "[Freeing stack blocks from %d to %d]\n",
@@ -490,8 +505,9 @@ s48_external_ecall(s48_call_t call,
 	      callback_depth());
 #endif
 
-      longjmp(S48_EXTRACT_VALUE_POINTER(STACK_BLOCK_UNWIND(bottom_free_block),
-					struct s_jmp_buf)->buf,
+      longjmp(s48_extract_value_pointer_2(new_call, 
+					  STACK_BLOCK_UNWIND_2(new_call, bottom_free_block),
+					  struct s_jmp_buf)->buf,
 	      CLEANUP_THROW);
     }
   }
@@ -508,14 +524,14 @@ s48_external_ecall(s48_call_t call,
   s48_pop_to (call);
 
   if (cexternal_return_value)
-    result = cexternal_return_value->obj;
+    result = s48_deref(cexternal_return_value);
   else
     result = S48_UNSPECIFIC;
 
   /* Check to see if a thread is waiting to return to the next block down. */
      
-  if (current_stack_block != S48_FALSE &&
-      STACK_BLOCK_THREAD(current_stack_block) != S48_FALSE) {
+  if (!s48_false_p_2(call, current_stack_block) &&
+      !s48_false_p_2(call, STACK_BLOCK_THREAD_2(call, current_stack_block))) {
     s48_value result;
 #ifdef DEBUG_FFI
     fprintf(stderr, "[releasing return at %d]\n", callback_depth());
@@ -528,13 +544,13 @@ s48_external_ecall(s48_call_t call,
 	= s48_resetup_external_exception(S48_EXCEPTION_CALLBACK_RETURN_UNCOVERED,
 					 2);
       s48_push(old_exception);
-      s48_push(current_stack_block);
+      s48_push_2(call, current_stack_block);
       result = S48_UNSPECIFIC;
     }
     else {
       s48_setup_external_exception(S48_EXCEPTION_CALLBACK_RETURN_UNCOVERED, 2);
-      s48_push(current_stack_block);
-      s48_push(cexternal_return_value->obj);
+      s48_push_2(call, current_stack_block);
+      s48_push_2(call, cexternal_return_value);
       result = S48_UNSPECIFIC;
     }
   }
@@ -575,7 +591,7 @@ s48_call_scheme(s48_value proc, long nargs, ...)
   
   va_start(arguments, nargs);
 
-  S48_SHARED_BINDING_CHECK(callback_binding);
+  S48_SHARED_BINDING_CHECK(s48_deref(callback_binding));
 
   /* It would be nice to push a list of the arguments, but we have no way
      of preserving them across a cons. */
@@ -602,16 +618,16 @@ s48_call_scheme(s48_value proc, long nargs, ...)
   unwind = S48_MAKE_VALUE(struct s_jmp_buf);
   S48_EXTRACT_VALUE(unwind, struct s_jmp_buf) = current_return_point;
 
-  stack_block = s48_make_record(stack_block_type_binding);
+  stack_block = s48_make_record(s48_deref(stack_block_type_binding));
   STACK_BLOCK_UNWIND(stack_block) = unwind;
-  STACK_BLOCK_PROC(stack_block) = current_procedure;
-  STACK_BLOCK_NEXT(stack_block) = current_stack_block;
+  STACK_BLOCK_PROC(stack_block) = s48_deref(current_procedure);
+  STACK_BLOCK_NEXT(stack_block) = s48_deref(current_stack_block);
   STACK_BLOCK_FREE(stack_block) = S48_FALSE;
   STACK_BLOCK_THREAD(stack_block) = S48_FALSE;
 
   S48_GC_UNPROTECT();		/* no more references to `unwind' or `proc'. */
 
-  current_stack_block = stack_block;
+  s48_setref(current_stack_block, stack_block);
 
 #ifdef DEBUG_FFI
   if(s48_stack_ref(nargs + 1) != S48_UNSPECIFIC)
@@ -625,10 +641,10 @@ s48_call_scheme(s48_value proc, long nargs, ...)
 	  nargs, callback_depth());
 #endif
 
-  value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(callback_binding),
+  value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(s48_deref(callback_binding)),
 		      nargs + 2);
 
-  for (;s48_Scallback_return_stack_blockS != current_stack_block;) {
+  for (;s48_Scallback_return_stack_blockS != s48_deref(current_stack_block);) {
     if (s48_Scallback_return_stack_blockS == S48_FALSE) {
 
 #ifdef DEBUG_FFI
@@ -644,7 +660,7 @@ s48_call_scheme(s48_value proc, long nargs, ...)
 	 out block is at the top of the stack. */
 
       s48_push(s48_Scallback_return_stack_blockS);
-      s48_push(S48_UNSAFE_SHARED_BINDING_REF(delay_callback_return_binding));
+      s48_push(S48_UNSAFE_SHARED_BINDING_REF(s48_deref(delay_callback_return_binding)));
       s48_push(s48_Scallback_return_stack_blockS);
       s48_push(value);
 
@@ -654,16 +670,16 @@ s48_call_scheme(s48_value proc, long nargs, ...)
 #endif
 
       s48_disable_interruptsB();
-      value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(callback_binding), 4);
+      value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(s48_deref(callback_binding)), 4);
     }
   }
 
   /* Restore the state of the current stack block. */
 
-  unwind = STACK_BLOCK_UNWIND(current_stack_block);
+  unwind = STACK_BLOCK_UNWIND(s48_deref(current_stack_block));
   current_return_point = S48_EXTRACT_VALUE(unwind, struct s_jmp_buf);
-  current_procedure = STACK_BLOCK_PROC(current_stack_block);
-  current_stack_block = STACK_BLOCK_NEXT(current_stack_block);
+  s48_setref(current_procedure, STACK_BLOCK_PROC(s48_deref(current_stack_block)));
+  s48_setref(current_stack_block, STACK_BLOCK_NEXT(s48_deref(current_stack_block)));
 
 #ifdef DEBUG_FFI
   fprintf(stderr, "[s48_call_scheme returns from depth %d]\n", callback_depth());
@@ -678,11 +694,9 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
   int i;
   va_list arguments;
   s48_value value;
-  s48_value unwind, stack_block;
-  S48_DECLARE_GC_PROTECT(1);
+  s48_ref_t unwind;
+  s48_value stack_block;
 
-  S48_GC_PROTECT_1(unwind);
-  
   va_start(arguments, nargs);
 
 #ifdef DEBUG_FFI
@@ -690,14 +704,14 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
 	  nargs, callback_depth());
 #endif
   
-  S48_SHARED_BINDING_CHECK(callback_binding);
+  s48_shared_binding_check_2(call, callback_binding);
 
   /* It would be nice to push a list of the arguments, but we have no way
      of preserving them across a cons. */
   if (nargs < 0 || 12 < nargs) {  /* DO NOT INCREASE THIS NUMBER */
     s48_value sch_nargs = s48_enter_integer(nargs);  /* `proc' is protected */
     s48_raise_scheme_exception(S48_EXCEPTION_TOO_MANY_ARGUMENTS_IN_CALLBACK,
-			       2, proc->obj, sch_nargs);
+			       2, s48_deref(proc), sch_nargs);
   }
 
 #ifdef DEBUG_FFI
@@ -706,30 +720,30 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
 #endif
 
   s48_push(S48_UNSPECIFIC);	/* placeholder */
-  s48_push(proc->obj);
+  s48_push(s48_deref(proc));
   for (i = 0; i < nargs; i++) {
     s48_ref_t ref = va_arg(arguments, s48_ref_t);
+#ifdef DEBUG_FFI
     fprintf(stderr, "call_scheme_2: pushing arg %d ref %x\n", i, ref);
-    s48_push(ref->obj);
+#endif DEBUG_FFI
+    s48_push(s48_deref(ref));
   }
 
   va_end(arguments);
 
   /* With everything safely on the stack we can do the necessary allocation. */
 
-  unwind = S48_MAKE_VALUE(struct s_jmp_buf);
-  S48_EXTRACT_VALUE(unwind, struct s_jmp_buf) = current_return_point;
+  unwind = s48_make_value_2(call, struct s_jmp_buf);
+  s48_extract_value_2(call, unwind, struct s_jmp_buf) = current_return_point;
 
-  stack_block = s48_make_record(stack_block_type_binding);
-  STACK_BLOCK_UNWIND(stack_block) = unwind;
-  STACK_BLOCK_PROC(stack_block) = current_procedure;
-  STACK_BLOCK_NEXT(stack_block) = current_stack_block;
+  stack_block = s48_make_record(s48_deref(stack_block_type_binding));
+  STACK_BLOCK_UNWIND(stack_block) = s48_deref(unwind);
+  STACK_BLOCK_PROC(stack_block) = s48_deref(current_procedure);
+  STACK_BLOCK_NEXT(stack_block) = s48_deref(current_stack_block);
   STACK_BLOCK_FREE(stack_block) = S48_FALSE;
   STACK_BLOCK_THREAD(stack_block) = S48_FALSE;
 
-  S48_GC_UNPROTECT();		/* no more references to `unwind' or `proc'. */
-
-  current_stack_block = stack_block;
+  s48_setref(current_stack_block, stack_block);
 
 #ifdef DEBUG_FFI
   if(s48_stack_ref(nargs + 1) != S48_UNSPECIFIC)
@@ -743,10 +757,10 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
 	  nargs, callback_depth());
 #endif
 
-  value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(callback_binding),
+  value = s48_restart(s48_deref(s48_unsafe_shared_binding_ref_2(call, callback_binding)),
 		      nargs + 2);
 
-  for (;s48_Scallback_return_stack_blockS != current_stack_block;) {
+  for (;s48_Scallback_return_stack_blockS != s48_deref(current_stack_block);) {
     if (s48_Scallback_return_stack_blockS == S48_FALSE) {
 
 #ifdef DEBUG_FFI
@@ -762,7 +776,7 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
 	 out block is at the top of the stack. */
 
       s48_push(s48_Scallback_return_stack_blockS);
-      s48_push(S48_UNSAFE_SHARED_BINDING_REF(delay_callback_return_binding));
+      s48_push_2(call, s48_unsafe_shared_binding_ref_2(call, delay_callback_return_binding));
       s48_push(s48_Scallback_return_stack_blockS);
       s48_push(value);
 
@@ -772,16 +786,16 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
 #endif
 
       s48_disable_interruptsB();
-      value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(callback_binding), 4);
+      value = s48_restart(s48_deref(s48_unsafe_shared_binding_ref_2(call, callback_binding)), 4);
     }
   }
 
   /* Restore the state of the current stack block. */
 
-  unwind = STACK_BLOCK_UNWIND(current_stack_block);
-  current_return_point = S48_EXTRACT_VALUE(unwind, struct s_jmp_buf);
-  current_procedure = STACK_BLOCK_PROC(current_stack_block);
-  current_stack_block = STACK_BLOCK_NEXT(current_stack_block);
+  unwind = STACK_BLOCK_UNWIND_2(call, current_stack_block);
+  current_return_point = s48_extract_value_2(call, unwind, struct s_jmp_buf);
+  s48_setref(current_procedure, s48_deref(STACK_BLOCK_PROC_2(call, current_stack_block)));
+  s48_setref(current_stack_block, s48_deref(STACK_BLOCK_NEXT_2(call, current_stack_block)));
 
 #ifdef DEBUG_FFI
   fprintf(stderr, "[s48_call_scheme_2 returns from depth %d]\n", callback_depth());
@@ -801,6 +815,15 @@ s48_clear_stack_top()
   fprintf(stderr, "[Clearing stack top]\n");
 #endif
   return S48_UNSPECIFIC;
+}
+
+static s48_ref_t
+s48_clear_stack_top_2(s48_call_t call)
+{
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[Clearing stack top]\n");
+#endif
+  return s48_unspecific_2(call);
 }
 
 #ifdef DEBUG_FFI
@@ -850,20 +873,20 @@ static s48_ref_t
 s48_trampoline_2(s48_call_t call, s48_ref_t proc, s48_ref_t nargs)
 {
 
-  fprintf(stderr, "[C trampoline_2, %ld args]\n", S48_UNSAFE_EXTRACT_FIXNUM(nargs));
+  fprintf(stderr, "[C trampoline_2, %ld args]\n", s48_unsafe_extract_long_2(call, nargs));
 
-  switch (s48_extract_fixnum(nargs->obj)) {
+  switch (s48_extract_fixnum(s48_deref(nargs))) {
   case -2: { /* provoke exception: GC protection mismatch */
     S48_DECLARE_GC_PROTECT(1);
     
     S48_GC_PROTECT_1(proc);
 
-    return s48_make_local_ref (call, S48_FALSE);
+    return s48_false_2(call);
   }
   case 0: {
     s48_ref_t result = s48_call_scheme_2(call, proc, 1,
 					  s48_make_local_ref (call, s48_enter_fixnum(0)));
-    if (result->obj == S48_FALSE)
+    if (s48_deref(result) == S48_FALSE)
       s48_assertion_violation("s48_trampoline_2", "trampoline bouncing", 0);
     return result;
   }
@@ -881,7 +904,7 @@ s48_trampoline_2(s48_call_t call, s48_ref_t proc, s48_ref_t nargs)
 			     s48_make_local_ref (call, s48_enter_fixnum(300)));
   default:
     s48_assertion_violation("s48_trampoline_2", "invalid number of arguments", 1, nargs);
-    return s48_make_local_ref(call, S48_UNDEFINED); /* not that we ever get here */
+    return s48_undefined_2(call); /* not that we ever get here */
   }
 }
 #endif
@@ -894,6 +917,14 @@ s48_system(s48_value string)
 				  : s48_extract_byte_vector(string)));
 }
 
+static s48_ref_t
+s48_system_2(s48_call_t call, s48_ref_t string)
+{
+  return s48_enter_long_2(call, 
+			  system(s48_false_p_2(call, string)
+				 ? NULL
+				 : s48_extract_byte_vector_2(call, string)));
+}
 
 /********************************/
 /*
@@ -935,12 +966,32 @@ s48_raise_scheme_exception(long why, long nargs, ...)
 
   nargs = raise_scheme_exception_prelude(why, nargs + 1) - 1;
 
-  s48_push(current_procedure);
+  s48_push(s48_deref(current_procedure));
 
   va_start(irritants, nargs);
 
   for (i = 0; i < nargs; i++)
     s48_push(va_arg(irritants, s48_value));
+
+  va_end(irritants);
+
+  raise_scheme_exception_postlude();
+}
+
+void
+s48_raise_scheme_exception_2(s48_call_t call, long why, long nargs, ...)
+{
+  int i;
+  va_list irritants;
+
+  nargs = raise_scheme_exception_prelude(why, nargs + 1) - 1;
+
+  s48_push_2(call, current_procedure);
+
+  va_start(irritants, nargs);
+
+  for (i = 0; i < nargs; i++)
+    s48_push_2(call, va_arg(irritants, s48_ref_t));
 
   va_end(irritants);
 
@@ -964,10 +1015,35 @@ raise_scheme_standard_exception(long why, const char* who, const char* message,
 
   /* these must be last because of GC protection */
   if (who == NULL)
-    s48_push(current_procedure);
+    s48_push(s48_deref(current_procedure));
   else
     s48_push(s48_enter_string_utf_8((char*)who));
-  s48_push(s48_enter_string_utf_8((char*)message));
+  s48_push(s48_enter_byte_string((char*)message));
+
+  raise_scheme_exception_postlude();
+}
+
+static void
+raise_scheme_standard_exception_2(s48_call_t call, long why, const char* who, const char* message,
+				  long irritant_count, va_list irritants)
+{
+  int i;
+  long nargs = irritant_count + 2; /* who and message */
+
+  nargs = raise_scheme_exception_prelude(why, nargs);
+  irritant_count = nargs - 2;
+  
+  for (i = 0; i < irritant_count; i++)
+    s48_push_2(call, va_arg(irritants, s48_ref_t));
+
+  va_end(irritants);
+
+  /* these must be last because of GC protection */
+  if (who == NULL)
+    s48_push_2(call, current_procedure);
+  else
+    s48_push_2(call, s48_enter_string_utf_8_2(call, (char*)who));
+  s48_push_2(call, s48_enter_byte_string_2(call, (char*)message));
 
   raise_scheme_exception_postlude();
 }
@@ -985,6 +1061,16 @@ s48_error(const char* who, const char* message,
 }
 
 void
+s48_error_2(s48_call_t call, const char* who, const char* message,
+	    long irritant_count, ...)
+{
+  va_list irritants;
+  va_start(irritants, irritant_count);
+  raise_scheme_standard_exception_2(call, S48_EXCEPTION_EXTERNAL_ERROR,
+				    who, message, irritant_count, irritants);
+}
+
+void
 s48_assertion_violation(const char* who, const char* message,
 			long irritant_count, ...)
 {
@@ -994,8 +1080,19 @@ s48_assertion_violation(const char* who, const char* message,
 				  who, message, irritant_count, irritants);
 }
 
-void s48_os_error(const char* who, int the_errno,
-		  long irritant_count, ...)
+void
+s48_assertion_violation_2(s48_call_t call, const char* who, const char* message,
+			  long irritant_count, ...)
+{
+  va_list irritants;
+  va_start(irritants, irritant_count);
+  raise_scheme_standard_exception_2(call, S48_EXCEPTION_EXTERNAL_ASSERTION_VIOLATION,
+				    who, message, irritant_count, irritants);
+}
+
+void
+s48_os_error(const char* who, int the_errno,
+	     long irritant_count, ...)
 {
   int i;
   long nargs = irritant_count + 2; /* who and errno */
@@ -1013,10 +1110,38 @@ void s48_os_error(const char* who, int the_errno,
 
   /* last because of GC protection */
   if (who == NULL)
-    s48_push(current_procedure);
+    s48_push(s48_deref(current_procedure));
   else
     s48_push(s48_enter_string_utf_8((char*)who));
   s48_push(s48_enter_fixnum(the_errno));
+
+  raise_scheme_exception_postlude();
+}
+
+void
+s48_os_error_2(s48_call_t call, const char* who, int the_errno, 
+	       long irritant_count, ...)
+{
+  int i;
+  long nargs = irritant_count + 2; /* who and errno */
+  va_list irritants;
+
+  nargs = raise_scheme_exception_prelude(S48_EXCEPTION_EXTERNAL_OS_ERROR, nargs);
+  irritant_count = nargs - 2;
+  
+  va_start(irritants, irritant_count);
+
+  for (i = 0; i < irritant_count; i++)
+    s48_push_2(call, va_arg(irritants, s48_ref_t));
+
+  va_end(irritants);
+
+  /* last because of GC protection */
+  if (who == NULL)
+    s48_push_2(call, current_procedure);
+  else
+    s48_push_2(call, s48_enter_string_utf_8_2(call, (char*)who));
+  s48_push_2(call, s48_enter_long_as_fixnum_2(call, the_errno));
 
   raise_scheme_exception_postlude();
 }
@@ -1035,8 +1160,18 @@ s48_argument_type_violation(s48_value value) {
 }
 
 void
+s48_argument_type_violation_2(s48_call_t call, s48_ref_t value) {
+  s48_assertion_violation_2(call, NULL, "argument-type violation", 1, value);
+}
+
+void
 s48_range_violation(s48_value value, s48_value min, s48_value max) {
   s48_assertion_violation(NULL, "argument out of range", 3, value, min, max);
+}
+
+void
+s48_range_violation_2(s48_call_t call, s48_ref_t value, s48_ref_t min, s48_ref_t max) {
+  s48_assertion_violation_2(call, NULL, "argument out of range", 3, value, min, max);
 }
 
 /* The following are deprecated: */
@@ -1092,6 +1227,12 @@ s48_stob_has_type(s48_value thing, int type)
   return S48_STOB_P(thing) && (S48_STOB_TYPE(thing) == type);
 }
 
+int
+s48_stob_has_type_2(s48_call_t call, s48_ref_t thing, int type)
+{
+  return s48_stob_p_2(call, thing) && (s48_stob_type_2(call, thing) == type);
+}
+
 long
 s48_stob_length(s48_value thing, int type)
 {
@@ -1099,6 +1240,15 @@ s48_stob_length(s48_value thing, int type)
     s48_assertion_violation("s48_stob_length", "not a stob", 1, thing);
   
   return S48_STOB_DESCRIPTOR_LENGTH(thing);
+}
+
+long
+s48_stob_length_2(s48_call_t call, s48_ref_t thing, int type)
+{
+  if (!(s48_stob_p_2(call, thing) && (s48_stob_type_2(call, thing) == type)))
+    s48_assertion_violation_2(call, "s48_stob_length_2", "not a stob", 1, thing);
+  
+  return s48_unsafe_stob_descriptor_length_2(call, thing);
 }
 
 long
@@ -1112,6 +1262,19 @@ s48_stob_byte_length(s48_value thing, int type)
   else
     return S48_STOB_BYTE_LENGTH(thing);
 }
+
+long
+s48_stob_byte_length_2(s48_call_t call, s48_ref_t thing, int type)
+{
+  if (!(s48_stob_p_2(call, thing) && (s48_stob_type_2(call, thing) == type)))
+    s48_assertion_violation_2(call, "s48_stob_byte_length_2", "not a stob", 1, thing);
+
+  if (type == S48_STOBTYPE_STRING)
+    return s48_unsafe_stob_byte_length_2(call, thing) - 1;
+  else
+    return s48_unsafe_stob_byte_length_2(call, thing);
+}
+
 
 s48_value
 s48_stob_ref(s48_value thing, int type, long offset)
@@ -1130,6 +1293,25 @@ s48_stob_ref(s48_value thing, int type, long offset)
 			    S48_UNSAFE_ENTER_FIXNUM(length - 1));
 			  
   return S48_STOB_REF(thing, offset);
+}
+
+s48_ref_t
+s48_stob_ref_2(s48_call_t call, s48_ref_t thing, int type, long offset)
+{
+  long length;
+
+  if (!(s48_stob_p_2(call, thing) && (s48_stob_type_2(call, thing) == type)))
+    s48_assertion_violation_2(call, "s48_stob_ref_2", "not a stob", 1, thing);
+
+  length = s48_unsafe_stob_descriptor_length_2(call, thing);
+
+  if (offset < 0 || length <= offset)
+    s48_assertion_violation_2(call, "s48_stob_ref_2", "invalid stob index", 3,
+			      s48_enter_long_2(call, offset),
+			      s48_unsafe_enter_long_as_fixnum_2(call, 0),
+			      s48_unsafe_enter_long_as_fixnum_2(call, length - 1));
+			  
+  return s48_unsafe_stob_ref_2(call, thing, offset);
 }
 
 void
@@ -1153,6 +1335,28 @@ s48_stob_set(s48_value thing, int type, long offset, s48_value value)
   S48_STOB_SET(thing, offset, value);
 }
 
+void
+s48_stob_set_2(s48_call_t call, s48_ref_t thing, int type, long offset, s48_ref_t value)
+{
+  long length;
+  
+  if (!(s48_stob_p_2(call, thing) &&
+	(s48_stob_type_2(call, thing) == type) &&
+	!s48_stob_immutablep_2(call, thing)))
+    s48_assertion_violation_2(call, "s48_stob_set_2",
+			      "not a mutable stob", 1, thing);
+  
+  length = s48_unsafe_stob_descriptor_length_2(call, thing);
+
+  if (offset < 0 || length <= offset)
+    s48_assertion_violation_2(call, "s48_stob_set_2", "invalid stob index", 3,
+			      s48_enter_integer(offset),
+			      s48_unsafe_enter_long_as_fixnum_2(call, 0),
+			      s48_unsafe_enter_long_as_fixnum_2(call, length - 1));
+			  
+  s48_unsafe_stob_set_2(call, thing, offset, value);
+}
+
 char
 s48_stob_byte_ref(s48_value thing, int type, long offset)
 {
@@ -1172,6 +1376,27 @@ s48_stob_byte_ref(s48_value thing, int type, long offset)
 			    S48_UNSAFE_ENTER_FIXNUM(length - 1));
 			  
   return S48_STOB_BYTE_REF(thing, offset);
+}
+
+char
+s48_stob_byte_ref_2(s48_call_t call, s48_ref_t thing, int type, long offset)
+{
+  long length;
+
+  if (!(s48_stob_p_2(call, thing) && (s48_stob_type_2(call, thing) == type)))
+    s48_assertion_violation_2(call, "s48_stob_byte_ref_2", "not a stob", 1, thing);
+  
+  length = (type == s48_stobtype_string) ?
+           s48_unsafe_stob_byte_length_2(call, thing) - 1 :
+           s48_unsafe_stob_byte_length_2(call, thing);
+  
+  if (offset < 0 || length <= offset)
+    s48_assertion_violation_2(call, "s48_stob_byte_ref_2", "invalid stob index", 3,
+			      s48_enter_integer(offset),
+			      s48_unsafe_enter_long_as_fixnum_2(call, 0),
+			      s48_unsafe_enter_long_as_fixnum_2(call, length - 1));
+			  
+  return s48_unsafe_stob_byte_ref_2(call, thing, offset);
 }
 
 void
@@ -1195,12 +1420,41 @@ s48_stob_byte_set(s48_value thing, int type, long offset, char value)
   S48_STOB_BYTE_SET(thing, offset, value);
 }
 
+void
+s48_stob_byte_set_2(s48_call_t call, s48_ref_t thing, int type, long offset, char value)
+{
+  long length;
+
+  if (!(s48_stob_p_2(call, thing) && (s48_stob_type_2(call, thing) == type)))
+    s48_assertion_violation_2(call, "s48_stob_byte_set_2", "not a stob", 1, thing);
+  
+  length = (type == S48_STOBTYPE_STRING) ?
+           s48_unsafe_stob_byte_length_2(call, thing) - 1 :
+           s48_unsafe_stob_byte_length_2(call, thing);
+  
+  if (offset < 0 || length <= offset)
+    s48_assertion_violation_2(call, "s48_stob_byte_set_2", "invalid stob index", 3,
+			      s48_enter_integer(offset),
+			      s48_unsafe_enter_long_as_fixnum_2(call, 0),
+			      s48_unsafe_enter_long_as_fixnum_2(call, length - 1));
+			  
+  s48_unsafe_stob_byte_set_2(call, thing, offset, value);
+}
+
 void *
 s48_value_pointer(s48_value value)
 {
   S48_CHECK_VALUE(value);
 
   return S48_ADDRESS_AFTER_HEADER(value, void *);
+}
+
+void *
+s48_value_pointer_2(s48_call_t call, s48_ref_t value)
+{
+  s48_check_value_2(call, value);
+
+  return s48_address_after_header_2(call, value, void *);
 }
 
 /********************************/
@@ -1221,6 +1475,16 @@ s48_enter_fixnum(long value)
   return S48_UNSAFE_ENTER_FIXNUM(value);
 }
 
+s48_ref_t
+s48_enter_long_as_fixnum_2(s48_call_t call, long value)
+{
+  if (value < S48_MIN_FIXNUM_VALUE || S48_MAX_FIXNUM_VALUE < value)
+    s48_assertion_violation_2(call, "s48_enter_long_as_fixnum_2", "not a fixnum",
+			      1, s48_enter_long_2(call, value));
+
+  return s48_unsafe_enter_long_as_fixnum_2(call, value);
+}
+
 long
 s48_extract_fixnum(s48_value value)
 {
@@ -1233,6 +1497,12 @@ s48_extract_fixnum(s48_value value)
 /* If we have a fixnum we just extract it. For bignums call the
  * functions in bignum.c.
  */
+
+s48_ref_t
+s48_enter_long_2(s48_call_t call, long value)
+{
+  return s48_make_local_ref(call, s48_enter_integer(value));
+}
 
 long
 s48_extract_integer(s48_value value)
@@ -1248,6 +1518,30 @@ s48_extract_integer(s48_value value)
     else return s48_bignum_to_long(bignum);
   }
   else s48_assertion_violation("s48_extract_integer", "not an exact integer", 1, value);
+}
+
+long
+s48_extract_long_2(s48_call_t call, s48_ref_t value)
+{
+  if (s48_fixnum_p_2(call, value))
+    return s48_unsafe_extract_long_2(call, value);
+
+  if (s48_bignum_p_2(call, value)){
+    bignum_type bignum = s48_address_after_header_2(call, value, long);
+    
+    if (! s48_bignum_fits_in_word_p(bignum, sizeof(long) * BITS_PER_BYTE, 1))
+      s48_assertion_violation_2(call, "s48_extract_long_2",
+				"does not fit in word", 1, value);
+    else return s48_bignum_to_long(bignum);
+  }
+  else s48_assertion_violation_2(call, "s48_extract_long_2",
+				 "not an exact integer", 1, value);
+}
+
+s48_ref_t
+s48_enter_unsigned_long_2(s48_call_t call, unsigned long value)
+{
+  return s48_make_local_ref(call, s48_enter_unsigned_integer(value));
 }
 
 unsigned long
@@ -1274,6 +1568,30 @@ s48_extract_unsigned_integer(s48_value value)
 			       value);
 }
 
+unsigned long
+s48_extract_unsigned_long_2(s48_call_t call, s48_ref_t value)
+{
+  if (s48_fixnum_p_2(call, value))
+    {
+      long fixnum = s48_unsafe_extract_long_2(call, value);
+      if (fixnum < 0)
+	s48_assertion_violation_2(call, "s48_extract_unsigned_long_2",
+				  "negative argument", 1, value);
+      return (unsigned long) fixnum;
+    }
+
+  if (s48_bignum_p_2(call, value)){
+    bignum_type bignum = s48_address_after_header_2(call, value, long);
+    
+    if (! s48_bignum_fits_in_word_p(bignum, sizeof(long) * BITS_PER_BYTE, 0))
+      s48_assertion_violation_2(call, "s48_extract_unsigned_long_2",
+			      "does not fit in word", 1, value);
+    else return s48_bignum_to_ulong(bignum);
+  }
+  else s48_assertion_violation_2(call, "s48_extract_unsigned_long_2",
+				 "not an exact integer", 1, value);
+}
+
 /*
  * Strings from and to encodings
  */
@@ -1282,16 +1600,70 @@ s48_extract_unsigned_integer(s48_value value)
  * These are just wrappers to ensure the right types.
  */
 
+s48_ref_t
+s48_enter_string_latin_1_2(s48_call_t call, char *s)
+{
+  return s48_make_local_ref(call, s48_enter_string_latin_1(s));
+}
+
+s48_ref_t
+s48_enter_string_latin_1_n_2(s48_call_t call, char *s, long count)
+{
+  return s48_make_local_ref(call, s48_enter_string_latin_1_n(s, count));
+}
+
+void
+s48_copy_string_to_latin_1_2(s48_call_t call, s48_ref_t sch_s, char *s)
+{
+  s48_copy_string_to_latin_1(s48_deref(sch_s), s);
+}
+
+void
+s48_copy_string_to_latin_1_n_2(s48_call_t call, s48_ref_t sch_s, long start, long count, char *s)
+{
+  s48_copy_string_to_latin_1_n(s48_deref(sch_s), start, count, s);
+}
+
+void
+s48_copy_latin_1_to_string_2(s48_call_t call, char *s, s48_ref_t sch_s)
+{
+  s48_copy_latin_1_to_string(s, s48_deref(sch_s));
+}
+
+void
+s48_copy_latin_1_to_string_n_2(s48_call_t call, char *s, long len, s48_ref_t sch_s)
+{
+  s48_copy_latin_1_to_string_n(s, len, s48_deref(sch_s));
+}
+
+s48_ref_t
+s48_enter_string_utf_8_2(s48_call_t call, char *s)
+{
+  return s48_make_local_ref(call, s48_enter_string_utf_8(s));
+}
+
 s48_value
 s48_enter_string_utf_16be(const uint16_t *s)
 {
   return s48_enter_string_utf_16beU((char*) s);
 }
 
+s48_ref_t
+s48_enter_string_utf_16be_2(s48_call_t call, const uint16_t *s)
+{
+  return s48_make_local_ref(call, s48_enter_string_utf_16beU((char*) s));
+}
+
 s48_value
 s48_enter_string_utf_16be_n(const uint16_t * s, long l)
 {
   return s48_enter_string_utf_16be_nU((char*) s, l);
+}
+
+s48_ref_t
+s48_enter_string_utf_16be_n_2(s48_call_t call, const uint16_t * s, long l)
+{
+  return s48_make_local_ref(call, s48_enter_string_utf_16be_nU((char*) s, l));
 }
 
 long
@@ -1301,9 +1673,21 @@ s48_copy_string_to_utf_16be(s48_value sch_s, uint16_t * s)
 }
 
 long
+s48_copy_string_to_utf_16be_2(s48_call_t call, s48_ref_t sch_s, uint16_t * s)
+{
+  return s48_copy_string_to_utf_16beU(s48_deref(sch_s), (char*) s);
+}
+
+long
 s48_copy_string_to_utf_16be_n(s48_value sch_s, long start, long count, uint16_t *s)
 {
   return s48_copy_string_to_utf_16be_nU(sch_s, start, count, (char*) s);
+}
+
+long
+s48_copy_string_to_utf_16be_n_2(s48_call_t call, s48_ref_t sch_s, long start, long count, uint16_t *s)
+{
+  return s48_copy_string_to_utf_16be_nU(s48_deref(sch_s), start, count, (char*) s);
 }
 
 s48_value
@@ -1312,10 +1696,23 @@ s48_enter_string_utf_16le(const uint16_t *s)
   return s48_enter_string_utf_16leU((char *) s);
 }
 
+s48_ref_t
+s48_enter_string_utf_16le_2(s48_call_t call, const uint16_t *s)
+{ 
+  return s48_make_local_ref(call, s48_enter_string_utf_16leU((char *) s));
+}
+
+
 s48_value
 s48_enter_string_utf_16le_n(const uint16_t *s, long l)
 {
   return s48_enter_string_utf_16le_nU((char *) s,l);
+}
+
+s48_ref_t
+s48_enter_string_utf_16le_n_2(s48_call_t call, const uint16_t *s, long l)
+{
+  return s48_make_local_ref(call, s48_enter_string_utf_16le_nU((char *) s,l));
 }
 
 long
@@ -1325,10 +1722,95 @@ s48_copy_string_to_utf_16le(s48_value sch_s, uint16_t *s)
 }
 
 long
+s48_copy_string_to_utf_16le_2(s48_call_t call, s48_ref_t sch_s, uint16_t *s)
+{
+  return s48_copy_string_to_utf_16leU(s48_deref(sch_s), (char *) s);
+}
+
+long
 s48_copy_string_to_utf_16le_n(s48_value sch_s, long start, long count, uint16_t *s)
 {
   return s48_copy_string_to_utf_16le_nU(sch_s, start, count, (char *) s);
 }
+
+long
+s48_copy_string_to_utf_16le_n_2(s48_call_t call, s48_ref_t sch_s, long start, long count, uint16_t *s)
+{
+  return s48_copy_string_to_utf_16le_nU(s48_deref(sch_s), start, count, (char *) s);
+}
+
+s48_ref_t
+s48_enter_string_utf_8_n_2(s48_call_t call, char* s, long count)
+{
+  return s48_make_local_ref(call, s48_enter_string_utf_8_n(s, count));
+}
+
+long
+s48_string_utf_8_length_2(s48_call_t call, s48_ref_t s)
+{ 
+  return s48_string_utf_8_length(s48_deref(s));
+}
+
+long
+s48_string_utf_8_length_n_2(s48_call_t call, s48_ref_t s, long start, long count)
+{
+  return s48_string_utf_8_length_n(s48_deref(s), start, count);
+}
+
+long
+s48_copy_string_to_utf_8_2(s48_call_t call, s48_ref_t sch_s, char* s)
+{
+  return s48_copy_string_to_utf_8(s48_deref(sch_s), s);
+}
+
+long
+s48_copy_string_to_utf_8_n_2(s48_call_t call, s48_ref_t sch_s, long start, long count, char* s)
+{
+  return s48_copy_string_to_utf_8_n(s48_deref(sch_s), start, count, s);
+}
+
+long
+s48_string_utf_16be_length_2(s48_call_t call, s48_ref_t sch_s)
+{
+  return s48_string_utf_16be_length(s48_deref(sch_s));
+}
+
+long
+s48_string_utf_16be_length_n_2(s48_call_t call, s48_ref_t sch_s, long start, long count)
+{
+  return s48_string_utf_16be_length_n(s48_deref(sch_s), start, count);
+}
+
+long
+s48_string_utf_16le_length_2(s48_call_t call, s48_ref_t sch_s)
+{
+  return s48_string_utf_16le_length(s48_deref(sch_s));
+}
+
+long
+s48_string_utf_16le_length_n_2(s48_call_t call, s48_ref_t sch_s, long start, long count)
+{
+  return s48_string_utf_16le_length_n(s48_deref(sch_s), start, count);
+}
+
+long
+s48_string_length_2(s48_call_t call, s48_ref_t string)
+{
+  return s48_string_length(s48_deref(string));
+}
+
+void
+s48_string_set_2(s48_call_t call, s48_ref_t s, long i, long c)
+{
+  s48_string_set(s48_deref(s), i, c);
+}
+
+long
+s48_string_ref_2(s48_call_t call, s48_ref_t s, long i)
+{
+  return s48_string_ref(s48_deref(s), i);
+}
+
 
 /*
  * Doubles and characters are straightforward.
@@ -1345,6 +1827,16 @@ s48_enter_double(double value)
   return obj;
 }
 
+s48_ref_t
+s48_enter_double_2(s48_call_t call, double value)
+{
+  s48_ref_t ref;
+  ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_DOUBLE, sizeof(double)));
+  s48_unsafe_extract_double_2(call, ref) = value;
+
+  return ref;
+}
+
 double
 s48_extract_double(s48_value s48_double)
 {
@@ -1352,6 +1844,16 @@ s48_extract_double(s48_value s48_double)
     s48_assertion_violation("s48_extract_double", "not a double", 1, s48_double);
   
   return S48_UNSAFE_EXTRACT_DOUBLE(s48_double);
+}
+
+double
+s48_extract_double_2(s48_call_t call, s48_ref_t s48_double)
+{
+  if (! s48_double_p_2(call, s48_double))
+    s48_assertion_violation_2(call, "s48_extract_double_2",
+			      "not a double", 1, s48_double);
+  
+  return s48_unsafe_extract_double_2(call, s48_double);
 }
 
 s48_value
@@ -1365,6 +1867,18 @@ s48_enter_char(long a_char)
   return S48_UNSAFE_ENTER_CHAR(a_char);
 }
 
+s48_ref_t
+s48_enter_char_2(s48_call_t call, long a_char)
+{
+  if (! ((a_char >= 0)
+	 && ((a_char <= 0xd7ff)
+	     || ((a_char >= 0xe000) && (a_char <= 0x10ffff)))))
+    s48_assertion_violation_2(call, "s48_enter_char_2",
+			      "not a scalar value", 1, s48_enter_long_as_fixnum_2(call, a_char));
+
+  return s48_unsafe_enter_char_2(call, a_char);
+}
+
 long
 s48_extract_char(s48_value a_char)
 {
@@ -1372,6 +1886,15 @@ s48_extract_char(s48_value a_char)
     s48_assertion_violation("s48_extract_char", "not a char", 1, a_char);
   
   return S48_UNSAFE_EXTRACT_CHAR(a_char);
+}
+
+long
+s48_extract_char_2(s48_call_t call, s48_ref_t a_char)
+{
+  if (! s48_char_p_2(call, a_char))
+    s48_assertion_violation_2(call, "s48_extract_char_2", "not a char", 1, a_char);
+  
+  return s48_unsafe_extract_char_2(call, a_char);
 }
 
 /********************************/
@@ -1388,11 +1911,47 @@ s48_enter_pointer(void *pointer)
   return obj;
 }
 
+s48_ref_t
+s48_enter_pointer_2(s48_call_t call, void *pointer)
+{
+  s48_ref_t ref;
+
+  ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, sizeof(void *)));
+  *(s48_address_after_header_2(call, ref, void *)) = pointer;
+
+  return ref;
+}
+
 void*
 s48_extract_pointer(s48_value sch_pointer)
 {
   S48_CHECK_VALUE(sch_pointer);
   return *(S48_ADDRESS_AFTER_HEADER(sch_pointer, void *));
+}
+
+void*
+s48_extract_pointer_2(s48_call_t call, s48_ref_t sch_pointer)
+{
+  s48_check_value_2(call, sch_pointer);
+  return *(s48_address_after_header_2(call, sch_pointer, void *));
+}
+
+s48_ref_t
+s48_get_imported_binding_2(char *name)
+{
+  return s48_make_global_ref(s48_get_imported_binding(name));
+}
+
+s48_ref_t
+s48_get_imported_binding_local_2(s48_call_t call, char *name)
+{
+  return s48_make_local_ref(call, s48_get_imported_binding(name)); 
+}
+
+void
+s48_define_exported_binding_2(s48_call_t call, char *name, s48_ref_t binding)
+{
+  s48_define_exported_binding(name, s48_deref(binding));
 }
 
 s48_value
@@ -1411,6 +1970,16 @@ s48_cons(s48_value v1, s48_value v2)
   return obj;
 }
 
+s48_ref_t
+s48_cons_2(s48_call_t call, s48_ref_t v1, s48_ref_t v2)
+{
+  s48_ref_t ref;
+  ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_PAIR, 2));
+  s48_unsafe_set_car_2(call, ref, v1);
+  s48_unsafe_set_cdr_2(call, ref, v2);
+  return ref;
+}
+
 s48_value
 s48_make_weak_pointer(s48_value value)
 {
@@ -1426,6 +1995,14 @@ s48_make_weak_pointer(s48_value value)
   return obj;
 }
 
+s48_ref_t
+s48_make_weak_pointer_2(s48_call_t call, s48_ref_t value)
+{
+  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_WEAK_POINTER, 1));
+  s48_unsafe_stob_set_2(call, ref, 0, value);
+  return ref;
+}
+
 /*
  * Entering and extracting byte vectors.
  */
@@ -1438,12 +2015,28 @@ s48_enter_byte_vector(char *bytes, long length)
   return obj;
 }
 
+s48_ref_t
+s48_enter_byte_vector_2(s48_call_t call, char *bytes, long length)
+{
+  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length));
+  memcpy(s48_unsafe_extract_byte_vector_2(call, ref), bytes, length);
+  return ref;
+}
+
 char *
 s48_extract_byte_vector(s48_value byte_vector)
 {
   S48_CHECK_VALUE(byte_vector);
 
   return S48_UNSAFE_EXTRACT_BYTE_VECTOR(byte_vector);
+}
+
+char *
+s48_extract_byte_vector_2(s48_call_t call, s48_ref_t byte_vector)
+{
+  s48_check_value_2(call, byte_vector);
+
+  return s48_unsafe_extract_byte_vector_2(call, byte_vector);
 }
 
 /*
@@ -1459,6 +2052,17 @@ s48_make_string(int length, long init)
   for (i = 0; i < length; ++i)
     s48_string_set(obj, i, init);
   return obj;
+}
+
+s48_ref_t
+s48_make_string_2(s48_call_t call, int length, long init)
+{
+  int i;
+  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_string(length));
+  /* We should probably offer a VM function for this. */
+  for (i = 0; i < length; ++i)
+    s48_string_set(s48_deref(ref), i, init);
+  return ref;
 }
 
 s48_value
@@ -1479,10 +2083,26 @@ s48_make_vector(int length, s48_value init)
   return obj;
 }
 
+s48_ref_t
+s48_make_vector_2(s48_call_t call, int length, s48_ref_t init)
+{
+  int i;
+  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_VECTOR, length));
+  for (i = 0; i < length; ++i)
+    s48_unsafe_vector_set_2(call, ref, i, init);
+  return ref;
+}
+
 s48_value
 s48_make_byte_vector(int length)
 {
     return s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length);
+}
+
+s48_ref_t
+s48_make_byte_vector_2(s48_call_t call, int length)
+{
+  return s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length));
 }
 
 s48_value
@@ -1494,10 +2114,25 @@ s48_enter_byte_substring(char *str, long length)
   return obj;
 }
 
+s48_ref_t
+s48_enter_byte_substring_2(s48_call_t call, char *str, long length)
+{
+  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length + 1));
+  memcpy(s48_unsafe_extract_byte_vector_2(call, ref), str, length);
+  *(s48_unsafe_extract_byte_vector_2(call, ref) + length) = '\0';
+  return ref;
+}
+
 s48_value
 s48_enter_byte_string(char *str)
 {
   return s48_enter_byte_substring(str, strlen(str));
+}
+
+s48_ref_t
+s48_enter_byte_string_2(s48_call_t call, char *str)
+{
+  return s48_enter_byte_substring_2(call, str, strlen(str));
 }
 
 s48_value
@@ -1511,11 +2146,11 @@ s48_make_record(s48_value type_shared_binding)
     S48_GC_PROTECT_1(record_type);
 
     S48_SHARED_BINDING_CHECK(type_shared_binding);
-    S48_SHARED_BINDING_CHECK(the_record_type_binding);
+    S48_SHARED_BINDING_CHECK(s48_deref(the_record_type_binding));
 
     record_type = S48_SHARED_BINDING_REF(type_shared_binding);
 
-    s48_check_record_type(record_type, the_record_type_binding);
+    s48_check_record_type(record_type, s48_deref(the_record_type_binding));
 
     number_of_fields =
       S48_UNSAFE_EXTRACT_FIXNUM(S48_RECORD_TYPE_NUMBER_OF_FIELDS(record_type));
@@ -1527,6 +2162,33 @@ s48_make_record(s48_value type_shared_binding)
       S48_UNSAFE_RECORD_SET(record, i, S48_UNSPECIFIC);
 
     S48_GC_UNPROTECT();
+
+    return record;
+}
+
+s48_ref_t
+s48_make_record_2(s48_call_t call, s48_ref_t type_shared_binding)
+{
+    int i, number_of_fields;
+    s48_ref_t record;
+    s48_ref_t record_type;
+
+    s48_shared_binding_check_2(call, type_shared_binding);
+    s48_shared_binding_check_2(call, the_record_type_binding);
+
+    record_type = s48_shared_binding_ref_2(call, type_shared_binding);
+
+    s48_check_record_type_2(call, record_type, the_record_type_binding);
+
+    number_of_fields =
+      s48_unsafe_extract_long_2(call, 
+				s48_record_type_number_of_fields_2(call, record_type));
+
+    record = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_RECORD, number_of_fields + 1));
+
+    s48_unsafe_record_set_2(call, record, -1, record_type);
+    for (i = 0; i < number_of_fields; ++i)
+      s48_unsafe_record_set_2(call, record, i, s48_unspecific_2(call));
 
     return record;
 }
@@ -1549,6 +2211,22 @@ s48_check_record_type(s48_value record, s48_value type_binding)
 			    record, S48_SHARED_BINDING_REF(type_binding));
 }
 
+void
+s48_check_record_type_2(s48_call_t call, s48_ref_t record, s48_ref_t type_binding)
+{
+  if (! s48_record_p_2(call, s48_shared_binding_ref_2(call, type_binding)))
+    s48_raise_scheme_exception_2(call,S48_EXCEPTION_UNBOUND_EXTERNAL_NAME, 1,
+				 s48_shared_binding_name_2(call, type_binding));
+
+  if ((! s48_record_p_2(call, record)) ||
+      (!s48_eq_p_2(call,
+		   s48_unsafe_shared_binding_ref_2(call, type_binding),
+		   s48_unsafe_record_ref_2(call, record, -1))))
+    s48_assertion_violation_2(call, "s48_check_record_type_2",
+			      "not a record of the appropriate type", 2,
+			      record, s48_shared_binding_ref_2(call, type_binding));
+}
+
 long
 s48_length(s48_value list)
 {
@@ -1560,4 +2238,30 @@ s48_length(s48_value list)
       ++i;
     }
   return S48_UNSAFE_ENTER_FIXNUM(i);
+}
+
+s48_ref_t
+s48_length_2(s48_call_t call, s48_ref_t list)
+{
+  long i = 0;
+  while (!(s48_null_p_2(call, list)))
+    {
+      list = s48_cdr_2(call, list);
+      ++i;
+    }
+  return s48_unsafe_enter_long_as_fixnum_2(call, i);
+}
+
+s48_ref_t
+s48_ad_length_2(s48_call_t call, s48_ref_t list)
+{
+  long i = 0;
+  while (!(s48_null_p_2(call, list)))
+    {
+      s48_ref_t temp = list;
+      list = s48_cdr_2(call, list);
+      s48_free_local_ref(call, temp);
+      ++i;
+    }
+  return s48_unsafe_enter_long_as_fixnum_2(call, i);
 }

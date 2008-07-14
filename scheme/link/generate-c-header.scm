@@ -59,6 +59,24 @@
 	    (newline)
 	    (copy-file c-in-file)
 	    (newline)
+	    (format #t "/* New FFI */~%")
+	    (newline)
+	    (tag-stuff-2 tag-list)
+	    (newline)
+	    (immediate-stuff-2 immediate-list)
+	    (newline)
+	    (stob-stuff-2 stob-list stob-data)
+	    (newline)
+	    (enumeration-stuff-2 record-type-fields
+			       "s48_record_type_~A_2(c, x) s48_unsafe_record_ref_2(c, (x), ~D)")
+	    (newline)
+	    (enumeration-stuff-2 exception-list "s48_exception_~A ~D")
+	    (newline)
+	    (enumeration-stuff-2 channel-status-list
+		       "s48_channel_status_~A_2(c) s48_unsafe_enter_long_as_fixnum_2(c, ~D)")
+	    (newline)
+	    (format #t "#ifndef NO_OLD_FFI~%")
+	    (newline)
 	    (tag-stuff tag-list)
 	    (newline)
 	    (immediate-stuff immediate-list)
@@ -73,7 +91,9 @@
 	    (enumeration-stuff channel-status-list
 		       "S48_CHANNEL_STATUS_~A S48_UNSAFE_ENTER_FIXNUM(~D)")
 	    (newline)
-	    (format #t "#include <scheme48write-barrier.h>")
+	    (format #t "#endif /* !NO_OLD_FFI */~%")
+	    (newline)
+	    (format #t "#include <scheme48write-barrier.h>~%")
 	    (newline)
 	    (format #t "#ifdef __cplusplus~%")
 	    (format #t "/* closing brace for extern \"C\" */~%")
@@ -82,7 +102,136 @@
 	    (newline)
 	    (format #t "#endif /* _H_SCHEME48 */")
 	    (newline)))))))
-	  
+
+(define (tag-stuff-2 tag-list)
+  (do ((tags tag-list (cdr tags))
+       (i 0 (+ i 1)))
+      ((null? tags))
+    (let ((name (downcase (car tags))))
+      (c-define "s48_~A_tag ~D" name i)
+      (c-define "s48_~A_p_2(c,x) (((long)s48_deref(x) & 3L) == s48_~A_tag)" name name)))
+  (newline)
+  (c-define "s48_unsafe_enter_long_as_fixnum_2(c, n)   (s48_make_local_ref(c,(s48_value)((n) << 2)))")
+  (c-define "s48_unsafe_extract_long_2(c, x) ((long)s48_deref(x) >> 2)"))
+
+(define (immediate-stuff-2 imm-list)
+  (c-define "MISC_IMMEDIATE_INTERNAL_2(n) (s48_immediate_tag | ((n) << 2))")
+  (do ((imm imm-list (cdr imm))
+       (i 0 (+ i 1)))
+      ((null? imm))
+    (let ((name (downcase (car imm))))
+      (c-define "_s48_value_~A    MISC_IMMEDIATE_INTERNAL_2(~D)" name i)
+      (c-define "s48_~A_2(c)   s48_make_local_ref(c, _s48_value_~A)" name name)))
+  (newline)
+  (c-define "s48_unsafe_enter_char_2(call, c) s48_make_local_ref (call, _s48_value_char | ((c) << 8))")
+  (c-define "s48_unsafe_extract_char_2(c,x) ((long)(s48_deref(x) >> 8))")
+  (c-define "s48_char_p_2(c, x) ((((long) s48_deref(x)) & 0xff) == _s48_value_char)"))
+
+(define (enumeration-stuff-2 names format-string)
+  (do ((names names (cdr names))
+       (i 0 (+ 1 i)))
+      ((null? names))
+    (let ((name (downcase (car names))))
+      (c-define format-string name i))))
+
+(define (stob-stuff-2 stob-list stob-data)
+  (let ((type-mask (let ((len (length stob-list)))
+		     (do ((i 2 (* i 2)))
+			 ((>= i len) (- i 1))))))
+    (c-define "ADDRESS_AFTER_HEADER_INTERNAL_2(x, type) ((type *)((x) - s48_stob_tag))")
+    (c-define "STOB_REF_INTERNAL_2(x, i) ADDRESS_AFTER_HEADER_INTERNAL_2(x, s48_value)[i]")
+    (c-define "STOB_BYTE_REF_INTERNAL_2(x, i) (((char *) ADDRESS_AFTER_HEADER_INTERNAL_2(x, s48_value))[i])")
+    (c-define "s48_address_after_header_2(c, x, type) ADDRESS_AFTER_HEADER_INTERNAL_2(s48_deref(x), type)")
+    (c-define "s48_unsafe_stob_ref_2(c, x, i) s48_make_local_ref(c, (STOB_REF_INTERNAL_2(s48_deref(x), i)))")
+    (c-define "s48_unsafe_stob_byte_ref_2(c, x, i) STOB_BYTE_REF_INTERNAL_2(s48_deref(x), i)")
+    (c-define (string-append
+	       "s48_unsafe_stob_set_2(c, x, i, r) "
+	       "do { "
+	       "s48_value __stob_set_x = s48_deref(x); "
+	       "long __stob_set_i = (i); "
+	       "s48_value __stob_set_v = s48_deref(r); "
+	       "if (s48_stob_immutablep_2(c, (x))) "
+	       "s48_assertion_violation_2(c, NULL, \"immutable stob\", 1, __stob_set_x); "
+	       "else { "
+	       "S48_WRITE_BARRIER((__stob_set_x), "
+	       "(char *) (&(STOB_REF_INTERNAL_2((__stob_set_x), (__stob_set_i)))),"
+	       "(__stob_set_v)); "
+	       "*(&STOB_REF_INTERNAL_2((__stob_set_x), (__stob_set_i))) = (__stob_set_v); "
+	       "} "
+	       "} while (0)"))
+    (c-define (string-append
+	       "s48_unsafe_stob_byte_set_2(c, x, i, v) "
+	       "do { "
+	       "s48_value __stob_set_x = s48_deref(x); "
+	       "long __stob_set_i = (i); "
+	       "char __stob_set_v = (v); "
+	       "if (s48_stob_immutablep_2(c, (x))) "
+	       "s48_assertion_violation(NULL, \"immutable stob\", 1, __stob_set_x); "
+	       "else "
+	       "*(&STOB_BYTE_REF_INTERNAL_2((__stob_set_x), (__stob_set_i))) = (__stob_set_v); "
+	       "} while (0)"))
+    (c-define "s48_stob_header_2(c, x) (STOB_REF_INTERNAL_2(s48_deref(x), -1))")
+    (c-define "s48_stob_type_2(c, x)   ((s48_stob_header_2(c, x)>>2)&~D)" type-mask)
+    (c-define "s48_stob_address_2(c, x) (&(s48_stob_header_2(c, x)))")
+    (c-define "s48_unsafe_stob_byte_length_2(c, x) (s48_stob_header_2(c, x) >> 8)")
+    (c-define "s48_unsafe_stob_descriptor_length_2(c, x) (s48_unsafe_stob_byte_length_2(c, x) >> S48_LOG_BYTES_PER_CELL)")
+    (c-define "s48_stob_immutablep_2(c, x) ((s48_stob_header_2(c, x)>>7) & 1)")
+    (c-define "s48_stob_make_immutable_2(c, x) ((s48_stob_header_2(c, x)) |= (1<<7))")
+    (newline)
+    (do ((stob stob-list (cdr stob))
+	 (i 0 (+ i 1)))
+	((null? stob))
+      (let ((name (downcase (car stob))))
+	(c-define "s48_stobtype_~A ~D" name i)
+	(c-define "s48_~A_p_2(c, x) (s48_stob_has_type_2(c, x, ~D))" name i)))
+    (newline)
+    (for-each (lambda (data)
+		(let ((type (downcase (car data))))
+		  (do ((accs (cdddr data) (cdr accs))
+		       (i 0 (+ i 1)))
+		      ((null? accs))
+		    (let ((name (downcase (caar accs))))
+		      (c-define "s48_~A_offset ~D" name i)
+		      (c-define "s48_~A_2(c, x) (s48_stob_ref_2(c, (x), s48_stobtype_~A, ~D))"
+				name type i)
+		      (c-define "s48_unsafe_~A_2(c, x) (s48_unsafe_stob_ref_2(c, (x), ~D))" name i))
+		    (if (not (null? (cdar accs)))
+			(let ((name (downcase (cadar accs))))
+			  (c-define "s48_~A_2(c, x, r) (s48_stob_set_2(c, (x), s48_stobtype_~A, ~D, (r)))"
+				    name type i)
+			  (c-define "s48_unsafe_~A_2(c, x, r) s48_unsafe_stob_set_2(c, (x), ~D, (r))" name i))))))
+	      stob-data)
+    (newline)
+    (for-each (lambda (type index)
+		(c-define "s48_~A_length_2(c, x) (s48_stob_length_2(c, (x), s48_stobtype_~A))"
+			  type type)
+		(c-define "s48_unsafe_~A_length_2(c, x) (s48_unsafe_stob_descriptor_length_2(c, x))"
+			  type)
+		(c-define "s48_unsafe_~A_ref_2(c, x, i) (s48_unsafe_stob_ref_2(c, (x), ~A))"
+			  type index)
+		(c-define "s48_unsafe_~A_set_2(c, x, i, r) s48_unsafe_stob_set_2(c, (x), ~A, (r))"
+			  type index)
+		(c-define "s48_~A_ref_2(c, x, i) (s48_stob_ref_2(c, (x), s48_stobtype_~A, ~A))"
+			  type type index)
+		(c-define "s48_~A_set_2(c, x, i, r) s48_stob_set_2(c, (x), s48_stobtype_~A, ~A, (r))"
+			  type type index))
+	      '("vector" "record")
+	      '("(i)" "(i) + 1"))
+    (c-define "s48_record_type_2(c, x) (s48_stob_ref_2(c, (x), s48_stobtype_record, 0))")
+    (c-define "s48_unsafe_record_type_2(c, x) (s48_unsafe_stob_ref_2(c, (x), 0))")
+    (for-each (lambda (type)
+		(c-define "s48_unsafe_~A_length_2(c, x) (s48_unsafe_stob_byte_length_2(c, (x), s48_stobtype_~A))"
+			  type type)
+		(c-define "s48_unsafe_~A_ref_2(c, x, i) (s48_stob_byte_ref_2(c, (x), s48_stobtype_~A, (i)))"
+			  type type)
+		(c-define "s48_unsafe_~A_set_2(c, x, i, v) (s48_stob_byte_set_2(c, (x), s48_stobtype_~A, (i), (v)))"
+			  type type))
+	      '("byte_vector"))
+    (c-define "s48_unsafe_extract_byte_vector_2(c, x) (s48_address_after_header_2(c, (x), char))")
+
+    (c-define (string-append "s48_extract_external_object_2(c, x, type) "
+			     "((type *)(s48_address_after_header_2(c, x, long)+1))"))))
+
 (define (tag-stuff tag-list)
   (do ((tags tag-list (cdr tags))
        (i 0 (+ i 1)))
@@ -95,7 +244,7 @@
   (c-define "S48_UNSAFE_EXTRACT_FIXNUM(x) ((long)(x) >> 2)"))
 
 (define (immediate-stuff imm-list)
-  (c-define "S48_MISC_IMMEDIATE(n) ((s48_value)(S48_IMMEDIATE_TAG | ((n) << 2)))")
+  (c-define "S48_MISC_IMMEDIATE(n) (S48_IMMEDIATE_TAG | ((n) << 2))")
   (do ((imm imm-list (cdr imm))
        (i 0 (+ i 1)))
       ((null? imm))
@@ -110,11 +259,12 @@
   (let ((type-mask (let ((len (length stob-list)))
 		     (do ((i 2 (* i 2)))
 			 ((>= i len) (- i 1))))))
-    (c-define "S48_ADDRESS_AFTER_HEADER(x, type) ((type *)((x) - S48_STOB_TAG))")
-    (c-define "S48_STOB_REF(x, i) (S48_ADDRESS_AFTER_HEADER(x, s48_value)[i])")
-    (c-define (string-append
-	       "S48_STOB_BYTE_REF(x, i) "
-	       "(((char *)S48_ADDRESS_AFTER_HEADER(x, s48_value))[i])"))
+    (c-define "ADDRESS_AFTER_HEADER_INTERNAL(x, type) ((type *)((x) - S48_STOB_TAG))")
+    (c-define "STOB_REF_INTERNAL(x, i) ADDRESS_AFTER_HEADER_INTERNAL(x, s48_value)[i]")
+    (c-define "STOB_BYTE_REF_INTERNAL(x, i) (((char *) ADDRESS_AFTER_HEADER_INTERNAL(x, s48_value))[i])")
+    (c-define "S48_ADDRESS_AFTER_HEADER(x, type) ADDRESS_AFTER_HEADER_INTERNAL(x, type)")
+    (c-define "S48_STOB_REF(x, i) STOB_REF_INTERNAL((x), i)")
+    (c-define "S48_STOB_BYTE_REF(x, i) STOB_BYTE_REF_INTERNAL((x), i)")
     (c-define (string-append
 	       "S48_STOB_SET(x, i, v) "
 	       "do { "
@@ -141,8 +291,8 @@
 	       "else "
 	       "*(&S48_STOB_BYTE_REF((__stob_set_x), (__stob_set_i))) = (__stob_set_v); "
 	       "} while (0)"))
-    (c-define "S48_STOB_TYPE(x)   ((S48_STOB_HEADER(x)>>2)&~D)" type-mask)
     (c-define "S48_STOB_HEADER(x) (S48_STOB_REF((x),-1))")
+    (c-define "S48_STOB_TYPE(x)   ((S48_STOB_HEADER(x)>>2)&~D)" type-mask)
     (c-define "S48_STOB_ADDRESS(x) (&(S48_STOB_HEADER(x)))")
     (c-define "S48_STOB_BYTE_LENGTH(x) (S48_STOB_HEADER(x) >> 8)")
     (c-define "S48_STOB_DESCRIPTOR_LENGTH(x) (S48_STOB_BYTE_LENGTH(x) >> S48_LOG_BYTES_PER_CELL)")
@@ -231,6 +381,18 @@
 		  ((#\?) (cons #\P res))
 		  ((#\/ #\!) res)
 		  (else (cons (char-upcase (car chars)) res)))))
+      ((null? chars)
+       (list->string (reverse res)))))
+
+
+(define (downcase symbol)
+  (do ((chars (string->list (symbol->string symbol)) (cdr chars))
+       (res '() (case (car chars)
+		  ((#\>) (append (string->list "_ot") res))
+		  ((#\-) (cons #\_ res))
+		  ((#\?) (cons #\p res))
+		  ((#\/ #\!) res)
+		  (else (cons (char-downcase (car chars)) res)))))
       ((null? chars)
        (list->string (reverse res)))))
 

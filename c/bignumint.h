@@ -115,10 +115,10 @@ extern char *	s48_shorten_bignum(char*, long);
 
 /* These definitions are here to facilitate caching of the constants
    0, 1, and -1. */
-#define BIGNUM_ZERO() S48_ADDRESS_AFTER_HEADER(s48_bignum_zero, long)
+#define BIGNUM_ZERO() S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_zero), long)
 #define BIGNUM_ONE(neg_p)                                               \
-   (neg_p ? S48_ADDRESS_AFTER_HEADER(s48_bignum_neg_one, long) : \
-            S48_ADDRESS_AFTER_HEADER(s48_bignum_pos_one, long))
+  (neg_p ? S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_neg_one), long) : \
+   S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_pos_one), long))
 
 #define HD_LOW(digit) ((digit) & BIGNUM_HALF_DIGIT_MASK)
 #define HD_HIGH(digit) ((digit) >> BIGNUM_HALF_DIGIT_LENGTH)

@@ -258,7 +258,7 @@
 		   args)
 	    (apply assertion-violation 'call-imported-binding-2 "bad procedure"
 		   proc args)))
-      (apply assertion-violation 'call-imported-binding-2 "bad procedure"
+      (apply assertion-violation 'call-imported-binding-2 "procedure not defined"
 	     proc args)))
 
 ;----------------
