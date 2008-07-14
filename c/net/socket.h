@@ -16,7 +16,7 @@
 
 /* OS-unspecific */
 
-int s48_extract_msg_flags(s48_value sch_flags);
+int s48_extract_msg_flags(s48_call_t call, s48_ref_t sch_flags);
 
 /* OS-specific */
 
@@ -26,6 +26,6 @@ typedef SOCKET socket_t;
 typedef int socket_t;
 #endif
 
-socket_t s48_extract_socket_fd(s48_value sch_channel);
+socket_t s48_extract_socket_fd(s48_call_t call, s48_ref_t sch_channel);
 
 #endif

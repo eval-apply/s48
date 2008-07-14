@@ -330,7 +330,7 @@
 (define-structure c-system-function (export have-system? system)
   (open scheme-level-2 byte-vectors os-strings external-calls exceptions)
   (begin
-    (import-lambda-definition s48-system (string))
+    (import-lambda-definition-2 s48-system (string) "s48_system_2")
 
     (define (have-system?)
       (not (= 0 (s48-system #f))))

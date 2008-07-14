@@ -1,6 +1,8 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+#define NO_OLD_FFI 1
+
 /*
  * Dynamically load external modules on machines that support it.
  */
@@ -26,85 +28,81 @@
 #define	DLOPEN_MODE	(1)
 #endif
 
-static s48_value
-shared_object_dlopen(s48_value name, s48_value complete_name_p)
+static s48_ref_t
+shared_object_dlopen(s48_call_t call, s48_ref_t name, s48_ref_t complete_name_p)
 {
-  S48_DECLARE_GC_PROTECT(1);
   void *handle;
-  s48_value res;
-  s48_value full_name;
+  s48_ref_t res;
+  s48_ref_t full_name;
 
-  S48_GC_PROTECT_1(name);
 
-  if (!S48_EQ(S48_FALSE, complete_name_p))
+  if (!s48_false_p_2(call, complete_name_p))
     {
-      size_t len = strlen(s48_extract_byte_vector(name));
-      full_name = s48_make_byte_vector(len + 4);
-      memcpy(s48_extract_byte_vector(full_name),
-	     s48_extract_byte_vector(name),
+      size_t len = strlen(s48_extract_byte_vector_2(call, name));
+      full_name = s48_make_byte_vector_2(call, len + 4);
+      memcpy(s48_extract_byte_vector_2(call, full_name),
+	     s48_extract_byte_vector_2(call, name),
 	     len);
-      memcpy(s48_extract_byte_vector(full_name) + len,
+      memcpy(s48_extract_byte_vector_2(call, full_name) + len,
 	     ".so",
 	     4);
     }
   else
     full_name = name;
 
-  handle = dlopen(s48_extract_byte_vector(full_name), DLOPEN_MODE);
+  handle = dlopen(s48_extract_byte_vector_2(call, full_name), DLOPEN_MODE);
   if (handle == NULL)
-    s48_error("shared_object_dlopen", (char *)dlerror(), 1, full_name);
+    s48_error_2(call, "shared_object_dlopen", (char *)dlerror(), 1, full_name);
 
-  res = S48_MAKE_VALUE(void *);
-  S48_UNSAFE_EXTRACT_VALUE(res, void *) = handle;
-
-  S48_GC_UNPROTECT();
+  res = s48_make_value_2(call, void *);
+  s48_unsafe_extract_value_2(call, res, void *) = handle;
 
   return res;
 }
 
-static s48_value
-shared_object_dlsym(s48_value handle, s48_value name)
+static s48_ref_t
+shared_object_dlsym(s48_call_t call, s48_ref_t handle, s48_ref_t name)
 {
   const char *error;
   void *entry;
   void *native_handle;
-  s48_value res;
+  s48_ref_t res;
   char *native_name;
   
-  native_handle = S48_EXTRACT_VALUE(handle, void *);
+  native_handle = s48_extract_value_2(call, handle, void *);
 
-  native_name = s48_extract_byte_vector(name);
+  native_name = s48_extract_byte_vector_2(call, name);
 
   entry = dlsym(native_handle, native_name);
 
   if (entry == NULL)
-    s48_error("shared_object_dlsym", (char*)dlerror(), 2, handle, name);
+    s48_error_2(call, "shared_object_dlsym", (char*)dlerror(), 2, handle, name);
 
-  res = S48_MAKE_VALUE(void *);
-  S48_UNSAFE_EXTRACT_VALUE(res, void *) = entry;
+  res = s48_make_value_2(call, void *);
+  s48_unsafe_extract_value_2(call, res, void *) = entry;
   return res;
 }
 
-static s48_value
-shared_object_dlclose(s48_value handle)
+static s48_ref_t
+shared_object_dlclose(s48_call_t call, s48_ref_t handle)
 {
-  void *native_handle = S48_EXTRACT_VALUE(handle, void *);
+  void *native_handle = s48_extract_value_2(call, handle, void *);
   
   if (dlclose(native_handle) < 0)
-    s48_error("shared_object_dlclose", (char*)dlerror(), 1, handle);
-  return S48_UNSPECIFIC;
+    s48_error_2(call, "shared_object_dlclose", (char*)dlerror(), 1, handle);
+  return s48_unspecific_2(call);
 }
 
 typedef void (*thunk)();
 
-static s48_value
-shared_object_call_thunk(s48_value value)
+static s48_ref_t
+shared_object_call_thunk(s48_call_t call, s48_ref_t value)
 {
   thunk entry;
 
-  entry = S48_EXTRACT_VALUE(value, thunk);
+  entry = s48_extract_value_2(call, value, thunk);
   entry();
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
 void
