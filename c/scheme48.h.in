@@ -148,7 +148,7 @@ S48_EXTERN s48_ref_t	s48_enter_pointer_2(s48_call_t, void *);
 S48_EXTERN void*	s48_extract_pointer_2(s48_call_t, s48_ref_t);
 S48_EXTERN s48_ref_t	s48_get_imported_binding_2(char *);
 S48_EXTERN s48_ref_t	s48_get_imported_binding_local_2(s48_call_t, char *);
-S48_EXTERN void		s48_define_exported_binding_2(s48_call_t, char *, s48_ref_t);
+S48_EXTERN s48_ref_t	s48_define_exported_binding_2(s48_call_t, char *, s48_ref_t);
 
 S48_EXTERN s48_ref_t	s48_set_channel_os_index_2(s48_call_t, s48_ref_t, long);
 S48_EXTERN s48_ref_t	s48_add_channel_2(s48_call_t, s48_ref_t, s48_ref_t, long);
@@ -300,7 +300,7 @@ S48_EXTERN s48_value	s48_length(s48_value);
 S48_EXTERN s48_value	s48_enter_pointer(void *);
 S48_EXTERN void*	s48_extract_pointer(s48_value);
 S48_EXTERN s48_value	s48_get_imported_binding(char *);
-S48_EXTERN void		s48_define_exported_binding(char *, s48_value);
+S48_EXTERN s48_value	s48_define_exported_binding(char *, s48_value);
 
 S48_EXTERN s48_value	s48_set_channel_os_index(s48_value, long);
 S48_EXTERN s48_value	s48_add_channel(s48_value, s48_value, long);
