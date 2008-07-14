@@ -39,14 +39,14 @@
 	(else
 	 #f)))
 
-(import-lambda-definition channel-is-a-terminal? (channel) "posix_is_a_tty")
-(import-lambda-definition channel-terminal-name (channel) "posix_tty_name")
+(import-lambda-definition-2 channel-is-a-terminal? (channel) "posix_is_a_tty")
+(import-lambda-definition-2 channel-terminal-name (channel) "posix_tty_name")
 
 ;----------------
 ; 6.1 Pipes
 
 (define (open-pipe)
-  (let ((in-out (call-imported-binding posix-pipe)))
+  (let ((in-out (call-imported-binding-2 posix-pipe)))
     (values (input-channel->port (car in-out))
             (output-channel->port (cdr in-out)))))
 
@@ -98,8 +98,8 @@
 	 (channel-dup2 channel fd))
 	(assertion-violation 'dup2 "argument cannot be coerced to channel" port fd))))
 
-(import-lambda-definition really-dup (channel new-status) "posix_dup")
-(import-lambda-definition channel-dup2 (channel fd) "posix_dup2")
+(import-lambda-definition-2 really-dup (channel new-status) "posix_dup")
+(import-lambda-definition-2 channel-dup2 (channel fd) "posix_dup2")
 
 ; A higher-level interface for DUP and DUP2.
 ;
@@ -278,9 +278,9 @@
 ;
 ; The only POSIX flag is FD_CLOEXEC, so that's all we do.
 
-(import-lambda-definition set-close-on-exec?! (channel bool)
+(import-lambda-definition-2 set-close-on-exec?! (channel bool)
 			  "posix_set_close_on_exec")
-(import-lambda-definition close-on-exec? (channel) "posix_close_on_exec_p")
+(import-lambda-definition-2 close-on-exec? (channel) "posix_close_on_exec_p")
 
 ; Status flags
 ; fcntl(fd, F_GETFL)
@@ -289,14 +289,14 @@
 (define (i/o-flags port-or-channel)
   (let ((channel (maybe-x->channel port-or-channel)))
     (if channel
-	(call-imported-binding posix-io-flags channel #f)
+	(call-imported-binding-2 posix-io-flags channel #f)
 	(assertion-violation 'i/o-flags "argument cannot be coerced to channel" port-or-channel))))
 
 (define (set-i/o-flags! port-or-channel options)
   (let ((channel (maybe-x->channel port-or-channel)))
     (if (and channel
 	     (file-options? options))
-	(call-imported-binding posix-io-flags channel options)
+	(call-imported-binding-2 posix-io-flags channel options)
 	(assertion-violation 'set-i/o-flags! "argument type error" port-or-channel options))))
 
 (import-definition posix-io-flags)

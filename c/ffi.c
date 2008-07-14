@@ -205,6 +205,14 @@ s48_free_global_ref (s48_ref_t ref)
     s48_assertion_violation ("s48_free_global_ref", "ref is not global", 0);
 }
 
+s48_ref_t
+s48_local_to_global_ref(s48_ref_t ref)
+{
+  s48_value temp = s48_deref(ref);
+  free_ref (ref);
+  return s48_make_global_ref(temp);
+}
+
 static void
 walk_global_refs (void (*func) (s48_ref_t ref, void *closure),
 		  void *closure)

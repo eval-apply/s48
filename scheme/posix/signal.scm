@@ -222,12 +222,12 @@
 (define-exported-binding "posix-unnamed-signal-type"   :unnamed-signal)
 (define-exported-binding "posix-unnamed-signal-marker" 'nonportable-signal)
 
-(import-lambda-definition integer->signal (int) "posix_integer_to_signal")
-(import-lambda-definition initialize-named-signals ()
+(import-lambda-definition-2 integer->signal (int) "posix_integer_to_signal")
+(import-lambda-definition-2 initialize-named-signals ()
 			  "posix_initialize_named_signals")
-(import-lambda-definition request-interrupts! (os-number)
+(import-lambda-definition-2 request-interrupts! (os-number)
 			  "posix_request_interrupts")
-(import-lambda-definition cancel-interrupt-request! (os-number)
+(import-lambda-definition-2 cancel-interrupt-request! (os-number)
 			  "posix_cancel_interrupt_request")
 
 ;----------------
@@ -286,7 +286,7 @@
 ;----------------
 ; Sending a signal to a process.
 
-(import-lambda-definition signal-process (pid signal) "posix_kill")
+(import-lambda-definition-2 signal-process (pid signal) "posix_kill")
 
 ;----------------
 ; Handling signals sent to the current process.  Runs with interrupts disabled.

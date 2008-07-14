@@ -335,3 +335,17 @@ s48_add_channel(s48_value mode, s48_value id, long fd)
 	      (int) fd); }
   return s48_really_add_channel(mode, id, fd);
 }
+
+s48_ref_t
+s48_add_channel_2(s48_call_t call, s48_ref_t mode, s48_ref_t id, long fd)
+{
+  /* back to the VM */
+  return s48_make_local_ref(call, s48_add_channel(s48_deref(mode), s48_deref(id), fd));
+}
+
+s48_ref_t
+s48_set_channel_os_index_2(s48_call_t call, s48_ref_t channel, long fd)
+{
+  /* back to the VM */
+  return s48_make_local_ref(call, s48_set_channel_os_index(s48_deref(channel), fd));
+}
