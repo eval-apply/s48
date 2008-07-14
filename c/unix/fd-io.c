@@ -339,8 +339,16 @@ s48_add_channel(s48_value mode, s48_value id, long fd)
 s48_ref_t
 s48_add_channel_2(s48_call_t call, s48_ref_t mode, s48_ref_t id, long fd)
 {
-  /* back to the VM */
-  return s48_make_local_ref(call, s48_add_channel(s48_deref(mode), s48_deref(id), fd));
+  if (s48_eq_p_2(call, mode, s48_channel_status_output_2(call))
+      && fd != 1
+      && fd != 2) {
+    int flags;
+    RETRY_OR_RAISE_NEG(flags, fcntl(fd, F_GETFL));
+    if ((flags & O_NONBLOCK) == 0)
+      fprintf(stderr,
+        "Warning: output channel file descriptor %d is not non-blocking\n",
+	      (int) fd); }
+  return s48_make_local_ref(call, s48_really_add_channel(s48_deref(mode), s48_deref(id), fd));
 }
 
 s48_ref_t

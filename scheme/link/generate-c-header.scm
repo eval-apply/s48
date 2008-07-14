@@ -225,6 +225,12 @@
     (c-define "s48_record_type_2(c, x) (s48_stob_ref_2(c, (x), s48_stobtype_record, 0))")
     (c-define "s48_unsafe_record_type_2(c, x) (s48_unsafe_stob_ref_2(c, (x), 0))")
     (for-each (lambda (type)
+		(c-define "s48_~A_length_2(c, x) (s48_stob_byte_length_2(c, (x), s48_stobtype_~A))"
+			  type type)
+		(c-define "s48_~A_ref_2(c, x, i) (s48_stob_byte_ref_2(c, (x), s48_stobtype_~A, (i)))"
+			  type type)
+		(c-define "s48_~A_set_2(c, x, i, v) (s48_stob_byte_set_2(c, (x), s48_stobtype_~A, (i), (v)))"
+			  type type)
 		(c-define "s48_unsafe_~A_length_2(c, x) (s48_unsafe_stob_byte_length_2(c, (x), s48_stobtype_~A))"
 			  type type)
 		(c-define "s48_unsafe_~A_ref_2(c, x, i) (s48_stob_byte_ref_2(c, (x), s48_stobtype_~A, (i)))"
