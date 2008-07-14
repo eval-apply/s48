@@ -31,6 +31,9 @@
 
 typedef long	s48_value;
 
+typedef struct s48_ref_t *  s48_ref_t;
+typedef struct s48_call_t * s48_call_t;
+
 #define NO_ERRORS 0    /* errno value */
 
 /* Misc stuff */
@@ -134,6 +137,7 @@ S48_EXTERN long		s48_enum_set2integer(s48_value);
 S48_EXTERN s48_value	s48_integer2enum_set(s48_value, long);
 
 S48_EXTERN s48_value	s48_call_scheme(s48_value proc, long nargs, ...);
+S48_EXTERN s48_ref_t 	s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...);
 
 #define S48_EXPORT_FUNCTION(p) (s48_define_exported_binding(#p, s48_enter_pointer((void*) p)))
 

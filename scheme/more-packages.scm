@@ -282,15 +282,18 @@
 ; Things needed for connecting with external code.
 
 (define-structure external-calls (export call-imported-binding
+					 call-imported-binding-2
 					 lookup-imported-binding
 					 define-exported-binding
 					 shared-binding-ref
 					 ((import-definition
-					   import-lambda-definition)
+					   import-lambda-definition
+					   import-lambda-definition-2)
 					  :syntax)
 					 add-finalizer!
 					 define-record-resumer
-					 call-external-value)
+					 call-external-value
+					 call-external-value-2)
   (open scheme-level-2 define-record-types
 	primitives
 	os-strings

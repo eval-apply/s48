@@ -1,0 +1,494 @@
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
+   See file COPYING. */
+
+/* Modelled on Jim Blandy's foreign function interface that he put in
+   his Scheme implementation called Minor. */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "ffi.h";
+
+/* structs */
+
+struct ref
+{
+  struct s48_ref_t x;
+  struct ref *next, *prev;
+};
+
+#define NUM_REFS_PER_CLUMP 85
+
+struct ref_clump;
+
+struct ref_clump
+{
+  struct ref_clump *next;
+  struct ref refs[NUM_REFS_PER_CLUMP];
+};
+
+struct ref_group
+{
+  struct ref_clump *clumps;
+  struct ref *free;
+  struct ref *last_free;
+  short first_never_used;
+  struct ref allocated;
+};
+
+struct s48_call_t
+{
+  s48_call_t older_call;
+  s48_call_t subcall_parent;
+  s48_call_t child;
+  s48_call_t next_subcall, prev_subcall;
+  struct ref_group *local_refs;
+};
+
+
+/* global states */
+static s48_call_t current_call = NULL;
+static struct ref_group *global_ref_group = NULL;
+
+#define GLOBAL_REF_P(ref) (ref->group == global_ref_group)
+
+/* REFS */
+
+struct ref_group *
+make_ref_group (void)
+{
+  struct ref_group *g = (struct ref_group *) malloc (sizeof (struct ref_group));
+  g->clumps = 0;
+  g->free = 0;
+  g->allocated.next = &g->allocated;
+  g->allocated.prev = &g->allocated;
+  return g;
+}
+
+void
+free_ref_group (struct ref_group *g)
+{
+  struct ref_clump *c, *next;
+  for (c = g->clumps; c; c = next) {
+    next = c->next;
+    free (c);
+  }
+  free (g);
+}
+
+s48_ref_t
+make_ref (struct ref_group *g, s48_value obj)
+{
+  struct ref *r;
+
+  if (g->clumps && (g->first_never_used < NUM_REFS_PER_CLUMP))
+    r = &g->clumps->refs[g->first_never_used++];
+  else if (g->free) {
+    r = g->free;
+    g->free = r->next;
+  } else {
+    struct ref_clump *new =
+      (struct ref_clump *) malloc (sizeof (struct ref_clump));
+    new->next = g->clumps;
+    g->clumps = new;
+    r = &new->refs[0];
+    g->first_never_used = 1;
+  }
+
+  r->next = g->allocated.next;
+  r->prev = &g->allocated;
+  r->next->prev = r;
+  r->prev->next = r;
+  r->x.group = g;
+  r->x.obj = obj;
+
+  return &r->x;
+}
+
+void
+free_ref (s48_ref_t x)
+{
+  struct ref *r = (struct ref *) x;
+  struct ref_group *g = r->x.group;
+
+  r->next->prev = r->prev;
+  r->prev->next = r->next;
+  r->next = 0;
+  if (g->free) {
+    g->last_free->next = r;
+    g->last_free = r;
+  } else
+    g->free = g->last_free = r;
+  r->x.obj = S48_FALSE;
+}
+
+void
+walk_ref_group (struct ref_group *g,
+		void (*func) (s48_ref_t ref, void *closure),
+		void *closure)
+{
+  struct ref *r;
+  struct ref *head = &g->allocated;
+  for (r = head->next; r != head; r = r->next)
+    func (&r->x, closure);
+}
+
+
+/* LOCAL REFS */
+
+s48_ref_t
+s48_make_local_ref (s48_call_t call, s48_value obj)
+{
+#ifdef DEBUG_FFI
+  fprintf (stderr, "make ref from scheme value %x\n", obj);
+#endif
+  return make_ref (call->local_refs, obj);
+}
+
+s48_ref_t
+s48_copy_local_ref (s48_call_t call, s48_ref_t ref)
+{
+  s48_ref_t r = s48_make_local_ref (call, ref->obj);
+  return r;
+}
+
+void
+s48_free_local_ref (s48_call_t call, s48_ref_t ref)
+{
+  if (GLOBAL_REF_P (ref))
+    free_ref (ref);
+}
+
+void
+s48_free_local_ref_array (s48_call_t call, s48_ref_t *refs, size_t len)
+{
+  int i;
+  for (i = 0; i < len; i++)
+    s48_free_local_ref (call, refs[i]);
+}
+
+
+/* GLOBAL REFS */
+
+s48_ref_t
+s48_make_global_ref (s48_value obj)
+{
+  return make_ref (global_ref_group, obj);
+}
+
+void
+s48_free_global_ref (s48_ref_t ref)
+{
+  if (GLOBAL_REF_P (ref))
+    free_ref (ref);
+  else
+    s48_assertion_violation ("s48_free_global_ref", "ref is not global", 0);
+}
+
+void
+walk_global_refs (void (*func) (s48_ref_t ref, void *closure),
+		  void *closure)
+{
+  walk_ref_group (global_ref_group, func, closure);
+}
+
+
+/* CALLS */
+
+s48_call_t
+really_make_call (s48_call_t older_call)
+{
+  s48_call_t new = (s48_call_t ) malloc (sizeof (struct s48_call_t));
+  memset (new, 0, sizeof (*new));
+  new->local_refs = make_ref_group ();
+  new->older_call = older_call;
+  new->subcall_parent = NULL;
+  new->child = NULL;
+  return new;
+}
+
+s48_call_t
+s48_push_call (s48_call_t call)
+{
+#ifdef DEBUG_FFI
+    fprintf (stderr, "push\n");
+#endif
+  current_call = really_make_call (call);
+  return current_call;
+}
+
+void
+free_call (s48_call_t call)
+{
+  if (call->child) {
+    s48_call_t c = call->child;
+
+    do {
+      s48_call_t temp = c;
+      c = c->next_subcall;
+      free_call (temp);
+    } while (c != c->child);
+  }
+  free_ref_group (call->local_refs);
+  free (call);
+}
+
+void
+s48_pop_to (s48_call_t call)
+{
+  while (current_call != call) {
+    s48_call_t here = current_call;
+    if (!here)
+      s48_assertion_violation ("s48_pop_to", "current_call is null", 0);
+    current_call = here->older_call;
+    free_call (here);
+#ifdef DEBUG_FFI
+    fprintf (stderr, "pop\n");
+#endif
+  }
+}
+
+
+/* SUBCALLS */
+
+s48_call_t
+s48_make_subcall (s48_call_t call)
+{
+  s48_call_t new = (s48_call_t ) malloc (sizeof (struct s48_call_t));
+  memset (new, 0, sizeof (*new));
+  new->local_refs = make_ref_group ();
+  new->older_call = NULL;
+  new->subcall_parent = call;
+  new->child = NULL;
+
+  if (call->child) {
+    new->next_subcall = call->child->next_subcall;
+    new->prev_subcall = call->child;
+    new->next_subcall->prev_subcall = new;
+    new->prev_subcall->next_subcall = new;
+  } else {
+    new->next_subcall = new->prev_subcall = new;
+    call->child = new;
+  }
+
+  return new;
+}
+
+void
+s48_free_subcall (s48_call_t subcall)
+{
+  s48_call_t parent = subcall->subcall_parent;
+  if (subcall->next_subcall == subcall) {
+    parent->child = NULL;
+  } else {
+    parent->child = subcall->next_subcall;
+    subcall->prev_subcall->next_subcall = subcall->next_subcall;
+    subcall->next_subcall->prev_subcall = subcall->prev_subcall;
+  }
+  free_call (subcall);
+}
+
+s48_ref_t
+s48_finish_subcall (s48_call_t call, s48_call_t subcall, s48_ref_t ref)
+{
+  s48_ref_t result = ref ? s48_copy_local_ref (call, ref) : NULL;
+  s48_free_subcall (subcall);
+  return result;
+}
+
+void
+walk_call (s48_call_t call,
+	   void (*func) (s48_ref_t, void *closure),
+	   void *closure)
+{
+  s48_call_t c = NULL;
+  walk_ref_group (call->local_refs, func, closure);
+  c = call->child;
+  if (c)
+    do
+      walk_call (c, func, closure);
+    while ((c = c->next_subcall) != call->child);
+}
+
+void
+walk_local_refs (void (*func) (s48_ref_t, void *closure), void *closure)
+{
+  s48_call_t c;
+  for (c = current_call; c; c = c->older_call)
+    walk_call (c, func, closure);
+}
+
+#ifdef DEBUG_FFI /* for debugging */
+void
+count_a_ref (s48_ref_t ref, void *closure)
+{
+  size_t *count_p = closure;
+  (*count_p)++;
+}
+
+size_t
+count_global_refs ()
+{
+  size_t count = 0;
+  walk_global_refs (count_a_ref, &count);
+  return count;
+}
+
+size_t
+count_local_refs ()
+{
+  size_t count = 0;
+  walk_local_refs (count_a_ref, &count);
+  return count;
+}
+
+size_t
+count_calls ()
+{
+  size_t count;
+  s48_call_t c;
+  for (c = current_call, count = 0; c; c = c->older_call, count++);
+  return count;
+}
+#endif
+
+s48_call_t
+s48_first_call (void)
+{
+  return really_make_call (NULL);
+}
+
+s48_call_t
+s48_get_current_call (void)
+{
+  return current_call;
+}
+
+void
+s48_init_ffi (void)
+{
+  if (current_call)
+    s48_assertion_violation ("s48_init_ffi", "current_call is already set", 0);
+  current_call = s48_first_call ();
+
+  if (global_ref_group)
+    s48_assertion_violation ("s48_init_ffi", "global_ref_group is already set", 0);
+  global_ref_group = make_ref_group ();
+
+#ifdef DEBUG_FFI
+  init_debug_ffi ();
+#endif
+}
+
+void
+trace_a_ref (s48_ref_t ref, void *closure)
+{
+  (*(size_t *) closure)++;
+  ref->obj = s48_trace_value (ref->obj);
+}
+
+void
+s48_trace_external_calls (void)
+{
+  size_t cnt_locals = 0;
+  size_t cnt_globals = 0;
+  walk_local_refs (trace_a_ref, &cnt_locals);
+  walk_global_refs (trace_a_ref, &cnt_globals);
+#ifdef DEBUG_FFI
+  fprintf(stderr, "### TRACED locals %d    globals %d ###\n", cnt_locals, cnt_globals);
+#endif
+}
+
+
+#ifdef DEBUG_FFI
+/* TESTS */
+
+s48_ref_t
+test_0 (s48_call_t call)
+{
+  fprintf(stderr, "test_0\n");
+  fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
+	  count_calls(), count_local_refs (), count_global_refs());
+  return s48_make_local_ref (call, S48_TRUE);
+}
+
+s48_ref_t
+test_1 (s48_call_t call, s48_ref_t ref_1)
+{
+  s48_ref_t result;
+
+  fprintf(stderr, ">>> %d <<<\n", s48_extract_fixnum (ref_1->obj));
+  /*
+  s48_ref_t proc =
+    s48_make_local_ref (call,
+			S48_SHARED_BINDING_REF(s48_get_imported_binding ("display")));
+  fprintf(stderr, "> test_1\n");
+  fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
+	  count_calls(), count_local_refs (), count_global_refs());
+  result = s48_call_scheme_2 (call, proc, 1, ref_1);
+  fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
+	  count_calls(), count_local_refs (), count_global_refs());
+  fprintf(stderr, "< test_1\n");
+  */
+  return result;
+}
+
+s48_ref_t
+call_thunk (s48_call_t call, s48_ref_t thunk)
+{
+  s48_ref_t result;
+  fprintf(stderr, "> call_thunk\n");
+  fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
+	  count_calls(), count_local_refs (), count_global_refs());
+  result = s48_call_scheme_2 (call, thunk, 0);
+  fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
+	  count_calls(), count_local_refs (), count_global_refs());
+  fprintf(stderr, "< call_thunk\n");
+  return result;
+}
+
+s48_ref_t
+call_unary (s48_call_t call, s48_ref_t unary, s48_ref_t arg)
+{
+  s48_ref_t result;
+  fprintf(stderr, "> call_unary\n");
+  fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
+	  count_calls(), count_local_refs (), count_global_refs());
+  result = s48_call_scheme_2 (call, unary, 1, arg);
+  fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
+	  count_calls(), count_local_refs (), count_global_refs());
+  fprintf(stderr, "< call_unary\n");
+  return result;
+}
+
+void
+init_debug_ffi (void)
+{
+  S48_EXPORT_FUNCTION(test_0);
+  S48_EXPORT_FUNCTION(test_1);
+  S48_EXPORT_FUNCTION(call_thunk);
+  S48_EXPORT_FUNCTION(call_unary);
+}
+
+/*
+
+; ,open external-calls primitives
+
+(import-lambda-definition-2 call-thunk (thunk))
+(import-lambda-definition-2 call-unary (proc arg))
+
+(call-thunk
+ (lambda ()
+   (call-with-current-continuation
+    (lambda (cont)
+      (call-thunk
+       (lambda ()
+         (call-thunk
+          (lambda ()
+	    (collect)
+            (call-unary cont 23)))))))))
+
+*/
+
+#endif

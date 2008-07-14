@@ -143,7 +143,7 @@ SRFI_27_EXTERNAL = c/srfi-27.so
 EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL)
 UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o
 OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
-	c/extension.o c/free.o c/double_to_string.o c/bignum.o \
+	c/extension.o c/free.o c/double_to_string.o c/bignum.o c/ffi.o \
 	c/external.o c/external-lib.o c/external-init.o c/init.o
 
 FAKEHS	= c/fake/dlfcn.h c/fake/sigact.h c/fake/strerror.h \
@@ -339,7 +339,8 @@ c/scheme48vm-$(BIT_SUFFIX).o: c/prescheme.h c/scheme48vm.h \
 c/bignum.o: c/bignum.h c/bignumint.h $(SCHEME48HS)
 c/extension.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/scheme48vm.h
 c/free.o: c/sysdep.h
-c/external.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/c-mods.h
+c/ffi.o: c/ffi.h $(SCHEME48HS)
+c/external.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/c-mods.h c/ffi.h
 c/external-lib.o: $(SCHEME48HS)
 c/unix/event.o: c/sysdep.h $(FAKEHS) c/c-mods.h \
 			c/scheme48vm.h c/scheme48heap.h \

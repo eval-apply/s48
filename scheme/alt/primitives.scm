@@ -103,6 +103,7 @@
   (lambda args (underlying-error "unimplemented primitive" name args)))
 (define collect (unimplemented 'collect))
 (define call-external-value (unimplemented 'call-external-value)) 
+(define call-external-value-2 (unimplemented 'call-external-value-2)) 
 (define lookup-shared-binding (unimplemented 'lookup-shared-binding))
 (define define-shared-binding (unimplemented 'define-shared-binding))
 (define undefine-shared-binding (unimplemented 'undefine-shared-binding))

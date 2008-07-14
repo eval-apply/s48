@@ -11,6 +11,7 @@
 #include "scheme48.h"
 #include "scheme48vm.h"
 #include "bignum.h"
+#include "ffi.h"
 
 /*
  * The Joy of C
@@ -46,10 +47,11 @@ static s48_value current_stack_block = S48_FALSE;
 #define STACK_BLOCK_THREAD(stack_block)	S48_UNSAFE_RECORD_REF(stack_block, 3)
 #define STACK_BLOCK_NEXT(stack_block)	S48_UNSAFE_RECORD_REF(stack_block, 4)
 
+#ifdef DEBUG_FFI
 /*
  * For debugging.
  */
-/*
+
 static int callback_depth()
 {
   int depth = 0;
@@ -59,7 +61,8 @@ static int callback_depth()
 
   return depth;
 }
-*/
+#endif
+
 /*
  * The value being returned from an external call.  The returns may be preceded
  * by a longjmp(), so we stash the value here.
@@ -68,7 +71,6 @@ static s48_value external_return_value;
 
 /* Exports to Scheme */
 static s48_value	s48_clear_stack_top(void);
-static s48_value	s48_trampoline(s48_value proc, s48_value nargs);
 static s48_value	s48_system(s48_value string);
 
 /* Imports from Scheme */
@@ -76,6 +78,11 @@ static s48_value 	the_record_type_binding = S48_FALSE;
 static s48_value 	stack_block_type_binding = S48_FALSE;
 static s48_value 	callback_binding = S48_FALSE;
 static s48_value 	delay_callback_return_binding = S48_FALSE;
+
+#ifdef DEBUG_FFI
+static s48_value	s48_trampoline(s48_value proc, s48_value nargs);
+static s48_ref_t        s48_trampoline_2(s48_call_t call, s48_ref_t proc, s48_ref_t nargs);
+#endif
 
 void
 s48_initialize_external()
@@ -97,8 +104,14 @@ s48_initialize_external()
   S48_GC_PROTECT_GLOBAL(current_procedure);
 
   S48_EXPORT_FUNCTION(s48_clear_stack_top);
-  S48_EXPORT_FUNCTION(s48_trampoline);
   S48_EXPORT_FUNCTION(s48_system);
+
+  s48_init_ffi();
+
+#ifdef DEBUG_FFI
+  S48_EXPORT_FUNCTION(s48_trampoline);
+  S48_EXPORT_FUNCTION(s48_trampoline_2);
+#endif
 }
 
 /* The three reasons for an extern-call longjump. */
@@ -151,7 +164,9 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
   volatile char *gc_roots_marker;	/* volatile to survive longjumps */
   volatile s48_value name = proc_name;	/* volatile to survive longjumps */
   
-  /* int depth = callback_depth(); */	/* debugging */
+#ifdef DEBUG_FFI
+  int depth; 	/* debugging */
+#endif
 
   long *argv = (long *) char_argv;
 
@@ -166,7 +181,10 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
 
   gc_roots_marker = s48_set_gc_roots_baseB();
 
-  /* fprintf(stderr, "[external_call at depth %d]\n", depth); */
+#ifdef DEBUG_FFI
+  depth = callback_depth();
+  fprintf(stderr, "[external_call at depth %d]\n", depth);
+#endif
 
   throw_reason = setjmp(current_return_point.buf);
 
@@ -248,9 +266,11 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
       while (current_stack_block != S48_FALSE &&
 	     STACK_BLOCK_FREE(current_stack_block) == S48_TRUE);
       
-      /* fprintf(stderr, "[Freeing stack blocks from %d to %d]\n",
-	                 depth,
-	                 callback_depth()); */
+#ifdef DEBUG_FFI
+      fprintf(stderr, "[Freeing stack blocks from %d to %d]\n",
+	      depth,
+	      callback_depth());
+#endif
 
       longjmp(S48_EXTRACT_VALUE_POINTER(STACK_BLOCK_UNWIND(bottom_free_block),
 					struct s_jmp_buf)->buf,
@@ -258,10 +278,12 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
     }
   }
   else {	/* throwing an exception or uwinding the stack */
-    /* fprintf(stderr, "[external_call throw; was %d and now %d]\n",
-                       depth,
-                      callback_depth());
-     fprintf(stderr, "[throw unrolling to %ld]\n", gc_roots_marker); */
+#ifdef DEBUG_FFI
+    fprintf(stderr, "[external_call throw; was %d and now %d]\n",
+	    depth,
+	    callback_depth());
+    fprintf(stderr, "[throw unrolling to %ld]\n", gc_roots_marker);
+#endif
     s48_release_gc_roots_baseB((char *)gc_roots_marker);
   }
 
@@ -269,7 +291,9 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
      
   if (current_stack_block != S48_FALSE &&
       STACK_BLOCK_THREAD(current_stack_block) != S48_FALSE) {
-    /* fprintf(stderr, "[releasing return at %d]\n", callback_depth()); */
+#ifdef DEBUG_FFI
+    fprintf(stderr, "[releasing return at %d]\n", callback_depth());
+#endif
 
     if (throw_reason == EXCEPTION_THROW) {
       /* We are in the midst of raising an exception, so we need to piggyback
@@ -290,6 +314,240 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
   }
 
   return external_return_value;
+}
+
+/*
+ * The value being returned from an external call.  The returns may be preceded
+ * by a longjmp(), so we stash the value here.
+ */
+static s48_ref_t cexternal_return_value;
+
+typedef s48_ref_t (*cproc_0_t)(s48_call_t);
+typedef s48_ref_t (*cproc_1_t)(s48_call_t,
+			       s48_ref_t);
+typedef s48_ref_t (*cproc_2_t)(s48_call_t,
+			       s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_3_t)(s48_call_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_4_t)(s48_call_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_5_t)(s48_call_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+			       s48_ref_t);
+typedef s48_ref_t (*cproc_6_t)(s48_call_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+			       s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_7_t)(s48_call_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_8_t)(s48_call_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_9_t)(s48_call_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+			       s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+			       s48_ref_t);
+typedef s48_ref_t (*cproc_10_t)(s48_call_t,
+				s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+				s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+				s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_11_t)(s48_call_t,
+				s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+				s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+				s48_ref_t, s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_12_t)(s48_call_t,
+				s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+				s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t,
+				s48_ref_t, s48_ref_t, s48_ref_t, s48_ref_t);
+typedef s48_ref_t (*cproc_n_t)(s48_call_t, int, s48_ref_t  []);
+
+s48_value
+s48_external_ecall(s48_call_t call,
+		   s48_value sch_proc, s48_value proc_name,
+		   long nargs, char *char_argv)
+{
+  volatile char *gc_roots_marker;	/* volatile to survive longjumps */
+  volatile s48_value name = proc_name;	/* volatile to survive longjumps */
+  s48_call_t new_call;
+  s48_ref_t argv_ref[12];
+  s48_ref_t sch_proc_ref, proc_name_ref;
+  s48_value result;
+
+#ifdef DEBUG_FFI
+  int depth = callback_depth(); 	/* debugging */
+#endif
+
+  long *argv = (long *) char_argv;
+
+  cproc_0_t cproc = S48_EXTRACT_VALUE(sch_proc, cproc_0_t);
+
+  int throw_reason;
+
+  current_procedure = name;
+
+  S48_CHECK_VALUE(sch_proc);
+  S48_CHECK_STRING(name);
+
+  gc_roots_marker = s48_set_gc_roots_baseB();
+
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[external_call_2 at depth %d]\n", depth);
+#endif
+
+  throw_reason = setjmp(current_return_point.buf);
+
+  if (throw_reason == NO_THROW) {	/* initial entry */
+    long i;
+    new_call = s48_push_call (call);
+    for (i = 0; i < nargs; i++) 
+      argv_ref[i] = s48_make_local_ref (new_call, argv[i]);
+    sch_proc_ref = s48_make_local_ref (new_call, sch_proc);
+    proc_name_ref = s48_make_local_ref (new_call, proc_name);
+
+    switch (nargs) {
+    case 0:
+      cexternal_return_value = ((cproc_0_t)cproc)(new_call);
+      break;
+    case 1:
+      cexternal_return_value = ((cproc_1_t)cproc)(new_call, argv_ref[0]);
+      break;
+    case 2:
+      cexternal_return_value = ((cproc_2_t)cproc)(new_call, argv_ref[1], argv_ref[0]);
+      break;
+    case 3:
+      cexternal_return_value = ((cproc_3_t)cproc)(new_call, argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 4:
+      cexternal_return_value = ((cproc_4_t)cproc)(new_call,
+						  argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 5:
+      cexternal_return_value = ((cproc_5_t)cproc)(new_call, argv_ref[4],
+						  argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 6:
+      cexternal_return_value = ((cproc_6_t)cproc)(new_call, argv_ref[5], argv_ref[4],
+						  argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 7:
+      cexternal_return_value = ((cproc_7_t)cproc)(new_call, argv_ref[6], argv_ref[5], argv_ref[4],
+						  argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 8:
+      cexternal_return_value = ((cproc_8_t)cproc)(new_call, 
+						  argv_ref[7], argv_ref[6], argv_ref[5], argv_ref[4],
+						  argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 9:
+      cexternal_return_value = ((cproc_9_t)cproc)(new_call, argv_ref[8],
+						  argv_ref[7], argv_ref[6], argv_ref[5], argv_ref[4],
+						  argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 10:
+      cexternal_return_value = ((cproc_10_t)cproc)(new_call, argv_ref[9], argv_ref[8],
+						   argv_ref[7], argv_ref[6], argv_ref[5], argv_ref[4],
+						   argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 11:
+      cexternal_return_value = ((cproc_11_t)cproc)(new_call, argv_ref[10], argv_ref[9], argv_ref[8],
+						   argv_ref[7], argv_ref[6], argv_ref[5], argv_ref[4],
+						   argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    case 12:
+      cexternal_return_value = ((cproc_12_t)cproc)(new_call,
+						   argv_ref[11], argv_ref[10], argv_ref[9], argv_ref[8],
+						   argv_ref[7], argv_ref[6], argv_ref[5], argv_ref[4],
+						   argv_ref[3], argv_ref[2], argv_ref[1], argv_ref[0]);
+      break;
+    default:
+      cexternal_return_value = ((cproc_n_t)cproc)(new_call, (int) nargs, argv_ref);
+    }
+
+    /* Raise an exception if the user neglected to pop off some gc roots. */
+    
+    if (! s48_release_gc_roots_baseB((char *)gc_roots_marker)) {
+      s48_raise_scheme_exception(S48_EXCEPTION_GC_PROTECTION_MISMATCH, 0);
+    }
+    
+    /* Clear any free stack-blocks off of the top of the stack-block stack and
+       then longjmp past the corresponding portions of the process stack. */
+    
+    if (current_stack_block != S48_FALSE &&
+	STACK_BLOCK_FREE(current_stack_block) == S48_TRUE) {
+
+      s48_value bottom_free_block;
+      
+      do {
+	bottom_free_block = current_stack_block;
+	current_stack_block = STACK_BLOCK_NEXT(current_stack_block);
+      }
+      while (current_stack_block != S48_FALSE &&
+	     STACK_BLOCK_FREE(current_stack_block) == S48_TRUE);
+      
+#ifdef DEBUG_FFI
+      fprintf(stderr, "[Freeing stack blocks from %d to %d]\n",
+	      depth,
+	      callback_depth());
+#endif
+
+      longjmp(S48_EXTRACT_VALUE_POINTER(STACK_BLOCK_UNWIND(bottom_free_block),
+					struct s_jmp_buf)->buf,
+	      CLEANUP_THROW);
+    }
+  }
+  else {	/* throwing an exception or uwinding the stack */
+#ifdef DEBUG_FFI
+    fprintf(stderr, "[external_call_2 throw; was %d and now %d]\n",
+	    depth,
+	    callback_depth());
+    fprintf(stderr, "[throw unrolling to %ld]\n", gc_roots_marker);
+#endif
+    s48_release_gc_roots_baseB((char *)gc_roots_marker);
+  }
+
+  s48_pop_to (call);
+
+  if (cexternal_return_value)
+    result = cexternal_return_value->obj;
+  else
+    result = S48_UNSPECIFIC;
+
+  /* Check to see if a thread is waiting to return to the next block down. */
+     
+  if (current_stack_block != S48_FALSE &&
+      STACK_BLOCK_THREAD(current_stack_block) != S48_FALSE) {
+    s48_value result;
+#ifdef DEBUG_FFI
+    fprintf(stderr, "[releasing return at %d]\n", callback_depth());
+#endif
+
+    if (throw_reason == EXCEPTION_THROW) {
+      /* We are in the midst of raising an exception, so we need to piggyback
+	 our exception on that one. */
+      s48_value old_exception
+	= s48_resetup_external_exception(S48_EXCEPTION_CALLBACK_RETURN_UNCOVERED,
+					 2);
+      s48_push(old_exception);
+      s48_push(current_stack_block);
+      result = S48_UNSPECIFIC;
+    }
+    else {
+      s48_setup_external_exception(S48_EXCEPTION_CALLBACK_RETURN_UNCOVERED, 2);
+      s48_push(current_stack_block);
+      s48_push(cexternal_return_value->obj);
+      result = S48_UNSPECIFIC;
+    }
+  }
+
+  return result;
+}
+
+s48_value
+s48_external_call_2(s48_value sch_proc, s48_value proc_name,
+		    long nargs, char *char_argv)
+{
+  return s48_external_ecall (s48_get_current_call(), sch_proc,
+			     proc_name, nargs, char_argv);
 }
 
 /*
@@ -327,8 +585,10 @@ s48_call_scheme(s48_value proc, long nargs, ...)
 			       2, proc, sch_nargs);
   }
 
-  /* fprintf(stderr, "[s48_call, %ld args, depth %d]\n",
-	  nargs, callback_depth()); */
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[s48_call_scheme, %ld args, depth %d]\n",
+	  nargs, callback_depth());
+#endif
 
   s48_push(S48_UNSPECIFIC);	/* placeholder */
   s48_push(proc);
@@ -353,13 +613,17 @@ s48_call_scheme(s48_value proc, long nargs, ...)
 
   current_stack_block = stack_block;
 
-  /* if(s48_stack_ref(nargs + 1) != S48_UNSPECIFIC)
-     fprintf(stderr, "[stack_block set missed]\n"); */
+#ifdef DEBUG_FFI
+  if(s48_stack_ref(nargs + 1) != S48_UNSPECIFIC)
+    fprintf(stderr, "[stack_block set missed]\n");
+#endif
 
   s48_stack_setB(nargs + 1, stack_block);
 
-  /* fprintf(stderr, "[s48_call, %ld args, depth %d, off we go]\n",
-	  nargs, callback_depth()); */
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[s48_call_scheme, %ld args, depth %d, off we go]\n",
+	  nargs, callback_depth());
+#endif
 
   value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(callback_binding),
 		      nargs + 2);
@@ -367,7 +631,9 @@ s48_call_scheme(s48_value proc, long nargs, ...)
   for (;s48_Scallback_return_stack_blockS != current_stack_block;) {
     if (s48_Scallback_return_stack_blockS == S48_FALSE) {
 
-      /* fprintf(stderr, "[s48_call returning from VM %ld]\n", callback_depth()); */
+#ifdef DEBUG_FFI
+      fprintf(stderr, "[s48_call_scheme returning from VM %ld]\n", callback_depth());
+#endif
 
       exit(value);
     }
@@ -382,8 +648,10 @@ s48_call_scheme(s48_value proc, long nargs, ...)
       s48_push(s48_Scallback_return_stack_blockS);
       s48_push(value);
 
-      /* fprintf(stderr, "[Premature return, %ld args, depth %d, back we go]\n",
-	      nargs, callback_depth()); */
+#ifdef DEBUG_FFI
+      fprintf(stderr, "[Premature return, %ld args, depth %d, back we go]\n",
+	      nargs, callback_depth());
+#endif
 
       s48_disable_interruptsB();
       value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(callback_binding), 4);
@@ -397,9 +665,129 @@ s48_call_scheme(s48_value proc, long nargs, ...)
   current_procedure = STACK_BLOCK_PROC(current_stack_block);
   current_stack_block = STACK_BLOCK_NEXT(current_stack_block);
 
-  /* fprintf(stderr, "[s48_call returns from depth %d]\n", callback_depth()); */
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[s48_call_scheme returns from depth %d]\n", callback_depth());
+#endif
 
   return value;
+}
+
+s48_ref_t 
+s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
+{
+  int i;
+  va_list arguments;
+  s48_value value;
+  s48_value unwind, stack_block;
+  S48_DECLARE_GC_PROTECT(1);
+
+  S48_GC_PROTECT_1(unwind);
+  
+  va_start(arguments, nargs);
+
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[s48_call_scheme_2, %ld args, depth %d]\n",
+	  nargs, callback_depth());
+#endif
+  
+  S48_SHARED_BINDING_CHECK(callback_binding);
+
+  /* It would be nice to push a list of the arguments, but we have no way
+     of preserving them across a cons. */
+  if (nargs < 0 || 12 < nargs) {  /* DO NOT INCREASE THIS NUMBER */
+    s48_value sch_nargs = s48_enter_integer(nargs);  /* `proc' is protected */
+    s48_raise_scheme_exception(S48_EXCEPTION_TOO_MANY_ARGUMENTS_IN_CALLBACK,
+			       2, proc->obj, sch_nargs);
+  }
+
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[s48_call_scheme_2, %ld args, depth %d]\n",
+	  nargs, callback_depth());
+#endif
+
+  s48_push(S48_UNSPECIFIC);	/* placeholder */
+  s48_push(proc->obj);
+  for (i = 0; i < nargs; i++) {
+    s48_ref_t ref = va_arg(arguments, s48_ref_t);
+    fprintf(stderr, "call_scheme_2: pushing arg %d ref %x\n", i, ref);
+    s48_push(ref->obj);
+  }
+
+  va_end(arguments);
+
+  /* With everything safely on the stack we can do the necessary allocation. */
+
+  unwind = S48_MAKE_VALUE(struct s_jmp_buf);
+  S48_EXTRACT_VALUE(unwind, struct s_jmp_buf) = current_return_point;
+
+  stack_block = s48_make_record(stack_block_type_binding);
+  STACK_BLOCK_UNWIND(stack_block) = unwind;
+  STACK_BLOCK_PROC(stack_block) = current_procedure;
+  STACK_BLOCK_NEXT(stack_block) = current_stack_block;
+  STACK_BLOCK_FREE(stack_block) = S48_FALSE;
+  STACK_BLOCK_THREAD(stack_block) = S48_FALSE;
+
+  S48_GC_UNPROTECT();		/* no more references to `unwind' or `proc'. */
+
+  current_stack_block = stack_block;
+
+#ifdef DEBUG_FFI
+  if(s48_stack_ref(nargs + 1) != S48_UNSPECIFIC)
+    fprintf(stderr, "[stack_block set missed]\n");
+#endif
+
+  s48_stack_setB(nargs + 1, stack_block);
+
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[s48_call_scheme_2, %ld args, depth %d, off we go]\n",
+	  nargs, callback_depth());
+#endif
+
+  value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(callback_binding),
+		      nargs + 2);
+
+  for (;s48_Scallback_return_stack_blockS != current_stack_block;) {
+    if (s48_Scallback_return_stack_blockS == S48_FALSE) {
+
+#ifdef DEBUG_FFI
+      fprintf(stderr, "[s48_call_scheme_2 returning from VM %ld]\n", callback_depth());
+#endif
+
+      exit(value);
+    }
+    else {
+
+      /* Someone has returned (because of threads) to the wrong section of the
+	 C stack.  We call back to a Scheme procedure that will suspend until
+	 out block is at the top of the stack. */
+
+      s48_push(s48_Scallback_return_stack_blockS);
+      s48_push(S48_UNSAFE_SHARED_BINDING_REF(delay_callback_return_binding));
+      s48_push(s48_Scallback_return_stack_blockS);
+      s48_push(value);
+
+#ifdef DEBUG_FFI
+      fprintf(stderr, "[Premature return, %ld args, depth %d, back we go]\n",
+	      nargs, callback_depth());
+#endif
+
+      s48_disable_interruptsB();
+      value = s48_restart(S48_UNSAFE_SHARED_BINDING_REF(callback_binding), 4);
+    }
+  }
+
+  /* Restore the state of the current stack block. */
+
+  unwind = STACK_BLOCK_UNWIND(current_stack_block);
+  current_return_point = S48_EXTRACT_VALUE(unwind, struct s_jmp_buf);
+  current_procedure = STACK_BLOCK_PROC(current_stack_block);
+  current_stack_block = STACK_BLOCK_NEXT(current_stack_block);
+
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[s48_call_scheme_2 returns from depth %d]\n", callback_depth());
+#endif
+
+  return s48_make_local_ref (call, value);
 }
 
 /*
@@ -409,10 +797,13 @@ s48_call_scheme(s48_value proc, long nargs, ...)
 static s48_value
 s48_clear_stack_top()
 {
-  /* fprintf(stderr, "[Clearing stack top]\n"); */
+#ifdef DEBUG_FFI
+  fprintf(stderr, "[Clearing stack top]\n");
+#endif
   return S48_UNSPECIFIC;
 }
 
+#ifdef DEBUG_FFI
 /*
  * For testing callbacks.  This just calls its argument on the specified number
  * of values.
@@ -424,14 +815,14 @@ s48_trampoline(s48_value proc, s48_value nargs)
   fprintf(stderr, "[C trampoline, %ld args]\n", S48_UNSAFE_EXTRACT_FIXNUM(nargs));
 
   switch (s48_extract_fixnum(nargs)) {
-  case -2: {
+  case -2: { /* provoke exception: GC protection mismatch */
     S48_DECLARE_GC_PROTECT(1);
     
     S48_GC_PROTECT_1(proc);
 
     return S48_FALSE;
   }
-  case -1: {
+  case -1: { /* this is broken, dunno what this should do, anyway --Marcus */
     long n = - s48_extract_integer(proc);
     fprintf(stderr, "[extract magnitude is %ld (%lx)]\n", n, n);
     return s48_enter_integer(n);
@@ -454,6 +845,46 @@ s48_trampoline(s48_value proc, s48_value nargs)
     return S48_UNDEFINED; /* not that we ever get here */
   }
 }
+
+static s48_ref_t 
+s48_trampoline_2(s48_call_t call, s48_ref_t proc, s48_ref_t nargs)
+{
+
+  fprintf(stderr, "[C trampoline_2, %ld args]\n", S48_UNSAFE_EXTRACT_FIXNUM(nargs));
+
+  switch (s48_extract_fixnum(nargs->obj)) {
+  case -2: { /* provoke exception: GC protection mismatch */
+    S48_DECLARE_GC_PROTECT(1);
+    
+    S48_GC_PROTECT_1(proc);
+
+    return s48_make_local_ref (call, S48_FALSE);
+  }
+  case 0: {
+    s48_ref_t result = s48_call_scheme_2(call, proc, 1,
+					  s48_make_local_ref (call, s48_enter_fixnum(0)));
+    if (result->obj == S48_FALSE)
+      s48_assertion_violation("s48_trampoline_2", "trampoline bouncing", 0);
+    return result;
+  }
+  case 1:
+    return s48_call_scheme_2(call, proc, 1, 
+			     s48_make_local_ref (call, s48_enter_fixnum(100)));
+  case 2:
+    return s48_call_scheme_2(call, proc, 2, 
+			     s48_make_local_ref (call, s48_enter_fixnum(100)),
+			     s48_make_local_ref (call, s48_enter_fixnum(200)));
+  case 3:
+    return s48_call_scheme_2(call, proc, 3, 
+			     s48_make_local_ref (call, s48_enter_fixnum(100)),
+			     s48_make_local_ref (call, s48_enter_fixnum(200)),
+			     s48_make_local_ref (call, s48_enter_fixnum(300)));
+  default:
+    s48_assertion_violation("s48_trampoline_2", "invalid number of arguments", 1, nargs);
+    return s48_make_local_ref(call, S48_UNDEFINED); /* not that we ever get here */
+  }
+}
+#endif
 
 static s48_value
 s48_system(s48_value string)
@@ -536,7 +967,7 @@ raise_scheme_standard_exception(long why, const char* who, const char* message,
     s48_push(current_procedure);
   else
     s48_push(s48_enter_string_utf_8((char*)who));
-  s48_push(s48_enter_byte_string((char*)message));
+  s48_push(s48_enter_string_utf_8((char*)message));
 
   raise_scheme_exception_postlude();
 }

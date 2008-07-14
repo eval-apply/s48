@@ -272,6 +272,7 @@
   (schedule-interrupt 1)
   (wait 2)                      ; do nothing until something happens
   (call-external-value 1 +)
+  (call-external-value-2 1 +)
   (lookup-shared-binding 2)
   (undefine-shared-binding 2)
   (find-undefined-imported-bindings)
