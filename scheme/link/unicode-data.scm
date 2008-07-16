@@ -989,8 +989,9 @@
 		 (cons (code-point-info-code-point info)
 		       reverse-whitespaces))))
      infos)
-    (append '(#x009 #x00a #x00b #x00c #x00d)
-	    (reverse reverse-whitespaces))))
+    (sort-list (append '(#x009 #x00a #x00b #x00c #x00d #x085)
+		       reverse-whitespaces)
+	       <)))
 
 (define (write-srfi-14-base-char-sets infos output-file)
   (call-with-output-file output-file
