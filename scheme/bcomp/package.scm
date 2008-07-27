@@ -140,7 +140,7 @@
 		       clients
 		       unstable?
 		       integrate?
-		       file-name clauses loaded?)
+		       file-name reader clauses loaded?)
   package?
   (uid	           package-uid)
   (opens           package-opens-really set-package-opens!)
@@ -151,6 +151,7 @@
   ;; For EVAL and LOAD (which can only be done in unstable packages)
   (get-location    package-get-location set-package-get-location!)
   (file-name       package-file-name)
+  (reader          package-reader set-package-reader!)
   (clauses         package-clauses)
   (loaded?         package-loaded? set-package-loaded?!)
   (env             package->environment set-package->environment!)
@@ -193,6 +194,7 @@
 	       unstable?		;unstable (suitable for EVAL)?
 	       #t			;integrate?
 	       file			;file containing DEFINE-STRUCTURE form
+	       read
 	       clauses			;misc. DEFINE-STRUCTURE clauses
 	       #f)))			;loaded?
     (note-package-name! new name)
