@@ -1312,6 +1312,7 @@
 	  package-accesses
 	  package-clauses
 	  package-file-name
+	  package-reader set-package-reader!
 	  package-opens
 	  set-package-integrate?!
 	  structure-name

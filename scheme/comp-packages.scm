@@ -208,6 +208,7 @@
 	fluids filenames cells
 	features		;current-noise-port force-output
 	low-exceptions          ;error
+	(subset packages-internal (package-reader))
 	)
   (files (bcomp read-form)))
 
@@ -253,6 +254,7 @@
   (open scheme-level-2 util
 	packages packages-internal
 	meta-types bindings
+	compiler-envs
 	reading-forms
 	filenames
 	low-exceptions
