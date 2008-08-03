@@ -724,7 +724,7 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
     s48_ref_t ref = va_arg(arguments, s48_ref_t);
 #ifdef DEBUG_FFI
     fprintf(stderr, "call_scheme_2: pushing arg %d ref %x\n", i, ref);
-#endif DEBUG_FFI
+#endif
     s48_push(s48_deref(ref));
   }
 
