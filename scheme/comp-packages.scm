@@ -351,6 +351,7 @@
   (open scheme-level-2 define-record-types low-exceptions)
   (files (big strong))) ;!
 
+
 ;----------------
 ; Two basic structures needed to support the compiler.
 
@@ -366,3 +367,31 @@
   (open scheme-level-1 low-exceptions fluids cells)
   (files (big filename)))
 
+
+(define-structure profiler-internals profiler-internal-interface
+	(open
+	scheme-level-2
+	architecture
+	continuations
+	templates
+	closures
+	escapes
+	primitives
+	tables
+	define-record-types
+	debug-data
+	cells)
+	(files (env profile-int)))
+
+(define-structure profiler-instrumentation (export instrument-form)
+  (open scheme-level-2 nodes low-exceptions
+	optimizer
+	primops
+	util
+	features
+	bindings
+	compiler-envs
+	profiler-internals
+	packages
+	packages-internal)	;package-name
+  (files (bcomp profile)))

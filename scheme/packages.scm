@@ -346,6 +346,8 @@
 	    packages
 	    packages-internal
 	    primops
+	    profiler-instrumentation
+	    profiler-internals
 	    reading-forms
 	    reconstruction
 	    segments
@@ -457,11 +459,13 @@
 	    net-sockets
 	    package-commands-internal
 	    package-mutation
-            parse-bytecode
+	    parse-bytecode
 	    placeholders
 	    pp
 	    previews
 	    profiler
+	    profiler-instrumentation
+	    profiler-internals
 	    queues
 	    shared-objects
 	    time

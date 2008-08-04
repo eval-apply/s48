@@ -155,7 +155,6 @@
 	  make-empty-profile-data
 
 	  ;; general data
-	  profile-data-set-interrupttime!
 	  profile-data-starttime
 	  profile-data-endtime
 	  profile-data-memoryuse
