@@ -3,21 +3,8 @@
 ;;; Taylor Campbell wrote parts of the original code; he has placed them in the public domain.
 
 (define-command-syntax 'profile "<command>" "profile execution"
-                       '(command))
+  '(command))
 
-;; profiling information for each template
-(define-record-type profinfo :profinfo
-  (make-profinfo template callers occurs hist memoryuse)
-  profinfo?
-  (template  profinfo-template)                           ; scheme code template
-  (callers   profinfo-callers   profinfo-set-callers!)    ; table of callerinfos
-  (occurs    profinfo-occurs    profinfo-set-occurs!)
-  (hist      profinfo-hist      profinfo-set-hist!)
-  (tchild    profinfo-tchild    profinfo-set-tchild!)
-  (toporder  profinfo-toporder  profinfo-set-toporder!)
-  (dfn       profinfo-dfn       profinfo-set-dfn!)        ; depth-first number
-  (cycle     profinfo-cycle     profinfo-set-cycle!)
-  (memoryuse profinfo-memoryuse profinfo-set-memoryuse!))
 
 (define-record-type cycleinfo :cycleinfo
   (make-cycleinfo number members)
@@ -27,24 +14,18 @@
   (tchild  cycleinfo-tchild  cycleinfo-set-tchild!)
   )
 
-;; profiling data for template when being called by CALLER
-(define-record-type callerinfo :callerinfo
-  (make-callerinfo caller calls)
-  callerinfo?
-  (caller    callerinfo-caller)                            ; caller profinfo
-  (calls     callerinfo-calls  callerinfo-set-calls!)      ; number of calls
-  (tself     callerinfo-tself  callerinfo-set-tself!)      ; time spent in called self
-  (tchild    callerinfo-tchild callerinfo-set-tchild!))    ; time spent in children of called
-
 ;; represents a stack entry (while profiling)
 (define-record-type stackentry :stackentry
-  (make-stackentry cont template calls firstseen seen)
+  (really-make-stackentry cont template calls firstseen seen)
   stackentry?
   (cont      stackentry-cont      stackentry-set-cont!)       ; scheme continuation
   (template  stackentry-template  stackentry-set-template!)   ; scheme code template
   (calls     stackentry-reccalls  stackentry-set-reccalls!)   ; recursive calls
   (firstseen stackentry-firstseen stackentry-set-firstseen!)  ; run-time first seen this entry
   (seen      stackentry-seen      stackentry-set-seen!))      ; seen this time? (boolean)
+
+(define (make-stackentry cont template)
+  (really-make-stackentry cont template 0 (run-time) #f))
 
 
 ;;; Global profiling stuff (independent of prof-data)
@@ -58,8 +39,6 @@
 
 (define *profiler-lastrun* #f)          ; run-time of profiler runs
 (define *profiler-thisrun* #f)
-
-(define *active-profile-data* #f)
 
 (define *start-gc-count*    0)
 (define *last-gc-count*     0)
@@ -92,24 +71,10 @@
 
 ;;; Miscellaneous global stuff
 
-(define-record-type profile-data :profile-data
-  (make-profile-data)
-  (interrupttime profile-data-interrupttime set-profile-data-interrupttime!)
-  (starttime profile-data-starttime set-profile-data-starttime!)
-  (endtime   profile-data-endtime   set-profile-data-endtime!)
-  (root      profile-data-root      set-profile-data-root!)
-  (cycles    profile-data-cycles    set-profile-data-cycles!)
-  (samples   profile-data-samples   set-profile-data-samples!)
-  (templates profile-data-templates set-profile-data-templates!)
-  (memoryuse profile-data-memoryuse set-profile-data-memoryuse!)
-  (gcruns    profile-data-gcruns    set-profile-data-gcruns!))
-
 (define (make-empty-profile-data)
-  (let ((pd (make-profile-data)))
-    (set-profile-data-memoryuse! pd   0)
-    (set-profile-data-cycles!    pd '())
+  (let ((pd (really-make-empty-profile-data)))
     (set-profile-data-interrupttime! pd (profiler-default-interrupt-time))
-  pd))
+    pd))
 
 (define (run-time)
   (primitives:time (enum time-option run-time) #f))
@@ -119,17 +84,19 @@
 ;  (display x)
   #f)
 
-;; hash function for callers table in profiling information
-(define (profinfo-id pi)
-  (template-id (profinfo-template pi)))
 
+(define (get-profinfo prof-data stack-entry)
+  (if stack-entry
+      (get-profinfo-from-template prof-data (stackentry-template stack-entry))
+      #f))
 
 (define (profiler-continuation? cont)
   (eq? cont *profiler-continuation*))
 
 (define (get-profinfo-from-template prof-data template)
-  (table-ref (profile-data-templates prof-data) template))
-  
+  (or (table-ref (profile-data-templates prof-data) template)
+      (make-profinfo prof-data template)))
+
 (define (get-profinfo prof-data stack-entry)
   (if stack-entry
       (get-profinfo-from-template prof-data (stackentry-template stack-entry))
@@ -193,11 +160,11 @@
 
 (define (profile command . interrupt-time)
   (profile-and-display (if (eq? (car command) 'run)
-                             (eval `(LAMBDA () ,(cadr command))
-                                   (environment-for-commands))
-                             (lambda () (execute-command command)))
-			 interrupt-time
-                         (current-output-port)))
+			   (eval `(LAMBDA () ,(cadr command))
+				 (environment-for-commands))
+			   (lambda () (execute-command command)))
+		       interrupt-time
+		       (current-output-port)))
 
 (define (profile-and-display thunk
 			     interrupt-time
@@ -238,7 +205,8 @@
        'profile-thunk
        "profiler can not be running twice at the same time" thunk)
       (begin
-	(set! *active-profile-data* prof-data)
+	(set-active-profile-data!   prof-data)
+	(set-first-call?!           #t)
 	(set! *last-stack*          #f)
 	(set! *profiler-thisrun*    #f)
 	(set! *profiler-lastrun*    #f)
@@ -252,6 +220,7 @@
 	(set-profile-data-samples!       prof-data 0)
 	(set-profile-data-starttime!     prof-data (run-time))
 	(set-profile-data-interrupttime! prof-data *interrupt-time*)
+	
 	;; this is more flexible than generating a own template
 	(primitive-cwcc
 	 (lambda (cont)
@@ -284,24 +253,9 @@
 		    (propagate-times prof-data)
 		    (toporder-numbering prof-data)
 		    
-		    (set! *active-profile-data*   #f))))
+		    (set-active-profile-data! #f))))
 	  (lambda results
 	    (apply values results))))))
-
-;(define (fib x)
-;  (if (< x 2)
-;      1
-;      (+ (fib (- x 1)) (fib (- x 2)))))
-
-;; TODO: calculate useful time, if possible...
-;(define calculate-tick-rate!
-;  (lambda ()
-;    (let ((start-time (run-time)))
-;      (fib 30)  ; chosen more or less at random.
-;      (let ((end-time (run-time)))
-;	(set! *interrupt-time* (quotient (- end-time start-time) 50))
-;      (newline)))))
-
 
 ;;; INTERRUPT HANDLING
 
@@ -312,8 +266,8 @@
   (schedule-interrupt 0))
 
 (define (install-profiler-interrupt-handler)
-    (set! *saved-interrupt-handler* (get-interrupt-handler interrupt/alarm))
-    (set-interrupt-handler! interrupt/alarm handle-profiler-interrupt))
+  (set! *saved-interrupt-handler* (get-interrupt-handler interrupt/alarm))
+  (set-interrupt-handler! interrupt/alarm handle-profiler-interrupt))
 
 (define (uninstall-profiler-interrupt-handler)
   (let ((handler *saved-interrupt-handler*))
@@ -332,7 +286,7 @@
      (if (maybe-obtain-lock *profiler-lock*)
 	 (begin
 	   (*saved-interrupt-handler* template enabled) ; thread system, ...
-	   (if *profiler-continuation* (record-continuation! *active-profile-data* cont))
+	   (if *profiler-continuation* (record-continuation! (get-active-profile-data) cont))
 	   (release-lock *profiler-lock*)
 	   ;; HACK: To override thread system interrupt scheduling, may cause
 	   ;;       extreme performance loss on thread system?
@@ -411,16 +365,16 @@
       (current-output-port)
       (car opt-port)))
 
+(define (has-samples prof-data)
+  (> (profile-data-samples prof-data) 0))
+
 (define (profile-display prof-data . opt-port)
   (let ((port (parse-port-arg opt-port)))
     (profile-display-overview prof-data port)
     (newline port)
-    (if (> (profile-data-samples prof-data) 0)
-	(begin 
-	  (profile-display-flat prof-data port)
-	  (newline port)
-	  (profile-display-tree prof-data port))
-	(display "No data collected!\n" port))))
+    (profile-display-flat prof-data port)
+    (newline port)
+    (profile-display-tree prof-data port)))
 
 ;; general profiling data
 (define (profile-display-overview prof-data . opt-port)
@@ -430,7 +384,7 @@
     
     (display "** Samples:        " port)
     (display samples port)
-    (if (> samples 0)
+    (if (has-samples prof-data)
 	(begin
 	  (display " (approx. one per " port)
 	  (display (round (/ run-time samples)) port)
@@ -446,8 +400,8 @@
     (display run-time port)
     (display "ms" port)
     (newline port)
-	  
-    (if (> samples 0)
+    
+    (if (has-samples prof-data)
 	(begin
 	  (display "** Total memory:   " port)
 	  (display (round (/ (profile-data-memoryuse prof-data) 1000)) port)
@@ -461,7 +415,7 @@
 (define (profile-display-flat prof-data . opt-port)
   (let ((port (parse-port-arg opt-port)))
     
-    (display "** Flat result (times in ms): " port)
+    (display "** Flat result (times in ms):" port)
     (newline port)
     (newline port)
     
@@ -469,43 +423,48 @@
     ;;      %   cumulative   self              self     total           
     ;;   time   seconds   seconds    calls  ms/call  ms/call  name
     
-    (display-w "time" 7 port)
-    (display-w "cumu" 7 port)
-    (display-w "self" 7 port)
-    (display-w "mem" 12 port)
+    (if (has-samples prof-data)
+	(begin
+	  (display-w "time" 7 port)
+	  (display-w "cumu" 7 port)
+	  (display-w "self" 7 port)
+	  (display-w "mem" 10 port)))
     (display-w "calls" 14 port)
     (display-w "ms/call" 9 port)
     (display-w "name" 7 port)
     (newline port)
 
-  ;; sort and print
-  (let ((lst '())) 
-    (table-walk (lambda (template profinfo)
-		  (set! lst (cons profinfo lst)))
-		(profile-data-templates prof-data))
-    (set! lst (sort-list lst
-			 (lambda (a b) 
-			   (>= (profinfo-hist a)
-			       (profinfo-hist b)))))
-    (for-each (lambda (profinfo)
-		(profile-display-profinfo-flat prof-data profinfo port))
-	      lst))))
+    ;; sort and print
+    (let ((lst '())) 
+      (table-walk (lambda (template profinfo)
+		    (set! lst (cons profinfo lst)))
+		  (profile-data-templates prof-data))
+      (set! lst (sort-list lst
+			   (lambda (a b) 
+			     (>= (profinfo-hist a)
+				 (profinfo-hist b)))))
+      (for-each (lambda (profinfo)
+		  (profile-display-profinfo-flat prof-data profinfo port))
+		lst))))
+
 
 ;; display data "gprof call graph"-like
 (define (profile-display-tree prof-data . opt-port)
   (let ((port   (parse-port-arg opt-port))
 	(cycles (profile-data-cycles prof-data)))
-	 
-    (display "** Tree result (times in ms): " port)
+    
+    (display "** Tree result (times in ms):" port)
     (newline port)
     (newline port)
     
     (display-w "i" 3 port)
-    (display-w "time" 8 port)
-    (display-w "self" 7 port)
-    (display-w "child" 7 port)
-    (display-w "mem" 12 port)
-    (display-w "calls" 12 port)
+    (if (has-samples prof-data)
+	(begin
+	  (display-w "time" 8 port)
+	  (display-w "self" 7 port)
+	  (display-w "child" 7 port)
+	  (display-w "mem" 10 port)))
+    (display-w "calls" 14 port)
     (display-w "name" 7 port)
     (newline port)
     
@@ -564,10 +523,13 @@
 
     (if (not (eq? template (profile-data-root prof-data)))
 	(begin
-	  (display-w (number-as-percent-string timeshare)  7 port)
-	  (display-w-nr ttotal 7 port)
-	  (display-w-nr tself  7 port)
-	  (display-w-mem memuse 12 port)
+	  
+	  (if (has-samples prof-data)
+	      (begin
+		(display-w (number-as-percent-string timeshare)  7 port)
+		(display-w-nr ttotal 7 port)
+		(display-w-nr tself  7 port)
+		(display-w-mem memuse 10 port)))
 	  (display-sep-nz-nrs nonreccalls reccalls "+" 14 port)
 	  (display-w-nr ms/call 9 port)
 	  
@@ -609,12 +571,15 @@
 	      (share        (/ calls fromextcalls))
 	      (tchild       (* tchild share))
 	      (memuse       (* memuse share)))
+	 
 	 (display-w "" 3 port)
-	 (display-w "" 8 port)
-	 (display-w-nr (occurs->ms prof-data hist) 7 port)
-	 (display-w-nr (occurs->ms prof-data tchild) 7 port)
-	 (display-w-mem memuse 12 port)
-	 (display-sep-nz-nrs calls fromextcalls "/" 12 port)
+	 (if (has-samples prof-data)
+	     (begin
+	       (display-w "" 8 port)
+	       (display-w-nr (occurs->ms prof-data hist) 7 port)
+	       (display-w-nr (occurs->ms prof-data tchild) 7 port)
+	       (display-w-mem memuse 10 port)))
+	 (display-sep-nz-nrs calls fromextcalls "/" 14 port)
 	 
 	 (display "      " port)
 	 (display-profinfo-name prof-data caller-pi port)
@@ -624,11 +589,13 @@
     
     ;; print primary line
     (display-w-nr number 3 port)
-    (display-w (number-as-percent-string timeshare) 8 port)
-    (display-w-nr (occurs->ms prof-data hist) 7 port)
-    (display-w-nr (occurs->ms prof-data tchild) 7 port)
-    (display-w-mem memuse 12 port)
-    (display-sep-nz-nrs extcalls intcalls "+" 12 port)
+    (if (has-samples prof-data)
+	(begin
+	  (display-w (number-as-percent-string timeshare) 8 port)
+	  (display-w-nr (occurs->ms prof-data hist) 7 port)
+	  (display-w-nr (occurs->ms prof-data tchild) 7 port)
+	  (display-w-mem memuse 10 port)))
+    (display-sep-nz-nrs extcalls intcalls "+" 14 port)
     
     (display "   " port)
     (display "<cycle " port)
@@ -648,11 +615,13 @@
 	      (share        (/ intcalls nonreccalls))
 	      (memuse       (* totalmemuse share)))
 	 (display-w "" 3 port)
-	 (display-w "" 8 port)
-	 (display-w-nr (occurs->ms prof-data hist) 7 port)
-	 (display-w-nr (occurs->ms prof-data tchild) 7 port)
-	 (display-w-mem memuse 12 port)
-	 (display-w-nr intcalls 12 port)
+	 (if (has-samples prof-data)
+	     (begin
+	       (display-w "" 8 port)
+	       (display-w-nr (occurs->ms prof-data hist) 7 port)
+	       (display-w-nr (occurs->ms prof-data tchild) 7 port)
+	       (display-w-mem memuse 10 port)))
+	 (display-w-nr intcalls 14 port)
 	 
 	 (display "      " port)
 	 (display-profinfo-name prof-data member-pi port)
@@ -668,11 +637,13 @@
 	      (share        (/ calls nonreccalls))
 	      (memuse       (* totalmemuse share)))
 	 (display-w "" 3 port)
-	 (display-w "" 8 port)
-	 (display-w-nr 0 7 port)
-	 (display-w-nr 0 7 port)
-	 (display-w-mem memuse 12 port)
-	 (display-sep-nrs calls nonreccalls "/" 12 port)
+	 (if (has-samples prof-data)
+	     (begin
+	       (display-w "" 8 port)
+	       (display-w-nr 0 7 port)
+	       (display-w-nr 0 7 port)
+	       (display-w-mem memuse 10 port)))
+	 (display-sep-nrs calls nonreccalls "/" 14 port)
 	 
 	 (display "      " port)
 	 (display-profinfo-name prof-data called-pi port)
@@ -707,7 +678,7 @@
     (display "=============================================" port)
     (display "=============================================" port)
     (newline port)
-		  
+    
     ;; print parents
     (if (= (table-size callers) 0)
 	(if (not (eq? template (profile-data-root prof-data)))
@@ -725,20 +696,22 @@
 		      (tchild-share (* tchild share))
 		      (memuse-share (* memuse share)))
 		 (display-w "" 3 port)
-		 (display-w "" 8 port)
-
-		 (if (or (not primary-cyc)
-			 (not (eq? caller-cyc primary-cyc)))
+		 (if (has-samples prof-data)
 		     (begin
-		       (display-w-nr (occurs->ms prof-data tself-share) 7 port)
-		       (display-w-nr (occurs->ms prof-data tchild-share) 7 port)
-		       (display-w-mem memuse-share 12 port))
-		     (begin
-		       (display-w "" 7 port)
-		       (display-w "" 7 port)
-		       (display-w "" 12 port)))
-		     
-		 (display-sep-nrs calls nonreccalls "/" 12 port)
+		       (display-w "" 8 port)
+		       
+		       (if (or (not primary-cyc)
+			       (not (eq? caller-cyc primary-cyc)))
+			   (begin
+			     (display-w-nr (occurs->ms prof-data tself-share) 7 port)
+			     (display-w-nr (occurs->ms prof-data tchild-share) 7 port)
+			     (display-w-mem memuse-share 10 port))
+			   (begin
+			     (display-w "" 7 port)
+			     (display-w "" 7 port)
+			     (display-w "" 10 port)))))
+		 
+		 (display-sep-nrs calls nonreccalls "/" 14 port)
 		 
 		 (display "      " port)
 		 (display-profinfo-name prof-data caller-pi port)
@@ -747,11 +720,14 @@
 
     ;; print primary line
     (display-w-nr toporder 3 port)
-    (display-w (number-as-percent-string timeshare) 8 port)
-    (display-w-nr (occurs->ms prof-data hist) 7 port)
-    (display-w-nr (occurs->ms prof-data tchild) 7 port)
-    (display-w-mem memuse 12 port)
-    (display-sep-nz-nrs nonreccalls reccalls "+" 12 port)
+    
+    (if (has-samples prof-data)
+	(begin
+	  (display-w (number-as-percent-string timeshare) 8 port)
+	  (display-w-nr (occurs->ms prof-data hist) 7 port)
+	  (display-w-nr (occurs->ms prof-data tchild) 7 port)
+	  (display-w-mem memuse 10 port)))
+    (display-sep-nz-nrs nonreccalls reccalls "+" 14 port)
     
     (display "   " port)
     (display-profinfo-name prof-data primary-pi port)
@@ -777,20 +753,22 @@
 		  (memuse-share (* memuse share)))
 	     
 	     (display-w "" 3 port)
-	     (display-w "" 8 port)
-	     
-	     (if (or (not called-cyc)
-		     (not (eq? called-cyc primary-cyc)))
+	     (if (has-samples prof-data)
 		 (begin
-		   (display-w-nr (occurs->ms prof-data tself-share) 7 port)
-		   (display-w-nr (occurs->ms prof-data tchild-share) 7 port)
-		   (display-w-mem memuse-share 12 port))
-		 (begin
-		   (display-w "" 7 port)
-		   (display-w "" 7 port)
-		   (display-w "" 12 port)))
+		   (display-w "" 8 port)
+		   
+		   (if (or (not called-cyc)
+			   (not (eq? called-cyc primary-cyc)))
+		       (begin
+			 (display-w-nr (occurs->ms prof-data tself-share) 7 port)
+			 (display-w-nr (occurs->ms prof-data tchild-share) 7 port)
+			 (display-w-mem memuse-share 10 port))
+		       (begin
+			 (display-w "" 7 port)
+			 (display-w "" 7 port)
+			 (display-w "" 10 port)))))
 	     
-	     (display-sep-nrs calls nonreccalls "/" 12 port)
+	     (display-sep-nrs calls nonreccalls "/" 14 port)
 	     
 	     (display "      " port)
 	     (display-profinfo-name prof-data called-pi port)
@@ -811,7 +789,7 @@
 
 (define (display-profinfo-name prof-data pi port)
   (let* ((template (profinfo-template pi))
-	 (dfn      (profinfo-dfn      pi))
+	 (ton      (profinfo-toporder pi))
 	 (cyc      (profinfo-cycle    pi)))
     
     (display-location prof-data template port)
@@ -823,7 +801,7 @@
 	  (display ">" port)))
     
     (display " [" port)
-    (display dfn port)
+    (display ton port)
     (display "]" port)))
 
 ;;; useful stuff
@@ -845,8 +823,10 @@
 ;;; DATA CALCULATION
 
 (define (occurs->ms prof-data occs)
-  (round (/ (* occs (profile-data-runtime prof-data))
-	    (profile-data-samples prof-data))))
+  (if (has-samples prof-data)
+      (round (/ (* occs (profile-data-runtime prof-data))
+		(profile-data-samples prof-data)))
+      0))
 
 (define (profile-data-runtime prof-data)
   (let ((st (profile-data-starttime prof-data))
@@ -875,7 +855,7 @@
 (define (cycleinfo-member? ci profinfo)
   (memq? profinfo
 	 (cycleinfo-members ci)))
-  
+
 (define (cycleinfo-foreach-member ci f)
   (for-each f (cycleinfo-members ci)))
 
@@ -935,10 +915,10 @@
        (let ((caller-list (profinfo-callers member-pi)))
 	 ;; add share of every function called from this cycle-function to total
 	 (table-walk (lambda (caller-pi cinfo)
-		     (if (and (not (cycleinfo-member? ci caller-pi))
-			      (not (memq? caller-pi lst)))
-			 (set! lst (cons caller-pi lst))))
-		   caller-list))))
+		       (if (and (not (cycleinfo-member? ci caller-pi))
+				(not (memq? caller-pi lst)))
+			   (set! lst (cons caller-pi lst))))
+		     caller-list))))
     lst))
 
 ;; list of function profinfos called from cycle ci
@@ -1042,7 +1022,7 @@
 (define (profinfo-self-ms prof-data profinfo)
   (let ((hist (profinfo-hist profinfo)))
     (occurs->ms prof-data hist)))
-  
+
 
 ;; returns a list of all profinfos the function calls
 (define (profinfo-calls prof-data caller-pi)
@@ -1107,27 +1087,27 @@
 	 (if (and (not (eq? caller-pi called-pi))
 		  (or (not called-cyc) (not (eq? called-cyc caller-cyc))))
 	     (begin
-		(let ((ctself
-		       (if called-cyc
-			   (cycleinfo-hist called-cyc)
-			   (profinfo-hist  called-pi)))
-		      (ctchild
-		       (if called-cyc
-			   (cycleinfo-tchild called-cyc)
-			   (profinfo-tchild called-pi)))
-		      (nonreccalls
-		       (if called-cyc
-			   (cycleinfo-external-calls called-cyc)
-			   (profinfo-total-nonreccalls  called-pi))))
-		  (ddisplay " ctself: ")
-		  (ddisplay ctself)
-		  (ddisplay ", ctchild: ")
-		  (ddisplay ctchild)
-		  (ddisplay ", nrc: ")
-		  (ddisplay nonreccalls)
-		  (set! share      (/ (* ctself  calls) nonreccalls))
-		  (set! childshare (/ (* ctchild calls) nonreccalls))
-		)))
+	       (let ((ctself
+		      (if called-cyc
+			  (cycleinfo-hist called-cyc)
+			  (profinfo-hist  called-pi)))
+		     (ctchild
+		      (if called-cyc
+			  (cycleinfo-tchild called-cyc)
+			  (profinfo-tchild called-pi)))
+		     (nonreccalls
+		      (if called-cyc
+			  (cycleinfo-external-calls called-cyc)
+			  (profinfo-total-nonreccalls  called-pi))))
+		 (ddisplay " ctself: ")
+		 (ddisplay ctself)
+		 (ddisplay ", ctchild: ")
+		 (ddisplay ctchild)
+		 (ddisplay ", nrc: ")
+		 (ddisplay nonreccalls)
+		 (set! share      (/ (* ctself  calls) nonreccalls))
+		 (set! childshare (/ (* ctchild calls) nonreccalls))
+		 )))
 
 	 (ddisplay ", calls ")
 	 (ddisplay (round calls))
@@ -1159,7 +1139,7 @@
 	      (profile-data-templates prof-data))
   (for-each (lambda (cyc)
 	      (cycleinfo-set-tchild! cyc 0))
-	      (profile-data-cycles prof-data))
+	    (profile-data-cycles prof-data))
 
   (for-each (lambda (template)
 	      (propagate-time-from-children prof-data template))
@@ -1199,20 +1179,20 @@
 		       (not (eq? pi top-pi)))
 		  (loop (cdr stack)))))
 	  
-	    ;; add cycle globally
-	    (cycleinfo-add prof-data cyc)
-	    
-	    ;; update cycle information in profinfos
-	    (for-each (lambda (memb)
-			(profinfo-set-cycle! memb cyc))
-		      (cycleinfo-members cyc))
-	    ))))
+	  ;; add cycle globally
+	  (cycleinfo-add prof-data cyc)
 	  
-	 
+	  ;; update cycle information in profinfos
+	  (for-each (lambda (memb)
+		      (profinfo-set-cycle! memb cyc))
+		    (cycleinfo-members cyc))
+	  ))))
+
+
 (define (toporder-numbering prof-data)
   (let ((sorted-templates 
 	 (get-sorted-templates prof-data (lambda (pi) (- (profinfo-occurs pi)))))
-	  (toporder 0))
+	(toporder 0))
     (for-each (lambda (profinfo)
 		(profinfo-set-toporder! profinfo toporder)
 		(set! toporder (+ toporder 1)))
@@ -1251,12 +1231,17 @@
 		    (profinfo-set-dfn! profinfo 'notset)
 		    (profinfo-set-cycle! profinfo #f))
 		  (profile-data-templates prof-data))
-      
-      ;; find root and number from there
-      (if (profile-data-root prof-data)
-	  (let ((root-pi (get-profinfo-from-template prof-data (profile-data-root prof-data))))
-	    (if root-pi
-		(depth-number-function '() root-pi)))))))
+
+      (table-walk (lambda (template profinfo)
+		    (depth-number-function '() profinfo))
+		  (profile-data-templates prof-data)))))
+
+;; find root and number from there
+;      (if (profile-data-root prof-data)
+;	  (let ((root-pi (get-profinfo-from-template prof-data (profile-data-root prof-data))))
+;	    (if root-pi
+;		(depth-number-function '() root-pi)))))))
+
 
 ;;; RECORDING DATA (while target is running)
 
@@ -1304,15 +1289,15 @@
       default))
 
 (define (set-unseen-all!)
-    (and *last-stack*
-	 (for-each (lambda (se)
-		     (stackentry-set-seen! se #f))
-		   *last-stack*)))
+  (and *last-stack*
+       (for-each (lambda (se)
+		   (stackentry-set-seen! se #f))
+		 *last-stack*)))
 
 (define (seen? stackentry)
   (and stackentry
        (stackentry-seen stackentry)))
-  
+
 (define (seen! old-se se)
   (if old-se
       (begin
@@ -1358,32 +1343,12 @@
 		(if (not (stackentry-seen called-se))
 		    (set! gone-stackentries
 			  (cons called-se gone-stackentries)))
-		     
+		
 		(loop (cdr stack)
 		      called-se
 		      (cons template seen-templates))))))
     gone-stackentries))
 
-
-(define (record-call! prof-data caller-se called-se)
-  (let* ((caller-template (if caller-se
-			     (stackentry-template caller-se)
-			     #f))
-	 (called-template (stackentry-template called-se))
-	 (caller-profinfo (get-profinfo prof-data caller-se))
-	 (called-profinfo (get-profinfo prof-data called-se)))
-    
-    ;; if not profiled template yet, create one
-    (if (not called-profinfo)
-	(begin
-	  (set! called-profinfo
-		(make-profinfo called-template
-			       (make-table profinfo-id)
-			       0 0 0))
-	  (table-set! (profile-data-templates prof-data) called-template called-profinfo)))
-
-    ;; if we know the caller, count it
-    (profinfo-count-call called-profinfo caller-profinfo)))
 
 (define (compare-continuation-args c1 c2)
   (let ((ac (continuation-arg-count c1))
@@ -1403,7 +1368,7 @@
 	(stat-gone-funcs '())
 	(stat-new-caller  #f)
 	(stat-top         #f))
-  
+    
     ;; go from bottom to top and count calls
     (let loop ((pos 0)
 	       (stack *cur-stack*)
@@ -1441,12 +1406,13 @@
 	      (if (and caller-se
 		       (not (eq? diff-found
 				 old-diff-found)))
-		    (set! stat-new-caller caller-se))
+		  (set! stat-new-caller caller-se))
 	      
 	      (if rcdcall
 		  (begin  ; new call to fun
 		    (set! stat-new-funcs (cons new-se stat-new-funcs))
-		    (record-call! prof-data caller-se new-se))
+					;  (record-call! prof-data caller-se new-se))
+		    )
 		  (seen! old-se new-se))
 	      
 	      (loop (+ pos 1)
@@ -1465,31 +1431,37 @@
 
 (define (record-template! cont template)
   (if template
-      (begin
-	(let ((lse (last-stackentry))
-	      (nse (make-stackentry cont template 0 (run-time) #f)))
-	  
-	  (if (and lse
-		   (eq? (stackentry-template lse)
-			template))
-	      (stackentry-set-reccalls! lse
-				     (+ 1 (stackentry-reccalls lse))))
-	  
-	  ;; consider recursion (disabled)
-	  (set! *cur-stack*
-		(cons nse *cur-stack*))))))
+      (if (eq? (closure-template profile-count)
+	       template)
+	  (begin
+					;  (display "hitting profile-count, throwing stack away\n")
+	    (set! *cur-stack* '()))
+	  (begin
+	    (let ((lse (last-stackentry))
+		  (nse (make-stackentry cont template)))
+	      
+	      (if (and lse
+		       (eq? (stackentry-template lse)
+			    template))
+		  (stackentry-set-reccalls! lse
+					    (+ 1 (stackentry-reccalls lse))))
+	      
+	      ;; consider recursion (disabled)
+	      (set! *cur-stack*
+		    (cons nse *cur-stack*)))))))
 
 
 ;; main record function (called from interrupt handler)
 (define (record-continuation! prof-data cont)
   
   ;; init
-  (set! *cur-stack*        '())
-  (set! *profiler-lastrun* *profiler-thisrun*)
-  (set! *profiler-thisrun* (run-time)) ; we cap this here, profiler could run some time
-  (set! *cur-avail-memory* (available-memory))
-  (set! *cur-gc-count*     (get-current-gc-count))
-  (set-profile-data-samples! prof-data (+ 1 (profile-data-samples prof-data)))
+  (set! *cur-stack*          '())
+  (set! *profiler-lastrun*   *profiler-thisrun*)
+  (set! *profiler-thisrun*   (run-time)) ; we cap this here, profiler could run some time
+  (set! *cur-avail-memory*   (available-memory))
+  (set! *cur-gc-count*       (get-current-gc-count))
+  (set-profile-data-samples! prof-data
+			     (+ 1 (profile-data-samples prof-data)))
   
   ;; record the current template
   (record-template! cont (find-template cont))
@@ -1499,8 +1471,8 @@
     (if (and cont
 	     (not (profiler-continuation? cont)))
 	(let ((parent (continuation-cont cont)))
-		(record-template! cont (continuation-template cont))
-		(loop parent))))
+	  (record-template! cont (continuation-template cont))
+	  (loop parent))))
 
   ;; record our root template
   (record-template! #f (profile-data-root prof-data))
@@ -1509,7 +1481,7 @@
   (if (not (null? *cur-stack*))
       (begin
 	(process-stack-traces! prof-data)
-  
+	
 	;; save old stack
 	(set! *last-stack* *cur-stack*)
 	(set-unseen-all!)))
@@ -1559,17 +1531,14 @@
 	       (totcnt   (+ (if caller 1 0)
 			    cntnew
 			    cntgone))
-	       (avgusage (/ usage totcnt))
+	       (avgusage (if (= totcnt 0) 0 (/ usage totcnt)))
 	       (addmem   (lambda (se amount)
 			   (let ((pi (get-profinfo prof-data se)))
 			     (profinfo-set-memoryuse!
 			      pi
 			      (+ (profinfo-memoryuse pi)
 				 amount))))))
-	  (if (< usage 0)
-	      (warning
-	       'profile-analyse-memory-usage
-	       "usage < 0, somehow memory got free with no GC run!?\n")
+	  (if (> usage 0)
 	      (begin
 		(set-profile-data-memoryuse!
 		 prof-data
@@ -1582,3 +1551,9 @@
 		      (if caller (addmem caller avgusage))
 		      (for-each (lambda (se) (addmem se avgusage)) new)
 		      (for-each (lambda (se) (addmem se avgusage)) gone)))))))))
+					;      (warning
+					;       'profile-analyse-memory-usage
+					;       (string-append "usage < 0, somehow memory got free with no GC run: "
+					;		      (number->string *last-avail-memory*)
+					;		      " -> "
+					;		      (number->string *cur-avail-memory*)))

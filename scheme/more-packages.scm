@@ -10,6 +10,7 @@
 (define-structure usual-features (export )  ;No exports
   (open analysis		;auto-integration
 	disclosers
+	profiler-instrumentation
 	more-vm-exceptions
         command-processor
         debuginfo

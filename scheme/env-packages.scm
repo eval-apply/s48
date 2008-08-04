@@ -412,7 +412,7 @@
 ; Execution profiler.
 
 (define-structures ((profiler         profiler-interface)
-					(profile-commands profile-commands-interface))
+		    (profile-commands profile-commands-interface))
 	(open scheme
 		  (modify primitives (prefix primitives:)
 	              (expose collect time memory-status))
@@ -421,6 +421,7 @@
 	session-data
 	continuations
 	templates
+	closures
 	escapes
 	disclosers
 	primitives
@@ -433,5 +434,7 @@
 	debugging
 	cells
 	locks
+	profiler-internals
 	low-exceptions)
 	(files (env profile)))
+
