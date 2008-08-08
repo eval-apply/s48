@@ -62,6 +62,15 @@
   (open scheme big-scheme arch)
   (files (node let-nodes)))
 
+; Checker for node integrity
+
+(define-structure check-nodes (export check-node)
+  (open scheme
+	exceptions
+	node
+	comp-util)
+  (files (node node-check)))
+
 ; Compiler Parameters
 ; This allows client languages to supply parameters to the compiler
 ; without introducing circular module dependencies.
