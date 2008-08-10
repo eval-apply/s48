@@ -149,9 +149,11 @@
 (define-interface profile-commands-interface
   (export profile))
 
+
 (define-interface profiler-interface
   (export
 	  profile-thunk
+	  profile-count
 	  make-empty-profile-data
 
 	  ;; general data

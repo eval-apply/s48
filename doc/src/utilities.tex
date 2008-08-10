@@ -1085,13 +1085,14 @@ All functions need a \code{profile-data} record argument that can be created wit
 
 \begin{protos}
 	\proto{make-empty-profile-data}{}{profile-data}
-	\proto{profile-thunk}{ profile-data thunk [interrupt-time]}{value}
+	\proto{profile-thunk}{ profile-data thunk [interrupt-time [with-non-instr?]]}{value}
 \end{protos}
 
 \code{profile-thunk} executes a thunk under the profiler. The data is stored in
 the \cvar{profile-data} record passed as argument. Optionally the timeout for the profiler interrupt
 can be passed (in milliseconds). The return value of \code{profile-thunk} is the return value
-of \code{thunk}.
+of \code{thunk}. By default, non-instrumented code will be profiled by the sampling process.
+By passing \code{with-non-instr? = \#f} only instrumented functions will be profiled.
 
 After profiling data, can be retrieved with the following accessors:
 
@@ -1139,7 +1140,7 @@ The single fields in the flat profile can be retrieved with the following access
 	\protonoresult{profile-function-time-self}{ profile-data names}
 \end{protos}
 
-Here is \cvar{names} the list of names specifying the function, optionally
+Here \cvar{names} is the list of names specifying the function, optionally
 with it's module. For example, \code{names = ("dynamic-wind", "wind")}
 would specify the \code{dynamic-wind} function in the module \code{wind}, if
 it was seen while profiling. If two or more functions match, the first one
@@ -1191,6 +1192,9 @@ is the function to be profiled:
 
 ; print only function "a" in file "x.scm"
 (profile-display-function-flat prof-data '("a" "x.scm"))
+
+; print all profiled functions in file "x.scm"
+(profile-display-function-flat prof-data "x.scm")
 
 ; print percentage of time "a" was running
 (display (* (profile-function-timeshare prof-data '("a")) 100))
