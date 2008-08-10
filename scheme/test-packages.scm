@@ -70,9 +70,19 @@
 	interfaces defpackage package-mutation)
   (files (env package-mutation-check)))
 
+(define-structure profiler-test (export profiler-tests)
+  (open scheme test-suites
+        profiler
+        extended-ports
+        )
+  (files (env profile-check))
+  (optimize profiler-instrumentation))
+
 (define-structure env-test (export env-tests)
   (open scheme test-suites
-	package-mutation-test)
+	package-mutation-test
+	profiler-test)
   (begin
     (define-test-suite env-tests
-      (package-mutation-tests))))
+      (package-mutation-tests
+	   profiler-tests))))

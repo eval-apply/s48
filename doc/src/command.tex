@@ -227,9 +227,12 @@ If no \cvar{command} is given, the \code{config} package becomes the
 \section{Profiling commands}
 \label{profiling-commands}
 
-Scheme~48 includes a basic statistical profiler, with support for flat and call-graph profiles.
+Scheme~48 includes a basic profiler, with support for flat and call-graph profiles.
 In addition to call- and runtimes the heap memory usage is estimated as well.
-The profiler is, in its current implementation, solely based on sampling and therefore has only
+By adding the byte-code optimizer \code{profiler-instrumentation} to the definition
+of a structure, code will by instrumented with calls to the profiler. The call-times to
+instrumented code can then be measured exactly.
+Without instrumentation, the profiler is solely based on sampling and therefore has only
 limited accuracy.
 Any evaluation can be profiled with the following command:
 
@@ -474,16 +477,21 @@ External functions (here \code{c}):
 
 In the current implementation, there are some issues that need to be considered:
 in the default configuration, samples are taken every 50 milliseconds. Functions with a by-call
-runtime shorter than the interrupt time are likely to be profiled inaccurate or may not be seen at all.
+runtime shorter than the interrupt time are likely to be profiled inaccurate or may not be seen
+at all, if they have not been instrumented.
 
 The default interrupt time can be set with the \code{profiler-interrupt-time} command processor setting,
 see \ref{settings}. For example, \code{,set profiler-interrupt-time 200} sets the
 default profiler sampling interrupt time to 200ms.
 
-
 Because the interrupt is shared with the thread system, profiling may cause performance issues
 with multi-threaded programs. Also, programs with deep recursions (resulting in a large stack of
 continuations) can cause the profiler to use a significant percentage of the total run time.
+
+By default, call-times are measured by the sampling process. When code had been instrumented,
+call-times of those functions will be measured exactly. When only instrumented code should be
+considered in the output of the profiler, the command processor setting
+\code{profiler-measure-noninstr} can be set to \code{off}.
 
 Scheme~48 optimizes tail-calls. Thus, the profiler can not ``see'' tail-calls and in some situations,
 the output of the profiler may show that functions directly call their ``grandchildren''.
@@ -492,8 +500,9 @@ the output of the profiler may show that functions directly call their ``grandch
 \subsection{How the profiler works}
 
 The profiler is based on taking samples of the current stack of continuations, the {\it call-stack}.
-Therefore it schedules the {\tt alarm}-interrupt at a regular interval specified by the \code{profiler-interrupt-time}
-command processor setting. Because the thread system uses the alarm interrupt as well, the profiler interrupt handler
+Therefore it schedules the {\tt alarm}-interrupt at a regular interval specified by the
+\code{profiler-interrupt-time} command processor setting. Because the thread system uses the
+alarm interrupt as well, the profiler interrupt handler
 calls the handler of the thread system after processing the sample.
 
 The profiler interrupt handler first captures the current continuation and follows the continuation-stack
@@ -539,6 +548,9 @@ Difference in used memory between two samples is distributed by the following pr
 			\item the caller of new templates could have used some memory between the calling of gone and new functions
 		\end{itemize}
 \end{itemize}
+
+The byte-code optimizer \code{profiler-instrumentation} adds a call to the ``profile-count'' function of the
+profiler structure. This function is responsible for the exact call-times measurement.
 
 After collection of the data, functions are numbered and cycles are detected by ascending in the
 call tree. Time is being propagated from top to bottom, remembering self and child times. Most
@@ -657,6 +669,11 @@ are printed.
 \item \code{profiler-interrupt-time} (positive integer)\\
 This controls the time between two profiler sampling interrupts
 (in milliseconds, see section \ref{profiling-commands}).
+
+\item \code{profiler-measure-noninstr} (boolean)\\
+When this flag is enabled, call-times will be measured by the sampling process.
+When it is disabled, call-times will only be measured, when the function has been
+instrumented (see section \ref{profiling-commands}).
 
 \item \code{trace-writing-length} (positive integer)\\
 This controls the maximum length to which tracing

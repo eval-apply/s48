@@ -346,8 +346,6 @@
 	    packages
 	    packages-internal
 	    primops
-	    profiler-instrumentation
-	    profiler-internals
 	    reading-forms
 	    reconstruction
 	    segments

@@ -5,6 +5,67 @@
 (define-command-syntax 'profile "<command>" "profile execution"
   '(command))
 
+;; profiling information for each template
+(define-record-type profinfo :profinfo
+  (really-make-profinfo template callers occurs hist memoryuse min-pc instrumented cycle)
+  profinfo?
+  (template  profinfo-template)                           ; scheme code template
+  (callers   profinfo-callers   profinfo-set-callers!)    ; table of callerinfos
+  (occurs    profinfo-occurs    profinfo-set-occurs!)
+  (hist      profinfo-hist      profinfo-set-hist!)
+  (tchild    profinfo-tchild    profinfo-set-tchild!)
+  (toporder  profinfo-toporder  profinfo-set-toporder!)
+  (dfn       profinfo-dfn       profinfo-set-dfn!)        ; depth-first number
+  (cycle     profinfo-cycle     profinfo-set-cycle!)
+  (memoryuse profinfo-memoryuse profinfo-set-memoryuse!)
+  (min-pc    profinfo-min-pc    profinfo-set-min-pc!)
+  (instrumented profinfo-instrumented? profinfo-set-instrumented?!))
+
+(define (make-profinfo prof-data template)
+  (let ((pi (really-make-profinfo template
+				  (make-table profinfo-id)
+				  0 0 0 #f #f #f)))
+    (table-set! (profile-data-templates prof-data) template pi)
+    pi))
+
+;; profiling data for template when being called by CALLER
+(define-record-type callerinfo :callerinfo
+  (make-callerinfo caller calls)
+  callerinfo?
+  (caller    callerinfo-caller)                            ; caller profinfo
+  (calls     callerinfo-calls  callerinfo-set-calls!)      ; number of calls
+  (tself     callerinfo-tself  callerinfo-set-tself!)      ; time spent in called self
+  (tchild    callerinfo-tchild callerinfo-set-tchild!))    ; time spent in children of called
+
+;;; Miscellaneous global stuff
+
+(define-record-type profile-data :profile-data
+  (really-make-profile-data)
+  (interrupttime profile-data-interrupttime set-profile-data-interrupttime!)
+  (measure-noninstr? profile-data-measure-noninstr? set-profile-data-measure-noninstr?!)
+  (starttime profile-data-starttime set-profile-data-starttime!)
+  (endtime   profile-data-endtime   set-profile-data-endtime!)
+  (root      profile-data-root      set-profile-data-root!)
+  (cycles    profile-data-cycles    set-profile-data-cycles!)
+  (samples   profile-data-samples   set-profile-data-samples!)
+  (templates profile-data-templates set-profile-data-templates!)
+  (memoryuse profile-data-memoryuse set-profile-data-memoryuse!)
+  (gcruns    profile-data-gcruns    set-profile-data-gcruns!))
+
+;; hash function for callers table in profiling information
+(define (profinfo-id pi)
+;  (template-id (profinfo-template pi)))
+  0)
+
+
+(define (make-empty-profile-data)
+  (let ((pd (really-make-profile-data)))
+    (set-profile-data-interrupttime! pd (profiler-default-interrupt-time))
+    (set-profile-data-measure-noninstr?! pd (profiler-measure-non-instrumented?))
+    (set-profile-data-memoryuse!     pd 0)
+    (set-profile-data-cycles!        pd '())
+    pd))
+
 
 (define-record-type cycleinfo :cycleinfo
   (make-cycleinfo number members)
@@ -31,6 +92,7 @@
 ;;; Global profiling stuff (independent of prof-data)
 
 (define *interrupt-time* #f)            ; (theoretical) ms between interrupts
+(define *measure-noninstr?* #f)
 
 (define *saved-interrupt-handler* #f)   ; non-profiler interrupt handler
 (define *profiler-continuation*   #f)   ; profiler's top continuation
@@ -47,6 +109,10 @@
 (define *cur-avail-memory*  0)
 
 (define interrupt/alarm (enum interrupt alarm))
+
+(define *active-profile-data* #f)
+(define *first-call?* #f)
+
 
 ;;; Sampling interrupt time (with setting)
 
@@ -68,13 +134,24 @@
 	     set-profiler-default-interrupt-time!
 	     "profiler sampling interrupt time in milliseconds")
 
+;;; Measure-non-instrumented? flag
+
+(define *profiler-measure-non-instrumented?* #t)
+
+(define (profiler-measure-non-instrumented?)
+  *profiler-measure-non-instrumented?*)
+
+(define (set-profiler-measure-non-instrumented?! do?)
+  (set! *profiler-measure-non-instrumented?* do?))
+
+(add-setting 'profiler-measure-noninstr #t
+	     profiler-measure-non-instrumented?
+	     set-profiler-measure-non-instrumented?!
+	     "profiler will measure calls to non-instrumented code"
+	     "profiler will only measure calls to instrumented code")
+
 
 ;;; Miscellaneous global stuff
-
-(define (make-empty-profile-data)
-  (let ((pd (really-make-empty-profile-data)))
-    (set-profile-data-interrupttime! pd (profiler-default-interrupt-time))
-    pd))
 
 (define (run-time)
   (primitives:time (enum time-option run-time) #f))
@@ -169,7 +246,6 @@
 (define (profile-and-display thunk
 			     interrupt-time
 			     port)
-;  (calculate-tick-rate!)
   (let ((prof-data (make-empty-profile-data)))
     (call-with-values
 	(lambda ()
@@ -184,29 +260,39 @@
 (define (profile-thunk prof-data thunk . opt-args)
 
   (if (not (eq? (profile-data-samples prof-data)
-		(unspecific)))
+		(primitives:unspecific)))
       (error 'profile-thunk
 	     "a profile-data record can be used only once"))
 
   (set! *interrupt-time* #f)
+  (set! *measure-noninstr?* (primitives:unspecific))
   
   ;; optional arguments: interrupt-time ...
   (case (length opt-args)
     ((1) ; interrupt time
      (let ((int-time (car opt-args)))
-       (set! *interrupt-time* int-time))))
+       (set! *interrupt-time* int-time)))
+    ((2) ; interrupt time with non-instr?
+     (let ((int-time (car opt-args))
+	   (non-instr? (cadr opt-args)))
+       (set! *interrupt-time* int-time)
+       (set! *measure-noninstr?* non-instr?)))
+     )
   
   ;; profile-data interrupt time, if not set
   (if (not *interrupt-time*)
       (set! *interrupt-time* (profile-data-interrupttime prof-data)))
+  ;; profile-data measure-noninstr?, if not set
+  (if (eq? *measure-noninstr?* (primitives:unspecific))
+      (set! *measure-noninstr?* (profile-data-measure-noninstr? prof-data)))
   
   (if *profiler-continuation*
       (error
        'profile-thunk
        "profiler can not be running twice at the same time" thunk)
       (begin
-	(set-active-profile-data!   prof-data)
-	(set-first-call?!           #t)
+	(set! *active-profile-data* prof-data)
+	(set! *first-call?*         #t)
 	(set! *last-stack*          #f)
 	(set! *profiler-thisrun*    #f)
 	(set! *profiler-lastrun*    #f)
@@ -249,11 +335,12 @@
 		    (post-process-stack! prof-data *last-stack*) ; process the last stack trace
 		    
 		    ;; do necessary calculations
+		    (remove-uncalled prof-data)
 		    (depth-numbering prof-data)
 		    (propagate-times prof-data)
 		    (toporder-numbering prof-data)
 		    
-		    (set-active-profile-data! #f))))
+		    (set! *active-profile-data* #f))))
 	  (lambda results
 	    (apply values results))))))
 
@@ -286,7 +373,7 @@
      (if (maybe-obtain-lock *profiler-lock*)
 	 (begin
 	   (*saved-interrupt-handler* template enabled) ; thread system, ...
-	   (if *profiler-continuation* (record-continuation! (get-active-profile-data) cont))
+	   (if *profiler-continuation* (record-continuation! *active-profile-data* cont))
 	   (release-lock *profiler-lock*)
 	   ;; HACK: To override thread system interrupt scheduling, may cause
 	   ;;       extreme performance loss on thread system?
@@ -435,17 +522,11 @@
     (newline port)
 
     ;; sort and print
-    (let ((lst '())) 
-      (table-walk (lambda (template profinfo)
-		    (set! lst (cons profinfo lst)))
-		  (profile-data-templates prof-data))
-      (set! lst (sort-list lst
-			   (lambda (a b) 
-			     (>= (profinfo-hist a)
-				 (profinfo-hist b)))))
+    (let ((sorted-templates 
+	   (get-sorted-templates prof-data (lambda (pi) (- (profinfo-hist pi))) #t)))
       (for-each (lambda (profinfo)
 		  (profile-display-profinfo-flat prof-data profinfo port))
-		lst))))
+		sorted-templates))))
 
 
 ;; display data "gprof call graph"-like
@@ -470,7 +551,7 @@
     
     ;; sort and print
     (let ((sorted-templates 
-	   (get-sorted-templates prof-data (lambda (pi) (- (profinfo-occurs pi))))))
+	   (get-sorted-templates prof-data (lambda (pi) (- (profinfo-occurs pi))) #t)))
       (for-each (lambda (profinfo)
 		  (profile-display-profinfo-tree prof-data profinfo port))
 		sorted-templates))
@@ -831,9 +912,9 @@
 (define (profile-data-runtime prof-data)
   (let ((st (profile-data-starttime prof-data))
 	(et (profile-data-endtime   prof-data)))
-    (if (or (eq? st (unspecific))
-	    (eq? et (unspecific)))
-	(unspecific)
+    (if (or (eq? st (primitives:unspecific))
+	    (eq? et (primitives:unspecific)))
+	(primitives:unspecific)
 	(- et st))))
 
 ;;; cycle stuff
@@ -1055,11 +1136,13 @@
 		cs)
     total))
 
-(define (get-sorted-templates prof-data property)
+(define (get-sorted-templates prof-data property filter-noncalled?)
   (let ((lst '())) 
     (table-walk (lambda (template profinfo)
-		  (set! lst (cons profinfo lst)))
-		(profile-data-templates prof-data)) 
+		  (if (or (not filter-noncalled?)
+			  (> (profinfo-total-calls profinfo) 0))
+		      (set! lst (cons profinfo lst))))
+		(profile-data-templates prof-data))
     (set! lst (sort-list lst
 			 (lambda (a b) 
 			   (< (property a)
@@ -1143,7 +1226,7 @@
 
   (for-each (lambda (template)
 	      (propagate-time-from-children prof-data template))
-	    (get-sorted-templates prof-data (lambda (pi) (- (profinfo-dfn pi))))))
+	    (get-sorted-templates prof-data (lambda (pi) (- (profinfo-dfn pi))) #f)))
 
 
 ;;; number function by their depth in the call stack
@@ -1191,12 +1274,20 @@
 
 (define (toporder-numbering prof-data)
   (let ((sorted-templates 
-	 (get-sorted-templates prof-data (lambda (pi) (- (profinfo-occurs pi)))))
+	 (get-sorted-templates prof-data (lambda (pi) (- (profinfo-occurs pi))) #f))
 	(toporder 0))
     (for-each (lambda (profinfo)
 		(profinfo-set-toporder! profinfo toporder)
 		(set! toporder (+ toporder 1)))
 	      sorted-templates)))
+
+(define (remove-uncalled prof-data)
+  (let ((tab (profile-data-templates prof-data)))
+    (table-walk (lambda (template profinfo)
+		  (if (and (= (profinfo-total-calls profinfo) 0)
+			   (not (eq? template (profile-data-root prof-data))))
+		      (table-set! tab template #f)))
+		tab)))
 
 ;;; numbers all functions by their depth in the call stack
 (define (depth-numbering prof-data)
@@ -1377,7 +1468,7 @@
       (if (not (null? stack))
 	  (let ((new-se (car stack)))
 	    ;; compare with last stack
-	    (let ((old-se (list-ref-or-default *last-stack* pos #f))
+	    (let ((old-se  (list-ref-or-default *last-stack* pos #f))
 		  (rcdcall #f)
 		  (old-diff-found diff-found))
 	      (if (or (not old-se)  ; not on old stack
@@ -1411,7 +1502,12 @@
 	      (if rcdcall
 		  (begin  ; new call to fun
 		    (set! stat-new-funcs (cons new-se stat-new-funcs))
-					;  (record-call! prof-data caller-se new-se))
+		    (if (and caller-se
+			     *measure-noninstr?*)
+			(record-call! prof-data
+				      (stackentry-template caller-se) 0
+				      (stackentry-template new-se) 0
+				      #f))
 		    )
 		  (seen! old-se new-se))
 	      
@@ -1494,10 +1590,10 @@
 
 ;; searchs the (moving?) template in the continuation
 (define (find-template cont)
-  (let ((len (continuation-length cont)))
+  (let ((len (primitives:continuation-length cont)))
     (let loop ((i 0))
       (and (< i len)
-           (let ((elt (continuation-ref cont i)))
+           (let ((elt (primitives:continuation-ref cont i)))
              (if (template? elt)
                  elt
                  (loop (+ i 1))))))))
@@ -1505,6 +1601,8 @@
 
 
 ;;;;;; HEAP PROFILER
+
+;; see commit messages and documentation
 
 (define (available-memory)
   (primitives:memory-status (enum memory-status-option available) #f))
@@ -1557,3 +1655,78 @@
 					;		      (number->string *last-avail-memory*)
 					;		      " -> "
 					;		      (number->string *cur-avail-memory*)))
+
+
+(define (record-call! prof-data caller-template caller-pc called-template called-pc instrumented?)
+  (let* ((caller-profinfo    (get-profinfo-from-template
+			      prof-data
+			      (if *first-call?*
+				  (begin
+				    (set! *first-call?* #f)
+				    (profile-data-root prof-data))
+				  caller-template)))
+	 (called-profinfo    (get-profinfo-from-template prof-data called-template))
+	 (min-pc             (profinfo-min-pc called-profinfo))
+	 (only-instrumented? (profinfo-instrumented? called-profinfo)))
+
+    ;; only count this call, if counted by profile-count or
+    ;; by the sampling interrupt if it was not counted by profile-count yet
+    (if (or instrumented?
+	    (not only-instrumented?))
+	(begin
+	  ;; store the program counter of the first call to the function
+	  (if (not min-pc)
+	      (begin
+		(set! min-pc called-pc)
+		(profinfo-set-min-pc! called-profinfo min-pc)
+		(if instrumented?
+		    (profinfo-set-instrumented?! called-profinfo #t))))
+	  
+	  ;; we need to check the program counter, otherwise let-s would be counted
+	  ;; as a call
+	  (if (<= called-pc min-pc)
+	      (profinfo-count-call called-profinfo caller-profinfo))))))
+
+
+
+;;; called from every profiled function (mcount in gprof),
+;;; if profiler-instrumentation optimizer enabled for this package
+(define (profile-count)
+  (if *active-profile-data*
+      (let ((x (primitive-cwcc profile-count-cont)))
+	x)))
+
+(define (profile-count-cont cont)
+  (let* ((cont-called     (continuation-cont     cont))
+	 (cont-caller     (continuation-cont     cont-called))
+	 (template-called (continuation-template cont-called))
+	 (template-caller (continuation-template cont-caller))
+	 (pc-called       (continuation-pc       cont-called))
+	 (pc-caller       (continuation-pc       cont-caller)))
+    
+;    (display template-caller)
+;    (display " (")
+;    (display pc-caller)
+;    (display ") calls ")
+;    (display template-called)
+;    (display " (")
+;    (display pc-called)
+;    (display ")\n")
+
+    (record-call! *active-profile-data* template-caller pc-caller template-called pc-called #t)))
+
+
+(define (get-profinfo-from-template prof-data template)
+  (or (table-ref (profile-data-templates prof-data) template)
+      (make-profinfo prof-data template)))
+
+;; adds one call to the profinfo of CALLED
+(define (profinfo-count-call called caller)
+  (if (and called caller)
+      (let ((cs (profinfo-callers called)))
+	(cond ((table-ref cs caller)
+	       => (lambda (ci)
+		    (callerinfo-set-calls! ci (+ 1 (callerinfo-calls ci)))))
+	      (else
+	       (table-set! cs caller (make-callerinfo caller 1)))))))
+

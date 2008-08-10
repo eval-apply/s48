@@ -9,18 +9,18 @@
 
 (define-structure usual-features (export )  ;No exports
   (open analysis		;auto-integration
-	disclosers
-	profiler-instrumentation
-	more-vm-exceptions
         command-processor
         debuginfo
-        ;; Choose any combination of bignums, ratnums, recnums
-	;; bignums		; now in the VM
-	ratnums recnums
+	disclosers
+        floatnums
+	more-vm-exceptions
+	profiler-instrumentation
+	;; pp
 	;; Choose either innums, floatnums, or neither
 	;; innums			;Silly inexact numbers
-        floatnums
-	;; pp
+	;; bignums		; now in the VM
+	;; Choose any combination of bignums, ratnums, recnums
+	ratnums recnums
 	;; The following is listed because this structure is used to
 	;; generate a dependency list used by the Makefile...
 	usual-commands
@@ -63,7 +63,7 @@
   (files (rts recnum)))
 
 (define-structure floatnums
-		  (export floatnum? exp log sin cos tan asin acos atan sqrt)
+  (export floatnum? exp log sin cos tan asin acos atan sqrt)
   (open scheme-level-2
         extended-numbers
         code-vectors
@@ -167,12 +167,12 @@
 (define-structure reduce (export ((reduce iterate)
 				  :syntax)
 				 ((list* list%
-				   vector* vector%
-				   string* string%
-				   count* count%
-				   bits* bits%
-				   input* input%
-				   stream* stream%)
+					 vector* vector%
+					 string* string%
+					 count* count%
+					 bits* bits%
+					 input* input%
+					 stream* stream%)
 				  :syntax))
   (open scheme-level-2
 	bitwise
@@ -243,7 +243,7 @@
 		(rename (error rts-error))
 		(expose error assertion-violation))
 	(modify debugging	(rename (breakpoint rts-breakpoint))
-		                (expose breakpoint))
+		(expose breakpoint))
 	(subset primitives	(copy-bytes!)))
   (files (big big-util)))
 
@@ -282,7 +282,7 @@
 	placeholders
 	shared-bindings
 	byte-vectors
-	;bitwise		;for {enter|extract}_integer() helpers
+					;bitwise		;for {enter|extract}_integer() helpers
 	(subset record-types		(define-record-resumer))
 	(subset records-internal	(:record-type)))
   (files (big import-def)
@@ -317,7 +317,7 @@
     ;; Kludge
     (define (system cmd-line)
       (s48-system (os-string->byte-vector (x->os-string cmd-line))))))
-    
+
 ; Rudimentary object dump and restore
 
 (define-structure dump/restore dump/restore-interface
@@ -349,8 +349,8 @@
 ; Heap traverser
 
 (define-structure traverse
-                  (export traverse-depth-first traverse-breadth-first trail
-                          set-leaf-predicate! usual-leaf-predicate)
+  (export traverse-depth-first traverse-breadth-first trail
+	  set-leaf-predicate! usual-leaf-predicate)
   (open scheme-level-2
 	primitives
         queues tables
@@ -406,7 +406,7 @@
 ; record types with a fixed number of instances
 
 (define-structure finite-types (export ((define-finite-type
-					 define-enumerated-type) :syntax))
+					  define-enumerated-type) :syntax))
   (open scheme-level-2 code-quote define-record-types
 	enumerated
 	features)		; make-immutable

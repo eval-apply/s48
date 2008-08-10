@@ -409,32 +409,48 @@
       (lambda (e r c)
         (make-node (get-operator 'lap syntax-type) e)))))
 
-; Execution profiler.
+; Profiler.
 
 (define-structures ((profiler         profiler-interface)
 		    (profile-commands profile-commands-interface))
-	(open scheme
-		  (modify primitives (prefix primitives:)
-	              (expose collect time memory-status))
-	interrupts
+  (open scheme
 	architecture
-	session-data
-	continuations
-	templates
+	cells
 	closures
-	escapes
-	disclosers
-	primitives
-	tables
 	command-processor
-	environments
-	sort
-	define-record-types
+	continuations
 	debug-data
 	debugging
-	cells
+	define-record-types
+	disclosers
+	environments
+	escapes
+	interrupts
 	locks
-	profiler-internals
-	low-exceptions)
-	(files (env profile)))
+	low-exceptions
+	(modify primitives (prefix primitives:)
+		(expose collect time memory-status
+			continuation-length continuation-ref
+			unspecific))
+	session-data
+	sort
+	tables
+	templates)
+  (files (env profile)))
 
+(define-structure profiler-instrumentation (export instrument-form)
+  (open scheme
+	bindings
+	compiler-envs
+	environments
+	features
+	low-exceptions
+	nodes
+	optimizer
+	package-commands-internal
+	packages
+	packages-internal
+	primops
+	profiler
+	util)
+  (files (env profile-instr)))
