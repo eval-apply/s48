@@ -57,7 +57,19 @@
 	  (else
 	   (goto return-boolean #f)))))
 
-(define-primitive rational? (any->) vm-number-predicate)
+(define-primitive rational? (any->)
+  (lambda (n)
+    (cond ((or (fixnum? n)
+	       (bignum? n)
+	       (ratnum? n))
+	   (goto return-boolean #t))
+	  ((double? n)
+	   (goto return-boolean (flonum-rational? n)))
+	  ((extended-number? n)
+	   (unary-lose n))
+	  (else
+	   (goto return-boolean #f)))))
+
 (define-primitive real?     (any->) vm-number-predicate)
 (define-primitive complex?  (any->) vm-number-predicate)
 
