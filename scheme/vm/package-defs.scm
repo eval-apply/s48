@@ -500,7 +500,8 @@
 					    flonum-multiply
 					    flonum-divide
 					    flonum= flonum< flonum>
-					    flonum<= flonum>=)
+					    flonum<= flonum>=
+					    flonum-rational?)
   (open prescheme 
 	ps-memory
 	ps-flonums

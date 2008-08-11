@@ -172,6 +172,9 @@
 
 (define infinity (delay (expt (exact->inexact 2) (exact->inexact 1500))))
 
+(define (nan? x)
+  (not (= x x)))
+
 (define (float->exact x)
   (define (lose)
     (implementation-restriction-violation 'inexact->exact
@@ -181,9 +184,7 @@
   (cond
    ((integral-floatnum? x)
     (float->exact-integer x))		;+++
-   ((or (not (= x x))			; NaN
-	(= x (force infinity))
-	(= (- x) (force infinity)))
+   ((not (rational? x))
     (lose))
    (else
     (let ((deliver
@@ -212,7 +213,10 @@
 (define-method &integer? ((x :double))
   (integral-floatnum? x))
 
-(define-method &rational? ((n :double)) #t)
+(define-method &rational? ((n :double))
+  (and (not (nan? n))
+       (not (= (force infinity) n))
+       (not (= (- (force infinity)) n))))
 
 (define-method &exact? ((x :double)) #f)
 
@@ -229,15 +233,47 @@
 (define-method &denominator ((x :double)) (float-denominator x))
 
 (define (define-floatnum-method mtable proc)
-  (define-method mtable ((m :rational) (n :rational)) (proc m n)))
+  (define-method mtable ((m :rational) (n :rational)) (proc m n))
+  ;; the horror
+  (define-method mtable ((m :double) (n :rational)) (proc m n))
+  (define-method mtable ((m :rational) (n :double)) (proc m n))
+  (define-method mtable ((m :double) (n :double)) (proc m n)))
 
 ;; the numerical tower sucks
 (define (define-floatnum-comparison mtable proc float-proc)
   (define-method mtable ((m :double) (n :double)) (float-proc m n))
   (define-method mtable ((m :double) (n :rational))
+    (cond
+     ((nan? m) #f) ; #### not always correct, when < is used to implement >
+     ((= m (force infinity)) #f)
+     ((= m (- (force infinity))) #t)
+      
     (proc (float->exact m) n))
   (define-method mtable ((m :rational) (n :double))
-    (proc m (float->exact n))))
+    (proc m (float->exact n)))))
+
+; the numerical tower sucks big-time
+(define-method &= ((m :double) (n :double)) (float= m n))
+(define-method &= ((m :double) (n :rational))
+  (and (rational? m)
+       (float= (float->exact m) n)))
+(define-method &= ((m :rational) (n :double))
+  (and (rational? n)
+       (float= m (float->exact n))))
+
+(define-method &< ((m :double) (n :double)) (float< m n))
+(define-method &< ((m :double) (n :rational))
+  (cond ((nan? m) #f)
+	((= (force infinity) m) #f)
+	((= (- (force infinity))  m) #t)
+	(else
+	 (float< (float->exact m) n))))
+(define-method &< ((m :rational) (n :double))
+  (cond ((nan? n) #f) ; #### not correct when < is used to implement >
+	((= (force infinity) n) #t)
+	((= (- (force infinity))  n) #f)
+	(else
+	 (float< m (float->exact n)))))
 
 (define-floatnum-method &+ float+)
 (define-floatnum-method &- float-)
@@ -245,8 +281,6 @@
 (define-floatnum-method &/ float/)
 (define-floatnum-method &quotient float-quotient)
 (define-floatnum-method &remainder float-remainder)
-(define-floatnum-comparison &= = float=)
-(define-floatnum-comparison &< < float<)
 (define-floatnum-method &atan2 float-atan2)
 
 (define-method &exp   ((x :rational)) (float-exp   x))

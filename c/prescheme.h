@@ -69,5 +69,10 @@ RESULT = ps_read_integer(PORT,&EOFP,&STATUS);
   RESULT = ((unsigned long) X) >> Y;	   \
 }
 
+/* this is probably not officially portable */
+#define PS_POS_INF (1.0 / 0.0)
+#define PS_NEG_INF (-1.0 / 0.0)
+#define PS_NAN (PS_POS_INF / POS_NEG_INF)
+
 extern long s48_return_value, s48_run_machine();
 
