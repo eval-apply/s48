@@ -2478,9 +2478,9 @@ The matching procedures will ignore any characters following an
 (exact-match? pattern "abx")       \evalsto #f
 (exact-match? pattern "xxabcxx")   \evalsto #f
 
-(match pattern "abc")              \evalsto (#\{match 0 3\})
+(match pattern "abc")              \evalsto #\{match 0 3\}
 (match pattern "abx")              \evalsto #f
-(match pattern "xxabcxx")          \evalsto (#\{match 2 5\})
+(match pattern "xxabcxx")          \evalsto #\{match 2 5\}
 
 (let ((x (match (sequence (text "ab")
                           (submatch 'foo (text "cd"))
