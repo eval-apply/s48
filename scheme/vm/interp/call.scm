@@ -397,7 +397,7 @@
     (let loop ((protocol (code-vector-ref code 1))
   	       (stack-space default-stack-space)
   	       (native? #f))
-      (let ((win (lambda (skip stack-arg-count)
+      (let ((win (lambda (skip)
   		   (if native?
   		       (goto call-native-code skip stack-space)
 		       (let ((template (closure-template *val*)))
@@ -412,7 +412,7 @@
 				       (begin
 					 (push-list list-args list-arg-count)
 					 (unspecific))) ; avoid type problem
-				   (win skip total-arg-count))
+				   (win skip))
 				 (lose))))
 	      ;; N-ary procedure.
 	      (n-ary-match (lambda (wants-stack-args skip)
@@ -422,7 +422,7 @@
 						       stack-arg-count
 						       list-args
 						       list-arg-count)
-				   (win skip (+ wants-stack-args 1)))
+				   (win skip))
 				 (lose))))
 	      ;; If there are > 2 args the top two are pushed on the stack.
 	      ;; Then the remaining list, the total number of arguments, and
@@ -439,7 +439,7 @@
 							list-arg-count)
 				    (push (enter-fixnum final-stack-arg-count))
 				    (push (enter-fixnum total-arg-count))
-				    (win skip (+ final-stack-arg-count 3))))))
+				    (win skip)))))
 	  (cond ((= protocol nary-dispatch-protocol)
 		 (cond ((< total-arg-count 3)
 			(let ((skip (code-vector-ref code (+ 3 total-arg-count))))
