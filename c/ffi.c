@@ -9,6 +9,8 @@
 #include <string.h>
 
 #include "scheme48.h"
+#include "scheme48vm.h"
+#include "scheme48heap.h"
 #include "ffi.h"
 
 /* structs */

@@ -533,7 +533,7 @@ make_unnamed_signal(s48_call_t call, s48_ref_t fx_signal)
 
   temp = unnamed_signals;
 
-  unnamed_signals = s48_cons_2(call, weak, unnamed_signals);
+  unnamed_signals = s48_local_to_global_ref(s48_cons_2(call, weak, unnamed_signals));
 
   s48_free_global_ref(temp);
 
