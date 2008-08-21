@@ -33,6 +33,7 @@
           make-xvector xvector-length xvector-ref xvector-set! xvector->vector
 
           (define-subrecord :syntax)
+	  (define-subrecord-type :syntax)
           ;(define-simple-record-type :syntax)
           (define-local-syntax :syntax)
           ))

@@ -173,7 +173,11 @@
 ; A random collection of utilities.
 
 (define-structure comp-util utilities-interface
-  (open scheme big-scheme defrecord structure-refs expanding-vectors)
+  (open scheme 
+	big-scheme
+	(modify defrecord (prefix rk:))
+	define-record-types
+	structure-refs expanding-vectors)
   (for-syntax (open scheme big-scheme))
   (access primitives features)
   (files (util syntax)        ; macro for defining subrecords
