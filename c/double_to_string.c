@@ -18,7 +18,7 @@ s48_double_to_string(char *dest, double v)
   int digit_count = strlen(raw);
 
   if (((digits[0] == '+') || (digits[0] == '-'))
-      || ((digits[1] == 'i') || (digits[1] == 'n')))
+      && ((digits[1] == 'i') || (digits[1] == 'n')))
     /* infinity or NaN */
     {
       strcpy(dest, digits);
