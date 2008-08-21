@@ -9,7 +9,7 @@ dnl
 AC_ARG_ENABLE([universal-binary],
 [AC_HELP_STRING([--enable-universal-binary],
 		[Build MacOS X Universal Binary])],
-	[dnl
+     [if test "$enable_universal_binary" != no; then
 	 case $host in
            *darwin* ) S48_BUILD_UNIVERSAL_P="1"
 	     AC_DEFINE([BUILD_UNIVERSAL_BINARY], 1,
@@ -19,7 +19,10 @@ AC_ARG_ENABLE([universal-binary],
            * ) AC_MSG_ERROR([--enable-universal-binary only works on Mac OS X])
            ;;
          esac
-           ],
+      else
+	 S48_BUILD_UNIVERSAL_P="0"
+	 AC_MSG_RESULT(no)
+      fi],
    	[dnl
 	 S48_BUILD_UNIVERSAL_P="0"
 	 AC_MSG_RESULT(no)])])

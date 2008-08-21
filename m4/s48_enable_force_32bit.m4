@@ -9,7 +9,7 @@ dnl
 AC_ARG_ENABLE([force-32bit],
 [AC_HELP_STRING([--enable-force-32bit],
 		[Build a 32bit binary on architectures where this is not the default])],
-	[dnl 
+    [if test "$enable_force_32bit" != no; then
          S48_FORCE_32_P="1"
 	 BIT_SUFFIX="32"
 	 dnl For now only a Linux/AMD x86_64 version:
@@ -25,7 +25,11 @@ AC_ARG_ENABLE([force-32bit],
 	 esac
 	 AC_DEFINE([BUILD_32BIT], 1,
 		   [Define if we are building a 32bit binary on architectures where this is not the default.])
-	 AC_MSG_RESULT(yes)],
+	 AC_MSG_RESULT(yes)
+      else
+         S48_FORCE_32_P="0"
+	 AC_MSG_RESULT(no)
+      fi],
    	[dnl
          S48_FORCE_32_P="0"
 	 AC_MSG_RESULT(no)])])
