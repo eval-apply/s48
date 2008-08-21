@@ -140,7 +140,8 @@ VM = scheme48vm
 LIBSCHEME48 = c/libscheme48.a
 POSIX_EXTERNAL = c/posix.so
 SRFI_27_EXTERNAL = c/srfi-27.so
-EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL)
+FFI_TEST_EXTERNAL = c/ffi-test.so
+EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(FFI_TEST_EXTERNAL)
 UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o
 OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
 	c/extension.o c/free.o c/double_to_string.o c/bignum.o c/ffi.o \
@@ -229,6 +230,14 @@ c/srfi-27.o: c/srfi-27.c $(SCHEME48HS)
 
 $(SRFI_27_EXTERNAL) : c/srfi-27.o
 	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
+
+
+c/ffi-test/ffi-test.o: c/ffi-test/ffi-test.c c/ffi-test/ffi-test.h $(SCHEME48HS)
+	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
+
+$(FFI_TEST_EXTERNAL) : c/ffi-test/ffi-test.o
+	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
+
 
 # Native-code glue rules
 
@@ -523,8 +532,10 @@ check: $(VM) $(IMAGE) scheme/debug/check.scm
 		echo ',open srfi-test';					\
 		echo ',config ,load =scheme48/posix/test-packages.scm';	\
 		echo ',open posix-test';				\
+		echo ',config ,load =scheme48/ffi-test/test-packages.scm';	\
+		echo ',open ffi-test';					\
 		echo ',open test-suites';				\
-		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests))'; \
+		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
 		echo '(run-test-suite all-tests)'			\
 	) | ./$(VM) -i $(IMAGE) $(BIG_HEAP)
 
