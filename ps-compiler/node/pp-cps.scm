@@ -185,8 +185,7 @@
              ns)))))
 
 (define (simple-call? call)
-  (and (= '1 (call-exits call))
-       (not (lambda-block (call-arg call 0)))))
+  (= '1 (call-exits call)))
 
 (define (let-call? call)
   (calls-this-primop? call 'let))
