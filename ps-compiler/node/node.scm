@@ -94,34 +94,34 @@
 
 ; known values for top-level variables
 
-(define (flag-accessor flag)
+(define (variable-flag-accessor flag)
   (lambda (var)
     (let ((p (flag-assq flag (variable-flags var))))
       (if p (cdr p) #f))))
 
-(define (flag-setter flag)
+(define (variable-flag-setter flag)
   (lambda (var value)
     (set-variable-flags! var
 			 (cons (cons flag value)
 			       (variable-flags var)))))
 
-(define (flag-remover flag)
+(define (variable-flag-remover flag)
   (lambda (var)
     (set-variable-flags! var (filter (lambda (x)
 				       (or (not (pair? x))
 					   (not (eq? (car x) flag))))
 				     (variable-flags var)))))
   
-(define variable-known-value (flag-accessor 'known-value))
-(define add-variable-known-value! (flag-setter 'known-value))
-(define remove-variable-known-value! (flag-remover 'known-value))
+(define variable-known-value (variable-flag-accessor 'known-value))
+(define add-variable-known-value! (variable-flag-setter 'known-value))
+(define remove-variable-known-value! (variable-flag-remover 'known-value))
 
-(define variable-simplifier (flag-accessor 'simplifier))
-(define add-variable-simplifier! (flag-setter 'simplifier))
-(define remove-variable-simplifier! (flag-remover 'simplifier))
+(define variable-simplifier (variable-flag-accessor 'simplifier))
+(define add-variable-simplifier! (variable-flag-setter 'simplifier))
+(define remove-variable-simplifier! (variable-flag-remover 'simplifier))
 
-(define variable-known-lambda (flag-accessor 'known-lambda))
-(define note-known-global-lambda! (flag-setter 'known-lambda))
+(define variable-known-lambda (variable-flag-accessor 'known-lambda))
+(define note-known-global-lambda! (variable-flag-setter 'known-lambda))
 
 ;----------------------------------------------------------------------------
 ; The main record for the node tree

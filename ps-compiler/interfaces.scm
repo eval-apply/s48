@@ -68,6 +68,7 @@
 	  variable-generate set-variable-generate!
           erase-variable
           variable-index copy-variable used? unused?
+	  variable-flag-accessor variable-flag-setter variable-flag-remover
           variable-known-value
 	  add-variable-known-value!
 	  remove-variable-known-value!
