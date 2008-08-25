@@ -1015,26 +1015,34 @@ inline static void call_internal_write_barrier2(Area* maybe_area, s48_address ad
 
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
 
+static Area* make_small_available_in_no_gc(Space* space, long size_in_bytes) {
+  Area* area = space->small_area;
+  if (size_in_bytes > AREA_REMAINING(area)) {
+    area = allocate_small_area(space, size_in_bytes);
+  }
+  return area;
+}
+
+static s48_address allocate_small_in_no_gc(Space* space, long size_in_bytes) {
+  Area* area = make_small_available_in_no_gc(space, size_in_bytes);
+  s48_address addr = area->frontier;
+  area->frontier += S48_BYTES_TO_A_UNITS(size_in_bytes);
+  return addr;
+}
+
 static s48_value make_stob(long type, long size_in_cells) {
   /* Must work during a collection! */
-  s48_address addr;
-  long size_in_bytes = S48_CELLS_TO_BYTES(size_in_cells);
-  s48_value header = S48_MAKE_HEADER(type, size_in_bytes);
 
-  long total_size_in_bytes = S48_STOB_OVERHEAD_IN_BYTES + size_in_bytes;
+  long size_in_bytes = S48_CELLS_TO_BYTES(size_in_cells);
 
   /* Allocate a place for it */
-  Space* to_space = generations[0].current_space;
-  Area* area = to_space->small_area;
-  if (total_size_in_bytes > AREA_REMAINING(area)) {
-    area = allocate_small_area(to_space, total_size_in_bytes);
-  }
-  addr = area->frontier;
-  area->frontier += S48_BYTES_TO_A_UNITS(total_size_in_bytes);
+  s48_address addr = allocate_small_in_no_gc(
+      generations[0].current_space,
+      S48_STOB_OVERHEAD_IN_BYTES + size_in_bytes);
 
   /* Initialize */
   assert(S48_STOB_OVERHEAD_IN_BYTES == sizeof(s48_value));
-  *((s48_value*)addr) = header;
+  *((s48_value*)addr) = S48_MAKE_HEADER(type, size_in_bytes);
   memset(addr + S48_STOB_OVERHEAD_IN_A_UNITS, 0, size_in_bytes);
 
   return S48_ADDRESS_TO_STOB_DESCRIPTOR(addr + S48_STOB_OVERHEAD_IN_A_UNITS);
@@ -1132,6 +1140,66 @@ static void trace_transport_link_cell(Area* maybe_area,
     }\
   }
 
+
+void do_copy_object(s48_address addr, /* addr of pointer */
+		    Area * maybe_area, /* laying in area, if known */
+		    Area * from_area, /* pointing in area */
+		    s48_value copy_thing, /* stob descriptor */
+		    s48_value copy_header, /* stob header */
+		    Area * copy_area /* target area */
+		    ) {
+   /* we start writing at the frontier location */
+   s48_address frontier = copy_area->frontier;
+
+   /* the data, means after the header, will be written at this location */
+   s48_address data_addr = frontier + S48_STOB_OVERHEAD_IN_A_UNITS;
+
+   /* Since the s48_address is allways 4 bytes, the lower 2 bits are allways 00 */
+   /* We use these 2 bits for the STOB-TAG: 11 to make a scheme-stob */
+   s48_value new = S48_ADDRESS_TO_STOB_DESCRIPTOR(data_addr);
+
+#if (S48_ADJUST_WATER_MARK)
+   /* count small object-sizes, that survive in the first generation */
+   if ((from_area->generation_index == 0) &&
+       (from_area != creation_space.small_below) &&
+       (from_area != creation_space.small_above) &&
+       (from_area->action == GC_ACTION_COPY_SMALL))
+     aging_space_survival += S48_HEADER_LENGTH_IN_A_UNITS(copy_header) +
+       S48_STOB_OVERHEAD_IN_BYTES;
+#endif
+
+   /* count every surviving obj */
+#if (MEASURE_GC)
+   all_surviving_obj += S48_HEADER_LENGTH_IN_A_UNITS(copy_header) +
+     S48_STOB_OVERHEAD_IN_BYTES;
+#endif
+
+   /* copy the object to the new location */
+   /* first the header at the frontier location */
+   *((s48_value*)frontier) = copy_header;
+
+   /* and then the data (thing addresss after header) at the data_addr
+      location */
+   assert(AREA_REMAINING(copy_area) >= (S48_HEADER_LENGTH_IN_BYTES(copy_header)
+					+ S48_STOB_OVERHEAD_IN_BYTES));
+	  
+   memcpy((void*)data_addr, S48_ADDRESS_AFTER_HEADER(copy_thing, void),
+	  S48_HEADER_LENGTH_IN_BYTES(copy_header));
+
+   /* break heart */
+   /* alternative: S48_STOB_HEADER(copy_thing) = new;*/
+   *((s48_value*)S48_ADDRESS_AT_HEADER(copy_thing)) = new;
+
+   /* advance the allocation pointer */
+   copy_area->frontier = data_addr + S48_HEADER_LENGTH_IN_A_UNITS(copy_header);
+
+   /* overwrite the old stob with the new one */
+   *((s48_value*)addr) = new;
+
+   /* if we are tracing an area, from an older generation call write_barrier */
+   call_internal_write_barrier(maybe_area, addr, new, copy_area);
+}
+
 /*  Copy everything pointed to from somewhere between START (inclusive)
     and END (exclusive).
 */
@@ -1164,15 +1232,13 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
        addr = next + S48_HEADER_LENGTH_IN_A_UNITS(thing);
      }
      else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_CONTINUATION) {
-       unsigned long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
+       long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
        extern void s48_trace_continuation(char *, long); /* BIBOP-specific */
        s48_trace_continuation(next, size);
        addr = next + size;
      }
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
      else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_TRANSPORT_LINK_CELL) {
-       /*if (strcmp("trace_areas", called_from) != 0)
-	 fprintf(stderr, "%p %s\n", addr, called_from);*/
        long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
        trace_transport_link_cell(maybe_area, next, size);
        addr = next + size;
@@ -1288,58 +1354,7 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
  }
 
  copy_object: { /* parameter: from_area, copy_thing, copy_header, copy_area */
-
-   /* we start writing at the frontier location */
-   s48_address frontier = copy_area->frontier;
-
-   /* the data, means after the header, will be written at this location */
-   s48_address data_addr = frontier + S48_STOB_OVERHEAD_IN_A_UNITS;
-
-   /* Since the s48_address is allways 4 bytes, the lower 2 bits are allways 00 */
-   /* We use these 2 bits for the STOB-TAG: 11 to make a scheme-stob */
-   s48_value new = S48_ADDRESS_TO_STOB_DESCRIPTOR(data_addr);
-
-#if (S48_ADJUST_WATER_MARK)
-   /* count small object-sizes, that survive in the first generation */
-   if ((from_area->generation_index == 0) &&
-       (from_area != creation_space.small_below) &&
-       (from_area != creation_space.small_above) &&
-       (from_area->action == GC_ACTION_COPY_SMALL))
-     aging_space_survival += S48_HEADER_LENGTH_IN_A_UNITS(copy_header) +
-       S48_STOB_OVERHEAD_IN_BYTES;
-#endif
-
-   /* count every surviving obj */
-#if (MEASURE_GC)
-   all_surviving_obj += S48_HEADER_LENGTH_IN_A_UNITS(copy_header) +
-     S48_STOB_OVERHEAD_IN_BYTES;
-#endif
-
-   /* copy the object to the new location */
-   /* first the header at the frontier location */
-   *((s48_value*)frontier) = copy_header;
-
-   /* and then the data (thing addresss after header) at the data_addr
-      location */
-   assert(AREA_REMAINING(copy_area) >= (S48_HEADER_LENGTH_IN_BYTES(copy_header)
-					+ S48_STOB_OVERHEAD_IN_BYTES));
-	  
-   memcpy((void*)data_addr, S48_ADDRESS_AFTER_HEADER(copy_thing, void),
-	  S48_HEADER_LENGTH_IN_BYTES(copy_header));
-
-   /* break heart */
-   /* alternative: S48_STOB_HEADER(copy_thing) = new;*/
-   *((s48_value*)S48_ADDRESS_AT_HEADER(copy_thing)) = new;
-
-   /* advance the allocation pointer */
-   copy_area->frontier = data_addr + S48_HEADER_LENGTH_IN_A_UNITS(copy_header);
-
-   /* overwrite the old stob with the new one */
-   *((s48_value*)addr) = new;
-
-   /* if we are tracing an area, from an older generation call write_barrier */
-     call_internal_write_barrier(maybe_area, addr, new, copy_area);
-
+   do_copy_object(addr, maybe_area, from_area, copy_thing, copy_header, copy_area);
    /* continue behind that stob */
    addr = next;
    goto loop;
