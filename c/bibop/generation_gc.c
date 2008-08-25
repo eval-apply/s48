@@ -593,7 +593,7 @@ static char trace_areas(Area* areas) {
       s48_address start = areas->trace;
       s48_address end = areas->frontier;
       if (start != end) {
-	s48_internal_trace_locationsB(areas, start, end, "trace_areas");
+	s48_internal_trace_locationsB(areas, TRUE, start, end, "trace_areas");
 	areas->trace = end;
 	hit = 1;
       } else
@@ -999,18 +999,20 @@ inline static Area* allocate_weak_area(Space* space);
 inline static Area* allocate_large_area(Space* space,
 					unsigned int size_in_bytes);
 
-inline static void call_internal_write_barrier(Area* maybe_area, s48_address addr,
+inline static void call_internal_write_barrier(Area* maybe_area, char area_looked_up, s48_address addr,
 					       s48_value stob, Area* to_area) {
+  if (!area_looked_up) maybe_area = s48_memory_map_ref(addr);
+  /* if maybe_area is still NULL, it must have been a write to a
+     location outside of the heap, e.g. a temporary pointer or
+     something in the root-set; we can ignore it. */
   if ((maybe_area != NULL) && (maybe_area->generation_index > 0))
     s48_internal_write_barrier(maybe_area, addr, stob, to_area);
 }
 
-inline static void call_internal_write_barrier2(Area* maybe_area, s48_address addr,
+inline static void call_internal_write_barrier2(Area* maybe_area, char area_looked_up, s48_address addr,
 						s48_value stob) {
-  if ((maybe_area != NULL) && (maybe_area->generation_index > 0)) {
-    s48_internal_write_barrier(maybe_area, addr, stob,
-			       s48_memory_map_ref((s48_address)stob));
-  }
+  call_internal_write_barrier(maybe_area, area_looked_up, addr, stob,
+			      s48_memory_map_ref((s48_address)stob));
 }
 
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
@@ -1084,7 +1086,7 @@ static void append_tconcB(s48_value tconc, s48_value elem) {
   /* else: silently ignoring malformed tconc */
 }
 
-static void trace_transport_link_cell(Area* maybe_area,
+static void trace_transport_link_cell(Area* maybe_area, char area_looked_up,
                                       s48_address contents_pointer,
 				      long size_in_a_units) {
   s48_value tlc = S48_ADDRESS_TO_STOB_DESCRIPTOR(contents_pointer);
@@ -1095,7 +1097,7 @@ static void trace_transport_link_cell(Area* maybe_area,
 
   /* ...trace the current tlc to make sure that every pointer is up-to-date. */
   s48_internal_trace_locationsB(
-    maybe_area, contents_pointer,
+    maybe_area, area_looked_up, contents_pointer,
     contents_pointer + size_in_a_units,
     "trace_transport_link_cell");
 
@@ -1129,7 +1131,7 @@ static void trace_transport_link_cell(Area* maybe_area,
     long header = S48_STOB_HEADER(trace_stob_stob);\
     if (BROKEN_HEART_P((s48_value)header)) {\
       *((s48_value*)addr) = header;\
-      call_internal_write_barrier2(maybe_area, addr,\
+      call_internal_write_barrier2(maybe_area, area_looked_up, addr,	\
 				  (s48_value)header);\
       addr = next;\
       goto loop;\
@@ -1143,6 +1145,7 @@ static void trace_transport_link_cell(Area* maybe_area,
 
 void do_copy_object(s48_address addr, /* addr of pointer */
 		    Area * maybe_area, /* laying in area, if known */
+		    char area_looked_up, /* area known? */
 		    Area * from_area, /* pointing in area */
 		    s48_value copy_thing, /* stob descriptor */
 		    s48_value copy_header, /* stob header */
@@ -1197,14 +1200,14 @@ void do_copy_object(s48_address addr, /* addr of pointer */
    *((s48_value*)addr) = new;
 
    /* if we are tracing an area, from an older generation call write_barrier */
-   call_internal_write_barrier(maybe_area, addr, new, copy_area);
+   call_internal_write_barrier(maybe_area, area_looked_up, addr, new, copy_area);
 }
 
 /*  Copy everything pointed to from somewhere between START (inclusive)
     and END (exclusive).
 */
 
-void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
+void s48_internal_trace_locationsB(Area* maybe_area, char area_looked_up, s48_address start,
 				   s48_address end, char* called_from) {
   s48_address addr = start;
   s48_address next;
@@ -1240,7 +1243,7 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
      else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_TRANSPORT_LINK_CELL) {
        long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
-       trace_transport_link_cell(maybe_area, next, size);
+       trace_transport_link_cell(maybe_area, area_lookup_up, next, size);
        addr = next + size;
      }
 #endif
@@ -1278,7 +1281,7 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
        EKG(copy_weak_pointer);
      } break;
      case GC_ACTION_IGNORE: {
-       call_internal_write_barrier(maybe_area, addr, trace_stob_stob, from_area);
+       call_internal_write_barrier(maybe_area, area_looked_up, addr, trace_stob_stob, from_area);
        addr = next;
        goto loop;
      } break;
@@ -1286,7 +1289,7 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
        copy_to_space = from_area->target_space;
        mark_large(from_area, copy_to_space);
        /* a large object has been "copied" */
-       call_internal_write_barrier(maybe_area, addr, trace_stob_stob, from_area);
+       call_internal_write_barrier(maybe_area, area_looked_up, addr, trace_stob_stob, from_area);
        addr = next;
        goto loop;
      } break;
@@ -1354,7 +1357,7 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
  }
 
  copy_object: { /* parameter: from_area, copy_thing, copy_header, copy_area */
-   do_copy_object(addr, maybe_area, from_area, copy_thing, copy_header, copy_area);
+   do_copy_object(addr, maybe_area, area_looked_up, from_area, copy_thing, copy_header, copy_area);
    /* continue behind that stob */
    addr = next;
    goto loop;
@@ -1363,8 +1366,7 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
 
 /* Traces between START (inclusive) and END (exclusive). */
 void s48_trace_locationsB(s48_address start, s48_address end) {
-  Area* area = s48_memory_map_ref(start);
-  s48_internal_trace_locationsB(area, start, end, "s48_trace_locationsB");
+  s48_internal_trace_locationsB(NULL, FALSE, start, end, "s48_trace_locationsB");
 }
 
 /* s48_trace_value passes the location of STOB to
