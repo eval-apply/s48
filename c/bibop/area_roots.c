@@ -131,17 +131,27 @@ void s48_trace_areas_roots(Area* areas, int generations_count) {
 #if (MEASURE_GC)
     areas_visited += areas->frontier - areas->start;
 #endif
-    
+
+#if S48_DIRTY_VECTOR_METHOD==S48_NO_DIRTY_VECTORS
+#else    
     /* MAIN SCANNING OF THE DIRTY VECTOR */
     /* Search through the whole dirty_vector */
     for (i = 0; i < dirty_vector->length;
 	 i++, card_start_address += S48_CARD_SIZE) {
-      
+#endif
+
 #if (S48_USE_CARD_GENERATION_INDEXING)
       /* we can skip this card, if it doesn't contain pointers to a
 	 generation that we're collected right now. */
       if (dirty_vector->minimum_index[i] >= generations_count)
 	continue;
+#endif
+      
+    /* Now different conditionals, saying if card should be traced */
+#if S48_DIRTY_VECTOR_METHOD==S48_NO_DIRTY_VECTORS
+      if (1) {
+        start_address = areas->start;
+        end_address = areas->frontier;
 #endif
       
 #if S48_DIRTY_VECTOR_METHOD==S48_OFFSET_DIRTY_VECTORS
@@ -200,9 +210,12 @@ void s48_trace_areas_roots(Area* areas, int generations_count) {
 	    areas_passed += (end_address - start_address);
 #endif
 	    
-	    s48_internal_trace_locationsB(areas, start_address, end_address, "s48_trace_areas_roots");
+	    s48_internal_trace_locationsB(areas, TRUE, start_address, end_address, "s48_trace_areas_roots");
 	  }
-	}
+#if S48_DIRTY_VECTOR_METHOD==S48_NO_DIRTY_VECTORS
+#else
+	} // for loop over dirty vector
+#endif
 	
 	areas = areas->next;
       }
