@@ -52,7 +52,7 @@
 	((callback-return-uncovered) "uncovered callback return")
 	((extension-exception) "exception in VM extension")
 	((extension-return-error) "return error in VM extension")
-	((os-error) "OS error")
+	((os-error external-os-error) "OS error")
 	((gc-protection-mismatch) "GC protection mismatch in external code")
 	((no-current-proposal) "no current proposal")
 	((native-code-not-supported) "native code not supported")
