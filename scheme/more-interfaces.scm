@@ -609,7 +609,7 @@
 
 (define-interface test-suites-interface 
   (export ((define-test-suite define-test-case define-test-cases) :syntax)
-	  ((check check-exception check-that check-exception-that) :syntax)
+	  ((check check-terminates check-exception check-that check-exception-that) :syntax)
 	  run-test-suite
 	  =within
 	  zap-test-suite!))

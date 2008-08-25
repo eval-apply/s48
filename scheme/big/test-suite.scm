@@ -122,6 +122,12 @@
     ((check-that ?actual ?matcher ...)
      (check-that-n (lambda () ?actual) '?actual ?matcher ...))))
 
+(define-syntax check-terminates
+  (syntax-rules ()
+    ((check-terminates ?exp)
+     (catching-failures (lambda () ?exp) '?exp 'all #f
+			values))))
+
 (define (catching-failures actual-thunk actual-exp pos expected consumer)
   (call-with-current-continuation
    (lambda (exit)
@@ -217,7 +223,7 @@
   ; #f, 'all, 'size or exact positive integer n denoting the nth return
   ; value out of several (0-based) that was wrong
   (pos check-failure-pos)
-  ; a matcher, or, if POS is 'all, a list of matchers
+  ; a matcher, or, if POS is 'all, #f or a list of matchers
   (expected check-failure-expected))
 
 (define-record-discloser :check-failure
@@ -230,9 +236,11 @@
 		    (check-failure-actual-val f)))
 	  (cons 'expected
 		(let ((expr (check-failure-expected f)))
-		  (if (matcher? expr)
-		      (list (matcher-sexpr expr))
-		      (map matcher-sexpr expr)))))))
+		  (cond
+		   ((not expr) '())
+		   ((matcher? expr)
+		    (list (matcher-sexpr expr)))
+		   (else (map matcher-sexpr expr))))))))
 
 (define-record-type check-exception-failure :check-exception-failure
   (make-check-exception-failure test-case
@@ -325,8 +333,11 @@
 	   (display "EXPECTED value that " p)
 	   (write (matcher-sexpr expr) p))
 	  ((all)
-	   (display "EXPECTED values that match " p)
-	   (write (map matcher-sexpr expr) p))
+	   (if expr
+	       (begin
+		 (display "EXPECTED values that match " p)
+		 (write (map matcher-sexpr expr) p))
+	       (display "EXPECTED termination" p)))
 	  ((size)
 	   (display "EXPECTED " p)
 	   (let ((l (length expr)))
