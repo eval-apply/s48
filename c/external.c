@@ -85,7 +85,7 @@ static s48_value external_return_value;
 /* Exports to Scheme */
 static s48_value	s48_clear_stack_top(void);
 static s48_ref_t	s48_clear_stack_top_2(s48_call_t call);
-static s48_value	s48_system(s48_value string);
+static s48_ref_t	s48_system_2(s48_call_t call, s48_ref_t string);
 
 /* Imports from Scheme */
 static s48_ref_t 	the_record_type_binding       = NULL;
@@ -118,7 +118,7 @@ s48_initialize_external()
 
   S48_EXPORT_FUNCTION(s48_clear_stack_top);
   S48_EXPORT_FUNCTION(s48_clear_stack_top_2);
-  S48_EXPORT_FUNCTION(s48_system);
+  S48_EXPORT_FUNCTION(s48_system_2);
 
 #ifdef DEBUG_FFI
   S48_EXPORT_FUNCTION(s48_trampoline);
@@ -910,14 +910,6 @@ s48_trampoline_2(s48_call_t call, s48_ref_t proc, s48_ref_t nargs)
   }
 }
 #endif
-
-static s48_value
-s48_system(s48_value string)
-{
-  return s48_enter_integer(system((string == S48_FALSE)
-				  ? NULL
-				  : s48_extract_byte_vector(string)));
-}
 
 static s48_ref_t
 s48_system_2(s48_call_t call, s48_ref_t string)
