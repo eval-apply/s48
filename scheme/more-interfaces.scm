@@ -399,6 +399,7 @@
 	  make-byte-vector-input-port make-string-input-port
 	  make-byte-vector-output-port make-string-output-port
 	  byte-vector-output-port-output string-output-port-output
+	  write-byte-vector-output-port-output write-string-output-port-output
 	  limit-output
 	  current-row current-column fresh-line
 
