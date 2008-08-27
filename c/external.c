@@ -521,7 +521,8 @@ s48_external_ecall(s48_call_t call,
   }
 
   /* otherwise the pop_to will kill us */
-  cexternal_return_value = s48_copy_local_ref(call, cexternal_return_value);
+  if (cexternal_return_value)
+	cexternal_return_value = s48_copy_local_ref(call, cexternal_return_value);
 
   s48_pop_to (call);
 
