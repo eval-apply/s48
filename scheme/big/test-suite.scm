@@ -302,6 +302,23 @@
 	    (for-each report-failure failures)))
       failures)))
 
+(define (find-test-case suite name)
+  (first (lambda (c)
+	   (eq? (test-case-name c) name))
+	 (test-suite-cases suite)))
+
+(define (run-test-case suite case-name)
+  (cond
+   ((find-test-case suite case-name)
+    => (lambda (test-case)
+	 (run-test-suite 
+	  (really-make-test-suite case-name (list test-case)))))
+   (else
+    (let ((p (current-error-port)))
+      (display "Unknown test case " p)
+      (display case-name p)
+      (newline p)))))
+
 (define (failure-test-case f)
   (cond
    ((check-failure? f)
