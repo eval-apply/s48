@@ -455,7 +455,7 @@
 (define-structure test-suites test-suites-interface
   (open scheme
 	cells
-	big-util
+	(subset big-util (any delete))
 	matchers
 	exceptions
 	define-record-types
