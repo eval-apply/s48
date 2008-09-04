@@ -933,6 +933,7 @@
 	  make-string-table
 	  make-symbol-table
 	  make-integer-table
+	  make-datum-table
 	  make-table-maker
 	  table?
           table-size
@@ -941,7 +942,7 @@
 	  table-walk table->entry-list
 	  make-table-immutable!
 
-	  string-hash symbol-hash
+	  string-hash symbol-hash datum-hash
 	  default-hash-function))
 
 ;----------------
