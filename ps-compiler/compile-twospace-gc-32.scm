@@ -21,7 +21,7 @@
            '(header "#include \"scheme48vm.h\"")
            '(header "#include \"scheme48heap.h\"")
            ;'(copy (heap walk-over-type-in-area))
-	   '(no-copy (gc s48-trace-locations!))
+	   '(no-copy (gc s48-trace-locations! trace-continuation))
 	   '(no-copy (write-image trace-image-value))
 	   '(copy (string-tables relocate-table))
            '(integrate (real-copy-object s48-trace-locations!)))))
