@@ -12,7 +12,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
-
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
 
 #include <scheme48.h>
 
