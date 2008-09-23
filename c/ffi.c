@@ -172,7 +172,7 @@ s48_ref_t
 s48_make_local_ref (s48_call_t call, s48_value obj)
 {
 #ifdef DEBUG_FFI
-  fprintf (stderr, "make ref from scheme value %x\n", obj);
+  fprintf (stderr, "make local ref from scheme value %x\n", obj);
 #endif
   return make_ref (call->local_refs, obj);
 }
@@ -188,7 +188,7 @@ void
 s48_free_local_ref (s48_call_t call, s48_ref_t ref)
 {
 #ifdef DEBUG_FFI
-  fprintf (stderr, "free ref with scheme value %x\n", s48_deref(ref));
+  fprintf (stderr, "free local ref with scheme value %x\n", s48_deref(ref));
 #endif
   if (!GLOBAL_REF_P (ref))
     free_ref (ref);
@@ -210,12 +210,18 @@ s48_free_local_ref_array (s48_call_t call, s48_ref_t *refs, size_t len)
 s48_ref_t
 s48_make_global_ref (s48_value obj)
 {
+#ifdef DEBUG_FFI
+  fprintf (stderr, "make global ref from scheme value %x\n", obj);
+#endif
   return make_ref (global_ref_group, obj);
 }
 
 void
 s48_free_global_ref (s48_ref_t ref)
 {
+#ifdef DEBUG_FFI
+  fprintf (stderr, "free global ref from scheme value %x\n", s48_deref(ref));
+#endif
   if (GLOBAL_REF_P (ref))
     free_ref (ref);
   else
@@ -226,6 +232,9 @@ s48_ref_t
 s48_local_to_global_ref(s48_ref_t ref)
 {
   s48_value temp = s48_deref(ref);
+#ifdef DEBUG_FFI
+  fprintf (stderr, "local to global ref from scheme value %x\n", s48_deref(ref));
+#endif
   free_ref (ref);
   return s48_make_global_ref(temp);
 }
