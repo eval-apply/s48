@@ -1993,7 +1993,7 @@ s48_make_weak_pointer(s48_value value)
 
   S48_GC_PROTECT_1(value);
 
-  obj = s48_allocate_stob(S48_STOBTYPE_WEAK_POINTER, 1);
+  obj = s48_allocate_weak_stob(S48_STOBTYPE_WEAK_POINTER, 1);
   S48_STOB_SET(obj, 0, value);
 
   S48_GC_UNPROTECT();
@@ -2003,7 +2003,7 @@ s48_make_weak_pointer(s48_value value)
 s48_ref_t
 s48_make_weak_pointer_2(s48_call_t call, s48_ref_t value)
 {
-  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_WEAK_POINTER, 1));
+  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_weak_stob(S48_STOBTYPE_WEAK_POINTER, 1));
   s48_unsafe_stob_set_2(call, ref, 0, value);
   return ref;
 }
