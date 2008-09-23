@@ -135,4 +135,6 @@ s48_ref_t ffi_check_string_latin_1 (s48_call_t call, s48_ref_t sch_string);
 s48_ref_t ffi_check_string_utf_8 (s48_call_t call, s48_ref_t sch_string);
 s48_ref_t ffi_check_string_utf_16 (s48_call_t call, s48_ref_t sch_string);
 
+char* ffi_string_to_latin_1(s48_call_t call, s48_ref_t sch_in);
+
 #endif

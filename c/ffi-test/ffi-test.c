@@ -175,7 +175,7 @@ ffi_make_byte_vector (s48_call_t call, s48_ref_t sch_length)
 	 "would it be better to tell this through its name ?? s48_byte_vector_set_direct e.g. H.G.P." 
 	 -- s48_ref_t sch_ref = s48_enter_long_2(call, (65 + count));
 	 s48_unsafe_byte_vector_set_2(call, result, count, sch_ref); -- */
-      s48_unsafe_byte_vector_set_2(call, result, count, (long)(65 + count));
+      s48_unsafe_byte_vector_set_2(call, result, count, (char)(65 + count));
       /*s48_byte_vector_set_2(call, result, count, (long)(65 + count));*/
     }   
   return result;
@@ -207,6 +207,7 @@ ffi_get_color_enum_set( s48_call_t call, s48_ref_t sch_mask)
   long mask = s48_extract_long_2(call, sch_mask);
   s48_ref_t sch_enum = 
     s48_integer2enum_set_2(call, color_enum_type_binding, mask);
+  return sch_enum;
 }  
 
 s48_ref_t
@@ -225,10 +226,11 @@ s48_ref_t
 ffi_make_strange_value (s48_call_t call, s48_ref_t sch_id,
 			s48_ref_t sch_name)
 {
+  char *temp;
   strange_thing_ref val = (strange_thing_ref)calloc(sizeof(strange_thing),1);
   s48_ref_t result = s48_make_value_2(call, strange_thing_ref);
   val->id = s48_extract_long_2(call, sch_id);
-  char* temp = ffi_string_to_latin_1(call, sch_name); 
+  temp = ffi_string_to_latin_1(call, sch_name); 
   val->name = calloc((s48_string_length_2(call, sch_name) +1),1);
   strcpy(val->name, temp);
   s48_set_value_2(call, result, strange_thing_ref, val);
@@ -247,7 +249,6 @@ ffi_strange_value_to_list (s48_call_t call, s48_ref_t sch_strange_val)
 s48_ref_t
 ffi_strange_value_free (s48_call_t call, s48_ref_t sch_strange_val)
 {
-  (strange_thing_ref)calloc(sizeof(strange_thing),1);
   strange_thing_ref val =  s48_extract_value_2(call, sch_strange_val, strange_thing_ref);
   free(val->name);
   free(val);
@@ -425,12 +426,13 @@ ffi_check_string_utf_8 (s48_call_t call, s48_ref_t sch_string)
    be changes for the be/le problem with utf-16 */
 s48_ref_t ffi_check_string_utf_16 (s48_call_t call, s48_ref_t sch_string)
 {
+  s48_ref_t result;
+  int i;
   uint16_t* buffer = ffi_string_to_utf_16(call, sch_string);
   long length = s48_string_utf_16le_length_2(call, sch_string);
   long len = length;
   length *= sizeof(uint16_t); 
-  s48_ref_t result = s48_make_vector_2(call, len, s48_false_2(call));
-  int i = 0;
+  result = s48_make_vector_2(call, len, s48_false_2(call));
   for (i = 0; i < len; i++)
     {
       uint16_t element = *(buffer + i);

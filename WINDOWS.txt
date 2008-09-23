@@ -72,7 +72,7 @@ build\build-usual-image.bat
 
   Example (supposing the Scheme 48 root directory sits at c:\scheme48)
 
-  build\build-usual-image ".\" "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme" "C:\Program Files\Scheme 48\Scheme 48 1.8\external" scheme48.image scheme48vm.exe build\initial.image-32
+  build\build-usual-image.bat ".\" "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme" "C:\Program Files\Scheme 48\Scheme 48 1.8\external" scheme48.image scheme48vm.exe build\initial.image-32
 
 build\build-initial-image.bat
   This builds build\initial.image-32 from source.
@@ -102,3 +102,11 @@ build\compile-bibop-gc.bat
 
   build\compile-vm.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
   build\compile-bibop-gc.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
+
+build\check.bat
+  This runs the test cases.
+
+  It requires a command-line argument specifying the Scheme 48
+  executable to check.
+
+  build\check.bat "C:\Builds\s48\scheme48vm.exe"
