@@ -548,6 +548,10 @@ s48_external_ecall(s48_call_t call,
 					 2);
       s48_push(old_exception);
       s48_push_2(call, current_stack_block);
+
+      if (cexternal_return_value)
+	s48_free_local_ref(call, cexternal_return_value);
+
       result = S48_UNSPECIFIC;
     }
     else {
@@ -556,6 +560,9 @@ s48_external_ecall(s48_call_t call,
       s48_push_2(call, cexternal_return_value);
       result = S48_UNSPECIFIC;
     }
+  } else {
+    if (cexternal_return_value)
+      s48_free_local_ref(call, cexternal_return_value);
   }
 
   return result;
