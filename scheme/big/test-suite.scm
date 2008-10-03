@@ -245,7 +245,7 @@
   ;; may be #f
   (actual-condition check-exception-failure-actual-condition)
   ;; #f when ACTUAL-CONDITION is #f, otherwise continuation (not escape procedure!)
-  (continuation check-failure-continuation)
+  (continuation check-exception-failure-continuation)
   ;; either a procedure or a matcher
   (criterion check-exception-failure-criterion))
 
@@ -404,7 +404,7 @@
 	     (display " exception with condition:" p)
 	     (display-condition con p)
 	     (display "PREVIEW:" p) (newline p)
-	     (display-preview (continuation-preview (check-failure-continuation f)) p)))
+	     (display-preview (continuation-preview (check-exception-failure-continuation f)) p)))
        (else
 	(for-each (lambda (val)
 		    (display #\space p)
