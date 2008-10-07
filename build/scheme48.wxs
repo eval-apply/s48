@@ -194,6 +194,8 @@
       <ComponentRef Id="scheme_cml_component" />
       <ComponentRef Id="scheme_srfi_component" />
       <ComponentRef Id="scheme_rts_component" />
+      <ComponentRef Id="scheme_r6rs_component" />
+      <ComponentRef Id="scheme_net_component" />
       <ComponentRef Id="scheme_posix_component" />
 
       <ComponentRef Id="external_component" />
