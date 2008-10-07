@@ -19,6 +19,7 @@ for f in scheme/*.scm \
       scheme/big/*.scm \
       scheme/misc/*.scm \
       scheme/net/*.scm \
+      scheme/r6rs/*.scm \
       scheme/cml/*.scm \
       scheme/srfi/*.scm \
       scheme/rts/*.scm \
