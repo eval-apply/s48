@@ -422,7 +422,7 @@ install: enough dirs \
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.def $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48-external.exp $(DESTDIR)$(incdir)
 # install Scheme source files
-	for stub in env big sort opt misc link posix cml srfi r6rs; do	\
+	for stub in env big sort opt misc link posix net cml srfi r6rs; do	\
 		for f in $(srcdir)/scheme/$$stub/*.scm; do		\
 			$(INSTALL_DATA) $$f $(DESTDIR)$(SHARE)/$$stub || exit 1;	\
 		done;							\
@@ -484,7 +484,7 @@ dirs:
 		$(srcdir)/mkinstalldirs $(DESTDIR)$$dir || exit 1;	 \
 	done
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(LIB)
-	for dir in rts env big sort opt misc link posix cml srfi r6rs; do   \
+	for dir in rts env big sort opt misc link posix net cml srfi r6rs; do   \
 		$(srcdir)/mkinstalldirs $(DESTDIR)$(SHARE)/$$dir || exit 1; \
 	done
 
