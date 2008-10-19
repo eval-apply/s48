@@ -1243,7 +1243,7 @@ void s48_internal_trace_locationsB(Area* maybe_area, char area_looked_up, s48_ad
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
      else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_TRANSPORT_LINK_CELL) {
        long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
-       trace_transport_link_cell(maybe_area, area_lookup_up, next, size);
+       trace_transport_link_cell(maybe_area, area_looked_up, next, size);
        addr = next + size;
      }
 #endif
