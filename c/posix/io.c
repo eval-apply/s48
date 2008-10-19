@@ -169,7 +169,7 @@ posix_pipe(s48_call_t call)
 {  int 		fildes[2],
     		status;
   s48_ref_t	in_channel, out_channel;
-  s48_ref_t 	id = s48_make_local_ref(call, s48_enter_string_latin_1_2 (call, "pipe"));
+  s48_ref_t 	id = s48_enter_string_latin_1_2 (call, "pipe");
 
   RETRY_OR_RAISE_NEG(status, pipe(fildes));
 
