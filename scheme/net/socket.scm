@@ -42,7 +42,7 @@
 				      (socket-type->raw type)
 				      protocol))))
 
-(import-lambda-definition external-socket (family type protocol)
+(import-lambda-definition-2 external-socket (family type protocol)
 			  "s48_socket")
 
 (define (dup-socket sock)
@@ -61,7 +61,7 @@
 	(attach-socket-ports! s2 (external-dup-socket-channel (cdr p)))
 	(values s1 s2)))))
 
-(import-lambda-definition external-socketpair (family type protocol)
+(import-lambda-definition-2 external-socketpair (family type protocol)
 			  "s48_socketpair")
 
 ; Close the channel, notifying any waiters that this has happened.
@@ -82,7 +82,7 @@
   (external-bind (socket-channel socket)
 		 (socket-address-raw address)))
 
-(import-lambda-definition external-bind (channel address)
+(import-lambda-definition-2 external-bind (channel address)
 			  "s48_bind")
 
 (define socket-listen
@@ -90,9 +90,9 @@
     (external-listen (socket-channel socket)
 		     queue-size)))
 
-(import-lambda-definition external-listen (channel queue-size)
+(import-lambda-definition-2 external-listen (channel queue-size)
 			  "s48_listen")
-(import-lambda-definition max-socket-connection-count ()
+(import-lambda-definition-2 max-socket-connection-count ()
 			  "s48_max_connection_count")
 
 ; FreeBSD's connect() behaves oddly.  If you get told to wait, wait for select()
@@ -121,7 +121,7 @@
 		 (enable-interrupts!)
 		 (loop #t))))))))
 
-(import-lambda-definition external-connect (channel address retry?)
+(import-lambda-definition-2 external-connect (channel address retry?)
 			  "s48_connect")
 
 (define (socket-accept socket)
@@ -132,9 +132,9 @@
     (attach-socket-ports! newsock (external-dup-socket-channel channel))
     newsock))
 
-(import-lambda-definition external-accept (channel retry?)
+(import-lambda-definition-2 external-accept (channel retry?)
 			  "s48_accept")
-(import-lambda-definition external-dup-socket-channel (channel)
+(import-lambda-definition-2 external-dup-socket-channel (channel)
 			  "s48_dup_socket_channel")
 
 ; Keep performing OP until it returns a non-#F value.  In between attempts we
@@ -171,7 +171,7 @@
 (define (shutdown-socket-channel channel how)
   (external-shutdown channel (shutdown-option->raw how)))
 
-(import-lambda-definition external-shutdown (channel how)
+(import-lambda-definition-2 external-shutdown (channel how)
 			  "s48_shutdown")
 
 (define (close-socket-input-channel channel)
@@ -186,14 +186,14 @@
   (raw->socket-address
    (external-getsockname (socket-channel socket))))
 
-(import-lambda-definition external-getsockname (channel)
+(import-lambda-definition-2 external-getsockname (channel)
 			  "s48_getsockname")
 
 (define (socket-peer-address socket)
   (raw->socket-address
    (external-getpeername (socket-channel socket))))
 
-(import-lambda-definition external-getpeername (channel)
+(import-lambda-definition-2 external-getpeername (channel)
 			  "s48_getpeername")
 
 
@@ -204,7 +204,7 @@
        (define (?name socket val)
 	 (external-setsockopt (socket-channel socket) val))
        
-       (import-lambda-definition external-setsockopt (channel val)
+       (import-lambda-definition-2 external-setsockopt (channel val)
 				 ?external-name)))))
 
 (define-syntax define-socket-option-getter
@@ -214,7 +214,7 @@
        (define (?name socket)
 	 (external-getsockopt (socket-channel socket)))
        
-       (import-lambda-definition external-getsockopt (channel)
+       (import-lambda-definition-2 external-getsockopt (channel)
 				 ?external-name)))))
 
 
@@ -287,7 +287,7 @@
 				   (socket-address-raw address)
 				   (interface-index interface)))
 
-(import-lambda-definition external-ipv6-socket-join-group (channel address if-index)
+(import-lambda-definition-2 external-ipv6-socket-join-group (channel address if-index)
 			  "s48_ipv6_socket_join_group")
 
 (define (socket-ipv6-leave-group! socket address interface)
@@ -295,7 +295,7 @@
 				    (socket-address-raw address)
 				    (interface-index interface)))
 
-(import-lambda-definition external-ipv6-socket-leave-group (channel address if-index)
+(import-lambda-definition-2 external-ipv6-socket-leave-group (channel address if-index)
 			  "s48_ipv6_socket_leave_group")
 			  
 
@@ -319,7 +319,7 @@
 					   (socket-address-raw address)
 					   retry?)))))
 
-(import-lambda-definition external-sendto (channel
+(import-lambda-definition-2 external-sendto (channel
 					   buffer start count flags address
 					   retry?)
 			  "s48_sendto")
@@ -342,7 +342,7 @@
 	  (values (car got) (raw->socket-address (cdr got)))
 	  got))))
 
-(import-lambda-definition external-recvfrom (channel
+(import-lambda-definition-2 external-recvfrom (channel
 					     buffer start count flags
 					     want-sender? retry?)
 			  "s48_recvfrom")

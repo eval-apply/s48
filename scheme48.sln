@@ -1,8 +1,13 @@
-Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual Studio 2005
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual C++ Express 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "scheme48", "scheme48.vcproj", "{FF056A47-5095-4837-B381-60104984AD5F}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "srfi-27", "srfi-27.vcproj", "{D0283225-314B-4140-8940-2EE6137874CB}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FF056A47-5095-4837-B381-60104984AD5F} = {FF056A47-5095-4837-B381-60104984AD5F}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ffi-test", "ffi-test.vcproj", "{EB565705-1E66-40C9-894D-D152C3920212}"
 	ProjectSection(ProjectDependencies) = postProject
 		{FF056A47-5095-4837-B381-60104984AD5F} = {FF056A47-5095-4837-B381-60104984AD5F}
 	EndProjectSection
@@ -21,6 +26,10 @@ Global
 		{D0283225-314B-4140-8940-2EE6137874CB}.Debug|Win32.Build.0 = Debug|Win32
 		{D0283225-314B-4140-8940-2EE6137874CB}.Release|Win32.ActiveCfg = Release|Win32
 		{D0283225-314B-4140-8940-2EE6137874CB}.Release|Win32.Build.0 = Release|Win32
+		{EB565705-1E66-40C9-894D-D152C3920212}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EB565705-1E66-40C9-894D-D152C3920212}.Debug|Win32.Build.0 = Debug|Win32
+		{EB565705-1E66-40C9-894D-D152C3920212}.Release|Win32.ActiveCfg = Release|Win32
+		{EB565705-1E66-40C9-894D-D152C3920212}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

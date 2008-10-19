@@ -100,19 +100,7 @@
     ((check-exception ?actual)
      (check-exception ?actual => always-true))
     ((check-exception ?actual => ?predicate)
-     (let ((predicate ?predicate))
-       (guard
-	(c
-	 ((not (predicate c))
-	  (register-failure!
-	   (make-check-exception-failure (fluid $test-case)
-					 '?actual #f c predicate)))
-	 (else (values)))
-	
-	(let ((actual ?actual))
-	  (register-failure!
-	   (make-check-exception-failure (fluid $test-case)
-					 '?actual actual #f predicate))))))))
+     (check-exception-that ?actual (is ?predicate)))))
 
 ; Idea stolen from latest JUnit
 (define-syntax check-that
@@ -121,6 +109,12 @@
      (check-that-1 (lambda () ?actual) '?actual ?matcher))
     ((check-that ?actual ?matcher ...)
      (check-that-n (lambda () ?actual) '?actual ?matcher ...))))
+
+(define-syntax check-terminates
+  (syntax-rules ()
+    ((check-terminates ?exp)
+     (catching-failures (lambda () ?exp) '?exp 'all #f
+			values))))
 
 (define (catching-failures actual-thunk actual-exp pos expected consumer)
   (call-with-current-continuation
@@ -174,20 +168,25 @@
      (check-exception-that* (lambda () ?actual) '?actual ?matcher))))
 
 (define (check-exception-that* actual-thunk actual-exp matcher)
-  (guard
-   (c
-    ((not (matches? matcher c))
-     (register-failure!
-      (make-check-exception-failure (fluid $test-case)
-				    actual-exp #f c matcher)))
-    (else (values)))
-	
-   (call-with-values
-       actual-thunk
-     (lambda actual-vals
-       (register-failure!
-	(make-check-exception-failure (fluid $test-case)
-				      actual-exp actual-vals #f matcher))))))
+  (call-with-current-continuation
+   (lambda (exit)
+     (with-exception-handler
+      (lambda (c)
+	(primitive-cwcc
+	 (lambda (cont)
+	   (cond
+	    ((not (matches? matcher c))
+	     (register-failure!
+	      (make-check-exception-failure (fluid $test-case)
+					    actual-exp #f c cont matcher))))))
+	(exit))
+      (lambda ()
+	(call-with-values
+	    actual-thunk
+	  (lambda actual-vals
+	    (register-failure!
+	     (make-check-exception-failure (fluid $test-case)
+					   actual-exp actual-vals #f #f matcher)))))))))
 
 ; special case: inexact
 (define (=within tolerance)
@@ -217,7 +216,7 @@
   ; #f, 'all, 'size or exact positive integer n denoting the nth return
   ; value out of several (0-based) that was wrong
   (pos check-failure-pos)
-  ; a matcher, or, if POS is 'all, a list of matchers
+  ; a matcher, or, if POS is 'all, #f or a list of matchers
   (expected check-failure-expected))
 
 (define-record-discloser :check-failure
@@ -230,19 +229,23 @@
 		    (check-failure-actual-val f)))
 	  (cons 'expected
 		(let ((expr (check-failure-expected f)))
-		  (if (matcher? expr)
-		      (list (matcher-sexpr expr))
-		      (map matcher-sexpr expr)))))))
+		  (cond
+		   ((not expr) '())
+		   ((matcher? expr)
+		    (list (matcher-sexpr expr)))
+		   (else (map matcher-sexpr expr))))))))
 
 (define-record-type check-exception-failure :check-exception-failure
   (make-check-exception-failure test-case
-				actual-expr actual-vals actual-condition criterion)
+				actual-expr actual-vals actual-condition continuation criterion)
   check-exception-failure?
   (test-case check-exception-failure-test-case)
   (actual-expr check-exception-failure-actual-expr)
   (actual-vals check-exception-failure-actual-vals)
   ;; may be #f
   (actual-condition check-exception-failure-actual-condition)
+  ;; #f when ACTUAL-CONDITION is #f, otherwise continuation (not escape procedure!)
+  (continuation check-exception-failure-continuation)
   ;; either a procedure or a matcher
   (criterion check-exception-failure-criterion))
 
@@ -268,14 +271,7 @@
 	  ((test-suite? suite)
 	   (display (test-suite-name suite) p)
 	   (newline p)
-	   (for-each (lambda (case)
-		       (display " (" p)
-		       (display (test-case-name case) p)
-		       (let-fluid $test-case case
-				  (test-case-thunk case))
-		       (display ")" p)
-		       (newline p))
-		     (reverse (test-suite-cases suite))))
+	   (run-test-cases-internal p (reverse (test-suite-cases suite))))
 	  ((compound-test-suite? suite)
 	   (display (compound-test-suite-name suite) p)
 	   (newline p)
@@ -283,16 +279,48 @@
 	 (display "]" p)
 	 (newline p) (newline p))))
 
-    (let ((failures (reverse (cell-ref cell))))
-      (if (null? failures)
-	  (begin
-	    (display "ALL TESTS SUCCEDED" p)
-	    (newline p))
-	  (begin
-	    (display "FAILURES:" p)
-	    (newline p)
-	    (for-each report-failure failures)))
-      failures)))
+    (report-failures p (reverse (cell-ref cell)))))
+
+(define (run-test-cases suite . names)
+  (let ((cases
+	 (map (lambda (name)
+		(or (find-test-case suite name)
+		    (error 'run-test-cases
+			   "test case not found" name suite)))
+	      names))
+	(p (current-error-port))
+	(cell (make-cell '())))
+      (let-fluid
+       $failures cell
+       (lambda ()
+	 (run-test-cases-internal p cases)
+	 (report-failures p (reverse (cell-ref cell)))))))
+
+(define (find-test-case suite name)
+  (any (lambda (c)
+	 (eq? (test-case-name c) name))
+       (test-suite-cases suite)))
+
+(define (run-test-cases-internal p cases)
+  (for-each (lambda (case)
+	      (display " (" p)
+	      (display (test-case-name case) p)
+	      (let-fluid $test-case case
+			 (test-case-thunk case))
+	      (display ")" p)
+	      (newline p))
+	    cases))
+
+(define (report-failures p failures)
+  (if (null? failures)
+      (begin
+	(display "ALL TESTS SUCCEDED" p)
+	(newline p))
+      (begin
+	(display "FAILURES:" p)
+	(newline p)
+	(for-each report-failure failures)))
+  failures)
 
 (define (failure-test-case f)
   (cond
@@ -325,8 +353,11 @@
 	   (display "EXPECTED value that " p)
 	   (write (matcher-sexpr expr) p))
 	  ((all)
-	   (display "EXPECTED values that match " p)
-	   (write (map matcher-sexpr expr) p))
+	   (if expr
+	       (begin
+		 (display "EXPECTED values that match " p)
+		 (write (map matcher-sexpr expr) p))
+	       (display "EXPECTED termination" p)))
 	  ((size)
 	   (display "EXPECTED " p)
 	   (let ((l (length expr)))
@@ -371,7 +402,9 @@
        ((check-exception-failure-actual-condition f)
 	=> (lambda (con)
 	     (display " exception with condition:" p)
-	     (display-condition con p)))
+	     (display-condition con p)
+	     (display "PREVIEW:" p) (newline p)
+	     (display-preview (continuation-preview (check-exception-failure-continuation f)) p)))
        (else
 	(for-each (lambda (val)
 		    (display #\space p)

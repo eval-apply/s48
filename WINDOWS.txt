@@ -54,7 +54,7 @@ build\generate-c-header.bat
 
   Example:
 
-  build\generate-c-header.bat "C:\Program Files\Scheme 48\Scheme 48 1.3\scheme48"
+  build\generate-c-header.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
 
 build\build-usual-image.bat
   This generates the default scheme48.image from build\initial.image.
@@ -72,10 +72,10 @@ build\build-usual-image.bat
 
   Example (supposing the Scheme 48 root directory sits at c:\scheme48)
 
-  build\build-usual-image ".\" "C:\Program Files\Scheme 48\Scheme 48 1.3\scheme" "C:\Program Files\Scheme 48\Scheme 48 1.3\external" scheme48.image scheme48vm.exe build\initial.image
+  build\build-usual-image.bat ".\" "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme" "C:\Program Files\Scheme 48\Scheme 48 1.8\external" scheme48.image scheme48vm.exe build\initial.image-32
 
 build\build-initial-image.bat
-  This builds build\initial.image from source.
+  This builds build\initial.image-32 from source.
 
   It requires a command-line argument specifying how to start up a
   Scheme 48 REPL.
@@ -84,19 +84,29 @@ build\build-initial-image.bat
 
   <Scheme 48> -a batch < build\filenames.scm
   where <Scheme 48> starts up a Scheme 48 REPL, for example
-  "C:\Program Files\Scheme 48\Scheme 48 1.3\scheme48" -a batch < build\filenames.scm
+  "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48" -a batch < build\filenames.scm
 
-  build\build-initial-image.bat "C:\Program Files\Scheme 48\Scheme 48 1.3\scheme48"
+  build\build-initial-image.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
 
 build\generate-unicode-info.bat
   This builds the Unicode tables from source.
 
-  build\generate-unicode-info.bat "C:\Program Files\Scheme 48\Scheme 48 1.3\scheme48"
+  build\generate-unicode-info.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
 
-build\i-know-what-i-am-doing.bat
+build\compile-vm.bat
+build\compile-bibop-gc.bat
   This builds the VM C sources from Scheme.
 
   It requires a command-line argument specifying how to start up a
   Scheme 48 REPL.
 
-  build\i-know-what-i-am-doing.bat "C:\Program Files\Scheme 48\Scheme 48 1.3\scheme48"
+  build\compile-vm.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
+  build\compile-bibop-gc.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
+
+build\check.bat
+  This runs the test cases.
+
+  It requires a command-line argument specifying the Scheme 48
+  executable to check.
+
+  build\check.bat "C:\Builds\s48\scheme48vm.exe"

@@ -94,6 +94,8 @@ s48_extended_vm (long key, s48_value value)
     static char* buf = NULL;
     static size_t max_size = 0;
     size_t len = s48_string_length(get_arg(value, 0));
+    double retval;
+    extern double ps_pos_infinity(void), ps_neg_infinity(void), ps_not_a_number(void);
     if (len + 1 > max_size)
       {
 	max_size = ((len > 40) ? (len + 1) : 41);
@@ -103,7 +105,28 @@ s48_extended_vm (long key, s48_value value)
       }
     s48_copy_string_to_latin_1(get_arg(value, 0), buf);
     buf[len] = '\0';
-    set_float_arg(value, 1, atof(buf));
+    if (buf[0] == '+')
+      {
+	if (!strcmp(buf, "+inf.0"))
+	  retval = ps_pos_infinity();
+	else if (!strcmp(buf, "+nan.0"))
+	  retval = ps_not_a_number();
+	else
+	  retval = atof(buf);
+      }
+    else if (buf[0] == '-')
+      {
+	if (!strcmp(buf, "-inf.0"))
+	  retval = ps_neg_infinity();
+	else if (!strcmp(buf, "-nan.0"))
+	  retval = ps_not_a_number();
+	else
+	  retval = atof(buf);
+      }
+    else
+      retval = atof(buf);
+	
+    set_float_arg(value, 1, retval);
     EXT_RETURN(get_arg(value, 1));
   }
   FLOP2(2) {			/* float->string */

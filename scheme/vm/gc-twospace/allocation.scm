@@ -67,5 +67,5 @@
     (address->stob-descriptor (address+ thing
                                         (cells->bytes stob-overhead)))))
 
-
-
+(define (s48-allocate-weak-stob type size)
+  (s48-allocate-stob type size))

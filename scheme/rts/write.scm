@@ -86,11 +86,9 @@
 	((= i len) (write-char #\" port))
       (let ((c (string-ref obj i)))
 	(cond
-	 ((or (char=? c #\\) (char=? c #\")
-	      (char=? c #\') (char=? c #\newline)) ; proposed for R6RS
+	 ((or (char=? c #\\) (char=? c #\"))
 	  (write-char #\\ port)
 	  (write-char c port))
-	 ;; the following were all proposed for R6RS
 	 ((char=? c *alarm*) (write-string "\\a" port))
 	 ((char=? c *backspace*) (write-string "\\b" port))
 	 ((char=? c *tab*) (write-string "\\t" port))

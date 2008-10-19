@@ -69,5 +69,10 @@ RESULT = ps_read_integer(PORT,&EOFP,&STATUS);
   RESULT = ((unsigned long) X) >> Y;	   \
 }
 
+extern double ps_pos_infinity(void), ps_neg_infinity(void), ps_not_a_number(void);
+#define PS_POS_INF ps_pos_infinity()
+#define PS_NEG_INF ps_neg_infinity()
+#define PS_NAN ps_not_a_number()
+
 extern long s48_return_value, s48_run_machine();
 

@@ -140,10 +140,11 @@ VM = scheme48vm
 LIBSCHEME48 = c/libscheme48.a
 POSIX_EXTERNAL = c/posix.so
 SRFI_27_EXTERNAL = c/srfi-27.so
-EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL)
+FFI_TEST_EXTERNAL = c/ffi-test.so
+EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(FFI_TEST_EXTERNAL)
 UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o
 OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
-	c/extension.o c/free.o c/double_to_string.o c/bignum.o \
+	c/extension.o c/free.o c/double_to_string.o c/bignum.o c/ffi.o \
 	c/external.o c/external-lib.o c/external-init.o c/init.o
 
 FAKEHS	= c/fake/dlfcn.h c/fake/sigact.h c/fake/strerror.h \
@@ -230,6 +231,14 @@ c/srfi-27.o: c/srfi-27.c $(SCHEME48HS)
 $(SRFI_27_EXTERNAL) : c/srfi-27.o
 	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
 
+
+c/ffi-test/ffi-test.o: c/ffi-test/ffi-test.c c/ffi-test/ffi-test.h $(SCHEME48HS)
+	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
+
+$(FFI_TEST_EXTERNAL) : c/ffi-test/ffi-test.o
+	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
+
+
 # Native-code glue rules
 
 # Fake definitions if there is no support for native code
@@ -309,8 +318,8 @@ $(VM): c/main.o $(OBJS) $(GC_OBJS) $(UNIX_OBJS) $(LIBOBJS) $(EXTERNAL_OBJECTS) \
 	c/scheme48.exp c/scheme48.def
 	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) -o $@ c/main.o		\
 		$(OBJS) $(GC_OBJS) $(UNIX_OBJS)				\
-		$(LIBOBJS) $(LIBS)					\
-		$(EXTERNAL_OBJECTS)
+		$(LIBOBJS)						\
+		$(EXTERNAL_OBJECTS)  $(LIBS)
 	# Cygwin
 	if test -x /usr/bin/dlltool; then \
 		dlltool --dllname $(VM).exe --output-lib $(VM).a --def $(srcdir)/c/scheme48.def; \
@@ -339,7 +348,8 @@ c/scheme48vm-$(BIT_SUFFIX).o: c/prescheme.h c/scheme48vm.h \
 c/bignum.o: c/bignum.h c/bignumint.h $(SCHEME48HS)
 c/extension.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/scheme48vm.h
 c/free.o: c/sysdep.h
-c/external.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/c-mods.h
+c/ffi.o: c/ffi.h $(SCHEME48HS)
+c/external.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/c-mods.h c/ffi.h
 c/external-lib.o: $(SCHEME48HS)
 c/unix/event.o: c/sysdep.h $(FAKEHS) c/c-mods.h \
 			c/scheme48vm.h c/scheme48heap.h \
@@ -412,7 +422,7 @@ install: enough dirs \
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.def $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48-external.exp $(DESTDIR)$(incdir)
 # install Scheme source files
-	for stub in env big sort opt misc link posix cml srfi r6rs; do	\
+	for stub in env big sort opt misc link posix net cml srfi r6rs; do	\
 		for f in $(srcdir)/scheme/$$stub/*.scm; do		\
 			$(INSTALL_DATA) $$f $(DESTDIR)$(SHARE)/$$stub || exit 1;	\
 		done;							\
@@ -459,7 +469,7 @@ go:
 
 # Exports file for AIX and Cygwin
 
-CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\).*$$,\1,'
+CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_ ]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_ ]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_ ]*\).*$$,\1,'
 
 c/scheme48.exp: c/scheme48.h c/fd-io.h c/event.h
 	echo '#!..' > $(srcdir)/c/scheme48.exp &&			\
@@ -474,7 +484,7 @@ dirs:
 		$(srcdir)/mkinstalldirs $(DESTDIR)$$dir || exit 1;	 \
 	done
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(LIB)
-	for dir in rts env big sort opt misc link posix cml srfi r6rs; do   \
+	for dir in rts env big sort opt misc link posix net cml srfi r6rs; do   \
 		$(srcdir)/mkinstalldirs $(DESTDIR)$(SHARE)/$$dir || exit 1; \
 	done
 
@@ -525,10 +535,12 @@ check: $(VM) $(IMAGE) scheme/debug/check.scm
 		echo ',open srfi-test';					\
 		echo ',config ,load =scheme48/posix/test-packages.scm';	\
 		echo ',open posix-test';				\
+		echo ',config ,load =scheme48/ffi-test/test-packages.scm';	\
+		echo ',open ffi-test';					\
 		echo ',open test-suites';				\
-		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests))'; \
+		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
 		echo '(run-test-suite all-tests)'			\
-	) | ./$(VM) -i $(IMAGE) -h 8000000
+	) | ./$(VM) -i $(IMAGE) $(BIG_HEAP)
 
 # --------------------
 # Rules from here on down are not essential for the basic installation
@@ -563,6 +575,9 @@ DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		build/initial.debug 					\
 		build/initial.image-32 build/initial.image-64		\
 		build/*.bat build/*.sh build/*.rc			\
+		build/UnicodeData.txt build/PropList.txt		\
+		build/SpecialCasing.txt build/CaseFolding.txt		\
+		build/CompositionExclusions.txt				\
 		build/dummy build/*.wxs 				\
 		build/*.bmp build/*.ico					\
 		build/scheme48-config.in				\

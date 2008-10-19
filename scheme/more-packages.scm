@@ -282,15 +282,18 @@
 ; Things needed for connecting with external code.
 
 (define-structure external-calls (export call-imported-binding
+					 call-imported-binding-2
 					 lookup-imported-binding
 					 define-exported-binding
 					 shared-binding-ref
 					 ((import-definition
-					   import-lambda-definition)
+					   import-lambda-definition
+					   import-lambda-definition-2)
 					  :syntax)
 					 add-finalizer!
 					 define-record-resumer
-					 call-external-value)
+					 call-external-value
+					 call-external-value-2)
   (open scheme-level-2 define-record-types
 	primitives
 	os-strings
@@ -327,7 +330,7 @@
 (define-structure c-system-function (export have-system? system)
   (open scheme-level-2 byte-vectors os-strings external-calls exceptions)
   (begin
-    (import-lambda-definition s48-system (string))
+    (import-lambda-definition-2 s48-system (string) "s48_system_2")
 
     (define (have-system?)
       (not (= 0 (s48-system #f))))
@@ -452,7 +455,7 @@
 (define-structure test-suites test-suites-interface
   (open scheme
 	cells
-	big-util
+	(subset big-util (any delete))
 	matchers
 	exceptions
 	define-record-types
