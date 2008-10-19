@@ -33,7 +33,7 @@ extern char		s48_external_event_pendingPUunsafe(void);
 extern long		s48_dequeue_external_eventBUunsafe(char*);
 
 /* imported and exported bindings */	  
-S48_EXTERN void		s48_define_exported_binding(char *, s48_value);
+S48_EXTERN s48_value	s48_define_exported_binding(char *, s48_value);
 S48_EXTERN s48_value	s48_get_imported_binding(char *);
 
 /* for raising exceptions in external code */

@@ -1,6 +1,9 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+/* NB: sysdep.h must come first in order for LFS to be enabled
+   properly */
+#include "sysdep.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>

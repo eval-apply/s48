@@ -87,6 +87,7 @@
 	  s48-gc-can-allocate-untraced-unmovable? ;; is a function due to a limitation (bug?) of pre-scheme
 	  s48-allocate-untraced-unmovable+gc
 	  s48-allocate-stob
+	  s48-allocate-weak-stob
 	  
 	  s48-forbid-gc!
 	  s48-allow-gc!
@@ -388,6 +389,7 @@
   (export extended-vm
 
 	  external-call
+	  external-call-2
 
 	  real-time
 	  run-time
@@ -434,6 +436,8 @@
 
 	  argument-type-violation
 	  range-violation
+
+	  trace-external-calls
 	  ))
 
 (define-interface event-interface

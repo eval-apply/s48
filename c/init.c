@@ -6,6 +6,7 @@
 #include "scheme48vm.h"
 #include "scheme48heap.h"
 #include "scheme48image.h"
+#include "ffi.h"
 
 extern long s48_get_file_size(unsigned char *);
 
@@ -155,6 +156,8 @@ Options: -h <heap-size>    %s heap size in words (default %d).%s\n\
   if (!stack) {
     fprintf(stderr, "system is out of memory\n");
     return 1; }
+
+  s48_initialize_ffi();
 
   s48_initialize_vm(stack, stack_size);
 

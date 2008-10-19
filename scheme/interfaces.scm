@@ -54,6 +54,7 @@
 (define-interface primitives-interface
   (export add-finalizer!
 	  call-external-value
+	  call-external-value-2
 	  channel-parameter
 	  checked-record-ref
 	  checked-record-set!
@@ -967,15 +968,16 @@
 	  make-string-table
 	  make-symbol-table
 	  make-integer-table
+	  make-datum-table
 	  make-table-maker
 	  table?
           table-size
 	  table-ref
 	  table-set!
-	  table-walk
+	  table-walk table->entry-list
 	  make-table-immutable!
 
-	  string-hash symbol-hash
+	  string-hash symbol-hash datum-hash
 	  default-hash-function))
 
 ;----------------

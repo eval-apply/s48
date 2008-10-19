@@ -119,9 +119,9 @@
   (tail-call nargs two-bytes 1 +)   ; same, no return pointer but stack frame size, moves arguments
   (big-call offset two-byte-nargs 1 +) ; ditto, nargs counts are two bytes
 
-  (known-tail-call nargs two-bytes 1 +)
-  (known-call offset nargs 1 +) ; like CALL, but no protocol conversion
-  (big-known-call offset two-byte-nargs 1 +) ; ditto, nargs count are two bytes
+  (known-tail-call nargs two-bytes byte 1 +) ; byte = 1 says n-ary, 0 says fixed arity
+  (known-call offset nargs byte 1 +) ; like CALL, but no protocol conversion
+  (big-known-call offset two-byte-nargs byte 1 +) ; ditto, nargs count are two bytes
 
   (poll)
   (apply offset two-byte-nargs 2 +)   ; last argument is procedure to call, second to
@@ -275,6 +275,7 @@
   (schedule-interrupt 1)
   (wait 2)                      ; do nothing until something happens
   (call-external-value 1 +)
+  (call-external-value-2 1 +)
   (lookup-shared-binding 2)
   (undefine-shared-binding 2)
   (find-undefined-imported-bindings)

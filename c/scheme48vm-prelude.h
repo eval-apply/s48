@@ -21,7 +21,11 @@ extern s48_value	s48_extended_vm(long, s48_value),
 			s48_external_call(s48_value proc,
 					  s48_value proc_name,
 					  long nargs,
-					  char *argv);
+					  char *argv),
+			s48_external_call_2(s48_value proc,
+					    s48_value proc_name,
+					    long nargs,
+					    char *argv);
 
 /*
  * This comes from glue.{s,c}.

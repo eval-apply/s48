@@ -47,7 +47,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "bignum.h"
 #include "bignumint.h"
 #include <limits.h>
-#include "scheme48.h"	/* for S48_GC_PROTECT_GLOBAL */
 #include <stdio.h>
 #include <stdlib.h>	/* abort */
 #include <math.h>
@@ -104,9 +103,9 @@ static void        bignum_negate_magnitude(bignum_type);
 static long        bignum_unsigned_logcount(bignum_type arg);
 static int         bignum_unsigned_logbitp(int shift, bignum_type bignum);
 
-static s48_value s48_bignum_zero    = (s48_value) NULL;
-static s48_value s48_bignum_pos_one = (s48_value) NULL;
-static s48_value s48_bignum_neg_one = (s48_value) NULL;
+static s48_ref_t s48_bignum_zero    = NULL;
+static s48_ref_t s48_bignum_pos_one = NULL;
+static s48_ref_t s48_bignum_neg_one = NULL;
 
 /* Exports */
 
@@ -119,25 +118,22 @@ static s48_value s48_bignum_neg_one = (s48_value) NULL;
 void
 s48_bignum_make_cached_constants(void)
 {
-  if (s48_bignum_zero == (s48_value) NULL) {
+  if (s48_bignum_zero == NULL) {
     bignum_type temp;
     
-    s48_bignum_zero = (s48_value) BIGNUM_ALLOCATE_TAGGED(0);
-    temp = S48_ADDRESS_AFTER_HEADER(s48_bignum_zero, long);
+    s48_bignum_zero = s48_make_global_ref((s48_value) BIGNUM_ALLOCATE_TAGGED(0));
+    temp = S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_zero), long);
     BIGNUM_SET_HEADER (temp, 0, 0);
-    S48_GC_PROTECT_GLOBAL(s48_bignum_zero);
     
-    s48_bignum_pos_one = (s48_value) BIGNUM_ALLOCATE_TAGGED(1);
-    temp = S48_ADDRESS_AFTER_HEADER(s48_bignum_pos_one, long);
+    s48_bignum_pos_one = s48_make_global_ref((s48_value) BIGNUM_ALLOCATE_TAGGED(1));
+    temp = S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_pos_one), long);
     BIGNUM_SET_HEADER (temp, 1, 0);
     (BIGNUM_REF (temp, 0)) = 1;
-    S48_GC_PROTECT_GLOBAL(s48_bignum_pos_one);
     
-    s48_bignum_neg_one = (s48_value) BIGNUM_ALLOCATE_TAGGED(1);
-    temp = S48_ADDRESS_AFTER_HEADER(s48_bignum_neg_one, long);
+    s48_bignum_neg_one = s48_make_global_ref ((s48_value) BIGNUM_ALLOCATE_TAGGED(1));
+    temp = S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_neg_one), long);
     BIGNUM_SET_HEADER (temp, 1, 1);
     (BIGNUM_REF (temp, 0)) = 1;
-    S48_GC_PROTECT_GLOBAL(s48_bignum_neg_one);
   }
 }
 

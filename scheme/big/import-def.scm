@@ -65,3 +65,28 @@
 	    (,%lambda ,formals
 	      (,%call-imported-binding ,%binding . ,formals))))))))
 
+(define-syntax import-lambda-definition-2
+  (lambda (exp rename compare)
+    (let ((id (cadr exp))
+	  (formals (caddr exp))
+	  (%define (rename 'define))
+	  (%begin (rename 'begin))
+	  (%lambda (rename 'lambda))
+	  (%call-imported-binding-2 (rename 'call-imported-binding-2))
+	  (%lookup-imported-binding (rename 'lookup-imported-binding))
+	  (%binding 		    (rename 'binding)))
+      (let ((external-id (if (null? (cdddr exp))
+			     (list->string (map (lambda (ch)
+						  (if (char=? ch #\-)
+						      #\_
+						      ch))
+						(string->list
+						 (symbol->string id))))
+			     (cadddr exp))))
+	`(,%begin
+	   (,%define ,%binding
+	    (,%lookup-imported-binding ,external-id))
+	   (,%define ,id
+	    (,%lambda ,formals
+	      (,%call-imported-binding-2 ,%binding . ,formals))))))))
+

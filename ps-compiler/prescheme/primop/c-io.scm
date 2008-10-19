@@ -166,4 +166,12 @@
     (c-value (call-arg call 2) port)
     (writec port #\))))
 
-
+(define-c-generator call-external-value-2 #t
+  (lambda (call port indent)
+    (format port "((long(*)())")
+    (c-value (call-arg call 0) port)
+    (format port ")(")
+    (c-value (call-arg call 1) port)
+    (format port ", ")
+    (c-value (call-arg call 2) port)
+    (writec port #\))))

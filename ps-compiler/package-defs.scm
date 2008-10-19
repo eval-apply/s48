@@ -62,6 +62,15 @@
   (open scheme big-scheme arch)
   (files (node let-nodes)))
 
+; Checker for node integrity
+
+(define-structure check-nodes (export check-node)
+  (open scheme
+	exceptions
+	node
+	comp-util)
+  (files (node node-check)))
+
 ; Compiler Parameters
 ; This allows client languages to supply parameters to the compiler
 ; without introducing circular module dependencies.
@@ -164,7 +173,11 @@
 ; A random collection of utilities.
 
 (define-structure comp-util utilities-interface
-  (open scheme big-scheme defrecord structure-refs expanding-vectors)
+  (open scheme 
+	big-scheme
+	(modify defrecord (prefix rk:))
+	define-record-types
+	structure-refs expanding-vectors)
   (for-syntax (open scheme big-scheme))
   (access primitives features)
   (files (util syntax)        ; macro for defining subrecords

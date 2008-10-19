@@ -50,6 +50,8 @@ syntax: regexp
 ^scheme48\.(ncb|res|suo|vcproj\..*)$
 ^srfi-27\.(exp|ilk|lib|pdb|vcproj\..*)$
 srfi-27.dll
+^ffi-test\.(exp|ilk|lib|pdb|vcproj\..*)$
+ffi-test.dll
 ^scheme48vm\.(exe|exp|lib)$
 ^scheme48-files\.input$
 ^scheme48\.(msi|wixobj)$

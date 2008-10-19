@@ -1,6 +1,8 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+#define NO_OLD_FFI 1
+
 /*
  * Load DLLs on Windows.
  */
@@ -13,25 +15,22 @@ extern int s48_utf_8of16_to_utf_16(const unsigned char* utf_8of16,
 				   LPWSTR utf_16,
 				   int* errorp);
 
-static s48_value
-shared_object_dlopen(s48_value name, s48_value complete_name_p)
+static s48_ref_t
+shared_object_dlopen(s48_call_t call, s48_ref_t name, s48_ref_t complete_name_p)
 {
-  S48_DECLARE_GC_PROTECT(1);
   HINSTANCE handle;
-  s48_value res;
-  s48_value full_name;
+  s48_ref_t res;
+  s48_ref_t full_name;
   WCHAR* name_utf16;
-  size_t len = strlen(s48_extract_byte_vector(name));
+  size_t len = strlen(s48_extract_byte_vector_2(call, name));
 
-  S48_GC_PROTECT_1(name);
-
-  if (!S48_EQ(S48_FALSE, complete_name_p))
+  if (!s48_false_p_2(call, complete_name_p))
     {
-      full_name = s48_make_byte_vector(len + 5);
-      memcpy(s48_extract_byte_vector(full_name),
-	     s48_extract_byte_vector(name),
+      full_name = s48_make_byte_vector_2(call, len + 5);
+      memcpy(s48_extract_byte_vector_2(call, full_name),
+	     s48_extract_byte_vector_2(call, name),
 	     len);
-      memcpy(s48_extract_byte_vector(full_name) + len,
+      memcpy(s48_extract_byte_vector_2(call, full_name) + len,
 	     ".dll",
 	     5);
       len += 4;
@@ -41,62 +40,60 @@ shared_object_dlopen(s48_value name, s48_value complete_name_p)
 
   name_utf16 = malloc(sizeof(WCHAR) * (len + 1));
   if (name_utf16 == NULL)
-    s48_out_of_memory_error();
-  s48_utf_8of16_to_utf_16(s48_extract_byte_vector(full_name), name_utf16, NULL);
+    s48_out_of_memory_error_2(call);
+  s48_utf_8of16_to_utf_16(s48_extract_byte_vector_2(call, full_name), name_utf16, NULL);
 
   handle = LoadLibraryW(name_utf16);
 
   free(name_utf16);
   if (handle == NULL)
-    s48_os_error("shared_object_dlopen", GetLastError(), 1, name);
+    s48_os_error_2(call, "shared_object_dlopen", GetLastError(), 1, name);
 
-  res = S48_MAKE_VALUE(HINSTANCE);
-  S48_SET_VALUE(res, HINSTANCE, handle);
-
-  S48_GC_UNPROTECT();
+  res = s48_make_value_2(call, HINSTANCE);
+  s48_set_value_2(call, res, HINSTANCE, handle);
 
   return res;
 }
 
-static s48_value
-shared_object_dlsym(s48_value handle, s48_value name)
+static s48_ref_t
+shared_object_dlsym(s48_call_t call, s48_ref_t handle, s48_ref_t name)
 {
   void *entry;
   HINSTANCE native_handle;
   char *native_name;
   
-  native_handle = S48_EXTRACT_VALUE(handle, HINSTANCE);
-  native_name = s48_extract_byte_vector(name);
+  native_handle = s48_extract_value_2(call, handle, HINSTANCE);
+  native_name = s48_extract_byte_vector_2(call, name);
 
   entry = GetProcAddress(native_handle, native_name);
 
   if (entry == NULL)
-    s48_os_error("shared_object_dlsym", GetLastError(), 2,
-		 handle, name);
+    s48_os_error_2(call, "shared_object_dlsym", GetLastError(), 2,
+		   handle, name);
 
-  return s48_enter_pointer(entry);
+  return s48_enter_pointer_2(call, entry);
 }
 
-static s48_value
-shared_object_dlclose(s48_value handle)
+static s48_ref_t
+shared_object_dlclose(s48_call_t call, s48_ref_t handle)
 {
-  HINSTANCE native_handle = S48_EXTRACT_VALUE(handle, HINSTANCE);
+  HINSTANCE native_handle = s48_extract_value_2(call, handle, HINSTANCE);
   
   if (!FreeLibrary(native_handle) < 0)
-    s48_os_error("shared_object_dlclose", GetLastError(), 1, handle);
-  return S48_UNSPECIFIC;
+    s48_os_error_2(call, "shared_object_dlclose", GetLastError(), 1, handle);
+  return s48_unspecific_2(call);
 }
 
 typedef void (*thunk)();
 
-static s48_value
-shared_object_call_thunk(s48_value value)
+static s48_ref_t
+shared_object_call_thunk(s48_call_t call, s48_ref_t value)
 {
   thunk entry;
 
-  entry = S48_EXTRACT_VALUE(value, thunk);
+  entry = s48_extract_value_2(call, value, thunk);
   entry();
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
 void

@@ -255,6 +255,80 @@
 (define (symbol-hash symbol)
   (string-hash (symbol->string symbol)))
 
+(define (datum-hash x)
+  (let recur ((x x)
+	      (budget 16))
+    (cond
+     ((<= budget 0) 2222222)
+     ((string? x) (string-hash x))
+     ((pair? x)
+      (assimilate-hash (recur (car x) (quotient budget 2))
+		       (recur (cdr x) (- budget 1))))
+     ((vector? x)
+      (let ((n (vector-length x)))
+	(cond
+	 ((zero? n) 7890123)
+	 ((= n 1)
+	  (assimilate-hash (recur (vector-ref x 0) (- budget 1))
+			   7890123))
+	 ((= n 2)
+	  (assimilate-hash (recur (vector-ref x 0) (quotient budget 2))
+			   (assimilate-hash (recur (vector-ref x 1) (quotient budget 2))
+					    7890123)))
+	 (else
+	  (let ((budget (quotient budget 3)))
+	    (assimilate-hash (recur (vector-ref x 0) budget)
+			     (assimilate-hash (recur (vector-ref x 1) budget)
+					      (assimilate-hash (recur (vector-ref x 2) budget)
+							       7890123))))))))
+     ((symbol? x) 
+      (assimilate-hash (string-hash (symbol->string x)) ; can probably be tuned later
+		       78901234)) 
+     ((number? x)
+      (if (exact? x)
+	  (cond ((integer? x)
+		 (assimilate-hash (modulo (abs x) fixnum-limit) 6789012))
+		((rational? x)
+		 (assimilate-hash (recur (numerator x) (- budget 1))
+				  (assimilate-hash (recur (denominator x) (- budget 1))
+						   9012345)))
+		((real? x) 21212121)	; would be strange
+		((complex? x)
+		 (assimilate-hash (recur (real-part x) (- budget 1))
+				  (assimilate-hash (recur (imag-part x) (- budget 1))
+						   123456)))
+			  
+		(else 21212121))
+	  (cond ((rational? x)
+		 (assimilate-hash (recur (inexact->exact (numerator x)) (- budget 1))
+				  (assimilate-hash (recur (inexact->exact (denominator x)) (- budget 1))
+						   2345601)))
+		((real? x) 21212121)	; NaN, infinity
+		((complex? x)
+		 (assimilate-hash (recur (real-part x) (- budget 1))
+				  (assimilate-hash (recur (imag-part x) (- budget 1))
+						   3456012)))
+					   
+					   
+		(else 21212121))))
+     ((char? x)
+      (assimilate-hash (char->integer x) 45670123))
+     ((string? x)
+      (assimilate-hash (string-hash x) 56789012))
+     ((eq? x #t)
+      (assimilate-hash 1 12223344))
+     ((eq? x #f)
+      (assimilate-hash 2 12223344))
+     ((null? x)
+      (assimilate-hash 3 12223344))
+     ((procedure? x) 43322110)
+     (else 32211005))))
+
+(define fixnum-limit (expt 2 27)) ; leave some room for intermediate calculations
+
+(define (assimilate-hash hash adjustment) 
+  (modulo (+ (* 2 hash) adjustment) fixnum-limit))
+
 (define make-table
   (let ((make-usual-table (assoc->table-maker default-table-assoc
 					      default-hash-function)))
@@ -267,3 +341,4 @@
 (define make-string-table  (make-table-maker string=? string-hash))
 (define make-symbol-table  (make-table-maker eq?      symbol-hash))
 (define make-integer-table (make-table-maker =	      abs))
+(define make-datum-table   (make-table-maker equal?   datum-hash))

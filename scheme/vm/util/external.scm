@@ -10,6 +10,7 @@
 
 (define extended-vm        (fake-it 'extended-vm))
 (define external-call      (fake-it 'call-external-value))
+(define external-call-2    (fake-it 'call-external-value-2))
 (define schedule-interrupt (fake-it 'schedule-interrupt))
 
 (define dequeue-external-event! (fake-it 'dequeue-external-event!))

@@ -399,6 +399,7 @@
 	  make-byte-vector-input-port make-string-input-port
 	  make-byte-vector-output-port make-string-output-port
 	  byte-vector-output-port-output string-output-port-output
+	  write-byte-vector-output-port-output write-string-output-port-output
 	  limit-output
 	  current-row current-column fresh-line
 
@@ -609,8 +610,8 @@
 
 (define-interface test-suites-interface 
   (export ((define-test-suite define-test-case define-test-cases) :syntax)
-	  ((check check-exception check-that check-exception-that) :syntax)
-	  run-test-suite
+	  ((check check-terminates check-exception check-that check-exception-that) :syntax)
+	  run-test-suite run-test-cases
 	  =within
 	  zap-test-suite!))
 

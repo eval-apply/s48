@@ -134,9 +134,7 @@
 	       (condition
 		(construct-vm-exception opcode reason)
 		(make-i/o-error)
-		(make-who-condition (if reason
-				     (enumerand->name reason exception)
-				     #f))
+		(make-who-condition (enumerand->name opcode op))
 		(make-message-condition
 		 (os-string->string (byte-vector->os-string (os-error-message status))))
 		(make-irritants-condition (cons channel rest)))))
@@ -159,6 +157,25 @@
 			 rest)))))
 	       (else
 		(apply signal-vm-exception opcode reason status rest)))))
+
+(define (signal-call-external-error opcode reason who status . rest)
+  (enum-case exception reason
+	     ((external-os-error)
+	      (signal-condition
+	       (condition
+		(construct-vm-exception opcode reason)
+		(make-who-condition who)
+		(make-message-condition
+		 (os-string->string (byte-vector->os-string (os-error-message status))))
+		(make-irritants-condition rest))))
+	      (else
+	       (apply signal-vm-exception opcode reason who status rest))))
+
+(define-vm-exception-handler (enum op call-external-value)
+  signal-call-external-error)
+
+(define-vm-exception-handler (enum op call-external-value-2)
+  signal-call-external-error)
 
 ; Utilities
 

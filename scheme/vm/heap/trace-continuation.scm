@@ -45,7 +45,9 @@
 			   (address+ trace-ptr (cells->a-units 8)))
 		(begin
 		  (if (odd? mask)
-		      (store! ptr (s48-trace-value (fetch ptr))))
+		      ;; can't use s48-trace-value here:
+		      ;; `s48-trace-locations!' triggers the write barrier
+		      (s48-trace-locations! ptr (address1+ ptr)))
 		  (bit-loop (arithmetic-shift-right mask 1)
 			    (address1+ ptr)))))
 	  (unspecific)))))
