@@ -370,9 +370,10 @@
     (make-immutable! thing)
     (goto return thing)))
 
-(define-primitive make-weak-pointer (any->)
-  (lambda (init)
-    (let ((weak-pointer (make-weak-pointer init weak-pointer-size)))
+(define-primitive make-weak-pointer ()
+  (lambda ()
+    (let ((weak-pointer (make-weak-pointer weak-pointer-size)))
+      (d-vector-init! weak-pointer 0 *val*)
       (goto continue-with-value
 	    weak-pointer
 	    0))))
