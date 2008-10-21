@@ -633,7 +633,7 @@
       (channel-id)
       (channel-os-index)
       (channel-close-silently?))
-    (transport-link-cell transport-link-cell? make-transport-link-cell-stob
+    (transport-link-cell transport-link-cell? make-transport-link-cell
       (transport-link-cell-key) ; may never be younger than TLC, hence no mutator
       (transport-link-cell-value set-transport-link-cell-value!)
       (transport-link-cell-tconc set-transport-link-cell-tconc!)
