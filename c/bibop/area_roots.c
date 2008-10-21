@@ -211,6 +211,13 @@ void s48_trace_areas_roots(Area* areas, int generations_count) {
 #endif
 	    
 	    s48_internal_trace_locationsB(areas, TRUE, start_address, end_address, "s48_trace_areas_roots");
+	    /* the tracing can add new objects to this area, so update
+	       the local frontier variable */
+	    /* TODO: we don't have to trace those now objects here,
+	       because they are behind the trace pointer of the area;
+	       and that part is traced later anyway. I leave that
+	       optimization to a later overall cleanup. */
+	    frontier = areas->frontier;
 	  }
 #if S48_DIRTY_VECTOR_METHOD==S48_NO_DIRTY_VECTORS
 #else
