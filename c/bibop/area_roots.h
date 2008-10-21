@@ -97,9 +97,21 @@ inline static void s48_write_barrier_inline(long stob, s48_address address,
     }
   }
 #endif
+  /* Detect errors early... */
+  if (S48_STOB_P(value)) {
+    extern char s48_stob_in_heapP(s48_value);
+    assert(s48_stob_in_heapP(value));
+  }
+
   /* somehow the write_barrier gets called from some strange places --
      e.g. in read_image, that's why area can get NULL. */
-  if ((area == NULL) || (area->generation_index == 0)) return;
+  if (area == NULL)
+    return;
+
+  assert(address < area->frontier);
+
+  if (area->generation_index == 0)
+    return;
   
 #if S48_WRITE_BARRIER_COMPLEXITY == S48_MUTATED_LOCATION
   s48_set_dirty_vector(area, address, value, NULL);

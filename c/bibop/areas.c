@@ -110,6 +110,11 @@ void s48_free_area(Area* area) {
     s48_memory_map_setB(ADD_PAGES(start, i), NULL);
   }
 
+#ifndef NDEBUG
+  /* Blank it out, to find errors more easily */
+  memset(area->start, 0, area->end - area->start);
+#endif
+
   free_area(area);
 }
 
