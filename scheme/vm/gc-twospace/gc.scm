@@ -93,6 +93,13 @@
 			  (trace-continuation next size)
 			  (loop (address+ next size)
 				(heap-pointer))))
+		       ((transport-link-cell-header? thing)
+			(let ((size (header-length-in-a-units thing)))
+			  (begin
+			    (set-heap-pointer! frontier)
+			    (trace-transport-link-cell next size)
+			    (loop (address+ next size)
+				  (heap-pointer)))))
 		       (else
 			(loop next frontier))))
 		((in-oldspace? thing)
@@ -232,3 +239,79 @@
 		  (let ((h (stob-header value)))
 		    (if (stob? h) h false)))))))
 
+; transport link cells
+
+;; Due to circular dependencies when this file tries to open the
+;; structure primitivies where the setters and mutators for PAIRs and
+;; TRANSPORT-LINK-CELLs are.  So there is no other way than defining
+;; the needed setters, mutators, and predicates another time:
+
+;; record selector, mutator, and predicate maker
+(define (make-gc-selector index)
+  (lambda (record)
+    (fetch (address+ (address-after-header record) (cells->a-units index)))))
+
+(define (make-gc-mutator index)
+  (lambda (record object)
+    (store! (address+ (address-after-header record) 
+		      (cells->a-units index)) object)))
+
+(define (make-gc-predicate stob-type)
+  (lambda (thing)
+    (if (stob? thing)
+	(= (header-type (stob-header thing))
+	   stob-type)
+	#f)))
+
+(define gc-pair? (make-gc-predicate (enum stob pair)))
+(define gc-car (make-gc-selector 0))
+(define gc-cdr (make-gc-selector 1))
+(define gc-set-car! (make-gc-mutator 0))
+(define gc-set-cdr! (make-gc-mutator 1))
+
+(define gc-tlc-key (make-gc-selector 0))
+(define gc-tlc-tconc (make-gc-selector 2))
+(define gc-set-tlc-tconc! (make-gc-mutator 2))
+
+;; follow already forwarded objects
+(define (follow thing)
+  (if (and (stob? thing)
+	   (stob? (stob-header thing)))
+      (stob-header thing)
+      thing))
+
+;; trace a transport link cell
+(define (trace-transport-link-cell contents-pointer size)
+  (s48-trace-locations! contents-pointer (address+ contents-pointer size))
+  (let* ((tlc (address->stob-descriptor contents-pointer))
+	 (tconc (gc-tlc-tconc tlc)))
+    (if (and (gc-pair? tconc) (stob? (gc-tlc-key tlc)))
+	;; The tconc's car and cdr may already be forwarded, so
+	;; follow them, if needed.
+	(let ((tconc-car (follow (gc-car tconc)))
+	      (tconc-cdr (follow (gc-cdr tconc))))
+	  (if (and (gc-pair? tconc-car)
+		   (gc-pair? tconc-cdr))
+	      ;; the tlc's tconc field is a valid tconc queue
+	      ;; now allocate a new pair in the new space
+	      ;; that will become the tconc's new last element
+	      (let ((pair-address (heap-pointer)))
+		(store! pair-address (make-header (enum stob pair) (cells->bytes 2)))
+		(let* ((newpair (address->stob-descriptor 
+			      (address+ pair-address (cells->a-units stob-overhead))))
+		       (new-frontier (address+ pair-address (cells->a-units 3))))
+		  (if (gc-pair? newpair)
+		      (begin
+			;; initialize the new pair's fields with #f
+			(gc-set-car! newpair (enter-boolean #f))
+			(gc-set-cdr! newpair (enter-boolean #f))
+			;; enqueue the tlc in the tconc queue
+			(gc-set-car! tconc-cdr tlc)
+			(gc-set-cdr! tconc-cdr newpair)
+			(gc-set-cdr! tconc newpair)
+			;; reset the tlc's tconc field
+			(gc-set-tlc-tconc! tlc (enter-boolean #f))
+			(set-heap-pointer! new-frontier))))))))))
+
+(define (transport-link-cell-header? x)
+  (= (header-type x) (enum stob transport-link-cell)))
