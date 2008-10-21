@@ -26,6 +26,8 @@
 
 (define-shared-primitive-data-type weak-pointer)
 
+(define-shared-primitive-data-type transport-link-cell)
+
 (define-shared-primitive-data-type shared-binding #f #f
   #f
   ()
