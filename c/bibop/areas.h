@@ -43,6 +43,11 @@ typedef enum { AREA_TYPE_SIZE_SMALL, AREA_TYPE_SIZE_LARGE, AREA_TYPE_SIZE_WEAKS,
                AREA_TYPE_SIZE_ILLEGAL }
   area_type_size_t;
 
+typedef enum {GC_ACTION_IGNORE = 0, GC_ACTION_ERROR, GC_ACTION_COPY_MIXED,
+	      GC_ACTION_COPY_SMALL, GC_ACTION_MARK_LARGE,
+	      GC_ACTION_COPY_WEAK}
+  gc_action_t;
+
 typedef struct Area {
   s48_address start;
   s48_address end;
@@ -53,7 +58,7 @@ typedef struct Area {
   area_type_size_t area_type_size;
 
   /* only used during collection: */
-  unsigned int action;
+  gc_action_t action;
   s48_address trace;
   Dirty_vector dirty_vector;
   struct Space* target_space;
@@ -76,10 +81,6 @@ typedef struct Space {
 #define AREA_REMAINING(area) ((area) == NULL ? 0 :\
                      (area)->end - (area)->frontier)
 
-
-enum Gc_Action {GC_ACTION_IGNORE = 0, GC_ACTION_ERROR, GC_ACTION_COPY_MIXED,
-		GC_ACTION_COPY_SMALL, GC_ACTION_MARK_LARGE,
-		GC_ACTION_COPY_WEAK};
 
 /* Allocate an area of between MINIMUM and MAXIMUM pages, inclusive. */
 extern Area* s48_allocate_area(unsigned int minimum, unsigned int maximum,
