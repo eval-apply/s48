@@ -999,6 +999,7 @@ inline static Area* allocate_weak_area(Space* space);
 inline static Area* allocate_large_area(Space* space,
 					unsigned int size_in_bytes);
 
+/* the value STOB has been written to location ADDR */
 inline static void call_internal_write_barrier(Area* maybe_area, char area_looked_up, s48_address addr,
 					       s48_value stob, Area* to_area) {
   if (!area_looked_up) maybe_area = s48_memory_map_ref(addr);
@@ -1012,7 +1013,7 @@ inline static void call_internal_write_barrier(Area* maybe_area, char area_looke
 inline static void call_internal_write_barrier2(Area* maybe_area, char area_looked_up, s48_address addr,
 						s48_value stob) {
   call_internal_write_barrier(maybe_area, area_looked_up, addr, stob,
-			      s48_memory_map_ref((s48_address)stob));
+			      s48_memory_map_ref(S48_ADDRESS_AT_HEADER(stob)));
 }
 
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
@@ -1160,6 +1161,7 @@ void do_copy_object(s48_address addr, /* addr of pointer */
    /* Since the s48_address is allways 4 bytes, the lower 2 bits are allways 00 */
    /* We use these 2 bits for the STOB-TAG: 11 to make a scheme-stob */
    s48_value new = S48_ADDRESS_TO_STOB_DESCRIPTOR(data_addr);
+   assert(s48_memory_map_ref(S48_ADDRESS_AT_HEADER(new)) == copy_area);
 
 #if (S48_ADJUST_WATER_MARK)
    /* count small object-sizes, that survive in the first generation */
@@ -1199,7 +1201,7 @@ void do_copy_object(s48_address addr, /* addr of pointer */
    /* overwrite the old stob with the new one */
    *((s48_value*)addr) = new;
 
-   /* if we are tracing an area, from an older generation call write_barrier */
+   /* if we are tracing an area of an older generation call write_barrier */
    call_internal_write_barrier(maybe_area, area_looked_up, addr, new, copy_area);
 }
 

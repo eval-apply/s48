@@ -5,6 +5,7 @@
 #define __S48_GC_DATA_H
 
 #include "scheme48.h"
+#include "memory.h" // s48_address
 
 #define S48_UNSIGNED_HIGH_BITS(x, offset, len) ((((unsigned long)(x)) >> offset)\
   & ((1L << len) - 1))
@@ -44,8 +45,18 @@
   S48_CELLS_TO_BYTES(S48_STOB_OVERHEAD_IN_CELLS)
 #define S48_STOB_OVERHEAD_IN_A_UNITS \
   S48_BYTES_TO_A_UNITS(S48_STOB_OVERHEAD_IN_BYTES)
+
+/* repeated from scheme48.h because NO_OLD_FFI is defined sometimes (e.g. socket.c) */
+#ifndef S48_ADDRESS_AFTER_HEADER
+#define S48_ADDRESS_AFTER_HEADER(x, type) ((type *)((x) - S48_STOB_TAG))
+#endif
+#ifndef S48_STOB_TAG
+#define S48_STOB_TAG 3
+#endif
+
+
 #define S48_ADDRESS_AT_HEADER(stob) \
-  ((s48_address)(((unsigned long)S48_ADDRESS_AFTER_HEADER(stob, s48_address))\
+  ((s48_address)(((unsigned long)S48_ADDRESS_AFTER_HEADER(stob, void))\
                    - S48_STOB_OVERHEAD_IN_A_UNITS))
 
 #endif

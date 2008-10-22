@@ -4,6 +4,7 @@
 #ifndef __S48_AREA_ROOTS
 #define __S48_AREA_ROOTS
 
+#include "data.h"
 #include "areas.h"
 #include "memory.h"
 #include "memory_map.h"
@@ -60,7 +61,7 @@ inline static void s48_set_dirty_vector_inline(Area* area, s48_address addr,
 #error "Generation-indexing cannot be used with write-barrier-complexity: MUTATED_LOCATION."
 #endif
   if (maybe_to_area == NULL)
-    maybe_to_area = s48_memory_map_ref((s48_address)stob);
+    maybe_to_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(stob));
   area->dirty_vector.minimum_index[card_number] =
     min(area->dirty_vector.minimum_index[card_number],
 	maybe_to_area->generation_index);
@@ -71,7 +72,7 @@ inline static void s48_set_dirty_vector_inline(Area* area, s48_address addr,
 #error "Generation-indexing cannot be used with write-barrier-complexity: MUTATED_LOCATION."
 #endif
   if (maybe_to_area == NULL)
-    maybe_to_area = s48_memory_map_ref((s48_address)stob);
+    maybe_to_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(stob));
   maybe_to_area->minimum_index = int_min(maybe_to_area->minimum_index,
 					 area->generation_index);
   maybe_to_area->maximum_index = int_max(maybe_to_area->maximum_index,
@@ -81,15 +82,14 @@ inline static void s48_set_dirty_vector_inline(Area* area, s48_address addr,
 
 extern void s48_write_barrier(long stob, s48_address address, long value);
 
+/* the value VALUE will be written at location ADDRESS which is within the stob STOB */
 inline static void s48_write_barrier_inline(long stob, s48_address address,
 					    long value) {
   /* The area of the stob */
   Area* area = s48_memory_map_ref(address);
 #if (MEASURE_GC)
-   /* The area of the value pointed to. same result as with:
-	 s48_memory_map_ref(S48_ADDRESS_AT_HEADER(value)); */
   if (S48_STOB_P(value)) {
-    Area* meas_to_area  = s48_memory_map_ref((s48_address)value); 
+    Area* meas_to_area  = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(value)); 
     if (area->generation_index > meas_to_area->generation_index) {
       measure_write_barrier(1);
     } else {
@@ -120,12 +120,10 @@ inline static void s48_write_barrier_inline(long stob, s48_address address,
 #if S48_WRITE_BARRIER_COMPLEXITY == S48_STOB_LOCATION
       s48_set_dirty_vector(area, address, value, NULL);
 #elif S48_WRITE_BARRIER_COMPLEXITY == S48_INTERGEN_STOB_LOCATION
-      /* The area of the value pointed to. same result as with:
-	 s48_memory_map_ref(S48_ADDRESS_AT_HEADER(value)); */
-      Area* to_area  = s48_memory_map_ref((s48_address)value); 
+      Area* to_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(value)); 
       
       if (area->generation_index > to_area->generation_index)
-	s48_set_dirty_vector(area, address, value, to_area); 
+	s48_set_dirty_vector_inline(area, address, value, to_area); 
 #endif
     }
 #endif
