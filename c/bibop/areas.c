@@ -24,10 +24,6 @@ static Area* make_area(s48_address start, s48_address end,
   area->next = NULL;
   area->generation_index = generation_index;
   area->area_type_size = area_type_size;
-#if S48_USE_GENERATION_INDEXING==TRUE
-  area->minimum_index = 255;
-  area->maximum_index = 0;
-#endif
   s48_init_dirty_vector(area);
 #if S48_USE_REMEMBERED_SETS==TRUE
   area->remset = s48_make_remset();

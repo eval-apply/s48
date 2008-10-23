@@ -685,27 +685,8 @@ static void collect(int count, psbool emergency) {
   }
 #endif
 
-#if (S48_USE_GENERATION_INDEXING)
-  /* compute the absolute minimum and maximum of all generations 
-     that are collected */
-  minimum_index = 255; maximum_index = 0;
-  for (i = 0; i < count; i++) {
-    FOR_ALL_AREAS(generations[i].other_space->small_area,
-		  minimum_index = int_min(minimum_index, area->minimum_index);
-		  maximum_index = int_max(maximum_index, area->maximum_index));
-    FOR_ALL_AREAS(generations[i].other_space->large_area,
-		  minimum_index = int_min(minimum_index, area->minimum_index);
-		  maximum_index = int_max(maximum_index, area->maximum_index));
-  }  
-
-  /* generations that are being collected, can be ignored */
-  for (i = int_max(count, minimum_index); i <= maximum_index; i++) {
-      s48_bibop_log("GEN_INDEX\nTracing roots from %i generation ...\n", i);
-
-#else
-    /* FPage 9 ... */
+  /* FPage 9 ... */
   for (i = count; i < S48_GENERATIONS_COUNT; i++) {
-#endif
 
 #if (BIBOP_LOG)
     s48_bibop_log("Tracing roots from current-space of generation %i\n", i);

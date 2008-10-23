@@ -62,10 +62,6 @@ typedef struct Area {
   s48_address trace;
   Dirty_vector dirty_vector;
   struct Space* target_space;
-#if S48_USE_GENERATION_INDEXING==TRUE
-  unsigned char minimum_index;
-  unsigned char maximum_index;
-#endif
 #if S48_USE_REMEMBERED_SETS==TRUE
   RemSet* remset;
 #endif
