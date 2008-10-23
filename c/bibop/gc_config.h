@@ -191,28 +191,6 @@
 #endif
 #endif /* if (S48_USE_REMEMBERED_SETS) */
 
-
-/* Radioactive Decay Model */
-
-#ifndef S48_USE_RDM
-#define S48_USE_RDM FALSE
-#endif
-
-#if (S48_USE_RDM)
-
-#ifndef S48_RDM_MAX_SIZE
-#define S48_RDM_MAX_SIZE (1024*1024)
-#endif
-
-#define S48_RDM_INITIAL_THRESHOLD (S48_RDM_MAX_SIZE/2)
-
-#ifndef S48_RDM_MIN_THRESHOLD
-#define S48_RDM_MIN_THRESHOLD (256*1024)
-#endif
-
-#endif /* #if (S48_USE_RDM) */
-
-
 /* 7. Policies */
 
 /* Collection policy */
