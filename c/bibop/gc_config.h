@@ -132,10 +132,6 @@
 #error "S48_LOG_CARD_SIZE cannot be larger than 9 with S48_OFFSET_DIRTY_VECTORS"
 #endif
 
-#ifndef S48_USE_CARD_GENERATION_INDEXING
-#define S48_USE_CARD_GENERATION_INDEXING FALSE
-#endif
-
 /* Write Barrier Complexity */
 
 /* one can choose the complexity of the write-barrier. Currently there
