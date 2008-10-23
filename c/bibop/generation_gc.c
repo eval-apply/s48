@@ -83,14 +83,6 @@ static unsigned int current_water_mark; /* pages */
 /* from young to old */
 static Generation generations[S48_GENERATIONS_COUNT];
 
-#if (S48_USE_RDM)
-#define RDM_BEFORE_SWAP 0
-#define RDM_AFTER_SWAP 1
-#define RDM_AFTER_COLLECTION 2
-static int rdm_level = RDM_BEFORE_SWAP;
-static unsigned long rdm_threshold = S48_RDM_INITIAL_THRESHOLD;
-#endif
-
 static char heap_is_initialized = 0;
 static char gc_forbid_count = 0;
 static unsigned long gc_count = 0;
@@ -563,16 +555,9 @@ inline static void init_areas(int count) {
     FOR_ALL_AREAS(generations[i].current_space->large_area,
 		  area->trace = area->frontier);
     
-    /* the other spaces should be empty anyway 
-     except the last generation with the radioactive-decay-model */
-    if (i == S48_GENERATIONS_COUNT - 1) {
-#if (S48_USE_RDM)
-      ;
-#else
-      set_gc_actions(generations[i].other_space, GC_ACTION_ERROR,
-		     GC_ACTION_ERROR, GC_ACTION_ERROR);
-#endif
-    }
+    /* the other spaces should be empty anyway */
+    set_gc_actions(generations[i].other_space, GC_ACTION_ERROR,
+		   GC_ACTION_ERROR, GC_ACTION_ERROR);
 
     set_gc_actions(generations[i].current_space, GC_ACTION_IGNORE,
 	 	   GC_ACTION_IGNORE, GC_ACTION_IGNORE);
@@ -731,23 +716,6 @@ static void collect(int count, psbool emergency) {
     s48_trace_areas_roots(generations[i].current_space->large_area, count);
   }
 
-#if (S48_USE_RDM)
-  if (count != S48_GENERATIONS_COUNT) {
-    unsigned char last;
-#if (S48_USE_STATIC_SPACE)
-    last = S48_GENERATIONS_COUNT-2;
-#else
-    last = S48_GENERATIONS_COUNT-1;
-#endif
-
-    s48_bibop_log("RDM\nTracing roots from other-space of generation %i\n",
-		  last);
-
-    s48_trace_areas_roots(generations[last].other_space->small_area, count);
-    s48_trace_areas_roots(generations[last].other_space->large_area, count);
-  }
-#endif
-
   s48_gc_root();
 
   /* do the tracing until everything is done */
@@ -757,14 +725,6 @@ static void collect(int count, psbool emergency) {
   for (i = 0; i < S48_GENERATIONS_COUNT; i++) {
     clean_weak_pointers(generations[i].current_space->weaks_area); 
   }
-
-#if (S48_USE_RDM)
-#if (S48_USE_STATIC_SPACE)
-  clean_weak_pointers(generations[S48_GENERATIONS_COUNT-2].other_space->weaks_area);
-#else
-  clean_weak_pointers(generations[S48_GENERATIONS_COUNT-1].other_space->weaks_area);
-#endif
-#endif
 
   s48_post_gc_cleanup(major_p, emergency);
 
@@ -895,25 +855,6 @@ static psbool do_collect(psbool force_major, psbool emergency) {
   c = S48_GENERATIONS_COUNT;
 #endif
 
-#if (S48_USE_RDM)
-  if (rdm_level == RDM_BEFORE_SWAP) {
-    /* if the last generation is full, then swap the spaces. */
-    if ((current_size - generations[c-1].last_size) > rdm_threshold) {
-      s48_bibop_log("RDM_BEFORE_SWAP\nSwapped <-> Generation %i", c-1);
-      swap(&generations[c-1]);
-      rdm_level = RDM_AFTER_SWAP;
-    }
-  } else {
-    /* otherwise collect all generations */
-    if (current_size > rdm_threshold) {
-      s48_bibop_log("RDM_AFTER_SWAP\nSwapped <-> Generation %i", c-1);
-      swap(&generations[c-1]); /* they're swaped again in collect() */
-      rdm_level = RDM_AFTER_COLLECTION;
-      force_major = TRUE;
-    }
-  }
-#endif
-
   if (! force_major) {
    for (; c > 1; c--) {
     unsigned long current_size;
@@ -952,24 +893,6 @@ static psbool do_collect(psbool force_major, psbool emergency) {
   /* FPage 5 ... */
   collect(c, emergency);
   /*************************************/
-
-#if (S48_USE_RDM)
-#if (S48_USE_STATIC_SPACE)
-    if ((c == S48_GENERATIONS_COUNT - 1) && (rdm_level == RDM_AFTER_COLLECTION)) {
-#else
-  if ((c == S48_GENERATIONS_COUNT) && (rdm_level == RDM_AFTER_COLLECTION)) {
-#endif
-    rdm_threshold = (S48_RDM_MAX_SIZE - generations[c-1].last_size) / 2;
-    if (rdm_threshold < S48_RDM_MIN_THRESHOLD)
-      rdm_threshold = S48_RDM_MIN_THRESHOLD;
-
-#if (BIBOP_LOG)
-    s48_bibop_log("RDM_AFTER_COLLECTION\nrdm_threshold = %i", rdm_threshold);
-#endif
-
-    rdm_level = RDM_BEFORE_SWAP;
-  }
-#endif
 
 #if (MEASURE_GC)
   measure_after_collection(c);
@@ -1758,12 +1681,6 @@ void s48_walk_heap(void (*do_part)(s48_address, s48_address)) {
     walk_areas(do_part, generations[i].current_space->large_area);
     walk_areas(do_part, generations[i].current_space->weaks_area);
   }
-  
-#if (S48_USE_RDM)
-  walk_areas(do_part, generations[S48_GENERATIONS_COUNT-1].other_space->small_area);
-  walk_areas(do_part, generations[S48_GENERATIONS_COUNT-1].other_space->large_area);
-  walk_areas(do_part, generations[S48_GENERATIONS_COUNT-1].other_space->weaks_area);
-#endif
 }
  
  
