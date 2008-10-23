@@ -33,9 +33,6 @@ typedef struct {
   char* traceable_bits;
   s48_address last_frontier;
 #endif
-#if S48_USE_CARD_GENERATION_INDEXING==TRUE
-  unsigned char* minimum_index;
-#endif
 } Dirty_vector;
 
 /* must be synchronized with the Scheme-side definition in ALLOCATION */

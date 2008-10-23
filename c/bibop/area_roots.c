@@ -51,12 +51,6 @@ void s48_init_dirty_vector(Area* area) {
   dv->traceable_bits = (char*)calloc(sizeof(char), number_of_cards);
   dv->last_frontier = area->frontier;
 #endif
-
-#if (S48_USE_CARD_GENERATION_INDEXING)
-  dv->minimum_index = (unsigned char*)malloc(sizeof(char) * number_of_cards);
-  for (i = 0; i < number_of_cards; i++)
-    dv->minimum_index[i] = 255;
-#endif
 }
 
 /* deinitializes the dirty vector of AREA. (should free the memory
@@ -140,13 +134,6 @@ void s48_trace_areas_roots(Area* areas, int generations_count) {
 	 i++, card_start_address += S48_CARD_SIZE) {
 #endif
 
-#if (S48_USE_CARD_GENERATION_INDEXING)
-      /* we can skip this card, if it doesn't contain pointers to a
-	 generation that we're collected right now. */
-      if (dirty_vector->minimum_index[i] >= generations_count)
-	continue;
-#endif
-      
     /* Now different conditionals, saying if card should be traced */
 #if S48_DIRTY_VECTOR_METHOD==S48_NO_DIRTY_VECTORS
       if (1) {
@@ -193,11 +180,6 @@ void s48_trace_areas_roots(Area* areas, int generations_count) {
 	       twice completely, e.g. by tracing backwards from the end to
 	       beginning, or to search forward for more consecutive dirty
 	       cards. */
-#endif
-	    
-#if (S48_USE_CARD_GENERATION_INDEXING)
-	    /* clear the minimum_index too */
-	    dirty_vector->minimum_index[i] = 255;
 #endif
 	    
 	    /* adjust/control addresses */
