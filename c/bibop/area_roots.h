@@ -66,18 +66,6 @@ inline static void s48_set_dirty_vector_inline(Area* area, s48_address addr,
     min(area->dirty_vector.minimum_index[card_number],
 	maybe_to_area->generation_index);
 #endif
-
-#if (S48_USE_GENERATION_INDEXING)
-#if S48_WRITE_BARRIER_COMPLEXITY == S48_MUTATED_LOCATION
-#error "Generation-indexing cannot be used with write-barrier-complexity: MUTATED_LOCATION."
-#endif
-  if (maybe_to_area == NULL)
-    maybe_to_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(stob));
-  maybe_to_area->minimum_index = int_min(maybe_to_area->minimum_index,
-					 area->generation_index);
-  maybe_to_area->maximum_index = int_max(maybe_to_area->maximum_index,
-					 area->generation_index);
-#endif
 }
 
 extern void s48_write_barrier(long stob, s48_address address, long value);

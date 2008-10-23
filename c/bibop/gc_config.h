@@ -112,14 +112,6 @@
 #endif
 
 
-/* Generation indexing is only usefull with a large number of generations */
-
-#ifndef S48_USE_GENERATION_INDEXING
-#define S48_USE_GENERATION_INDEXING FALSE
-#endif
-
-
-
 /* 5. Marking cards - Dirty vector */
 
 #ifndef S48_LOG_CARD_SIZE
