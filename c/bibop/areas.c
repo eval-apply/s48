@@ -76,18 +76,13 @@ Area* s48_allocate_area(unsigned int minimum, unsigned int maximum,
 			unsigned char generation_index, area_type_size_t area_type_size) {
   s48_address start;
   Area* area;
-  unsigned int i;
   unsigned int size = s48_allocate_pages(minimum, maximum, &start);
 #if (BIBOP_LOG)
   s48_bibop_log("s48_allocate_pages: size = %i",
 	    size);
 #endif
-  area = make_area(start, ADD_PAGES(start, size), start,
-			 generation_index, area_type_size);
-  /* The area is put into all memory-map cells that are covered by
-     it. */
-  for (i = 0; i < size; i++)
-    s48_memory_map_setB(ADD_PAGES(start, i), area);
+  area = s48_make_area(start, ADD_PAGES(start, size), start,
+		       generation_index, area_type_size);
 
   return area;
 }
@@ -157,8 +152,12 @@ Area* s48_make_area(s48_address start, s48_address end,
 		    s48_address frontier, 
 		    unsigned char generation_index,
 		    area_type_size_t area_type_size) {
-  Area* res;
-
-  res = make_area(start, end, frontier, generation_index, area_type_size);
-  return res;
+  Area* area = make_area(start, end, frontier, generation_index, area_type_size);
+  /* The area is put into all memory-map cells that are covered by
+     it. */
+  int size = BYTES_TO_PAGES(end-start);
+  int i;
+  for (i = 0; i < size; i++)
+    s48_memory_map_setB(ADD_PAGES(start, i), area);
+  return area;
 }

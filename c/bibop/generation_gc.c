@@ -693,8 +693,8 @@ static void collect(int count, psbool emergency) {
 #endif
 
     /* FPage 9 ... area_roots.c */
-    s48_trace_areas_roots(generations[i].current_space->small_area, count);
-    s48_trace_areas_roots(generations[i].current_space->large_area, count);
+    s48_trace_areas_roots(generations[i].current_space->small_area);
+    s48_trace_areas_roots(generations[i].current_space->large_area);
   }
 
   s48_gc_root();
@@ -1130,45 +1130,38 @@ void s48_internal_trace_locationsB(Area* maybe_area, char area_looked_up, s48_ad
     if (addr < end) {
       thing = *((s48_value*) addr);
       next = S48_ADDRESS_INC(addr);
-      goto trace;
+      if (S48_HEADER_P(thing)) {
+	if (S48_B_VECTOR_HEADER_P(thing)) {
+	  addr = next + S48_HEADER_LENGTH_IN_A_UNITS(thing);
+	}
+	else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_CONTINUATION) {
+	  long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
+	  extern void s48_trace_continuation(char *, long); /* BIBOP-specific */
+	  s48_trace_continuation(next, size);
+	  addr = next + size;
+	}
+#if (S48_HAVE_TRANSPORT_LINK_CELLS)
+	else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_TRANSPORT_LINK_CELL) {
+	  long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
+	  trace_transport_link_cell(maybe_area, area_looked_up, next, size);
+	  addr = next + size;
+	}
+#endif
+	else {
+	  addr = next;
+	}
+	goto loop;
+      } else if (! S48_STOB_P(thing)) {
+	addr = next;
+	goto loop;
+      } else {
+	/* it's a stob */
+	trace_stob_stob = thing;
+	goto trace_stob;
+      }
     }
     return;
   }
-
- trace: {
-   if (S48_HEADER_P(thing)) {
-     if (S48_B_VECTOR_HEADER_P(thing)) {
-       addr = next + S48_HEADER_LENGTH_IN_A_UNITS(thing);
-     }
-     else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_CONTINUATION) {
-       long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
-       extern void s48_trace_continuation(char *, long); /* BIBOP-specific */
-       s48_trace_continuation(next, size);
-       addr = next + size;
-     }
-#if (S48_HAVE_TRANSPORT_LINK_CELLS)
-     else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_TRANSPORT_LINK_CELL) {
-       long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
-       trace_transport_link_cell(maybe_area, area_looked_up, next, size);
-       addr = next + size;
-     }
-#endif
-     else {
-       addr = next;
-     }
-     goto loop;
-   } else if (! S48_STOB_P(thing)) {
-     addr = next;
-     goto loop;
-   } else if (S48_STOB_P(thing)){
-     trace_stob_stob = thing;
-     goto trace_stob;
-   } else {
-     s48_gc_error("illegal s48_value found while tracing address 0x%X called from %s",
-		  addr, called_from);
-   }
- }
-
 
  trace_stob: { /* parameter: trace_stob_stob */
    from_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(trace_stob_stob));
@@ -1673,7 +1666,7 @@ void s48_walk_heap(void (*do_part)(s48_address, s48_address)) {
 void s48_initialize_image_areas(long small_bytes, long small_hp_d,
 				long large_bytes, long large_hp_d,
 				long weaks_bytes, long weaks_hp_d) {
-   
+   int image_generation = S48_GENERATIONS_COUNT - 1;
    s48_address start;
    s48_address small_end;
    s48_address large_end;
@@ -1681,10 +1674,6 @@ void s48_initialize_image_areas(long small_bytes, long small_hp_d,
    long img_bytes;
    long i;
    
-   Area* small_img;
-   Area* large_img;
-   Area* weaks_img;   
-
    /*Wrong image format ? */
    if ((small_bytes < 0) || (large_bytes < 0) || (weaks_bytes < 0))  return;
 
@@ -1692,9 +1681,6 @@ void s48_initialize_image_areas(long small_bytes, long small_hp_d,
    img_bytes = small_bytes + large_bytes + weaks_bytes;
    
    s48_allocate_image_area(img_bytes, &start, &end);
-   
-   /*printf("START: %i  END %i\n", start, end); */
-
    
    if (img_bytes != (end - start)) {
      s48_gc_error("Image block is not OK!");
@@ -1711,47 +1697,33 @@ void s48_initialize_image_areas(long small_bytes, long small_hp_d,
    
    
    /* Split this block and assign it to the last generation's areas */
-   small_img = s48_make_area(start, small_end, start,
-			     S48_GENERATIONS_COUNT - 1, AREA_TYPE_SIZE_SMALL);
-   small_img->frontier += S48_BYTES_TO_A_UNITS(small_hp_d);
-   small_img->action = GC_ACTION_IGNORE;
-   generations[S48_GENERATIONS_COUNT - 1].current_space->small_area =
-     small_img;
-   
-   large_img = s48_make_area(small_end, large_end, small_end,
-			     S48_GENERATIONS_COUNT - 1, AREA_TYPE_SIZE_LARGE);
-   large_img->frontier += S48_BYTES_TO_A_UNITS(large_hp_d);
-   large_img->action = GC_ACTION_IGNORE;
-   generations[S48_GENERATIONS_COUNT - 1].current_space->large_area =
-     large_img;
-   
-   weaks_img = s48_make_area(large_end, end, large_end,
-			     S48_GENERATIONS_COUNT - 1, AREA_TYPE_SIZE_WEAKS);
-   weaks_img->frontier += S48_BYTES_TO_A_UNITS(weaks_hp_d);
-   weaks_img->action = GC_ACTION_IGNORE;
-   generations[S48_GENERATIONS_COUNT - 1].current_space->weaks_area =
-     weaks_img;
-   
-   /* Put the areas into all memory-map cells that are covered by
-      it. */
-   for (i = 0; i < BYTES_TO_PAGES(small_bytes); i++) {
-     s48_memory_map_setB(ADD_PAGES(start, i), small_img);
+   if (small_bytes > 0) {
+     Area* small_img;
+     small_img = s48_make_area(start, small_end,
+			       start + S48_BYTES_TO_A_UNITS(small_hp_d),
+			       image_generation, AREA_TYPE_SIZE_SMALL);
+     small_img->action = GC_ACTION_IGNORE;
+     generations[image_generation].current_space->small_area = small_img;
    }
-   
-   for (i = 0; i < BYTES_TO_PAGES(large_bytes); i++) {
-     s48_memory_map_setB(ADD_PAGES(small_end, i), large_img);
-   }
-   
-   for (i = 0; i < BYTES_TO_PAGES(weaks_bytes); i++) {
-     s48_memory_map_setB(ADD_PAGES(large_end, i), weaks_img);
-   }
-   
-   
-   /* Debugging */
-   /*printf("small: %i  %i\n", small_img->start, small_img->end); */
-   /*printf("large: %i  %i\n", large_img->start, large_img->end); */
-   /*printf("weaks: %i  %i\n", weaks_img->start, weaks_img->end); */
 
+   if (large_bytes > 0) {
+     Area* large_img;
+     large_img = s48_make_area(small_end, large_end,
+			       small_end + S48_BYTES_TO_A_UNITS(large_hp_d),
+			       image_generation, AREA_TYPE_SIZE_LARGE);
+     large_img->action = GC_ACTION_IGNORE;
+     generations[image_generation].current_space->large_area = large_img;
+   }
+
+   if (weaks_bytes > 0) {
+     Area* weaks_img;
+     weaks_img = s48_make_area(large_end, end,
+			       large_end + S48_BYTES_TO_A_UNITS(weaks_hp_d),
+			       image_generation, AREA_TYPE_SIZE_WEAKS);
+     weaks_img->action = GC_ACTION_IGNORE;
+     generations[image_generation].current_space->weaks_area = weaks_img;
+   }
+   
    return;
 
  }

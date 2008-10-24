@@ -21,14 +21,12 @@
 */
 
 typedef struct {
-  int length;
-#if S48_DIRTY_VECTOR_METHOD==S48_OFFSET_DIRTY_VECTORS
-  char* items;
-#endif
 #if S48_DIRTY_VECTOR_METHOD==S48_ADDRESS_DIRTY_VECTORS
+  int length;
   s48_address* items;
 #endif
 #if S48_DIRTY_VECTOR_METHOD==S48_CROSSINGMAP_DIRTY_VECTORS
+  int length;
   char* dirty_bits;
   char* traceable_bits;
   s48_address last_frontier;
