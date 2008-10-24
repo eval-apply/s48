@@ -34,7 +34,11 @@
 		     (remap-file-descriptors! input-pipe
 					      (current-output-port)
 					      (current-error-port)))
-		 (exec-file "/bin/sh" "-c" command))
+		 (cond ((list? command)
+			(apply exec command))
+		       (else
+			;; FIXME: consider using "$SHELL" here
+			(exec-file "/bin/sh" "-c" command))))
 	       (lambda ()
 		 (exit 1)))))))))
 
