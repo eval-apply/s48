@@ -118,18 +118,12 @@
 #define S48_LOG_CARD_SIZE 11
 #endif
 
-#define S48_OFFSET_DIRTY_VECTORS 0  /* For S48_LOG_CARD_SIZE till 9 */
+#define S48_NO_DIRTY_VECTORS 0      /* For tracing everything always */
 #define S48_ADDRESS_DIRTY_VECTORS 1
 #define S48_CROSSINGMAP_DIRTY_VECTORS 2
-#define S48_NO_DIRTY_VECTORS 3      /* For tracing everything always */
 
 #ifndef S48_DIRTY_VECTOR_METHOD
 #define S48_DIRTY_VECTOR_METHOD S48_ADDRESS_DIRTY_VECTORS
-#endif
-
-#if (S48_DIRTY_VECTOR_METHOD==S48_OFFSET_DIRTY_VECTORS && \
-     S48_LOG_CARD_SIZE > 9)
-#error "S48_LOG_CARD_SIZE cannot be larger than 9 with S48_OFFSET_DIRTY_VECTORS"
 #endif
 
 /* Write Barrier Complexity */

@@ -18,7 +18,7 @@
 void s48_init_dirty_vector(Area* area);
 void s48_deinit_dirty_vector(Area* area);
 
-void s48_trace_areas_roots(Area* areas, int generations_count);
+void s48_trace_areas_roots(Area* areas);
 
 /* implementation of the write-barrier */
 
@@ -30,30 +30,21 @@ void s48_set_dirty_vector(Area* area, s48_address addr, long stob,
 inline static void s48_set_dirty_vector_inline(Area* area, s48_address addr,
 					       long stob, Area* maybe_to_area)
 {
+#if S48_DIRTY_VECTOR_METHOD==S48_ADDRESS_DIRTY_VECTORS
   unsigned long area_offset = addr - area->start;
   unsigned int card_number = area_offset >> S48_LOG_CARD_SIZE ;
-  
-#if S48_DIRTY_VECTOR_METHOD==S48_OFFSET_DIRTY_VECTORS
-  /* the offset of ADDR within the card */
-  unsigned char card_offset = \
-    S48_BYTES_TO_CELLS(area_offset - (card_number << S48_LOG_CARD_SIZE));
-  /* we need to use one bit, to distinguish between a clean card, and
-     offset 0 */
-  unsigned char new_dirty_byte  = (card_offset << 1) | 1 ;
-  /* update the dirty_vector, if card was clean, or the new offset is
-     smaller */
-  unsigned char old_dirty_byte = area->dirty_vector.items[card_number];
-  if ( (old_dirty_byte == 0) || (new_dirty_byte < old_dirty_byte) )
-    area->dirty_vector.items[card_number] = new_dirty_byte;
-#endif
-#if S48_DIRTY_VECTOR_METHOD==S48_ADDRESS_DIRTY_VECTORS
   s48_address current_dirty_address = area->dirty_vector.items[card_number];
+  assert(card_number < area->dirty_vector.length);
   /* Only update if Nullpointer or smaller than current_dirty_address */
   if ((current_dirty_address == NULL) || (addr < current_dirty_address))
     area->dirty_vector.items[card_number] = addr;
 #endif
 #if S48_DIRTY_VECTOR_METHOD==S48_CROSSINGMAP_DIRTY_VECTORS
+  unsigned long area_offset = addr - area->start;
+  unsigned int card_number = area_offset >> S48_LOG_CARD_SIZE ;
+  assert(card_number < area->dirty_vector.length);
   area->dirty_vector.dirty_bits[card_number] = TRUE;
+  int j; for (j = 0; j < area->dirty_vector.length; ++j) assert((area->dirty_vector.traceable_bits[j] == 0) || (area->dirty_vector.traceable_bits[j] == 1));
 #endif
 }
 
