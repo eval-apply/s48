@@ -25,12 +25,6 @@ typedef struct {
   int length;
   s48_address* items;
 #endif
-#if S48_DIRTY_VECTOR_METHOD==S48_CROSSINGMAP_DIRTY_VECTORS
-  int length;
-  char* dirty_bits;
-  char* traceable_bits;
-  s48_address last_frontier;
-#endif
 } Dirty_vector;
 
 /* must be synchronized with the Scheme-side definition in ALLOCATION */

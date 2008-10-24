@@ -39,13 +39,6 @@ inline static void s48_set_dirty_vector_inline(Area* area, s48_address addr,
   if ((current_dirty_address == NULL) || (addr < current_dirty_address))
     area->dirty_vector.items[card_number] = addr;
 #endif
-#if S48_DIRTY_VECTOR_METHOD==S48_CROSSINGMAP_DIRTY_VECTORS
-  unsigned long area_offset = addr - area->start;
-  unsigned int card_number = area_offset >> S48_LOG_CARD_SIZE ;
-  assert(card_number < area->dirty_vector.length);
-  area->dirty_vector.dirty_bits[card_number] = TRUE;
-  int j; for (j = 0; j < area->dirty_vector.length; ++j) assert((area->dirty_vector.traceable_bits[j] == 0) || (area->dirty_vector.traceable_bits[j] == 1));
-#endif
 }
 
 extern void s48_write_barrier(long stob, s48_address address, long value);
