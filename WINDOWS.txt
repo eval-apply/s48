@@ -3,13 +3,11 @@ Scheme 48 Windows port
 Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 Starting with version 1.3, Scheme 48 has a native Windows port, which
-works on Windows NT 4.0 and above (including Windows 2000 and XP, but
-not Windows 95, Windows 98, or Windows ME).  At this time, the port is
-considered experimental.
+works on Windows NT 4.0 and above (including Windows 2000, XP and
+Vista, but not Windows 95, Windows 98, or Windows ME).
 
 Specifically, the following caveats apply to the Windows port:
 
-o UDP sockets don't work.  (But TCP sockets do.)
 o The "old-style" interface to loading external code dynamically
   doesn't work.  (But the new interface works---see doc\news.txt and
   the documentation.)
@@ -26,11 +24,23 @@ Building Scheme 48 from source
 ------------------------------
 
 The Scheme 48 developers build the VM using Microsoft Visual C++
-6.0SP6.  To build the VM, load the scheme48.dsw workspace file into
-Visual C++, choose a configuration ("Win32 Debug" or "Win32 Release")
-and build.  You'll need to have run build\generate-c-header.bat
-previously---see below.  To generate the standard Scheme 48 image,
-you'll need to run build\build-usual-image.bat---also described below.
+2008 Express Edition, which can be downloaded for free from the
+Microsoft web site.
+
+In order to build Scheme 48 from scratch, the following steps are
+needed:
+
+- install a recent regular release of Scheme 48
+- generate the initial image via build\build-initial-image.bat (see below)
+- generate the various Unicode tables via build\generate-unicode-info.bat (see below)
+- generate the C headers via build\generate-c-header.bat (see below)
+- generate the C code for the VM and the BIBOP GC (see below)
+- build the VM itself (see below)
+- build scheme48.image via build\build-usual-image.bat (see below)
+- run the test suite via build\check.bat
+
+To run the various batch files, you should be sitting in a shell in
+the root of the Scheme 48 source-code hierarchy.
 
 You can then start Scheme 48 by saying
 
@@ -38,41 +48,6 @@ scheme48vm -i scheme48.image
 
 (The installer creates a suitable front-end batch file for this
 incantation.)
-
-A number of batch files are supposed to do the jobs of the various
-other make targets in the Unix Makefile.  To run them, you should be
-sitting in a shell in the root of the Scheme 48 hierarchy.  Note that,
-for all except build-usual-image.bat you'll need to have a working
-Scheme 48 available your machine:
-
-build\generate-c-header.bat
-  This generates the c\scheme48.h header file needed for compiling
-  various VM extensions.
-
-  It requires a command-line argument specifying how to start up a
-  Scheme 48 REPL.
-
-  Example:
-
-  build\generate-c-header.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
-
-build\build-usual-image.bat
-  This generates the default scheme48.image from build\initial.image.
-
-  It requires six command-line arguments:
-
-  - the root directory of the Scheme 48 sources
-    *with a trailing backslash*
-  - the full path of the installed scheme/ subdirectory of the Scheme
-    48 sources
-  - the full path of the directory containing external code
-  - the name of the image file to be generated
-  - the name of the VM executable
-  - the filename of the initial image
-
-  Example (supposing the Scheme 48 root directory sits at c:\scheme48)
-
-  build\build-usual-image.bat ".\" "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme" "C:\Program Files\Scheme 48\Scheme 48 1.8\external" scheme48.image scheme48vm.exe build\initial.image-32
 
 build\build-initial-image.bat
   This builds build\initial.image-32 from source.
@@ -93,6 +68,17 @@ build\generate-unicode-info.bat
 
   build\generate-unicode-info.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
 
+build\generate-c-header.bat
+  This generates the c\scheme48.h header file needed for compiling
+  various VM extensions.
+
+  It requires a command-line argument specifying how to start up a
+  Scheme 48 REPL.
+
+  Example:
+
+  build\generate-c-header.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
+
 build\compile-vm.bat
 build\compile-bibop-gc.bat
   This builds the VM C sources from Scheme.
@@ -103,10 +89,33 @@ build\compile-bibop-gc.bat
   build\compile-vm.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
   build\compile-bibop-gc.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
 
+building the VM and dependent DLLs:
+  To compile the VM, load the scheme48.sln "solution" file into Visual
+  C++, choose a configuration ("Win32 Debug" or "Win32 Release") and
+  build the entire solution.
+
+build\build-usual-image.bat
+  This generates the default scheme48.image from build\initial.image.
+
+  It requires six command-line arguments:
+
+  - the root directory of the Scheme 48 sources
+    *with a trailing backslash*
+  - the full path of the installed scheme/ subdirectory of the Scheme
+    48 sources
+  - the full path of the directory containing external code
+  - the name of the image file to be generated
+  - the name of the VM executable
+  - the filename of the initial image
+
+  Example (supposing the Scheme 48 root directory sits at c:\scheme48)
+
+  build\build-usual-image.bat ".\" "C:\src\s48\scheme" "C:\src\s48" scheme48.image scheme48vm.exe build\initial.image-32
+
 build\check.bat
   This runs the test cases.
 
   It requires a command-line argument specifying the Scheme 48
   executable to check.
 
-  build\check.bat "C:\Builds\s48\scheme48vm.exe"
+  build\check.bat "C:\src\s48\scheme48vm.exe -i C:\src\s48\scheme48.image"
