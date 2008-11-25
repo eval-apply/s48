@@ -848,7 +848,7 @@ They return \code{\#f} if \var{port} does not keep track of its location.
  \code{(current-row \cvar{port})} is not 0.
 
 \begin{example}
-(define p (open-output-port "/tmp/temp"))
+(define p (make-tracking-output-port (open-output-file "/tmp/temp")))
 (list (current-row p) (current-column p))
     \evalsto '(0 0)
 (display "012" p)
