@@ -526,6 +526,7 @@
 	    r6rs-lists
 	    r6rs-enums
 	    r6rs-sorting
+	    r6rs-reader
 
 	    ; POSIX packages (see scheme/posix/packages.scm)
 	    posix-files

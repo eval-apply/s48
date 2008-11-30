@@ -318,6 +318,8 @@
 	  general-category-id
 	  general-category-symbol
 	  general-category-primary-category
+	  general-categories
+	  general-category-index
 
 	  char-general-category
 	  char-titlecase
