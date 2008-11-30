@@ -310,6 +310,7 @@
 						  (make-simple-interface #f '()))
 						'for-syntax))
 			(cons eval p))))))
+    (set-reader! config read)
     config))
 
 ; Exec package

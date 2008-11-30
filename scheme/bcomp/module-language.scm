@@ -195,10 +195,16 @@
 		       (,(string->symbol ".make-reflective-tower.")
 			(,%quote ,for-syntaxes)
 			(,%quote ,names))		; for discloser
+		       ,(string->symbol ".reader.")
 		       (,%file-name)
 		       (,%quote ,others)
 		       (,%quote ,names))))))))
   (cons lambda list make-a-package quote make-reflective-tower %file-name%))
+
+(define-syntax define-reader
+  (lambda (e r c)
+    `(,(r 'define) ,(string->symbol ".reader.") ,(cadr e)))
+  (define))
 
 ; (DEFINE-REFLECTIVE-TOWER-MAKER <proc>)
 ;   <proc> should be an expression that evaluates to a procedure of

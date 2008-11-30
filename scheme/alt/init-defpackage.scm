@@ -34,6 +34,8 @@
 			 `(for-syntax ,@clauses)))
 	       (cons evaluate-transformer env))))))
 
+(define-reader read)
+
 (define-syntax code-quote
   (syntax-rules ()
     ((code-quote ?thing) '?thing)))

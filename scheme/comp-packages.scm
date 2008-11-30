@@ -289,7 +289,9 @@
 
 (define-structure defpackage defpackage-interface
   (open scheme-level-2
-	packages syntactic usual-macros types
+	packages 
+	(subset packages-internal (set-package-reader!))
+	syntactic usual-macros types
 	interfaces
 	source-file-names	;%file-name%
 	low-exceptions		;error
