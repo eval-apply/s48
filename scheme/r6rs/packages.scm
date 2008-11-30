@@ -84,4 +84,12 @@
     (define vector-sort olin:vector-stable-sort)
     (define vector-sort! olin:vector-sort!)))
 
--
+(define-structure r6rs-reader (export get-datum)
+  (open (modify scheme (hide read))
+	conditions exceptions
+	byte-vectors
+	unicode-char-maps
+	(subset primitives (make-immutable!))
+	(subset silly (reverse-list->string)))
+  (files reader)
+  (optimize auto-integrate))
