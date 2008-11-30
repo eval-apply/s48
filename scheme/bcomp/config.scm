@@ -3,15 +3,18 @@
 
 ; For DEFINE-STRUCTURE macro
 
-(define (make-a-package opens-thunk accesses-thunk tower
+(define (make-a-package opens-thunk accesses-thunk tower reader
 			dir clauses name)
-  (make-package opens-thunk accesses-thunk
-		#t    ;unstable
-		tower
-		dir
-		clauses
-		#f
-		name))
+  (let ((package
+	 (make-package opens-thunk accesses-thunk
+		       #t    ;unstable
+		       tower
+		       dir
+		       clauses
+		       #f
+		       name)))
+    (set-package-reader! package reader)
+    package))
 
 (define (loser . rest)
   (assertion-violation 'init-defpackage! "init-defpackage! neglected"))

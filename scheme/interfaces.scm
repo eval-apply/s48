@@ -1386,7 +1386,8 @@
 	  set-interaction-environment!
 	  set-scheme-report-environment!
 	  with-interaction-environment
-	  set-reflective-tower-maker!))
+	  set-reflective-tower-maker!
+	  set-reader!))
 
 (define-interface defpackage-interface
   (export ((def			        ;Formerly define-structure
@@ -1395,6 +1396,7 @@
 	    define-structure
 	    define-module
 	    define-syntax
+	    define-reader
 	    define-reflective-tower-maker
 	    export-reflective-tower-maker
 	    compound-interface

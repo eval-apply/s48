@@ -28,3 +28,6 @@
 					       (make-simple-interface #f '()))
 					     'for-syntax))
 	      (cons eval package)))))))
+
+(define-reader read)
+
