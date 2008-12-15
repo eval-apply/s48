@@ -302,6 +302,7 @@
 	  &sin &cos &tan &asin &acos &atan1 &atan2
 	  &sqrt
 	  &make-rectangular
+	  &make-polar
 	  &number->string
 	  &really-string->number))
 

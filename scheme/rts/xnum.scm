@@ -134,6 +134,7 @@
 (define-opcode-extension denominator    &denominator)
 
 (define-opcode-extension make-rectangular &make-rectangular)
+(define-opcode-extension make-polar &make-polar)
 
 (define-opcode-extension exp   &exp)
 (define-opcode-extension log   &log)
