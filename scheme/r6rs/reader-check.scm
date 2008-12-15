@@ -9,6 +9,10 @@
    (get-datum (make-string-input-port "+123")) => 123)
   (check
    (get-datum (make-string-input-port "...")) => '...)
+  (check
+   (get-datum (make-string-input-port "(...)")) => '(...))
+  (check
+   (get-datum (make-string-input-port "(... foo ... baz)")) => '(... foo ... baz))
   (check-exception
    (get-datum (make-string-input-port "..")))
   (check

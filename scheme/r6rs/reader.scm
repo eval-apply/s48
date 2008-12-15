@@ -551,6 +551,7 @@
 	(if (or (eof-object? next2)
 		(not (char=? #\. next2)))
 	    (reading-error "invalid symbol syntax" (string c next next2)))
+	(read-char port)
 	'...))
      (else
       (sub-read-number c port)))))
