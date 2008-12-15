@@ -180,5 +180,7 @@
 (define-method &make-rectangular ((x :real) (y :real))
   (if (eq? (exact? x) (exact? y))
       (rectangulate x y)
-      (rectangulate (if (exact? x) (exact->inexact x) x)
-		    (if (exact? y) (exact->inexact y) y))))
+      (rectangulate (exact->inexact x) (exact->inexact y))))
+
+(define-method &make-polar ((x :real) (y :real))
+  (rectangulate (* x (cos y)) (* x (sin y))))
