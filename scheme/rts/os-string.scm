@@ -57,7 +57,7 @@
 		    c #f)))
 
 (define (byte-vector->os-string b)
-  (let ((c (byte-vector-copy b)))
+  (let ((c (byte-vector-copy-z b)))
     (make-immutable! b)
     (make-os-string (current-os-string-text-codec)
 		    #f c)))
@@ -101,12 +101,13 @@
    ((string? x) (string->os-string x))
    ((byte-vector? x) (byte-vector->os-string x))))
 
-; doesn't really belong here
-
-(define (byte-vector-copy b)
-  (let* ((size (byte-vector-length b))
+(define (byte-vector-copy-z b)
+  (let* ((size-old (byte-vector-length b))
+	 (nul? (and (positive? size-old)
+		    (zero? (byte-vector-ref b (- size-old 1)))))
+	 (size (if nul? size-old (+ 1 size-old)))
 	 (result (make-byte-vector size 0)))
-    (copy-bytes! b 0 result 0 size)
+    (copy-bytes! b 0 result 0 size-old)
     result))
 
 (initialize-os-string-text-codec!)
