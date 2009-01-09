@@ -1041,8 +1041,8 @@ raise_scheme_standard_exception_2(s48_call_t call, long why, const char* who, co
   if (who == NULL)
     s48_push_2(call, current_procedure);
   else
-    s48_push_2(call, s48_enter_string_utf_8_2(call, (char*)who));
-  s48_push_2(call, s48_enter_byte_string_2(call, (char*)message));
+    s48_push_2(call, s48_enter_string_utf_8_2(call, (char*) who));
+  s48_push_2(call, s48_enter_byte_string_2(call, (char*) message));
 
   raise_scheme_exception_postlude();
 }
@@ -1139,7 +1139,7 @@ s48_os_error_2(s48_call_t call, const char* who, int the_errno,
   if (who == NULL)
     s48_push_2(call, current_procedure);
   else
-    s48_push_2(call, s48_enter_string_utf_8_2(call, (char*)who));
+    s48_push_2(call, s48_enter_string_utf_8_2(call, who));
   s48_push_2(call, s48_enter_long_as_fixnum_2(call, the_errno));
 
   raise_scheme_exception_postlude();
@@ -1606,15 +1606,15 @@ s48_extract_unsigned_long_2(s48_call_t call, s48_ref_t value)
  */
 
 s48_ref_t
-s48_enter_string_latin_1_2(s48_call_t call, char *s)
+s48_enter_string_latin_1_2(s48_call_t call, const char *s)
 {
-  return s48_make_local_ref(call, s48_enter_string_latin_1(s));
+  return s48_make_local_ref(call, s48_enter_string_latin_1((char*) s));
 }
 
 s48_ref_t
-s48_enter_string_latin_1_n_2(s48_call_t call, char *s, long count)
+s48_enter_string_latin_1_n_2(s48_call_t call, const char *s, long count)
 {
-  return s48_make_local_ref(call, s48_enter_string_latin_1_n(s, count));
+  return s48_make_local_ref(call, s48_enter_string_latin_1_n((char*) s, count));
 }
 
 void
@@ -1630,21 +1630,21 @@ s48_copy_string_to_latin_1_n_2(s48_call_t call, s48_ref_t sch_s, long start, lon
 }
 
 void
-s48_copy_latin_1_to_string_2(s48_call_t call, char *s, s48_ref_t sch_s)
+s48_copy_latin_1_to_string_2(s48_call_t call, const char *s, s48_ref_t sch_s)
 {
-  s48_copy_latin_1_to_string(s, s48_deref(sch_s));
+  s48_copy_latin_1_to_string((char*) s, s48_deref(sch_s));
 }
 
 void
-s48_copy_latin_1_to_string_n_2(s48_call_t call, char *s, long len, s48_ref_t sch_s)
+s48_copy_latin_1_to_string_n_2(s48_call_t call, const char *s, long len, s48_ref_t sch_s)
 {
-  s48_copy_latin_1_to_string_n(s, len, s48_deref(sch_s));
+  s48_copy_latin_1_to_string_n((char*) s, len, s48_deref(sch_s));
 }
 
 s48_ref_t
-s48_enter_string_utf_8_2(s48_call_t call, char *s)
+s48_enter_string_utf_8_2(s48_call_t call, const char *s)
 {
-  return s48_make_local_ref(call, s48_enter_string_utf_8(s));
+  return s48_make_local_ref(call, s48_enter_string_utf_8((char*) s));
 }
 
 s48_value
@@ -1745,9 +1745,9 @@ s48_copy_string_to_utf_16le_n_2(s48_call_t call, s48_ref_t sch_s, long start, lo
 }
 
 s48_ref_t
-s48_enter_string_utf_8_n_2(s48_call_t call, char* s, long count)
+s48_enter_string_utf_8_n_2(s48_call_t call, const char* s, long count)
 {
-  return s48_make_local_ref(call, s48_enter_string_utf_8_n(s, count));
+  return s48_make_local_ref(call, s48_enter_string_utf_8_n((char*) s, count));
 }
 
 long
@@ -2021,7 +2021,7 @@ s48_enter_byte_vector(char *bytes, long length)
 }
 
 s48_ref_t
-s48_enter_byte_vector_2(s48_call_t call, char *bytes, long length)
+s48_enter_byte_vector_2(s48_call_t call, const char *bytes, long length)
 {
   s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length));
   memcpy(s48_unsafe_extract_byte_vector_2(call, ref), bytes, length);
@@ -2120,7 +2120,7 @@ s48_enter_byte_substring(char *str, long length)
 }
 
 s48_ref_t
-s48_enter_byte_substring_2(s48_call_t call, char *str, long length)
+s48_enter_byte_substring_2(s48_call_t call, const char *str, long length)
 {
   s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length + 1));
   memcpy(s48_unsafe_extract_byte_vector_2(call, ref), str, length);
@@ -2135,7 +2135,7 @@ s48_enter_byte_string(char *str)
 }
 
 s48_ref_t
-s48_enter_byte_string_2(s48_call_t call, char *str)
+s48_enter_byte_string_2(s48_call_t call, const char *str)
 {
   return s48_enter_byte_substring_2(call, str, strlen(str));
 }
