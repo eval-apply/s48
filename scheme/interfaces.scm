@@ -1172,7 +1172,7 @@
           nary-primitive-protocol continuation-protocol
           cwv-continuation-protocol
           make-dispatch-protocol
-	  make-label
+	  make-label label?
 	  label-reference
 	  note-environment
 	  note-source-code
