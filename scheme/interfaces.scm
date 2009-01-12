@@ -1167,6 +1167,7 @@
 	  using-optional-label
 	  jump-instruction
 	  computed-goto-instruction
+	  stack-shuffle-instruction
 	  continuation-data
           lambda-protocol nary-lambda-protocol
           nary-primitive-protocol continuation-protocol
