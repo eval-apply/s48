@@ -416,6 +416,44 @@
 						   (cons (cons location base-address)
 							 (label-mappings label)))))))))))
 
+; stack-shuffle! <count> <from> <to> ...
+; where <from> and <to> are stack indexes
+; pushes, copies <from> to <to>, pops
+; A simple swap between offsets 6 and 9 is one instruction taking up eight bytes:
+;   stack-shuffle! 3 7 0 10 7 0 10
+; Takes list of (<from> . <to>) pairs.
+
+(define (stack-shuffle-instruction moves)
+  (let ((n-moves (length moves))
+	(flattened (flatten-moves moves)))
+    (if (or (>= n-moves byte-limit)
+	    (any (lambda (index)
+		   (>= index byte-limit))
+		 flattened))
+	(apply instruction
+	       (enum op big-stack-shuffle!)
+	       (high-byte n-moves)
+	       (low-byte n-moves)
+	       (apply append
+		      (map (lambda (arg)
+			     (list (high-byte arg) (low-byte arg)))
+			   flattened)))
+	(apply instruction
+	       (enum op stack-shuffle!)
+	       n-moves
+	       flattened))))
+
+(define (flatten-moves moves)
+  (let loop ((moves moves)
+	     (args '()))
+    (if (null? moves)
+	(reverse args)
+	(loop (cdr moves)
+	      (cons (cdar moves)
+		    (cons (caar moves)
+			  args))))))
+
+
 ; LABEL is the label for SEGMENT.  The current PC is used as the value of LABEL.
 
 (define (attach-label label segment)
