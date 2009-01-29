@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="srfi-27"
 	ProjectGUID="{D0283225-314B-4140-8940-2EE6137874CB}"
 	RootNamespace="srfi27"
@@ -45,7 +45,7 @@
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;SRFI27_EXPORTS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="3"
+				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
@@ -121,7 +121,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="c;c/win32"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;SRFI27_EXPORTS"
-				RuntimeLibrary="2"
+				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
