@@ -1016,7 +1016,9 @@ static void trace_transport_link_cell(Area* maybe_area, char area_looked_up,
     /* If the tconc field is a pair... */
     if (S48_FALSE_P(tconc))
       {} /* ignore */
-    else if (S48_PAIR_P(tconc)) {
+    else if (S48_PAIR_P(tconc) 
+	     && S48_PAIR_P(S48_UNSAFE_CAR(tconc))
+	     && S48_PAIR_P(S48_UNSAFE_CDR(tconc))) {
       /* ...then add the tlc to the end of the tconc queue. */
       append_tconcB(tconc, tlc);
       /* ...and set the tconc field to null (false). */

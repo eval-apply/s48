@@ -104,7 +104,7 @@
 	(set-tlc-value-prev-tlc! (transport-link-cell-value
 				  (tlc-table-loc table)) link))
     (set-tlc-table-loc! table link)
-    (set-tlc-table-count! table (+ 1 (tlc-table-count table)))))
+    (set-tlc-table-count! table (+ (tlc-table-count table) 1))))
 
 ;; get index of link chain
 
@@ -160,47 +160,64 @@
 
 (define (tlc-table-rehash-lookup table key)
   (let ((tconc (tlc-table-tconc table)))
-    (and (not (tconc-queue-empty? tconc))
-	 (let ((link (tconc-queue-dequeue! tconc)))
-	   (begin
+    (let tconc-dequeue-loop ()
+      (and (not (tconc-queue-empty? tconc))
+	   (let ((link (tconc-queue-dequeue! tconc)))
 	     (tlc-table-rehash-link table link)
 	     (if (eq? (transport-link-cell-key link) key)
 		 link
-		 (tlc-table-rehash-lookup table key)))))))
+		 (tconc-dequeue-loop)))))))
 
 (define (tlc-table-lookup-link table key)
   (or (tlc-table-direct-lookup table key)
       (tlc-table-rehash-lookup table key)))
 
-(define (tlc-table-rehash-lookup-for-deletion table key)
+(define (tlc-table-rehash-and-clean-tconc-queue table key)
   (let ((tconc (tlc-table-tconc table)))
-    (and (not (tconc-queue-empty? tconc))
-	 (let ((link (tconc-queue-dequeue! tconc)))
-	   (if (eq? (transport-link-cell-key link) key)
-	       link
-	       (begin
-		 (tlc-table-rehash-link table link)
-		 (tlc-table-rehash-lookup-for-deletion table key)))))))
+    (let tconc-dequeue-loop ()
+      (and (not (tconc-queue-empty? tconc))
+	   (let ((link (tconc-queue-dequeue! tconc)))
+	     (if (eq? (transport-link-cell-key link) key)
+		 link
+		 (begin
+		   (tlc-table-rehash-link table link)
+		   (tconc-dequeue-loop))))))))
 
+;; DELETING FROM A TLC TABLE IS DIFFICULT:
 ;; There are rare occasions where a link is enqueued to the tconc
 ;; queue during garbage collection that is hashed into the same bucket
 ;; as before.  So, strictly speaking, there is no need for the link to
 ;; go into the tconc queue because a direct lookup finds it anyways.
 ;; But if the user really wants to delete a link, we have to make sure
 ;; that it is removed from the tconc queue so that a later lookup will
-;; not resurrect the link.  Thus, we first walk the tconc queue and
-;; then see if we can still find the link on a direct lookup.  This
-;; makes the removal of an tlc-table entry very expensive, because
-;; worst case all links in the tconc queue are rehashed whenever the
-;; user deletes an element from the tlc table.
+;; not resurrect the link.  Thus, if the tlc's tconc field is #f, the
+;; tlc is in the tconc queue and we first walk the tconc queue and 
+;; rehash all the links until we finde the link we want to delete.
+;;
+;; This may make the removal of an tlc-table entry very expensive,
+;; because worst case all links in the tconc queue are rehashed
+;; whenever the user deletes an element from the tlc table.
+;;
+;; In even more rare circumstances, a deleted link may ressurect this
+;; way: If a garbage collection happens during the deletion of a link
+;; (i.e. while traversing a bucket's link list), the collector may
+;; enqueued the link to the tconc queue just before the link is
+;; deleted from the link list.  To prevent this from happening, we set
+;; the link's tconc field to #f, so that the collector will not try to
+;; enqueue it.
 ;;
 ;; For non-deleting lookups it does not matter if the link is still in
 ;; the tconc.  At some point in time, the link will be rehashed to the
 ;; same bucket as it was before.  This is unneeded but way cheaper
 ;; than checking and acting to prevent such a situation.
+
 (define (tlc-table-lookup-link-for-deletion table key)
-  (or (tlc-table-rehash-lookup-for-deletion table key)
-      (tlc-table-direct-lookup table key)))
+  (let ((link (tlc-table-direct-lookup table key)))
+    (if (and link (transport-link-cell-tconc link))
+	(begin
+	  (set-transport-link-cell-tconc! link #f)
+	  link)
+	  (tlc-table-rehash-and-clean-tconc-queue table key))))
 
 ;; exported functions below
 

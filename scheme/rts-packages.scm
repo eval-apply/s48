@@ -460,6 +460,8 @@
 			      set-transport-link-cell-value!
 			      transport-link-cell-next
 			      set-transport-link-cell-next!
+			      transport-link-cell-tconc
+			      set-transport-link-cell-tconc!
 			      memory-status))
 	(subset architecture (memory-status-option))
 	enumerated)
