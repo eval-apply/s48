@@ -113,6 +113,15 @@
 	  wait
 	  weak-pointer-ref
 	  weak-pointer?
+	  make-transport-link-cell
+	  transport-link-cell?
+	  transport-link-cell-key
+	  transport-link-cell-value 
+	  set-transport-link-cell-value!
+	  transport-link-cell-tconc 
+	  set-transport-link-cell-tconc!
+	  transport-link-cell-next 
+	  set-transport-link-cell-next!
 	  write-byte
 	  write-char
 	  encode-char
@@ -915,6 +924,32 @@
 	  add-to-population!
 	  population->list
 	  walk-population))
+
+(define-interface tconc-queue-interface
+  (export make-tconc-queue
+	  tconc-queue?
+	  tconc-queue-empty?
+	  tconc-queue-enqueue!
+	  tconc-queue-dequeue!
+	  tconc-queue-peek
+	  tconc-queue-clear!
+	  tconc-queue-size))
+
+(define-interface tlc-table-interface
+  (export make-tlc-table
+	  tlc-table?
+	  tlc-table-size
+	  tlc-table-ref
+	  tlc-table-set!
+	  tlc-table-delete!
+	  tlc-table-contains?
+	  tlc-table-update!
+	  tlc-table-clear!
+	  tlc-table-keys
+	  tlc-table-entries
+	  tlc-table-equivalence-function
+	  tlc-table-hash-function
+	  tlc-table-distribution))
 
 (define-interface filenames-interface
   (export namestring *scheme-file-type* *load-file-type*

@@ -24,10 +24,6 @@ static Area* make_area(s48_address start, s48_address end,
   area->next = NULL;
   area->generation_index = generation_index;
   area->area_type_size = area_type_size;
-#if S48_USE_GENERATION_INDEXING==TRUE
-  area->minimum_index = 255;
-  area->maximum_index = 0;
-#endif
   s48_init_dirty_vector(area);
 #if S48_USE_REMEMBERED_SETS==TRUE
   area->remset = s48_make_remset();
@@ -80,18 +76,13 @@ Area* s48_allocate_area(unsigned int minimum, unsigned int maximum,
 			unsigned char generation_index, area_type_size_t area_type_size) {
   s48_address start;
   Area* area;
-  unsigned int i;
   unsigned int size = s48_allocate_pages(minimum, maximum, &start);
 #if (BIBOP_LOG)
   s48_bibop_log("s48_allocate_pages: size = %i",
 	    size);
 #endif
-  area = make_area(start, ADD_PAGES(start, size), start,
-			 generation_index, area_type_size);
-  /* The area is put into all memory-map cells that are covered by
-     it. */
-  for (i = 0; i < size; i++)
-    s48_memory_map_setB(ADD_PAGES(start, i), area);
+  area = s48_make_area(start, ADD_PAGES(start, size), start,
+		       generation_index, area_type_size);
 
   return area;
 }
@@ -110,6 +101,11 @@ void s48_free_area(Area* area) {
     s48_memory_map_setB(ADD_PAGES(start, i), NULL);
   }
 
+#ifndef NDEBUG
+  /* Blank it out, to find errors more easily */
+  memset(area->start, 0, area->end - area->start);
+#endif
+
   free_area(area);
 }
 
@@ -126,7 +122,7 @@ void s48_free_areas(Area* start) {
    from the BIBOP dumper */
 area_type_size_t s48_area_type_size(s48_value stob) {
   Area* area;
-  area = s48_memory_map_ref((s48_address)stob);
+  area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(stob));
 
   if (area == NULL) {
     return AREA_TYPE_SIZE_ILLEGAL;
@@ -156,8 +152,12 @@ Area* s48_make_area(s48_address start, s48_address end,
 		    s48_address frontier, 
 		    unsigned char generation_index,
 		    area_type_size_t area_type_size) {
-  Area* res;
-
-  res = make_area(start, end, frontier, generation_index, area_type_size);
-  return res;
+  Area* area = make_area(start, end, frontier, generation_index, area_type_size);
+  /* The area is put into all memory-map cells that are covered by
+     it. */
+  int size = BYTES_TO_PAGES(end-start);
+  int i;
+  for (i = 0; i < size; i++)
+    s48_memory_map_setB(ADD_PAGES(start, i), area);
+  return area;
 }

@@ -121,6 +121,12 @@
 		((weak-pointer? thing)
 		 `((ref ,(weak-pointer-ref thing))))
 		
+		((transport-link-cell? thing)
+		 `((key ,(transport-link-cell-key thing))
+		   (value ,(transport-link-cell-value thing))
+		   (tconc ,(transport-link-cell-tconc thing))
+		   (next ,(transport-link-cell-next thing))))
+
 		(else '()))))))
 	
 (define (careful-length list)

@@ -377,6 +377,7 @@
       (goto continue-with-value
 	    weak-pointer
 	    0))))
+
 ;----------------
 ; Misc
 
