@@ -39,7 +39,7 @@ mandir = @mandir@/man$(manext)
 datarootdir = @datarootdir@
 datadir = @datadir@
 
-DYNAMIC_EXTERNALS_CFLAGS=@DYNAMIC_EXTERNALS_CFLAGS@ -DNO_OLD_FFI
+DYNAMIC_EXTERNALS_CFLAGS=@DYNAMIC_EXTERNALS_CFLAGS@
 DYNAMIC_EXTERNALS_LDFLAGS=@DYNAMIC_EXTERNALS_LDFLAGS@
 DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE=@DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE@
 ### End of `configure' section###
@@ -518,6 +518,9 @@ check: $(VM) $(IMAGE) scheme/debug/check.scm
 		echo ',open base-test';					\
 		echo ',open big-test';					\
 		echo ',open sockets-test';				\
+		echo ',open tconc-queue-test';				\
+		echo ',open transport-link-cell-test';			\
+		echo ',open tlc-table-test';				\
 		echo ',open env-test';					\
 		echo ',config ,load =scheme48/sort/test-packages.scm';	\
 		echo ',open sort-test';					\
@@ -535,7 +538,7 @@ check: $(VM) $(IMAGE) scheme/debug/check.scm
 		echo ',config ,load =scheme48/ffi-test/test-packages.scm';	\
 		echo ',open ffi-test';					\
 		echo ',open test-suites';				\
-		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
+		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
 		echo '(run-test-suite all-tests)'			\
 	) | ./$(VM) -i $(IMAGE) $(BIG_HEAP)
 

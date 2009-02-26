@@ -83,14 +83,6 @@ static unsigned int current_water_mark; /* pages */
 /* from young to old */
 static Generation generations[S48_GENERATIONS_COUNT];
 
-#if (S48_USE_RDM)
-#define RDM_BEFORE_SWAP 0
-#define RDM_AFTER_SWAP 1
-#define RDM_AFTER_COLLECTION 2
-static int rdm_level = RDM_BEFORE_SWAP;
-static unsigned long rdm_threshold = S48_RDM_INITIAL_THRESHOLD;
-#endif
-
 static char heap_is_initialized = 0;
 static char gc_forbid_count = 0;
 static unsigned long gc_count = 0;
@@ -563,16 +555,9 @@ inline static void init_areas(int count) {
     FOR_ALL_AREAS(generations[i].current_space->large_area,
 		  area->trace = area->frontier);
     
-    /* the other spaces should be empty anyway 
-     except the last generation with the radioactive-decay-model */
-    if (i == S48_GENERATIONS_COUNT - 1) {
-#if (S48_USE_RDM)
-      ;
-#else
-      set_gc_actions(generations[i].other_space, GC_ACTION_ERROR,
-		     GC_ACTION_ERROR, GC_ACTION_ERROR);
-#endif
-    }
+    /* the other spaces should be empty anyway */
+    set_gc_actions(generations[i].other_space, GC_ACTION_ERROR,
+		   GC_ACTION_ERROR, GC_ACTION_ERROR);
 
     set_gc_actions(generations[i].current_space, GC_ACTION_IGNORE,
 	 	   GC_ACTION_IGNORE, GC_ACTION_IGNORE);
@@ -593,7 +578,7 @@ static char trace_areas(Area* areas) {
       s48_address start = areas->trace;
       s48_address end = areas->frontier;
       if (start != end) {
-	s48_internal_trace_locationsB(areas, start, end, "trace_areas");
+	s48_internal_trace_locationsB(areas, TRUE, start, end, "trace_areas");
 	areas->trace = end;
 	hit = 1;
       } else
@@ -700,53 +685,17 @@ static void collect(int count, psbool emergency) {
   }
 #endif
 
-#if (S48_USE_GENERATION_INDEXING)
-  /* compute the absolute minimum and maximum of all generations 
-     that are collected */
-  minimum_index = 255; maximum_index = 0;
-  for (i = 0; i < count; i++) {
-    FOR_ALL_AREAS(generations[i].other_space->small_area,
-		  minimum_index = int_min(minimum_index, area->minimum_index);
-		  maximum_index = int_max(maximum_index, area->maximum_index));
-    FOR_ALL_AREAS(generations[i].other_space->large_area,
-		  minimum_index = int_min(minimum_index, area->minimum_index);
-		  maximum_index = int_max(maximum_index, area->maximum_index));
-  }  
-
-  /* generations that are being collected, can be ignored */
-  for (i = int_max(count, minimum_index); i <= maximum_index; i++) {
-      s48_bibop_log("GEN_INDEX\nTracing roots from %i generation ...\n", i);
-
-#else
-    /* FPage 9 ... */
+  /* FPage 9 ... */
   for (i = count; i < S48_GENERATIONS_COUNT; i++) {
-#endif
 
 #if (BIBOP_LOG)
     s48_bibop_log("Tracing roots from current-space of generation %i\n", i);
 #endif
 
     /* FPage 9 ... area_roots.c */
-    s48_trace_areas_roots(generations[i].current_space->small_area, count);
-    s48_trace_areas_roots(generations[i].current_space->large_area, count);
+    s48_trace_areas_roots(generations[i].current_space->small_area);
+    s48_trace_areas_roots(generations[i].current_space->large_area);
   }
-
-#if (S48_USE_RDM)
-  if (count != S48_GENERATIONS_COUNT) {
-    unsigned char last;
-#if (S48_USE_STATIC_SPACE)
-    last = S48_GENERATIONS_COUNT-2;
-#else
-    last = S48_GENERATIONS_COUNT-1;
-#endif
-
-    s48_bibop_log("RDM\nTracing roots from other-space of generation %i\n",
-		  last);
-
-    s48_trace_areas_roots(generations[last].other_space->small_area, count);
-    s48_trace_areas_roots(generations[last].other_space->large_area, count);
-  }
-#endif
 
   s48_gc_root();
 
@@ -757,14 +706,6 @@ static void collect(int count, psbool emergency) {
   for (i = 0; i < S48_GENERATIONS_COUNT; i++) {
     clean_weak_pointers(generations[i].current_space->weaks_area); 
   }
-
-#if (S48_USE_RDM)
-#if (S48_USE_STATIC_SPACE)
-  clean_weak_pointers(generations[S48_GENERATIONS_COUNT-2].other_space->weaks_area);
-#else
-  clean_weak_pointers(generations[S48_GENERATIONS_COUNT-1].other_space->weaks_area);
-#endif
-#endif
 
   s48_post_gc_cleanup(major_p, emergency);
 
@@ -895,25 +836,6 @@ static psbool do_collect(psbool force_major, psbool emergency) {
   c = S48_GENERATIONS_COUNT;
 #endif
 
-#if (S48_USE_RDM)
-  if (rdm_level == RDM_BEFORE_SWAP) {
-    /* if the last generation is full, then swap the spaces. */
-    if ((current_size - generations[c-1].last_size) > rdm_threshold) {
-      s48_bibop_log("RDM_BEFORE_SWAP\nSwapped <-> Generation %i", c-1);
-      swap(&generations[c-1]);
-      rdm_level = RDM_AFTER_SWAP;
-    }
-  } else {
-    /* otherwise collect all generations */
-    if (current_size > rdm_threshold) {
-      s48_bibop_log("RDM_AFTER_SWAP\nSwapped <-> Generation %i", c-1);
-      swap(&generations[c-1]); /* they're swaped again in collect() */
-      rdm_level = RDM_AFTER_COLLECTION;
-      force_major = TRUE;
-    }
-  }
-#endif
-
   if (! force_major) {
    for (; c > 1; c--) {
     unsigned long current_size;
@@ -953,24 +875,6 @@ static psbool do_collect(psbool force_major, psbool emergency) {
   collect(c, emergency);
   /*************************************/
 
-#if (S48_USE_RDM)
-#if (S48_USE_STATIC_SPACE)
-    if ((c == S48_GENERATIONS_COUNT - 1) && (rdm_level == RDM_AFTER_COLLECTION)) {
-#else
-  if ((c == S48_GENERATIONS_COUNT) && (rdm_level == RDM_AFTER_COLLECTION)) {
-#endif
-    rdm_threshold = (S48_RDM_MAX_SIZE - generations[c-1].last_size) / 2;
-    if (rdm_threshold < S48_RDM_MIN_THRESHOLD)
-      rdm_threshold = S48_RDM_MIN_THRESHOLD;
-
-#if (BIBOP_LOG)
-    s48_bibop_log("RDM_AFTER_COLLECTION\nrdm_threshold = %i", rdm_threshold);
-#endif
-
-    rdm_level = RDM_BEFORE_SWAP;
-  }
-#endif
-
 #if (MEASURE_GC)
   measure_after_collection(c);
 #endif
@@ -999,99 +903,131 @@ inline static Area* allocate_weak_area(Space* space);
 inline static Area* allocate_large_area(Space* space,
 					unsigned int size_in_bytes);
 
-inline static void call_internal_write_barrier(Area* maybe_area, s48_address addr,
+/* the value STOB has been written to location ADDR */
+inline static void call_internal_write_barrier(Area* maybe_area, char area_looked_up, s48_address addr,
 					       s48_value stob, Area* to_area) {
+  if (!area_looked_up) maybe_area = s48_memory_map_ref(addr);
+  /* if maybe_area is still NULL, it must have been a write to a
+     location outside of the heap, e.g. a temporary pointer or
+     something in the root-set; we can ignore it. */
   if ((maybe_area != NULL) && (maybe_area->generation_index > 0))
     s48_internal_write_barrier(maybe_area, addr, stob, to_area);
 }
 
-inline static void call_internal_write_barrier2(Area* maybe_area, s48_address addr,
+inline static void call_internal_write_barrier2(Area* maybe_area, char area_looked_up, s48_address addr,
 						s48_value stob) {
-  if ((maybe_area != NULL) && (maybe_area->generation_index > 0)) {
-    s48_internal_write_barrier(maybe_area, addr, stob,
-			       s48_memory_map_ref((s48_address)stob));
-  }
+  call_internal_write_barrier(maybe_area, area_looked_up, addr, stob,
+			      s48_memory_map_ref(S48_ADDRESS_AT_HEADER(stob)));
 }
 
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
 
-static void append_tconc(s48_value tconc, s48_value value) {
-  /* a tconc is a pair, whose cdr points the the last pair of a list */
-
-  s48_value newpair;
-
-  if (S48_PAIR_P(tconc) && (S48_PAIR_P(S48_UNSAFE_CDR(tconc)))) {
-    /* We have to use the usual allocation functions, cause we might
-       need a new area, but another gc must not be triggered of
-       course, as we are just doing one right now. */
-    s48_forbid_gcB();
-
-    /* create the new pair */
-    /* No other way to know the size of a pair? This is not nice. */
-    newpair = s48_allocate_stob(S48_STOBTYPE_PAIR, S48_CELLS_TO_BYTES(2));
-    S48_UNSAFE_SET_CAR(newpair, value);
-    S48_UNSAFE_SET_CDR(newpair, S48_NULL);
-
-    /* append it */
-    S48_UNSAFE_SET_CDR(S48_UNSAFE_CDR(tconc), newpair);
-    S48_UNSAFE_SET_CDR(tconc, newpair);
-
-    s48_allow_gcB();
+static Area* make_small_available_in_no_gc(Space* space, long size_in_bytes) {
+  Area* area = space->small_area;
+  if (size_in_bytes > AREA_REMAINING(area)) {
+    area = allocate_small_area(space, size_in_bytes);
   }
-  else {
-    /* invalid tconc - do something more severe than a printf? */
-    assert(S48_PAIR_P(tconc));
-    assert(S48_PAIR_P(S48_CDR(tconc)));
-    printf("ignoring invalid tconc\n");
-  }
+  return area;
 }
 
-static void forwarding_transport_link_cell(s48_value tlc) {
-  s48_value tconc;
+static s48_address allocate_small_in_no_gc(Space* space, long size_in_bytes) {
+  Area* area = make_small_available_in_no_gc(space, size_in_bytes);
+  s48_address addr = area->frontier;
+  area->frontier += S48_BYTES_TO_A_UNITS(size_in_bytes);
+  return addr;
+}
 
+static s48_value make_stob(long type, long size_in_cells) {
+  /* Must work during a collection! */
+
+  long size_in_bytes = S48_CELLS_TO_BYTES(size_in_cells);
+
+  /* Allocate a place for it */
+  s48_address addr = allocate_small_in_no_gc(
+      generations[0].current_space,
+      S48_STOB_OVERHEAD_IN_BYTES + size_in_bytes);
+
+  /* Initialize */
+  assert(S48_STOB_OVERHEAD_IN_BYTES == sizeof(s48_value));
+  *((s48_value*)addr) = S48_MAKE_HEADER(type, size_in_bytes);
+  memset(addr + S48_STOB_OVERHEAD_IN_A_UNITS, 0, size_in_bytes);
+
+  return S48_ADDRESS_TO_STOB_DESCRIPTOR(addr + S48_STOB_OVERHEAD_IN_A_UNITS);
+}
+
+static s48_value make_pair(s48_value car, s48_value cdr) {
+  s48_value result = make_stob(S48_STOBTYPE_PAIR, 2);
+  S48_UNSAFE_SET_CAR(result, car);
+  S48_UNSAFE_SET_CDR(result, cdr);
+  return result;
+}
+
+static void append_tconcB(s48_value tconc, s48_value elem) {
+  /* A tconc is a pair, whose car points to the first pair of a list
+     and whose cdr points to the last pair of this list. */
+
+  /* elem must already be in the "to space"! */
+
+  s48_value tconc_tail = S48_UNSAFE_CDR(tconc);
+
+  assert(S48_PAIR_P(tconc));
+
+  /* Though the tconc must already be in the "to space", it's cdr (and
+     car) could still point to the "from space". But that does not
+     matter here, because if it still has to be copied, it's (already
+     correct) contents will be ignored in the tracing. And because we
+     only write pointers to objects in the "to space", nothing has to
+     be traced additionally here. */
+
+  if (S48_PAIR_P(tconc_tail)) {
+    /* create a new pair */
+    s48_value newpair = make_pair(S48_FALSE, S48_FALSE);
+    
+    /* enqueue the tlc (=elem) in the tconc queue */
+    S48_UNSAFE_SET_CAR(tconc_tail, elem);
+    S48_UNSAFE_SET_CDR(tconc_tail, newpair);
+    S48_UNSAFE_SET_CDR(tconc, newpair); /* new tail */
+  }
+  /* else: silently ignoring malformed tconc */
+}
+
+static void trace_transport_link_cell(Area* maybe_area, char area_looked_up,
+                                      s48_address contents_pointer,
+				      long size_in_a_units) {
+  s48_value tlc = S48_ADDRESS_TO_STOB_DESCRIPTOR(contents_pointer);
+  s48_value old_key;
+  char key_moved_p;
   assert(S48_TRANSPORT_LINK_CELL_P(tlc));
+  old_key = S48_UNSAFE_TRANSPORT_LINK_CELL_KEY(tlc);
 
-  /* if the tconc field is non-null (false) */
-  tconc = S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc);
-  if (S48_FALSE_P(tconc)) {
-    /* tlc aready seen */
-  }
-  else if (S48_PAIR_P(tconc)) {
-    /* and the key has moved */
-    s48_value key = S48_UNSAFE_TRANSPORT_LINK_CELL_KEY(tlc);
-    if (S48_STOB_P(key) && (BROKEN_HEART_P(S48_STOB_HEADER(key)))) {
+  /* ...trace the current tlc to make sure that every pointer is up-to-date. */
+  s48_internal_trace_locationsB(
+    maybe_area, area_looked_up, contents_pointer,
+    contents_pointer + size_in_a_units,
+    "trace_transport_link_cell");
 
-      /* then add the tlc to the end of the tconc... */
-      /* this allocates a new pair, which will contain the address of
-	 the old tlc, but it will be traced and updated later. */
-      append_tconc(tconc, tlc);
+  /* Hint: We will not recognize large keys "moving" into an older
+     generation; but the tlc-logic is only interested in keys changing
+     their address anyway. So that does not matter */
+  key_moved_p = (S48_UNSAFE_TRANSPORT_LINK_CELL_KEY(tlc) != old_key);
 
-      /* and set the tconc field to null (false) */
-      S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc) = S48_FALSE;
+  if (key_moved_p) {
+    s48_value tconc = S48_UNSAFE_TRANSPORT_LINK_CELL_TCONC(tlc);
+    /* If the tconc field is a pair... */
+    if (S48_FALSE_P(tconc))
+      {} /* ignore */
+    else if (S48_PAIR_P(tconc)) {
+      /* ...then add the tlc to the end of the tconc queue. */
+      append_tconcB(tconc, tlc);
+      /* ...and set the tconc field to null (false). */
+      S48_UNSAFE_SET_TRANSPORT_LINK_CELL_TCONC(tlc, S48_FALSE);
     }
-    /* else: key not moved - safe because the key object must always
-       be younger than the tlc */
+    else
+      {} /*printf("Warning: malformed tlc at %p.\n", S48_ADDRESS_AT_HEADER(tlc));*/
   }
-  else {
-    /* invalid tconc field - do something more severe than a printf? */
-    assert(0);
-    printf("ignoring invalid tlc tconc field\n");
-  }
+  assert(S48_TRANSPORT_LINK_CELL_P(tlc));
 }
-
-#endif // S48_HAVE_TRANSPORT_LINK_CELLS
-
-/* called when stob is about to be forwarded (also called for large
- objects which are never really copied) */
-inline static void forwarding_object_hook(s48_value stob) {
-
-#if (S48_HAVE_TRANSPORT_LINK_CELLS)
-   if (S48_TRANSPORT_LINK_CELL_P(stob)) {
-     forwarding_transport_link_cell(stob);
-   }
-#endif
-
-}
+#endif /* S48_HAVE_TRANSPORT_LINK_CELLS */
 
 /* EKG checks for broken hearts - only used internally in
    s48_trace_locationsB */
@@ -1100,167 +1036,26 @@ inline static void forwarding_object_hook(s48_value stob) {
     long header = S48_STOB_HEADER(trace_stob_stob);\
     if (BROKEN_HEART_P((s48_value)header)) {\
       *((s48_value*)addr) = header;\
-      call_internal_write_barrier2(maybe_area, addr,\
+      call_internal_write_barrier2(maybe_area, area_looked_up, addr,	\
 				  (s48_value)header);\
       addr = next;\
       goto loop;\
     } else {\
-      forwarding_object_hook(trace_stob_stob); \
       copy_header = header;\
       copy_thing = trace_stob_stob;\
       goto label;\
     }\
   }
 
-/*  Copy everything pointed to from somewhere between START (inclusive)
-    and END (exclusive).
-*/
 
-void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
-				   s48_address end, char* called_from) {
-  s48_address addr = start;
-  s48_address next;
-  s48_value thing;
-
-  s48_value trace_stob_stob;
-  long copy_header;
-  s48_value copy_thing;
-  Area* copy_area;
-  Area* from_area;
-  Space* copy_to_space;
-
- loop: {
-    if (addr < end) {
-      thing = *((s48_value*) addr);
-      next = S48_ADDRESS_INC(addr);
-      goto trace;
-    }
-    return;
-  }
-
- trace: {
-   if (S48_HEADER_P(thing)) {
-     if (S48_B_VECTOR_HEADER_P(thing)) {
-       addr = next + S48_HEADER_LENGTH_IN_A_UNITS(thing);
-     }
-     else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_CONTINUATION) {
-       unsigned long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
-       extern void s48_trace_continuation(char *, long); /* BIBOP-specific */
-       s48_trace_continuation(next, size);
-       addr = next + size;
-     } else {
-       addr = next;
-     }
-     goto loop;
-   } else if (! S48_STOB_P(thing)) {
-     addr = next;
-     goto loop;
-   } else if (S48_STOB_P(thing)){
-     trace_stob_stob = thing;
-     goto trace_stob;
-   } else {
-     s48_gc_error("illegal s48_value found while tracing address 0x%X called from %s",
-		  addr, called_from);
-   }
- }
-
-
- trace_stob: { /* parameter: trace_stob_stob */
-   from_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(trace_stob_stob));
-   if (from_area != NULL) {
-     switch (from_area->action) {
-     case GC_ACTION_COPY_SMALL: {
-       copy_to_space = from_area->target_space;
-       EKG(copy_small);
-     } break;
-     case GC_ACTION_COPY_MIXED: {
-       copy_to_space = from_area->target_space;
-       EKG(copy_mixed);
-     } break;
-     case GC_ACTION_COPY_WEAK: {
-       copy_to_space = from_area->target_space;
-       EKG(copy_weak_pointer);
-     } break;
-     case GC_ACTION_IGNORE: {
-       call_internal_write_barrier(maybe_area, addr, trace_stob_stob, from_area);
-       addr = next;
-       goto loop;
-     } break;
-     case GC_ACTION_MARK_LARGE: {
-       forwarding_object_hook(trace_stob_stob);
-
-       copy_to_space = from_area->target_space;
-       mark_large(from_area, copy_to_space);
-       /* a large object has been "copied" */
-       call_internal_write_barrier(maybe_area, addr, trace_stob_stob, from_area);
-       addr = next;
-       goto loop;
-     } break;
-     case GC_ACTION_ERROR: {
-       s48_gc_error("got error gc-action in the %i generation", from_area->generation_index + 1);
-       return; /* Never reached */
-     } break;
-     default: {
-       s48_gc_error("got unexpected gc-action in the %i generation", from_area->generation_index + 1);
-       return; /* Never reached */
-     }
-     }
-   }
-   else {
-     s48_gc_error("illegal stob descriptor found while tracing address 0x%X called from %s",
-		  addr, called_from);
-     return; /* Never reached */
-   }
- }
- 
-  assert(FALSE); /* we should never get here */
-
- /* Find out which is the actual copy_area for small, large, etc. object */
- copy_small: { /* parameter: copy_to_space, copy_header, copy_thing */
-   /* get the current Area of the copy_space, means target_space */
-   Area* area = copy_to_space->small_area;
-   unsigned int size_in_bytes = (S48_HEADER_LENGTH_IN_A_UNITS(copy_header)
-				 + S48_STOB_OVERHEAD_IN_A_UNITS);
-   if (size_in_bytes <= AREA_REMAINING(area))
-     
-     /* If the object passes then this is the copy_area ...*/
-     copy_area = area;
-   else
-     /*  otherwise, allocate a small area in this space */    
-     copy_area = allocate_small_area(copy_to_space, size_in_bytes);
-   goto copy_object;
- }
-
- copy_large: { /* parameter: copy_to_space, copy_header, copy_thing */
-   copy_area = allocate_large_area( copy_to_space,
-				    S48_HEADER_LENGTH_IN_BYTES(copy_header) +
-				    S48_STOB_OVERHEAD_IN_BYTES );
-   goto copy_object;
- }
-
- copy_mixed: { /* parameter: copy_to_space, copy_header, copy_thing */
-   if (S48_STOBTYPE_WEAK_POINTER == S48_HEADER_TYPE(copy_header))
-     goto copy_weak_pointer; /* uses copy_to_space, copy_thing! */
-   else if (S48_HEADER_LENGTH_IN_BYTES(copy_header) < S48_SMALL_OBJECT_LIMIT)
-     goto copy_small; /* uses copy_to_space, copy_thing, copy_header! */
-   else
-     goto copy_large; /* dito */
- }
-
- copy_weak_pointer: { /* parameter: copy_to_space, copy_thing */
-   Area* area = copy_to_space->weaks_area;
-   /*copy_header = WEAK_POINTER_HEADER;*/
-   if ((int) (S48_HEADER_LENGTH_IN_A_UNITS(copy_header)
-	      + S48_STOB_OVERHEAD_IN_A_UNITS)
-       < AREA_REMAINING(area))
-     copy_area = area;
-   else
-     copy_area = allocate_weak_area(copy_to_space);
-   goto copy_object;
- }
-
- copy_object: { /* parameter: from_area, copy_thing, copy_header, copy_area */
-
+void do_copy_object(s48_address addr, /* addr of pointer */
+		    Area * maybe_area, /* laying in area, if known */
+		    char area_looked_up, /* area known? */
+		    Area * from_area, /* pointing in area */
+		    s48_value copy_thing, /* stob descriptor */
+		    s48_value copy_header, /* stob header */
+		    Area * copy_area /* target area */
+		    ) {
    /* we start writing at the frontier location */
    s48_address frontier = copy_area->frontier;
 
@@ -1270,6 +1065,7 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
    /* Since the s48_address is allways 4 bytes, the lower 2 bits are allways 00 */
    /* We use these 2 bits for the STOB-TAG: 11 to make a scheme-stob */
    s48_value new = S48_ADDRESS_TO_STOB_DESCRIPTOR(data_addr);
+   assert(s48_memory_map_ref(S48_ADDRESS_AT_HEADER(new)) == copy_area);
 
 #if (S48_ADJUST_WATER_MARK)
    /* count small object-sizes, that survive in the first generation */
@@ -1309,19 +1105,167 @@ void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
    /* overwrite the old stob with the new one */
    *((s48_value*)addr) = new;
 
-   /* if we are tracing an area, from an older generation call write_barrier */
-     call_internal_write_barrier(maybe_area, addr, new, copy_area);
+   /* if we are tracing an area of an older generation call write_barrier */
+   call_internal_write_barrier(maybe_area, area_looked_up, addr, new, copy_area);
+}
 
+/*  Copy everything pointed to from somewhere between START (inclusive)
+    and END (exclusive).
+*/
+
+void s48_internal_trace_locationsB(Area* maybe_area, char area_looked_up, s48_address start,
+				   s48_address end, char* called_from) {
+  s48_address addr = start;
+  s48_address next;
+  s48_value thing;
+
+  s48_value trace_stob_stob;
+  long copy_header;
+  s48_value copy_thing;
+  Area* copy_area;
+  Area* from_area;
+  Space* copy_to_space;
+
+ loop: {
+    if (addr < end) {
+      thing = *((s48_value*) addr);
+      next = S48_ADDRESS_INC(addr);
+      if (S48_HEADER_P(thing)) {
+	if (S48_B_VECTOR_HEADER_P(thing)) {
+	  addr = next + S48_HEADER_LENGTH_IN_A_UNITS(thing);
+	}
+	else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_CONTINUATION) {
+	  long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
+	  extern void s48_trace_continuation(char *, long); /* BIBOP-specific */
+	  s48_trace_continuation(next, size);
+	  addr = next + size;
+	}
+#if (S48_HAVE_TRANSPORT_LINK_CELLS)
+	else if (S48_HEADER_TYPE(thing) == S48_STOBTYPE_TRANSPORT_LINK_CELL) {
+	  long size = S48_HEADER_LENGTH_IN_A_UNITS(thing);
+	  trace_transport_link_cell(maybe_area, area_looked_up, next, size);
+	  addr = next + size;
+	}
+#endif
+	else {
+	  addr = next;
+	}
+	goto loop;
+      } else if (! S48_STOB_P(thing)) {
+	addr = next;
+	goto loop;
+      } else {
+	/* it's a stob */
+	trace_stob_stob = thing;
+	goto trace_stob;
+      }
+    }
+    return;
+  }
+
+ trace_stob: { /* parameter: trace_stob_stob */
+   from_area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(trace_stob_stob));
+   if (from_area != NULL) {
+     switch (from_area->action) {
+     case GC_ACTION_COPY_SMALL: {
+       copy_to_space = from_area->target_space;
+       EKG(copy_small);
+     } break;
+     case GC_ACTION_COPY_MIXED: {
+       copy_to_space = from_area->target_space;
+       EKG(copy_mixed);
+     } break;
+     case GC_ACTION_COPY_WEAK: {
+       copy_to_space = from_area->target_space;
+       EKG(copy_weak_pointer);
+     } break;
+     case GC_ACTION_IGNORE: {
+       call_internal_write_barrier(maybe_area, area_looked_up, addr, trace_stob_stob, from_area);
+       addr = next;
+       goto loop;
+     } break;
+     case GC_ACTION_MARK_LARGE: {
+       copy_to_space = from_area->target_space;
+       mark_large(from_area, copy_to_space);
+       /* a large object has been "copied" */
+       call_internal_write_barrier(maybe_area, area_looked_up, addr, trace_stob_stob, from_area);
+       addr = next;
+       goto loop;
+     } break;
+     case GC_ACTION_ERROR: {
+       s48_gc_error("got error gc-action in the %i generation", from_area->generation_index + 1);
+       return; /* Never reached */
+     } break;
+     default: {
+       s48_gc_error("got unexpected gc-action %d in the %i generation", from_area->action, from_area->generation_index + 1);
+       return; /* Never reached */
+     }
+     }
+   }
+   else {
+     s48_gc_error("illegal stob descriptor found while tracing address %p called from %s",
+		  addr, called_from);
+     return; /* Never reached */
+   }
+ }
+ 
+  assert(FALSE); /* we should never get here */
+
+ /* Find out which is the actual copy_area for small, large, etc. object */
+ copy_small: { /* parameter: copy_to_space, copy_header, copy_thing */
+   /* get the current Area of the copy_space, means target_space */
+   Area* area = copy_to_space->small_area;
+   unsigned int size_in_bytes = (S48_HEADER_LENGTH_IN_A_UNITS(copy_header)
+				 + S48_STOB_OVERHEAD_IN_A_UNITS);
+   if (size_in_bytes <= AREA_REMAINING(area))
+     
+     /* If the object fits then this is the copy_area ...*/
+     copy_area = area;
+   else
+     /*  otherwise, allocate a small area in this space */    
+     copy_area = allocate_small_area(copy_to_space, size_in_bytes);
+   goto copy_object;
+ }
+
+ copy_large: { /* parameter: copy_to_space, copy_header, copy_thing */
+   copy_area = allocate_large_area( copy_to_space,
+				    S48_HEADER_LENGTH_IN_BYTES(copy_header) +
+				    S48_STOB_OVERHEAD_IN_BYTES );
+   goto copy_object;
+ }
+
+ copy_mixed: { /* parameter: copy_to_space, copy_header, copy_thing */
+   if (S48_STOBTYPE_WEAK_POINTER == S48_HEADER_TYPE(copy_header))
+     goto copy_weak_pointer; /* uses copy_to_space, copy_thing! */
+   else if (S48_HEADER_LENGTH_IN_BYTES(copy_header) < S48_SMALL_OBJECT_LIMIT)
+     goto copy_small; /* uses copy_to_space, copy_thing, copy_header! */
+   else
+     goto copy_large; /* dito */
+ }
+
+ copy_weak_pointer: { /* parameter: copy_to_space, copy_thing */
+   Area* area = copy_to_space->weaks_area;
+   /*copy_header = WEAK_POINTER_HEADER;*/
+   if ((int) (S48_HEADER_LENGTH_IN_A_UNITS(copy_header)
+	      + S48_STOB_OVERHEAD_IN_A_UNITS)
+       < AREA_REMAINING(area))
+     copy_area = area;
+   else
+     copy_area = allocate_weak_area(copy_to_space);
+   goto copy_object;
+ }
+
+ copy_object: { /* parameter: from_area, copy_thing, copy_header, copy_area */
+   do_copy_object(addr, maybe_area, area_looked_up, from_area, copy_thing, copy_header, copy_area);
    /* continue behind that stob */
    addr = next;
    goto loop;
  }
 } /* end: trace_locationsB */
 
-
+/* Traces between START (inclusive) and END (exclusive). */
 void s48_trace_locationsB(s48_address start, s48_address end) {
-  Area* maybe_area = s48_memory_map_ref(start);
-  s48_internal_trace_locationsB(maybe_area, start, end, "s48_trace_locationsB");
+  s48_internal_trace_locationsB(NULL, FALSE, start, end, "s48_trace_locationsB");
 }
 
 /* s48_trace_value passes the location of STOB to
@@ -1711,12 +1655,6 @@ void s48_walk_heap(void (*do_part)(s48_address, s48_address)) {
     walk_areas(do_part, generations[i].current_space->large_area);
     walk_areas(do_part, generations[i].current_space->weaks_area);
   }
-  
-#if (S48_USE_RDM)
-  walk_areas(do_part, generations[S48_GENERATIONS_COUNT-1].other_space->small_area);
-  walk_areas(do_part, generations[S48_GENERATIONS_COUNT-1].other_space->large_area);
-  walk_areas(do_part, generations[S48_GENERATIONS_COUNT-1].other_space->weaks_area);
-#endif
 }
  
  
@@ -1728,7 +1666,7 @@ void s48_walk_heap(void (*do_part)(s48_address, s48_address)) {
 void s48_initialize_image_areas(long small_bytes, long small_hp_d,
 				long large_bytes, long large_hp_d,
 				long weaks_bytes, long weaks_hp_d) {
-   
+   int image_generation = S48_GENERATIONS_COUNT - 1;
    s48_address start;
    s48_address small_end;
    s48_address large_end;
@@ -1736,10 +1674,6 @@ void s48_initialize_image_areas(long small_bytes, long small_hp_d,
    long img_bytes;
    long i;
    
-   Area* small_img;
-   Area* large_img;
-   Area* weaks_img;   
-
    /*Wrong image format ? */
    if ((small_bytes < 0) || (large_bytes < 0) || (weaks_bytes < 0))  return;
 
@@ -1747,9 +1681,6 @@ void s48_initialize_image_areas(long small_bytes, long small_hp_d,
    img_bytes = small_bytes + large_bytes + weaks_bytes;
    
    s48_allocate_image_area(img_bytes, &start, &end);
-   
-   /*printf("START: %i  END %i\n", start, end); */
-
    
    if (img_bytes != (end - start)) {
      s48_gc_error("Image block is not OK!");
@@ -1766,47 +1697,33 @@ void s48_initialize_image_areas(long small_bytes, long small_hp_d,
    
    
    /* Split this block and assign it to the last generation's areas */
-   small_img = s48_make_area(start, small_end, start,
-			     S48_GENERATIONS_COUNT - 1, AREA_TYPE_SIZE_SMALL);
-   small_img->frontier += S48_BYTES_TO_A_UNITS(small_hp_d);
-   small_img->action = GC_ACTION_IGNORE;
-   generations[S48_GENERATIONS_COUNT - 1].current_space->small_area =
-     small_img;
-   
-   large_img = s48_make_area(small_end, large_end, small_end,
-			     S48_GENERATIONS_COUNT - 1, AREA_TYPE_SIZE_LARGE);
-   large_img->frontier += S48_BYTES_TO_A_UNITS(large_hp_d);
-   large_img->action = GC_ACTION_IGNORE;
-   generations[S48_GENERATIONS_COUNT - 1].current_space->large_area =
-     large_img;
-   
-   weaks_img = s48_make_area(large_end, end, large_end,
-			     S48_GENERATIONS_COUNT - 1, AREA_TYPE_SIZE_WEAKS);
-   weaks_img->frontier += S48_BYTES_TO_A_UNITS(weaks_hp_d);
-   weaks_img->action = GC_ACTION_IGNORE;
-   generations[S48_GENERATIONS_COUNT - 1].current_space->weaks_area =
-     weaks_img;
-   
-   /* Put the areas into all memory-map cells that are covered by
-      it. */
-   for (i = 0; i < BYTES_TO_PAGES(small_bytes); i++) {
-     s48_memory_map_setB(ADD_PAGES(start, i), small_img);
+   if (small_bytes > 0) {
+     Area* small_img;
+     small_img = s48_make_area(start, small_end,
+			       start + S48_BYTES_TO_A_UNITS(small_hp_d),
+			       image_generation, AREA_TYPE_SIZE_SMALL);
+     small_img->action = GC_ACTION_IGNORE;
+     generations[image_generation].current_space->small_area = small_img;
    }
-   
-   for (i = 0; i < BYTES_TO_PAGES(large_bytes); i++) {
-     s48_memory_map_setB(ADD_PAGES(small_end, i), large_img);
-   }
-   
-   for (i = 0; i < BYTES_TO_PAGES(weaks_bytes); i++) {
-     s48_memory_map_setB(ADD_PAGES(large_end, i), weaks_img);
-   }
-   
-   
-   /* Debugging */
-   /*printf("small: %i  %i\n", small_img->start, small_img->end); */
-   /*printf("large: %i  %i\n", large_img->start, large_img->end); */
-   /*printf("weaks: %i  %i\n", weaks_img->start, weaks_img->end); */
 
+   if (large_bytes > 0) {
+     Area* large_img;
+     large_img = s48_make_area(small_end, large_end,
+			       small_end + S48_BYTES_TO_A_UNITS(large_hp_d),
+			       image_generation, AREA_TYPE_SIZE_LARGE);
+     large_img->action = GC_ACTION_IGNORE;
+     generations[image_generation].current_space->large_area = large_img;
+   }
+
+   if (weaks_bytes > 0) {
+     Area* weaks_img;
+     weaks_img = s48_make_area(large_end, end,
+			       large_end + S48_BYTES_TO_A_UNITS(weaks_hp_d),
+			       image_generation, AREA_TYPE_SIZE_WEAKS);
+     weaks_img->action = GC_ACTION_IGNORE;
+     generations[image_generation].current_space->weaks_area = weaks_img;
+   }
+   
    return;
 
  }
