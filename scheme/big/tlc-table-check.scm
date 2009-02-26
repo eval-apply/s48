@@ -1,6 +1,7 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 (define-test-suite tlc-table-tests)
+(define-test-suite tlc-table-weak-tests)
 
 ;;; most of the test cases are adapted from Eric Knauel's test cases
 ;;; he wrote for his id-tables
@@ -281,6 +282,34 @@
      (tlc-table-ref table obj #f)
      (is-false))))
 
+;; fill a table with objects, delete some, and retrieve them
+(define-test-case set-n/delete-n/ref-n tlc-table-tests
+  (do-ec
+   (:range size 1 max-table-size table-step)
+   (let* ((table (make-tlc-table size))
+	  (n (* 3 size))
+	  (objs (list-ec (: i n) (cons i n)))
+	  (delobjs (list-ec (: i n) (cons (+ i max-table-size) n))))
+     (do-ec
+      (:list o delobjs)
+      (tlc-table-set! table o o))
+     (do-ec
+      (:list o objs)
+      (tlc-table-set! table o o))
+     (do-ec
+      (:list o delobjs)
+      (check-that
+       (tlc-table-delete! table o #f)
+       (opposite (is-false))))
+     (do-ec
+      (:list o delobjs)
+      (check-that
+       (tlc-table-ref table o #f)
+       (is-false)))
+     (do-ec
+      (:list o objs)
+      (check (tlc-table-ref table o #f) => o)))))
+
 ;; fill a table with objects, delete some, and retrieve them after one
 ;; collection
 (define-test-case set-n/collect/delete-n/ref-n tlc-table-tests
@@ -344,173 +373,6 @@
      (do-ec
       (:list o objs)
       (check (tlc-table-ref table o #f) => o)))))
-
-;; create a table with one weak entry and find it again
-(define-test-case weak-set/ref tlc-table-tests
-  (let* ((table (make-tlc-table 23))
-	 (obj (cons 23 42))
-	 (wp (make-weak-pointer obj))
-	 (val (cons 65 99)))
-    (tlc-table-set! table wp val)
-    (check (tlc-table-ref table wp #f) => val)))
-
-;; create a table with one weak entry, collect and find it again
-(define-test-case weak-set/collect/ref tlc-table-tests
-  (let* ((table (make-tlc-table 23))
-	 (obj (cons 23 42))
-	 (wp (make-weak-pointer obj))
-	 (val (cons 65 99)))
-    (tlc-table-set! table wp val)
-    (collect)
-    (check (tlc-table-ref table wp #f) => val)))
-
-;; fill a table with weak objects and retrieve them after one
-;; collection
-(define-test-case weak-set-n/collect/ref-n tlc-table-tests
-  (do-ec
-   (:range size 1 max-table-size table-step)
-   (let* ((table (make-tlc-table size))
-	  (n (* 3 size))
-	  (objs (list-ec (: i n) (cons i n)))
-	  (wobjs (map make-weak-pointer objs)))
-     (do-ec
-      (:list o wobjs)
-      (tlc-table-set! table o o))
-     (collect)
-     (do-ec
-      (:list o wobjs)
-      (check (tlc-table-ref table o #f) => o)))))
-
-;; fill a table with weak objects and retrieve them after n
-;; collections
-(define-test-case weak-set-n/collect-n/ref-n tlc-table-tests
-  (do-ec
-   (:range size 1 max-table-size table-step)
-   (let* ((table (make-tlc-table size))
-	  (n (* 3 size))
-	  (objs (list-ec (: i n) (cons i n)))
-	  (wobjs (map make-weak-pointer objs)))
-     (do-ec
-      (:list o wobjs)
-      (tlc-table-set! table o o))
-     (collect-n-times (random-number min-collect-times max-collect-times))
-     (do-ec
-      (:list o wobjs)
-      (check (tlc-table-ref table o #f) => o)))))
-
-;; create a table with no weak entry, delete, and try to find it
-(define-test-case weak-delete/ref tlc-table-tests
-  (let* ((table (make-tlc-table 23))
-	 (obj (cons 23 42))
-	 (wobj (make-weak-pointer obj))
-	 (val (cons 65 99)))
-    (check-that
-     (tlc-table-delete! table wobj #f)
-     (is-false))
-    (check-that
-     (tlc-table-ref table wobj #f)
-     (is-false))))
-
-;; create a table with one weak entry, delete, and try to find it
-;; again
-(define-test-case weak-set/delete/ref tlc-table-tests
-  (let* ((table (make-tlc-table 23))
-	 (obj (cons 23 42))
-	 (wobj (make-weak-pointer obj))
-	 (val (cons 65 99)))
-    (tlc-table-set! table wobj val)
-    (check-that
-     (tlc-table-delete! table wobj #f)
-     (opposite (is-false)))
-    (check-that
-     (tlc-table-ref table wobj #f)
-     (is-false))))
-
-;; create a table with one weak entry, collect, delete, and try to
-;; find it again
-(define-test-case weak-set/collect/delete/ref tlc-table-tests
-  (let* ((table (make-tlc-table 23))
-	 (obj (cons 23 42))
-	 (wobj (make-weak-pointer obj))
-	 (val (cons 65 99)))
-    (tlc-table-set! table wobj val)
-    (collect)
-    (check-that
-     (tlc-table-delete! table wobj #f)
-     (opposite (is-false)))
-    (check-that
-     (tlc-table-ref table wobj #f)
-     (is-false))))
-
-;; fill a table with weak objects, delete some, and retrieve the
-;; others after one collection
-(define-test-case weak-set-n/collect/delete-n/ref-n tlc-table-tests
-  (do-ec
-   (:range size 1 max-table-size table-step)
-   (let* ((table (make-tlc-table size))
-	  (n (* 3 size))
-	  (objs (list-ec (: i n) (cons i n)))
-	  (wobjs (map make-weak-pointer objs))
-	  (delobjs (list-ec (: i n) (cons (+ i 100) 42)))
-	  (delwobjs (map make-weak-pointer delobjs)))
-     (do-ec
-      (:list o wobjs)
-      (tlc-table-set! table o o))
-     (do-ec
-      (:list o delwobjs)
-      (tlc-table-set! table o o))
-     (do-ec
-      (:list o delwobjs)
-      (check (tlc-table-ref table o #f) => o))
-     (do-ec
-      (:list o wobjs)
-      (check (tlc-table-ref table o #f) => o))
-     (collect)
-     (do-ec
-      (:list o delwobjs)
-      (check-that
-       (tlc-table-delete! table o #f)
-       (opposite (is-false))))
-     (do-ec
-      (:list o delwobjs)
-      (check-that
-       (tlc-table-ref table o #f)
-       (is-false)))
-     (do-ec
-      (:list o wobjs)
-      (check (tlc-table-ref table o #f) => o)))))
-
-;; fill a table with weak objects, delete some, and retrieve the
-;; others after n collections
-(define-test-case weak-set-n/collect-n/delete-n/ref-n tlc-table-tests
-  (do-ec
-   (:range size 1 max-table-size table-step)
-   (let* ((table (make-tlc-table size))
-	  (n (* 3 size))
-	  (objs (list-ec (: i n) (cons i n)))
-	  (wobjs (map make-weak-pointer objs))
-	  (delobjs (list-ec (: i n) (cons (+ i 100) 42)))
-	  (delwobjs (map make-weak-pointer delobjs)))
-     (do-ec
-      (:list o wobjs)
-      (tlc-table-set! table o o))
-     (do-ec
-      (:list o delwobjs)
-      (tlc-table-set! table o o))
-     (collect-n-times (random-number min-collect-times max-collect-times))
-     (do-ec
-      (:list o delwobjs)
-      (check-that
-       (tlc-table-delete! table o #f)
-       (opposite (is-false))))
-     (do-ec
-      (:list o wobjs)
-      (check (tlc-table-ref table o #f) => o))
-     (do-ec
-      (:list o delwobjs)
-      (check-that
-       (tlc-table-ref table o #f)
-       (is-false))))))
 
 ;; helper function for checking entries: check if the order and number
 ;; of keys and values returned by tlc-table-entries is correct.
@@ -643,4 +505,209 @@
       (check (tlc-table-ref t o #f) => o))
      (check-entries t n))))
 
-;; TODO: random set/collect/delete/ref weak/non-weak stress test
+;; WEAK TESTS
+;; create a table with one weak entry and find it again
+(define-test-case weak-set/ref tlc-table-weak-tests
+  (let* ((table (make-tlc-table 23))
+	 (obj (cons 23 42))
+	 (wp (make-weak-pointer obj))
+	 (val (cons 65 99)))
+    (tlc-table-set! table wp val)
+    (check (tlc-table-ref table wp #f) => val)))
+
+;; create a table with one weak entry, collect and find it again
+(define-test-case weak-set/collect/ref tlc-table-weak-tests
+  (let* ((table (make-tlc-table 23))
+	 (obj (cons 23 42))
+	 (wp (make-weak-pointer obj))
+	 (val (cons 65 99)))
+    (tlc-table-set! table wp val)
+    (collect)
+    (check (tlc-table-ref table wp #f) => val)))
+
+;; fill a table with weak objects and retrieve them after one
+;; collection
+(define-test-case weak-set-n/collect/ref-n tlc-table-weak-tests
+  (do-ec
+   (:range size 1 max-table-size table-step)
+   (let* ((table (make-tlc-table size))
+	  (n (* 3 size))
+	  (objs (list-ec (: i n) (cons i n)))
+	  (wobjs (map make-weak-pointer objs)))
+     (do-ec
+      (:list o wobjs)
+      (tlc-table-set! table o o))
+     (collect)
+     (do-ec
+      (:list o wobjs)
+      (check (tlc-table-ref table o #f) => o)))))
+
+;; fill a table with weak objects and retrieve them after n
+;; collections
+(define-test-case weak-set-n/collect-n/ref-n tlc-table-weak-tests
+  (do-ec
+   (:range size 1 max-table-size table-step)
+   (let* ((table (make-tlc-table size))
+	  (n (* 3 size))
+	  (objs (list-ec (: i n) (cons i n)))
+	  (wobjs (map make-weak-pointer objs)))
+     (do-ec
+      (:list o wobjs)
+      (tlc-table-set! table o o))
+     (collect-n-times (random-number min-collect-times max-collect-times))
+     (do-ec
+      (:list o wobjs)
+      (check (tlc-table-ref table o #f) => o)))))
+
+;; create a table with no weak entry, delete, and try to find it
+(define-test-case weak-delete/ref tlc-table-weak-tests
+  (let* ((table (make-tlc-table 23))
+	 (obj (cons 23 42))
+	 (wobj (make-weak-pointer obj))
+	 (val (cons 65 99)))
+    (check-that
+     (tlc-table-delete! table wobj #f)
+     (is-false))
+    (check-that
+     (tlc-table-ref table wobj #f)
+     (is-false))))
+
+;; create a table with one weak entry, delete, and try to find it
+;; again
+(define-test-case weak-set/delete/ref tlc-table-weak-tests
+  (let* ((table (make-tlc-table 23))
+	 (obj (cons 23 42))
+	 (wobj (make-weak-pointer obj))
+	 (val (cons 65 99)))
+    (tlc-table-set! table wobj val)
+    (check-that
+     (tlc-table-delete! table wobj #f)
+     (opposite (is-false)))
+    (check-that
+     (tlc-table-ref table wobj #f)
+     (is-false))))
+
+;; create a table with one weak entry, collect, delete, and try to
+;; find it again
+(define-test-case weak-set/collect/delete/ref tlc-table-weak-tests
+  (let* ((table (make-tlc-table 23))
+	 (obj (cons 23 42))
+	 (wobj (make-weak-pointer obj))
+	 (val (cons 65 99)))
+    (tlc-table-set! table wobj val)
+    (collect)
+    (check-that
+     (tlc-table-delete! table wobj #f)
+     (opposite (is-false)))
+    (check-that
+     (tlc-table-ref table wobj #f)
+     (is-false))))
+
+;; fill a table with weak objects, delete some, and retrieve the
+;; others after one collection
+(define-test-case weak-set-n/collect/delete-n/ref-n tlc-table-weak-tests
+  (do-ec
+   (:range size 1 max-table-size table-step)
+   (let* ((table (make-tlc-table size))
+	  (n (* 3 size))
+	  (objs (list-ec (: i n) (cons i n)))
+	  (wobjs (map make-weak-pointer objs))
+	  (delobjs (list-ec (: i n) (cons (+ i 100) 42)))
+	  (delwobjs (map make-weak-pointer delobjs)))
+     (do-ec
+      (:list o wobjs)
+      (tlc-table-set! table o o))
+     (do-ec
+      (:list o delwobjs)
+      (tlc-table-set! table o o))
+     (do-ec
+      (:list o delwobjs)
+      (check (tlc-table-ref table o #f) => o))
+     (do-ec
+      (:list o wobjs)
+      (check (tlc-table-ref table o #f) => o))
+     (collect)
+     (do-ec
+      (:list o delwobjs)
+      (check-that
+       (tlc-table-delete! table o #f)
+       (opposite (is-false))))
+     (do-ec
+      (:list o delwobjs)
+      (check-that
+       (tlc-table-ref table o #f)
+       (is-false)))
+     (do-ec
+      (:list o wobjs)
+      (check (tlc-table-ref table o #f) => o)))))
+
+;; fill a table with weak objects, delete some, and retrieve the
+;; others after n collections
+(define-test-case weak-set-n/collect-n/delete-n/ref-n tlc-table-weak-tests
+  (do-ec
+   (:range size 1 max-table-size table-step)
+   (let* ((table (make-tlc-table size))
+	  (n (* 3 size))
+	  (objs (list-ec (: i n) (cons i n)))
+	  (wobjs (map make-weak-pointer objs))
+	  (delobjs (list-ec (: i n) (cons (+ i 100) 42)))
+	  (delwobjs (map make-weak-pointer delobjs)))
+     (do-ec
+      (:list o wobjs)
+      (tlc-table-set! table o o))
+     (do-ec
+      (:list o delwobjs)
+      (tlc-table-set! table o o))
+     (collect-n-times (random-number min-collect-times max-collect-times))
+     (do-ec
+      (:list o delwobjs)
+      (check-that
+       (tlc-table-delete! table o #f)
+       (opposite (is-false))))
+     (do-ec
+      (:list o wobjs)
+      (check (tlc-table-ref table o #f) => o))
+     (do-ec
+      (:list o delwobjs)
+      (check-that
+       (tlc-table-ref table o #f)
+       (is-false))))))
+
+;; fill a table with weak objects, delete some, and
+;; retrieve the others after n collections
+(define-test-case weak-set-collect-delete-entries tlc-table-weak-tests
+  (do-ec
+   (:range size 1 (quotient max-table-size 3) table-step)
+   (let* ((t (make-tlc-table size))
+	  (n (* 3 size))
+	  (objs (list-ec (: i n) (cons i n)))
+	  (delobjs (list-ec (: i n) (cons i n)))
+	  (wobjs (map make-weak-pointer objs))
+	  (delwobjs (map make-weak-pointer delobjs)))
+     (do-ec
+      (:list o delwobjs)
+      (tlc-table-set! t o o))
+     (check-entries t n)
+     (collect-n-times (random-number min-collect-times max-collect-times))
+     (do-ec
+      (:list o wobjs)
+      (tlc-table-set! t o o))
+     (check-entries t (* 2 n))
+     (collect-n-times (random-number min-collect-times max-collect-times))
+     (do-ec
+      (:list o delwobjs)
+      (check-that
+       (tlc-table-delete! t o #f)
+       (opposite (is-false))))
+     (check-entries t n)
+     (collect-n-times (random-number min-collect-times max-collect-times))
+     (do-ec
+      (:list o delwobjs)
+      (check-that
+       (tlc-table-ref t o #f)
+       (is-false)))
+     (check-entries t n)
+     (do-ec
+      (:list o wobjs)
+      (check (tlc-table-ref t o #f) => o))
+     (check-entries t n))))

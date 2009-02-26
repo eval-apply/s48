@@ -77,7 +77,7 @@
   (files (big transport-link-cell-check)))
 
 (define-structure tlc-table-test
-  (export tlc-table-tests)
+  (export tlc-table-tests tlc-table-weak-tests)
   (open scheme test-suites matchers tlc-table
 	weak 
 	define-record-types

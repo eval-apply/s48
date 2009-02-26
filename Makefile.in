@@ -538,7 +538,7 @@ check: $(VM) $(IMAGE) scheme/debug/check.scm
 		echo ',config ,load =scheme48/ffi-test/test-packages.scm';	\
 		echo ',open ffi-test';					\
 		echo ',open test-suites';				\
-		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
+		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests tlc-table-weak-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
 		echo '(run-test-suite all-tests)'			\
 	) | ./$(VM) -i $(IMAGE) $(BIG_HEAP)
 
