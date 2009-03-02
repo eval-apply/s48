@@ -1,0 +1,28 @@
+/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
+   See file COPYING. */
+
+/*
+ * We repeat this so we won't have to install sysdep.h.
+ */
+
+/* Check for sizeof (void *) */
+#undef SIZEOF_VOID_P
+
+/* Check for the number of bits per byte */
+#undef BITS_PER_BYTE
+
+/* Define if building with BIBOP GC. */
+#undef S48_GC_BIBOP
+
+/* Define if building with two-space GC. */
+#undef S48_GC_TWOSPACE
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to the type of an unsigned integer type of width exactly 16 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint16_t
