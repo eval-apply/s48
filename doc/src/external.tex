@@ -41,7 +41,7 @@ The following facilities are available for interfacing between
 The structure \code{external-calls} has 
  most of the Scheme functions described here.
 The others are in 
- \code{dynamic-externals}, which has the functions for dynamic loading and
+ \code{load-dynamic-externals}, which has the functions for dynamic loading and
  name lookup from
 Section~\ref{dynamic-externals},
  and \code{shared-bindings}, which has the additional shared-binding functions
@@ -371,7 +371,6 @@ The `extract' ones convert from Scheme to C and the `enter's go the other
 \begin{protos}
 \cproto{int \ \ \ \ \ \ S48\_EXTRACT\_BOOLEAN(s48\_value)}
 \cproto{long\ \ \ \ \ \ s48\_extract\_char(s48\_value)}
-\cproto{char * \ \ \ s48\_extract\_string(s48\_value)}
 \cproto{char * \ \ \ s48\_extract\_byte\_vector(s48\_value)}
 \cproto{long \ \ \ \ \ s48\_extract\_integer(s48\_value)}
 \cproto{double \ \ \ s48\_extract\_double(s48\_value)}
