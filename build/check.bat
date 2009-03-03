@@ -8,6 +8,9 @@ echo ,config ,load =scheme48/test-packages.scm >> check.input
 echo ,open base-test >> check.input
 echo ,open big-test >> check.input
 echo ,open sockets-test >> check.input
+echo ,open tconc-queue-test >> check.input
+echo ,open transport-link-cell-test >> check.input
+echo ,open tlc-table-test >> check.input
 echo ,open env-test >> check.input
 echo ,config ,load =scheme48/sort/test-packages.scm >> check.input
 echo ,open sort-test >> check.input
@@ -23,7 +26,7 @@ echo ,open portable-srfi-test >> check.input
 echo ,config ,load =scheme48/ffi-test/test-packages.scm	>> check.input
 echo ,open ffi-test >> check.input
 echo ,open test-suites >> check.input
-echo (define-test-suite all-tests (compiler-tests base-tests big-tests misc-tests tcp-sockets-tests sort-tests env-tests r6rs-tests cml-tests portable-srfi-tests ffi-tests)) >> check.input
+echo (define-test-suite all-tests (compiler-tests base-tests big-tests misc-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests tlc-table-weak-tests sort-tests env-tests r6rs-tests cml-tests portable-srfi-tests ffi-tests)) >> check.input
 echo (run-test-suite all-tests) >> check.input
 
 %runnable% -h 8000000 < check.input
