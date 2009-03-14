@@ -283,7 +283,12 @@
         low-level               ; vector-unassigned?
         locations
 	cells
-        weak)
+        weak
+	(subset primitives      (transport-link-cell? 
+				 transport-link-cell-key
+				 transport-link-cell-value
+				 transport-link-cell-tconc
+				 transport-link-cell-next)))
   (files (env menu)))
 
 ; Inspector

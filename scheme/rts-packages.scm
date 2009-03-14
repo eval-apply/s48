@@ -238,7 +238,7 @@
 
 (define-structure more-types (export :closure :code-vector :location :double
 				     :template :channel :port :weak-pointer
-				     :shared-binding :cell)
+				     :shared-binding :cell :transport-link-cell)
   (open scheme-level-1 methods
 	closures code-vectors locations cells templates channels ports
 	primitives shared-bindings)
@@ -252,6 +252,8 @@
 	 (define-simple-type :double      (:rational) double?)
 	 (define-simple-type :weak-pointer (:value) weak-pointer?)
 	 (define-method &disclose ((obj :weak-pointer)) (list 'weak-pointer))
+	 (define-simple-type :transport-link-cell (:value) transport-link-cell?)
+	 (define-method &disclose ((obj :transport-link-cell)) (list 'transport-link-cell))
 	 (define-simple-type :shared-binding (:value) shared-binding?)
 	 (define-method &disclose ((obj :shared-binding))
 	   (list (if (shared-binding-is-import? obj)
@@ -439,6 +441,31 @@
 (define-structure queues queues-interface
   (open scheme-level-1 proposals exceptions)
   (files (big queue))
+  (optimize auto-integrate))
+
+(define-structure tconc-queue tconc-queue-interface
+  (open scheme-level-1 low-exceptions)
+  (files (big tconc-queue))
+  (optimize auto-integrate))
+
+(define-structure tlc-table tlc-table-interface
+  (open scheme-level-1 
+	low-exceptions
+	define-record-types
+	tconc-queue 
+	(subset primitives   (make-transport-link-cell
+			      transport-link-cell?
+			      transport-link-cell-key
+			      transport-link-cell-value
+			      set-transport-link-cell-value!
+			      transport-link-cell-next
+			      set-transport-link-cell-next!
+			      transport-link-cell-tconc
+			      set-transport-link-cell-tconc!
+			      memory-status))
+	(subset architecture (memory-status-option))
+	enumerated)
+  (files (big tlc-table))
   (optimize auto-integrate))
 
 ; No longer used

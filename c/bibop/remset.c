@@ -173,7 +173,7 @@ static inline void call_trace_locationsB(s48_address addr) {
   /* we only want to trace locations, that are not currently
      collected. This test should be sufficient */
   if (area->action == GC_ACTION_IGNORE)
-    s48_internal_trace_locationsB(area, addr, S48_ADDRESS_INC(addr), "call_trace_locationsB");
+    s48_internal_trace_locationsB(area, TRUE, addr, S48_ADDRESS_INC(addr), "call_trace_locationsB");
 }
 
 void s48_trace_remset(RemSet* remset){
