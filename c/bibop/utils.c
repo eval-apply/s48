@@ -5,6 +5,7 @@
 #include "gc_config.h"
 #include <stdarg.h>
 #include <stdlib.h>
+#include <assert.h>
 
 void s48_gc_error(const char* message, ...) {
   va_list args;
@@ -13,7 +14,7 @@ void s48_gc_error(const char* message, ...) {
   vfprintf(stderr, message, args);
   fprintf(stderr, "\n");
   va_end(args);
-
+  assert(0);
   exit(-1);
 }
 

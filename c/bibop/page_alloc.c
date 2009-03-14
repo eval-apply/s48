@@ -68,7 +68,7 @@ static void check_freelist() {
       if ((areas != free_area_count) || (pages != free_page_count))
 	s48_gc_error("bad page freelist (1)");
       else return; /* the list is OK */	 
-    } else if ((end <= area->start) ||
+    } else if ((end < area->start) ||
 	       ((freelist != area->prev) &&
 		(area->start < address_after_free_area(area->prev)))) {
       s48_gc_error("bad page freelist (2)");
