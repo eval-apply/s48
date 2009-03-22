@@ -1,7 +1,7 @@
 #!/bin/sh
 # Build the usual development environment image.
 
-date=`date`
+date=`date +%Y-%m-%d`
 srcdir=$1
 share=$2
 lib=$3
