@@ -550,32 +550,30 @@
 
 ;;; Auxiliary for VECTOR-COPY.
 (define (vector-copy:parse-args vec args)
-  (if (null? args)
-      (values 0 (vector-length vec) (unspecified-value))
-      (let ((start (check-index vec (car args) 'vector-copy)))
-        (if (null? (cdr args))
-            (values start (vector-length vec) (unspecified-value))
-            (let ((end (check-type nonneg-int? (cadr args)
-                                   'vector-copy)))
-              (cond ((>= start (vector-length vec))
-                     (assertion-violation
-		      'vector-copy
-		      "start bound out of bounds"
-                      start end vec))
-                    ((> start end)
-                     (assertion-violation
-		      'vector-copy
-		      "can't invert a vector copy!"
-                      start end vec))
-                    ((null? (cddr args))
-                     (values start end (unspecified-value)))
-                    (else
-                     (let ((fill (caddr args)))
-                       (if (null? (cdddr args))
-                           (values start end fill)
-                           (apply assertion-violation 'vector-copy
-				  "too many arguments"
-                                  (cdddr args)))))))))))
+  (define (parse-args start end n fill)
+    (let ((start (check-type nonneg-int? start vector-copy))
+          (end   (check-type nonneg-int? end vector-copy)))
+      (cond ((and (<= 0 start end)
+                  (<= start n))
+             (values start end fill))
+            (else
+	     (assertion-violation
+	      'vector-copy
+	      "start bound out of bounds"
+	      start end vec)))))
+  (let ((n (vector-length vec)))
+    (cond ((null? args)
+           (parse-args 0 n n (unspecified-value)))
+          ((null? (cdr args))
+           (parse-args (car args) n n (unspecified-value)))
+          ((null? (cddr args))
+           (parse-args (car args) (cadr args) n (unspecified-value)))
+          ((null? (cdddr args))
+           (parse-args (car args) (cadr args) n (caddr args)))
+          (else
+	   (apply assertion-violation 'vector-copy
+		  "too many arguments"
+		  (cdddr args))))))
 
 ;;; (VECTOR-REVERSE-COPY <vector> [<start> <end>]) -> vector
 ;;;   Create a newly allocated vector whose elements are the reversed
@@ -1102,70 +1100,65 @@
 ;;;   Copy the values in the locations in [SSTART,SEND) from SOURCE to
 ;;;   to TARGET, starting at TSTART in TARGET.
 (define (vector-copy! target tstart source . maybe-sstart+send)
-  (let* ((target (check-type vector? target 'vector-copy!))
-         (tstart (check-index target tstart 'vector-copy!)))
-    (let-vector-start+end vector-copy! source maybe-sstart+send
-                          (sstart send)
-      (let* ((source-length (vector-length source))
-             (lose (lambda (argument)
-                     (assertion-violation 'vector-copy!
-					  "vector range out of bounds"
-					  argument target
-					  (vector-length target)
-					  tstart
-					  source source-length
-					  sstart send))))
-        (cond ((< sstart 0)
-               (lose '(sstart < 0)))
-              ((< send 0)
-               (lose '(send < 0)))
-              ((> sstart send)
-               (lose '(sstart > send)))
-              ((>= sstart source-length)
-               (lose '(sstart >= source-length)))
-              ((> send source-length)
-               (lose '(send > source-length)))
-              (else
-               (%vector-copy! target tstart
-                              source sstart send)))))))
+  (define (doit! sstart send source-length)
+    (let ((tstart (check-type nonneg-int? tstart vector-copy!))
+          (sstart (check-type nonneg-int? sstart vector-copy!))
+          (send   (check-type nonneg-int? send vector-copy!)))
+      (cond ((and (<= 0 sstart send source-length)
+                  (<= (+ tstart (- send sstart)) (vector-length target)))
+             (%vector-copy! target tstart source sstart send))
+            (else
+	     (assertion-violation 'vector-copy!
+				  "vector range out of bounds"
+				  target
+				  (vector-length target)
+				  tstart
+				  source source-length
+				  sstart send)))))
+  (let ((n (vector-length source)))
+    (cond ((null? maybe-sstart+send)
+           (doit! 0 n n))
+          ((null? (cdr maybe-sstart+send))
+           (doit! (car maybe-sstart+send) n n))
+          ((null? (cddr maybe-sstart+send))
+           (doit! (car maybe-sstart+send) (cadr maybe-sstart+send) n))
+          (else
+	   (apply assertion-violation 'vector-copy!
+                  (cddr maybe-sstart+send))))))
 
 ;;; (VECTOR-REVERSE-COPY! <target> <tstart> <source> [<sstart> <send>])
 (define (vector-reverse-copy! target tstart source . maybe-sstart+send)
-  (let* ((target (check-type vector? target 'vector-reverse-copy!))
-         (tstart (check-index target tstart 'vector-reverse-copy!)))
-    (let-vector-start+end vector-reverse-copy source maybe-sstart+send
-                          (sstart send)
-      (let* ((source-length (vector-length source))
-             (lose (lambda (argument)
-                     (assertion-violation 'vector-reverse-copy!
-					  "vector range out of bounds"
-					  argument target (vector-length target)
-					  tstart
-					  source source-length
-					  sstart send))))
-        (cond ((< sstart 0)
-               (lose '(sstart < 0)))
-              ((< send 0)
-               (lose '(send < 0)))
-              ((> sstart send)
-               (lose '(sstart > send)))
-              ((>= sstart source-length)
-               (lose '(sstart >= source-length)))
-              ((> send source-length)
-               (lose '(send > source-length)))
-              ((and (eq? target source)
-                    (= sstart tstart))
-               (%vector-reverse! target tstart send))
-              ((and (eq? target source)
-                    (or (between? sstart tstart send)
-                        (between? tstart sstart
-                                  (+ tstart (- send sstart)))))
+  (define (doit! sstart send source-length)
+    (let ((tstart (check-type nonneg-int? tstart vector-reverse-copy!))
+          (sstart (check-type nonneg-int? sstart vector-reverse-copy!))
+          (send   (check-type nonneg-int? send vector-reverse-copy!)))
+      (cond ((and (eq? target source)
+                  (or (between? sstart tstart send)
+                      (between? tstart sstart
+                                (+ tstart (- send sstart)))))
                (assertion-violation 'vector-reverse-copy!
 				    "vector range for self-copying overlaps"
 				    target tstart sstart send))
-              (else
-               (%vector-reverse-copy! target tstart
-                                      source sstart send)))))))
+            ((and (<= 0 sstart send source-length)
+                  (<= (+ tstart (- send sstart)) (vector-length target)))
+             (%vector-reverse-copy! target tstart source sstart send))
+            (else
+	     (assertion-violation 'vector-reverse-copy!
+				  "vector range out of bounds"
+				  target (vector-length target)
+				  tstart
+				  source source-length
+				  sstart send)))))
+  (let ((n (vector-length source)))
+    (cond ((null? maybe-sstart+send)
+           (doit! 0 n n))
+          ((null? (cdr maybe-sstart+send))
+           (doit! (car maybe-sstart+send) n n))
+          ((null? (cddr maybe-sstart+send))
+           (doit! (car maybe-sstart+send) (cadr maybe-sstart+send) n))
+          (else
+	   (apply assertion-violation 'vector-reverse-copy!
+                  (cddr maybe-sstart+send))))))
 
 ;;; (VECTOR-REVERSE! <vector> [<start> <end>]) -> unspecified
 ;;;   Destructively reverse the contents of the sequence of locations
