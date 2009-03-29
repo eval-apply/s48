@@ -81,12 +81,12 @@
 (define (read-form port)
   (with-sharp-sharp (make-node (get-operator 'quote)
 			       (list 'quote (focus-object)))
-    (lambda () (read port))))
+    (lambda () (read-datum port))))
 
 ; Read a command line:  <name> <arg> ... <newline>
 
 (define (read-named-command port form-preferred?)
-  (let ((c-name (read port)))
+  (let ((c-name (read-datum port)))
     (cond ((and (integer? c-name)
 		(<= 0 c-name))
 	   (make-command 'select-menu-item
@@ -149,14 +149,14 @@
 	((expression form)
 	 (read-form port))
 	((name)
-	 (let ((thing (read port)))
+	 (let ((thing (read-datum port)))
 	   (if (symbol? thing)
 	       thing
 	       (read-command-error port "invalid name" thing))))
 	((literal)
-	 (read port))
+	 (read-datum port))
 	((selection-command)
-	 (let ((x (read port)))
+	 (let ((x (read-datum port)))
 	   (if (selection-command? x)
 	       x
 	       (read-command-error port "invalid selection command" x))))
@@ -169,7 +169,7 @@
   (let ((c (peek-char port)))
     (if (and (char? c)
 	     (char=? (peek-char port) #\"))
-	(read port)
+	(read-datum port)
 	(read-string port char-whitespace?))))
 
 
@@ -181,6 +181,9 @@
 			       (make-irritants-condition (cons port rest))
 			       (make-i/o-port-error port)
 			       (make-message-condition message))))
+
+(define (read-datum port)
+  ((package-reader (interaction-environment)) port))
 
 ; Utilities.
 

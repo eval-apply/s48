@@ -162,7 +162,8 @@
 	  user-package-is
 	  config
 	  config-package-is
-	  undefine))
+	  undefine
+	  set-reader))
 
 (define-interface debug-commands-interface
   (export translate

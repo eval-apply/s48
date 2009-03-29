@@ -31,6 +31,7 @@
 	debug-messages		; for debugging
 
 	(subset evaluation (load-script-into))
+	(subset packages-internal (package-reader))
 	(subset environments (environment-ref))
 	(subset shared-bindings (shared-binding-ref lookup-imported-binding))
 

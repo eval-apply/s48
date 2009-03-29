@@ -194,6 +194,16 @@
 (define (undefine name)
   (package-undefine! (interaction-environment) name))
 
+; ,set-reader changes the reader of the current package.
+
+(define-command-syntax 'set-reader "<reader>" "sets the current reader"
+  '(expression))
+
+(define (set-reader reader-expression)
+  (let* ((p (environment-for-commands))
+	 (r (eval reader-expression p)))
+    (set-reader! p r)
+    (set-package-reader! p r)))
 
 ; --------------------
 ; Auxiliaries for package commands
