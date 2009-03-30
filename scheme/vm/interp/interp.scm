@@ -139,8 +139,8 @@
     (set-code-pointer! *last-code-called* *saved-pc*)
     (set! *last-code-pointer-resumed* *code-pointer*)
     (partition-finalizer-alist!)
-    (close-untraced-channels! s48-extant? s48-trace-value)
     (trace-channel-names s48-trace-value)
+    (close-untraced-channels! s48-extant? s48-trace-value)
     (set! *gc-in-trouble?* in-trouble?)
     (note-interrupt! (if major?
 			 (enum interrupt post-major-gc)
