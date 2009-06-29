@@ -281,11 +281,9 @@
 	    scheme-level-1
 	    scheme-level-2
 	    set-text-procedures
-	    tconc-queue
 	    templates
 	    text-codecs
 	    threads
-	    tlc-table
 	    util
 	    vm-data
 	    weak)
@@ -465,7 +463,9 @@
 	    ;profile
 	    queues
 	    shared-objects
+	    tconc-queues
 	    time
+	    tlc-tables
 	    random
 	    receiving
 	    reduce

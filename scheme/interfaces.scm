@@ -925,32 +925,6 @@
 	  population->list
 	  walk-population))
 
-(define-interface tconc-queue-interface
-  (export make-tconc-queue
-	  tconc-queue?
-	  tconc-queue-empty?
-	  tconc-queue-enqueue!
-	  tconc-queue-dequeue!
-	  tconc-queue-peek
-	  tconc-queue-clear!
-	  tconc-queue-size))
-
-(define-interface tlc-table-interface
-  (export make-tlc-table
-	  tlc-table?
-	  tlc-table-size
-	  tlc-table-ref
-	  tlc-table-set!
-	  tlc-table-delete!
-	  tlc-table-contains?
-	  tlc-table-update!
-	  tlc-table-clear!
-	  tlc-table-keys
-	  tlc-table-entries
-	  tlc-table-equivalence-function
-	  tlc-table-hash-function
-	  tlc-table-distribution))
-
 (define-interface filenames-interface
   (export namestring *scheme-file-type* *load-file-type*
 	  file-name-directory
