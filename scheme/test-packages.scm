@@ -66,19 +66,19 @@
 
 (define-structure tconc-queue-test
   (export tconc-queue-tests)
-  (open scheme test-suites matchers tconc-queue
+  (open scheme test-suites matchers tconc-queues
 	srfi-34 srfi-42 conditions)
   (files (big tconc-queue-check)))
 
 (define-structure transport-link-cell-test
   (export transport-link-cell-tests)
   (open scheme test-suites matchers primitives
-	tconc-queue srfi-42)
+	tconc-queues srfi-42)
   (files (big transport-link-cell-check)))
 
 (define-structure tlc-table-test
   (export tlc-table-tests tlc-table-weak-tests)
-  (open scheme test-suites matchers tlc-table
+  (open scheme test-suites matchers tlc-tables
 	weak 
 	define-record-types
         (subset srfi-1 (member find))

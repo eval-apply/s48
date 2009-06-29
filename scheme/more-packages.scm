@@ -129,6 +129,34 @@
   (files (big unicode-normalization-info)
 	 (big unicode-normalization)))
 
+; --------------------
+; Transport Link Cell Tables
+
+(define-structure tconc-queues tconc-queues-interface
+  (open scheme-level-1 low-exceptions)
+  (files (big tconc-queue))
+  (optimize auto-integrate))
+
+(define-structure tlc-tables tlc-tables-interface
+  (open scheme-level-1 
+        low-exceptions
+        define-record-types
+        tconc-queues
+        (subset primitives   (make-transport-link-cell
+                              transport-link-cell?
+                              transport-link-cell-key
+                              transport-link-cell-value
+                              set-transport-link-cell-value!
+                              transport-link-cell-next
+                              set-transport-link-cell-next!
+                              transport-link-cell-tconc
+                              set-transport-link-cell-tconc!
+                              memory-status))
+        (subset architecture (memory-status-option))
+        enumerated)
+  (files (big tlc-table))
+  (optimize auto-integrate))
+
 ;----------------
 ; Big Scheme
 
