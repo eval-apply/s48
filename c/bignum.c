@@ -477,7 +477,7 @@ s48_bignum_to_long(bignum_type bignum)
     bignum_digit_type * scan = (start + (BIGNUM_LENGTH (bignum)));
     while (start < scan)
       accumulator = ((accumulator << BIGNUM_DIGIT_LENGTH) + (*--scan));
-    return ((BIGNUM_NEGATIVE_P (bignum)) ? (-((long)accumulator)) : accumulator);
+    return ((BIGNUM_NEGATIVE_P (bignum)) ? (-((long)accumulator)) : (long)accumulator);
   }
 }
 
@@ -2006,7 +2006,7 @@ bignum_unsigned_logcount(bignum_type arg)
 
   /* sufficient for any reasonable big number */
   long result;
-  int i;
+  unsigned long i;
 
   if (BIGNUM_ZERO_P (arg)) return (0L);
 
