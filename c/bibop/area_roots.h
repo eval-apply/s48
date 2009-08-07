@@ -41,7 +41,8 @@ inline static void s48_set_dirty_vector_inline(Area* area, s48_address addr,
 #endif
 }
 
-extern void s48_write_barrier(long stob, s48_address address, long value);
+S48_EXTERN void s48_write_barrier(long stob, s48_address address, long value);
+S48_EXTERN char s48_stob_in_heapP(s48_value);
 
 /* the value VALUE will be written at location ADDRESS which is within the stob STOB */
 inline static void s48_write_barrier_inline(long stob, s48_address address,
@@ -60,7 +61,6 @@ inline static void s48_write_barrier_inline(long stob, s48_address address,
 #endif
   /* Detect errors early... */
   if (S48_STOB_P(value)) {
-    extern char s48_stob_in_heapP(s48_value);
     assert(s48_stob_in_heapP(value));
   }
 

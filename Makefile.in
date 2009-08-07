@@ -8,7 +8,7 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 CC = @CC@
 LD = @LD@
-DEFS = @DEFS@ -D__COMPILING_SCHEME48_ITSELF__ -DS48_HOST_ARCHITECTURE=\"$(HOST_ARCHITECTURE)\"
+DEFS = @DEFS@
 LIBS = @LIBS@
 CFLAGS = @CFLAGS@
 CPPFLAGS = @CPPFLAGS@
@@ -52,8 +52,10 @@ DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE=@DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE@
 # Ultrix
 #   LDFLAGS = -N
 
+COMPILING_ITSELF_DEFS = $(DEFS) -D__COMPILING_SCHEME48_ITSELF__ -DS48_HOST_ARCHITECTURE=\"$(HOST_ARCHITECTURE)\"
+
 .c.o:
-	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/net -I$(srcdir)/c/bibop $(CFLAGS) -o $@ $<
+	$(CC) -c $(CPPFLAGS) $(COMPILING_ITSELF_DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/net -I$(srcdir)/c/bibop $(CFLAGS) -o $@ $<
 
 # You might want to change RUNNABLE to "s48"
 VERSION = 1.`cat $(srcdir)/build/minor-version-number`
@@ -336,7 +338,7 @@ script-interpreter: c/script-interpreter.o
 c/main.o: c/main.c c/scheme48vm.h c/scheme48heap.h
 	$(CC) -c $(CFLAGS) -o $@ \
 		-DDEFAULT_IMAGE_NAME=\"$(LIB)/$(IMAGE)\" \
-		$(CPPFLAGS) $(DEFS) $(srcdir)/c/main.c
+		$(CPPFLAGS) $(COMPILING_ITSELF_DEFS) $(srcdir)/c/main.c
 
 c/scheme48vm-$(BIT_SUFFIX).o: c/prescheme.h c/scheme48vm.h \
 		c/scheme48heap.h \
@@ -469,7 +471,7 @@ go:
 
 # Exports file for AIX and Cygwin
 
-CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_ ]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_ ]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_ ]*\).*$$,\1,'
+CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h $(srcdir)/c/bibop/*.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_ ]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_ ]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_ ]*\).*$$,\1,'
 
 c/scheme48.exp: c/scheme48.h c/fd-io.h c/event.h
 	echo '#!..' > $(srcdir)/c/scheme48.exp &&			\

@@ -144,8 +144,7 @@ typedef struct _Metapage {
 
 #define TABLE_SIZE (1L << LOG_TABLE_SIZE)
 
-/* static Metapage* s48_memory_table[TABLE_SIZE]; */
-extern Metapage* s48_memory_table[TABLE_SIZE];
+S48_EXTERN Metapage* s48_memory_table[];
 
 #ifdef NEED_METAPAGE_HASHING
 

@@ -1,30 +1,6 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
-/* 
- * For building and linking DLLs on Windows, we need to mark functions
- * the DLL calls in Scheme 48 and vice versa explicitly---and differently
- * depending on whether we're compiling the DLL or Scheme 48 itself.
- *
- * Therefore, on Windows, we assume that __COMPILING_SCHEME48_ITSELF__
- * is defined when Scheme 48 itself is being compiled, and not when
- * we're compiling something external against it.
- */
-
-#if defined(__CYGWIN__) || defined(_WIN32)
-#  ifdef __COMPILING_SCHEME48_ITSELF__
-#    define S48_EXTERN_ADD_ONS __declspec(dllexport)
-#  else
-#    define S48_EXTERN_ADD_ONS __declspec(dllimport)
-#  endif
-#endif
-
-#ifndef S48_EXTERN_ADD_ONS
-#  define S48_EXTERN_ADD_ONS
-#endif
-
-#define S48_EXTERN extern S48_EXTERN_ADD_ONS
-
 #if defined HAVE_STDINT_H
 #include <stdint.h> /* uintXX_t, C99 */
 #endif
