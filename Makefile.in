@@ -231,14 +231,14 @@ c/srfi-27.o: c/srfi-27.c $(SCHEME48HS)
 	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
 
 $(SRFI_27_EXTERNAL) : c/srfi-27.o
-	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
+	$(LD) -o $@  c/srfi-27.o $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
 
 
 c/ffi-test/ffi-test.o: c/ffi-test/ffi-test.c c/ffi-test/ffi-test.h $(SCHEME48HS)
 	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
 
 $(FFI_TEST_EXTERNAL) : c/ffi-test/ffi-test.o
-	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
+	$(LD) -o $@ c/ffi-test/ffi-test.o $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
 
 
 # Native-code glue rules
