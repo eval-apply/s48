@@ -158,18 +158,30 @@
 	       (else
 		(apply signal-vm-exception opcode reason status rest)))))
 
-(define (signal-call-external-error opcode reason who status . rest)
+; REST has who, status or message last
+(define (signal-call-external-error opcode reason . rest)
   (enum-case exception reason
-	     ((external-os-error)
-	      (signal-condition
-	       (condition
-		(construct-vm-exception opcode reason)
-		(make-who-condition who)
-		(make-message-condition
-		 (os-string->string (byte-vector->os-string (os-error-message status))))
-		(make-irritants-condition rest))))
-	      (else
-	       (apply signal-vm-exception opcode reason who status rest))))
+	     ((external-error external-assertion-violation external-os-error)
+	      (let* ((rev-rest (reverse rest))
+		     (who (cadr rev-rest))
+		     (status/message (car rev-rest))
+		     (message
+		      (os-string->string
+		       (byte-vector->os-string
+			(if (= reason (enum exception external-os-error))
+			    (os-error-message status/message)
+			    status/message)))))
+		(signal-condition
+		 (condition
+		  (if (= reason (enum exception external-assertion-violation))
+		      (make-assertion-violation)
+		      (make-error))
+		  (construct-vm-exception opcode reason)
+		  (make-who-condition who)
+		  (make-message-condition message)
+		  (make-irritants-condition (reverse (cddr rev-rest)))))))
+	     (else
+	      (apply signal-vm-exception opcode reason rest))))
 
 (define-vm-exception-handler (enum op call-external-value)
   signal-call-external-error)
