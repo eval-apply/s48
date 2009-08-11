@@ -157,6 +157,12 @@
   (files (big tlc-table))
   (optimize auto-integrate))
 
+; --------------------
+; Standards 
+
+(define-structure r5rs r5rs-interface
+  (open scheme))
+
 ;----------------
 ; Big Scheme
 
