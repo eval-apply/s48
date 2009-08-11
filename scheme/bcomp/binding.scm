@@ -13,6 +13,14 @@
   (static binding-static set-binding-static!)
   (path binding-path))
 
+(define-record-discloser :binding
+  (lambda (b)
+    (list 'binding
+	  (binding-type b)
+	  (binding-place b)
+	  (binding-static b)
+	  (binding-path b))))
+
 (define (make-binding type place static)
   (really-make-binding type place static #f))
 

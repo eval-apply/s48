@@ -35,7 +35,7 @@
 		(if (define-node? form)
 		    (maybe-update-known-type form package)))
 	      forms)
-    (sort-forms forms #t)))
+    (sort-forms forms)))
 
 (define (maybe-update-known-type node package)
   (let* ((lhs (cadr (node-form node)))

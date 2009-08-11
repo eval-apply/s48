@@ -14,11 +14,9 @@
 ; The procedure definitions are topologically sorted; whenever possible no
 ; use of a variable occurs before its definition.
 ;
-; COMPLETE? is true if STUFF contains the entire body of a module.
-;
-; This uses the FREE-VARIABLES field set by analyze.scm.
+; This uses the FREE-VARIABLES field set by usage.scm.
 
-(define (sort-forms nodes complete?)
+(define (sort-forms nodes)
   (let ((table (make-name-table))
 	(procs '())
 	(literals '())
