@@ -146,6 +146,11 @@
     (let ((exp (node-form node)))
       (analyze-letrec (cadr exp) (caddr exp) free usages))))
 
+(define-usage-analyzer 'letrec* syntax-type
+  (lambda (node free usages)
+    (let ((exp (node-form node)))
+      (analyze-letrec (cadr exp) (caddr exp) free usages))))
+
 (define-usage-analyzer 'pure-letrec syntax-type
   (lambda (node free usages)
     (let ((exp (node-form node)))

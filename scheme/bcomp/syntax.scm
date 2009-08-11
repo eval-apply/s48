@@ -203,7 +203,8 @@
 		    (values (reverse defs)
 			    exps)))
 	      (lambda (defs exps)
-		(expand-letrec (map car defs)
+		(expand-letrec operator/letrec
+			       (map car defs)
 			       (map cdr defs)
 			       exps
 			       env))))))))
@@ -489,7 +490,7 @@
 	(make-node op (cons op (expand-list (cdr exp) env)))
 	(expand (syntax-violation 'set! "invalid expression" exp) env))))
 
-(define-expander 'letrec
+(define (letrec-expander op/letrec)
   (lambda (op op-node exp env)
     (if (and (at-least-this-long? exp 3)
 	     (let-specs? (cadr exp)))
@@ -499,16 +500,22 @@
 			       (make-node operator/name (car spec)))
 			     specs))
 		 (env (bind (map car specs) names env)))
-	    (expand-letrec names (map cadr specs) body env)))
+	    (expand-letrec op/letrec names (map cadr specs) body env)))
 	(expand (syntax-violation 'letrec "invalid expression" exp) env))))
 
-(define (expand-letrec names values body env)
+(define-expander 'letrec
+  (letrec-expander operator/letrec))
+
+(define-expander 'letrec*
+  (letrec-expander operator/letrec*))
+
+(define (expand-letrec op/letrec names values body env)
   (let* ((new-specs (map (lambda (name value)
 			   (list name
 				 (expand value env)))
 			 names
 			 values)))
-    (make-node operator/letrec
+    (make-node op/letrec
 	       (list 'letrec new-specs (expand-body body env)))))
 
 (define-expander 'loophole

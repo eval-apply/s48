@@ -4,7 +4,7 @@
 ; Some interfaces.  Order of presentation is a bit random.
 
 (define-interface scheme-level-0-interface
-  (export ((if begin lambda letrec quote set!
+  (export ((if begin lambda letrec letrec* quote set!
 	       define define-syntax let-syntax letrec-syntax)
 	   :syntax)
 	  
@@ -1177,6 +1177,7 @@
 	  operator/begin
 	  operator/name
 	  operator/letrec
+	  operator/letrec*
 	  operator/pure-letrec
 	  operator/literal
 	  operator/quote

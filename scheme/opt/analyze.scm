@@ -173,6 +173,9 @@
 (define-analyzer 'letrec
   (lambda (exp ret?) #f))
 
+(define-analyzer 'letrec*
+  (lambda (exp ret?) #f))
+
 (define-analyzer 'pure-letrec
   (lambda (exp ret?) #f))
 
