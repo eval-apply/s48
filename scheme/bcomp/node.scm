@@ -163,6 +163,7 @@
 (define operator/begin       (get-operator 'begin syntax-type))
 (define operator/name        (get-operator 'name 'leaf))
 (define operator/letrec      (get-operator 'letrec))
+(define operator/letrec*     (get-operator 'letrec*))
 (define operator/pure-letrec (get-operator 'pure-letrec))
 (define operator/literal     (get-operator 'literal))
 (define operator/quote       (get-operator 'quote syntax-type))

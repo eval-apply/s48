@@ -145,15 +145,20 @@
 (define-schemifier 'letrec syntax-type
   (lambda (node env)
     (let ((form (node-form node)))
-      (schemify-letrec (cadr form) (caddr form) env))))
+      (schemify-letrec 'letrec (cadr form) (caddr form) env))))
+
+(define-schemifier 'letrec* syntax-type
+  (lambda (node env)
+    (let ((form (node-form node)))
+      (schemify-letrec 'letrec* (cadr form) (caddr form) env))))
 
 (define-schemifier 'pure-letrec syntax-type
   (lambda (node env)
     (let ((form (node-form node)))
-      (schemify-letrec (cadr form) (cadddr form) env))))
+      (schemify-letrec 'letrec (cadr form) (cadddr form) env))))
 
-(define (schemify-letrec specs body env)
-  `(letrec ,(map (lambda (spec)
+(define (schemify-letrec op specs body env)
+  `(,op ,(map (lambda (spec)
 		   (schemify-nodes spec env))
 		 specs)
      ,(schemify-node body env)))
