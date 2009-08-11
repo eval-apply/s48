@@ -57,6 +57,9 @@
 	((no-current-proposal) "no current proposal")
 	((native-code-not-supported) "native code not supported")
 	((illegal-exception-return) "illegal return from exception")
+	((external-error) "error in external code")
+	((external-assertion-violation) "assertion violation in external code")
+	((external-os-error) "OS error in external code")
 	(else "unknown VM exception"))))
 
 (define vm-exception-handlers
