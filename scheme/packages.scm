@@ -524,6 +524,8 @@
 	    make-rendezvous
 	    trans-ids
 
+	    r5rs
+
 	    ; R6RS packages
 
 	    r6rs-unicode
