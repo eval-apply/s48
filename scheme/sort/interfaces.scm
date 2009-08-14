@@ -33,11 +33,11 @@
 	  vector-binary-search3))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; list-sorted? l <		   -> boolean
-;;; vector-sorted? v < [start end] -> boolean
+;;; list-sorted? < l		   -> boolean
+;;; vector-sorted? < v [start end] -> boolean
 
 (define-interface sorted-interface
-  (export (list-sorted? (proc (:value (proc (:value :value) :boolean)) :boolean))
+  (export (list-sorted? (proc ((proc (:value :value) :boolean) :value) :boolean))
 	  (vector-sorted? (proc ((proc (:value :value) :boolean)
 				 :vector 
 				 &opt :exact-integer :exact-integer)
