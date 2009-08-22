@@ -200,8 +200,8 @@
 
 (define (socket-address-data/ipv6->raw data)
   (external-make-sockaddr-in6-raw
-   (socket-address-data/ipv6-port data)
    (ipv6-address-elements (socket-address-data/ipv6-address data))
+   (socket-address-data/ipv6-port data)
    (socket-address-data/ipv6-scope-id data)))
 
 (import-lambda-definition-2 external-make-sockaddr-in6-raw (addr port scope-id)
@@ -259,8 +259,8 @@
 	      (vector-ref raw 2)))
 	    ((inet6)
 	     (make-socket-address-data/ipv6
-	      (vector-ref raw 2)
 	      (make-ipv6-address (vector-ref raw 3))
+	      (vector-ref raw 2)
 	      (vector-ref raw 4)))
 	    ((unix)
 	     (make-socket-address-data/unix
