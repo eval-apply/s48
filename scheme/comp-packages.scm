@@ -31,7 +31,8 @@
 	low-exceptions
 	meta-types	;sexp->type
 	bindings	;same-denotation?
-	features)	;make-immutable! string-hash
+	features	;make-immutable! string-hash
+	syntax-transformers)
   (files (bcomp name)
 	 (bcomp transform))
   (optimize auto-integrate))
@@ -85,15 +86,22 @@
   (files (bcomp syntax))
   (optimize auto-integrate))
 
+(define-structure syntax-rules-compiler (export compile-rules)
+  (open scheme-level-2 (subset util (receive)) names syntax-rules-data)
+  (files (bcomp syntax-rules-compiler)))
+
 (define-structure usual-macros usual-macros-interface
   (open scheme-level-2
 	names		;name?
 	fluids		;used in definition of %file-name%
 	code-quote
+	syntax-rules-compiler
 	util
-	tables low-exceptions)
+	tables 
+	low-exceptions
+	syntax-transformers)
   (files (bcomp usual)
-	 (bcomp rules)))
+	 (bcomp syntax-rules)))
 
 ; Little utilities to be phased out by changing the format of lambda var lists
 ; in nodes.

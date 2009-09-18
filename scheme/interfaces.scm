@@ -127,6 +127,11 @@
 	  encode-char
 	  decode-char))
 
+(define-interface syntax-transformers-interface
+  (export make-explicit-renaming-transformer/4
+	  explicit-renaming-transformer/4?
+	  explicit-renaming-transformer/4-proc))
+
 (define-interface bitwise-interface
   (export arithmetic-shift
 	  bitwise-not
@@ -1052,10 +1057,12 @@
 	  ))
 
 (define-interface transforms-interface
-  (export make-transform
+  (export make-transform/macro
+	  make-transform/inline
 	  maybe-apply-macro-transform
 	  apply-inline-transform
 	  transform?
+	  transform-kind
 	  transform-type
 
 	  transform-env		; These are used to reify transforms.
@@ -1106,6 +1113,24 @@
 	  static-value
 	  make-compiler-env
 	  bind-source-file-name))
+
+(define-interface syntax-rules-data-interface
+  (export make-pattern-variable
+          pattern-variable?
+          pattern-variable-name
+          pattern-variable-rank
+
+          make-ellipsis-form
+          ellipsis-form?
+          ellipsis-form-body
+          ellipsis-form-vars
+
+          make-vector-marker
+          vector-marker?
+          vector-marker-contents))
+
+(define-interface syntax-rules-apply-interface
+  (export apply-rules))
 
 (define-interface nodes-interface
   (export make-node

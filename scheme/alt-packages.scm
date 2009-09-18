@@ -80,6 +80,14 @@
   (open scheme-level-1)
   (files (rts util)))
 
+(define-structure syntax-rules-data syntax-rules-data-interface
+  (open scheme-level-1)
+  (files (rts syntax-rules-data)))
+
+(define-structure syntax-rules-apply syntax-rules-apply-interface
+  (open scheme-level-1)
+  (files (rts syntax-rules-apply)))
+
 (define-structure weak weak-interface
   (open scheme-level-1 low-exceptions)
   (files (alt weak)

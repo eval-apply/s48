@@ -259,6 +259,7 @@
 	    source-file-names
 	    structure-refs
 	    debug-messages
+	    syntax-transformers
 	    unicode
 	    vm-exposure
 	    write-images)
@@ -312,6 +313,7 @@
 	    records-internal
 	    root-scheduler
 	    session-data
+	    syntax-rules-apply
 	    threads-internal
 	    vm-exceptions
 	    usual-resumer

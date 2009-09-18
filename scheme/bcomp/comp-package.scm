@@ -59,11 +59,11 @@
   (environment-define! env
 		       name
 		       syntax-type
-		       (make-transform (usual-transform name)
-				       (extract-package-from-environment env)
-				       syntax-type
-				       `(usual-transform ',name)
-				       name)))
+		       (make-transform/macro (usual-transform name)
+					     (extract-package-from-environment env)
+					     syntax-type
+					     `(usual-transform ',name)
+					     name)))
 
 ; This adds definitions of all operators to ENV and returns a list of forms
 ; that define the closed-compiled versions of those operators that have such.
