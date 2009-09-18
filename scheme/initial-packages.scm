@@ -101,6 +101,6 @@
 	primops				;get-primop primop? primop-type
 	usual-macros			;usual-transform
 	inline				;inline-transform
-	transforms			;make-transform transform? transform-type
+	transforms			;make-transform/xxx transform? transform-type
 	tables)
   (files (bcomp for-reify)))

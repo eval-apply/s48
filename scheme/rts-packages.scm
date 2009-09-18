@@ -1,19 +1,22 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
-
 (define-structures ((scheme-level-1 scheme-level-1-interface)
 		    (util util-interface)
 		    (set-text-procedures (export set-char-map-procedures!
-						 set-string-ci-procedures!)))
+						 set-string-ci-procedures!))
+		    (syntax-rules-data syntax-rules-data-interface)
+		    (syntax-rules-apply syntax-rules-apply-interface))
   (open scheme-level-0 ascii low-exceptions
         bitwise
-	code-quote)			; needed by SYNTAX-RULES
+	code-quote syntax-transformers)			; needed by SYNTAX-RULES
   (usual-transforms case quasiquote syntax-rules)
   (files (rts charmap)
 	 (rts base)
 	 (rts util)
 	 (rts number)
-	 (rts lize))	  ; Rationalize
+	 (rts lize)	  ; Rationalize
+	 (rts syntax-rules-data)
+	 (rts syntax-rules-apply))
   (optimize auto-integrate))
 
 

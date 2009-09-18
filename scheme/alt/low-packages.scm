@@ -34,3 +34,6 @@
       (lambda (e r c)
 	`(,(r 'quote) ,(cadr e))))))
 
+(define-structure syntax-transformers syntax-transformers-interface
+  (open scheme-level-2)
+  (files "../rts/low-syntax"))

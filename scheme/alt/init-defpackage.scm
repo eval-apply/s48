@@ -13,14 +13,21 @@
 		(rules (cddr exp)))
 	    (if (and (list? subkeywords)
 		     (every name? subkeywords))
-		;; Pair of the procedure and list of auxiliary names
-		(cons
-		  (eval `(let-syntax ((code-quote
-				       (syntax-rules ()
-					 ((code-quote ?thing) '?thing))))
-			   ,(process-rules rules subkeywords (lambda (x) x) eq?))
-			env)
-		  (find-free-names-in-syntax-rules subkeywords rules))
+		(call-with-values
+		    (lambda ()
+		      (process-rules exp name? (lambda (x) x) eq?))
+		  (lambda (code inserted)
+		    ;; Pair of the procedure and list of auxiliary names
+		    (cons
+		     (eval `(let-syntax ((code-quote
+					  (syntax-rules ()
+					    ((code-quote ?thing) '?thing))))
+			      ;; turn 4-arg transformer into 3-arg transformer
+			      (let ((transformer ,code))
+				(lambda (exp rename compare)
+				  (transformer exp name? rename compare))))
+			   env)
+		     inserted)))
 		exp))
 	  exp)      
       (eval exp env)))

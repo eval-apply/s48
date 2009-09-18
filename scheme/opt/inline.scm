@@ -18,13 +18,13 @@
 				((not (qualified? name))
 				 name)))
 			  qualified-free)))
-      (make-transform (inline-transform form aux-names)
-		      package		;env ?
-		      type
-		      `(inline-transform ',(remove-bindings form
-							    qualified-free)
-					 ',aux-names)
-		      name))))
+      (make-transform/inline (inline-transform form aux-names)
+			     package		;env ?
+			     type
+			     `(inline-transform ',(remove-bindings form
+								   qualified-free)
+						',aux-names)
+			     name))))
 
 ; This routine is obligated to return an S-expression.
 ; It's better not to rely on the constancy of node id's, so 

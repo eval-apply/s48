@@ -559,11 +559,11 @@
     
 (define (process-syntax form env name env-or-package)
   (let ((eval+env (force (environment-macro-eval env))))
-    (make-transform ((car eval+env) form (cdr eval+env))
-		    env-or-package
-		    syntax-type
-		    form
-		    name)))
+    (make-transform/macro ((car eval+env) form (cdr eval+env))
+			  env-or-package
+			  syntax-type
+			  form
+			  name)))
 
 ; This just looks up the names that the LAP code will want and replaces them
 ; with the appropriate node.

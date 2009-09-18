@@ -76,6 +76,8 @@
 (define-structure link-config (export )  ;dummy structure...
   (open scheme-level-2
 	linker
+	names ; name?
+	syntax-rules-apply
 	defpackage
 	types
 	analysis
