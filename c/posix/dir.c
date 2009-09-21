@@ -43,6 +43,9 @@ static s48_ref_t	posix_opendir(s48_call_t call, s48_ref_t svname),
 			posix_file_info(s48_call_t call, s48_ref_t svname,
 					s48_ref_t follow_link_p,
 					s48_ref_t mode_enum),
+			posix_create_symbolic_link(s48_call_t call,
+						   s48_ref_t svname1, s48_ref_t svname2),
+			posix_read_symbolic_link(s48_call_t call, s48_ref_t svname),
 			posix_ctime(s48_call_t call, s48_ref_t sch_time),
                         posix_time(s48_call_t call);
 /*
@@ -79,6 +82,9 @@ s48_init_posix_dir(void)
   S48_EXPORT_FUNCTION(posix_time);
 
   S48_EXPORT_FUNCTION(posix_file_info);
+
+  S48_EXPORT_FUNCTION(posix_create_symbolic_link);
+  S48_EXPORT_FUNCTION(posix_read_symbolic_link);
 
   posix_time_type_binding = 
     s48_get_imported_binding_2("posix-time-type");
@@ -538,4 +544,53 @@ posix_file_info(s48_call_t call, s48_ref_t svname,
   s48_unsafe_record_set_2(call, info, 11, temp);
 
   return info;
+}
+
+/* ************************************************************ */
+/*
+ * Symbolic links.
+ */
+
+s48_ref_t
+posix_create_symbolic_link(s48_call_t call,
+			   s48_ref_t svname1, s48_ref_t svname2)
+{
+  int status;
+  RETRY_OR_RAISE_NEG(status, 
+		     symlink(s48_extract_byte_vector_2(call, svname1),
+			     s48_extract_byte_vector_2(call, svname2)));
+  return s48_unspecific_2(call);
+}
+
+s48_ref_t
+posix_read_symbolic_link(s48_call_t call, s48_ref_t svname)
+{
+  char local_buf[1024];
+  char* buf = local_buf;
+  ssize_t buf_size = 1024;
+  ssize_t status;
+  for (;;)
+    {
+      RETRY_NEG(status, readlink(s48_extract_byte_vector_2(call, svname), buf, buf_size - 1));
+      if (status >= 0)
+	{
+	  s48_ref_t result;
+	  buf[status] = '\0';
+	  result = s48_enter_byte_string_2(call, buf);
+	  if (buf != local_buf)
+	    free(buf);
+	  return result;
+	}
+      else if (status == ENAMETOOLONG)
+	{
+	  if (buf != local_buf)
+	    free(buf);
+	  buf_size *= 2;
+	  buf = malloc(buf_size * sizeof(char));
+	  if (buf == NULL)
+	    s48_out_of_memory_error_2(call);
+	}
+      else
+	s48_os_error_2(call, "posix_read_symbolic_link", errno, 1, svname);
+    }
 }
