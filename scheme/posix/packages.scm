@@ -53,6 +53,9 @@
 
 	  accessible?
 	  (access-mode :syntax)
+
+	  create-symbolic-link
+	  read-symbolic-link
 	  ))
 
 (define-interface posix-time-interface

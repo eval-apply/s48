@@ -759,6 +759,22 @@ Permission name & Bit mask \\
 \end{tabular}
 \end{center}
 
+\subsection{Symbolic links}
+
+\begin{protos}
+\protonoresult{create-symbolic-link}{ path1 path2}
+\end{protos}
+%
+This creates a symbolic link at \var{path2} that contains \var{path1}.
+\var{Path1} and \var{path2} must be \var{os-string-thing} arguments.
+
+\begin{protos}
+\proto{read-symbolic-link}{ path}{ os-string}
+\end{protos}
+%
+This returns contents of the symbolic link at \var{path}.
+\var{Path} must be an \var{os-string-thing} argument.
+
 %----------------
 % Time - seconds since the epoch.
 \section{Time}
@@ -1090,11 +1106,13 @@ C procedure & Scheme procedure(s) \\
 \code{pipe}&\code{open-pipe}\\
 \code{read}&\code{read-char, read-block}\\
 \code{readdir}&\code{read-directory-stream}\\
+\code{readlink}&\code{read-symbolic-link}\\
 \code{rename}&\code{rename}\\
 \code{rmdir}&\code{remove-directory}\\
 \code{setgid}&\code{set-group-id!}\\
 \code{setuid}&\code{set-user-id!}\\
 \code{stat}&\code{get-file-info}\\
+\code{symlink}&\code{create-symbolic-link}\\
 \code{time}&\code{current-time}\\
 \code{ttyname}&\code{port-terminal-name}\\
 \code{umask}&\code{set-file-creation-mask!}\\

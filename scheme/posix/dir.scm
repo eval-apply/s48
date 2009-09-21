@@ -523,3 +523,16 @@
 ; long fpathconf(int fd, int name)
 
 
+;----------------
+; Symbolic links
+
+(import-lambda-definition-2 external-create-symbolic-link (name1 name2) "posix_create_symbolic_link")
+(import-lambda-definition-2 external-read-symbolic_link (name) "posix_read_symbolic_link")
+
+(define (create-symbolic-link name1 name2)
+  (external-create-symbolic-link (os-string->byte-vector (x->os-string name1))
+				 (os-string->byte-vector (x->os-string name2))))
+
+(define (read-symbolic-link name)
+  (byte-vector->os-string
+   (external-read-symbolic_link (os-string->byte-vector (x->os-string name)))))

@@ -262,6 +262,12 @@
 	      env))
   (check-that (lookup-environment-variable->string "=") (is-false)))
 
+(define-test-case symlinks posix-core-tests
+  (let ((name (string-append directory-name "/blabla")))
+    (create-symbolic-link "foo" name)
+    (check (os-string->string (read-symbolic-link name)) => "foo")
+    (unlink name)))
+
 ; This should be last, because it removes the directory.
 
 (define-test-case rmdir posix-core-tests
