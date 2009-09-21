@@ -535,7 +535,6 @@ s48_external_ecall(s48_call_t call,
      
   if (!s48_false_p_2(call, current_stack_block) &&
       !s48_false_p_2(call, STACK_BLOCK_THREAD_2(call, current_stack_block))) {
-    s48_value result;
 #ifdef DEBUG_FFI
     fprintf(stderr, "[releasing return at %d]\n", callback_depth());
 #endif
