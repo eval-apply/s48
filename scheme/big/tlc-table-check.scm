@@ -2,6 +2,7 @@
 
 (define-test-suite tlc-table-tests)
 (define-test-suite tlc-table-weak-tests)
+(define-test-suite tlc-table-string-tests)
 
 ;;; most of the test cases are adapted from Eric Knauel's test cases
 ;;; he wrote for his id-tables
@@ -711,3 +712,12 @@
       (:list o wobjs)
       (check (tlc-table-ref t o #f) => o))
      (check-entries t n))))
+
+
+;; string table with strings as keys
+(define-test-case string-table tlc-table-string-tests
+  (let* ((t (make-non-default-tlc-table string-hash string= 23 #f)))
+    (tlc-table-set! t "Key" "Value")
+    (check (tlc-table-ref t "Key" #f) => "Value")
+    (check-that (tlc-table-ref t "Value" #f) (is-false))))
+

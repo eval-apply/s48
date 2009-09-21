@@ -372,6 +372,7 @@
 
 (define-interface tlc-tables-interface
   (export make-tlc-table
+	  make-non-default-tlc-table
           tlc-table?
           tlc-table-size
           tlc-table-ref
