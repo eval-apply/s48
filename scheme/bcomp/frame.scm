@@ -100,7 +100,8 @@
 				  (make-thingie binding name assigned?)
 				  #f))
 	  ((and (thingie? (car l))
-		(eq? binding (thingie-binding (car l))))
+		(eq? binding (thingie-binding (car l)))
+		(eq? name (thingie-name (car l))))
 	   (if assigned?
 	       (set-thingie-assigned?! (car l) #t))
 	   (really-literal->index frame #f i))
