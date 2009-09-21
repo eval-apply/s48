@@ -54,10 +54,10 @@
 ;; smart constructor
 
 (define (make-tlc-table-internally size hash-function 
-				   equiv-function use-tconc-queue)
+				   equiv-function use-tconc-queue?)
   (let* ((size (max size *tlc-table-min-size*))
 	 (buckets (make-vector size))
-	 (tconc (and use-tconc-queue (make-tconc-queue))))
+	 (tconc (and use-tconc-queue? (make-tconc-queue))))
     (tlc-table-initialize-buckets! buckets)
     (really-make-tlc-table size buckets hash-function equiv-function tconc 0 #f)))
 
@@ -148,7 +148,7 @@
   (let ((index (tlc-table-calculate-hash table key)))
     (let lookup ((x (tlc-table-entry table index)))
       (and (transport-link-cell? x)
-	   (if (eq? (transport-link-cell-key x) key)
+	   (if ((tlc-table-equivalence-function table) (transport-link-cell-key x) key)
 	       x
 	       (lookup (transport-link-cell-next x)))))))
 
@@ -161,10 +161,10 @@
 (define (tlc-table-rehash-lookup table key)
   (let ((tconc (tlc-table-tconc table)))
     (let tconc-dequeue-loop ()
-      (and (not (tconc-queue-empty? tconc))
+      (and tconc (not (tconc-queue-empty? tconc))
 	   (let ((link (tconc-queue-dequeue! tconc)))
 	     (tlc-table-rehash-link table link)
-	     (if (eq? (transport-link-cell-key link) key)
+	     (if ((tlc-table-equivalence-function table) (transport-link-cell-key link) key)
 		 link
 		 (tconc-dequeue-loop)))))))
 
@@ -175,9 +175,9 @@
 (define (tlc-table-rehash-and-clean-tconc-queue table key)
   (let ((tconc (tlc-table-tconc table)))
     (let tconc-dequeue-loop ()
-      (and (not (tconc-queue-empty? tconc))
+      (and tconc (not (tconc-queue-empty? tconc))
 	   (let ((link (tconc-queue-dequeue! tconc)))
-	     (if (eq? (transport-link-cell-key link) key)
+	     (if ((tlc-table-equivalence-function table) (transport-link-cell-key link) key)
 		 link
 		 (begin
 		   (tlc-table-rehash-link table link)
@@ -223,11 +223,11 @@
 
 ;; constructors
 
-(define (make-non-default-tlc-table hash-function equiv size)
-  (make-tlc-table-internally size hash-function equiv #t))
+(define (make-non-default-tlc-table hash-function equiv size use-tconc-queue?)
+  (make-tlc-table-internally size hash-function equiv use-tconc-queue?))
 
 (define (make-eq-tlc-table size)
-  (make-non-default-tlc-table tlc-table-default-eq-hash-function eq? size))
+  (make-non-default-tlc-table tlc-table-default-eq-hash-function eq? size #t))
 
 (define make-tlc-table make-eq-tlc-table)
 
@@ -280,7 +280,7 @@
 
 (define (tlc-table-clear! table)
   (tlc-table-initialize-buckets! (tlc-table-buckets table))
-  (tconc-queue-clear! (tlc-table-tconc table))
+  (if (tlc-table-tconc table) (tconc-queue-clear! (tlc-table-tconc table)))
   (set-tlc-table-count! table 0)
   (set-tlc-table-loc! table #f))
 

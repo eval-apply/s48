@@ -77,17 +77,18 @@
   (files (big transport-link-cell-check)))
 
 (define-structure tlc-table-test
-  (export tlc-table-tests tlc-table-weak-tests)
+  (export tlc-table-tests tlc-table-weak-tests tlc-table-string-tests)
   (open scheme test-suites matchers tlc-tables
 	weak 
 	define-record-types
         (subset srfi-1 (member find))
+	(subset srfi-13 (string=))
         srfi-27         ; sources of random bits
         srfi-28         ; basic format strings
         srfi-34         ; exception handling for programs
         srfi-42         ; eager comprehensions
         conditions
-        (subset primitives (collect)))
+        (subset primitives (collect string-hash)))
   (files (big tlc-table-check)))
 
 (define-structure package-mutation-test (export package-mutation-tests)
