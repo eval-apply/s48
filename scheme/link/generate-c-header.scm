@@ -86,12 +86,12 @@
 	    (enumeration-stuff record-type-fields
 			       "S48_RECORD_TYPE_~A(x) S48_RECORD_REF((x), ~D)")
 	    (newline)
-	    (enumeration-stuff exception-list "S48_EXCEPTION_~A ~D")
-	    (newline)
 	    (enumeration-stuff channel-status-list
 		       "S48_CHANNEL_STATUS_~A S48_UNSAFE_ENTER_FIXNUM(~D)")
 	    (newline)
 	    (format #t "#endif /* !NO_OLD_FFI */~%")
+	    (newline)
+	    (enumeration-stuff exception-list "S48_EXCEPTION_~A ~D")
 	    (newline)
 	    (format #t "#include <scheme48write-barrier.h>~%")
 	    (newline)
