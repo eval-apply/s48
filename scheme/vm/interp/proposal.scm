@@ -322,7 +322,7 @@
   (any-> any-> fixnum->)
   (lambda (record type index)
     (cond ((not (and (stob-of-type? record (enum stob record))
-		     (vm-eq? type (record-ref record 0))))
+		     (record-has-type? record type)))
 	   (raise-exception wrong-type-argument 1
 			    record type (enter-fixnum index)))
 	  ((valid-index? index (record-length record))
@@ -338,8 +338,8 @@
 
 (define-primitive checked-record-set! (any-> any-> fixnum-> any->)
   (lambda (record type index value)
-    (cond ((or (not (stob-of-type? record (enum stob record)))
-	       (not (vm-eq? type (record-ref record 0))))
+    (cond ((not (and (stob-of-type? record (enum stob record))
+		     (record-has-type? record type)))
 	   (raise-exception wrong-type-argument 1
 			    record type (enter-fixnum index) value))
 	  ((immutable? record)
@@ -354,6 +354,29 @@
 	  (else
 	   (raise-exception index-out-of-range 1
 			    record type (enter-fixnum index) value)))))
+
+(define (record-has-type? record type)
+  (record-type<=? (record-type record) type))
+
+(define (record-type<=? rt1 rt2)
+  (or (vm-eq? rt1 rt2)
+      (let ((ec2 (record-type-extension-count rt2)))
+	(and (>= (record-type-extension-count rt1)
+		 ec2)
+	     (vm-eq? (record-type-base rt1 ec2) rt2)))))
+
+; synchronized with scheme/rts/record.scm
+
+(define (record-type record)
+  (record-ref record 0))
+
+(define (record-type-extension-count record)
+  (extract-fixnum (record-ref record 8)))
+
+(define *first-extension-slot* 11)
+
+(define (record-type-base record index)
+  (record-ref record (+ index *first-extension-slot*)))
 
 ; Get the right log out of the current proposal and look for an entry for
 ; STOB at INDEX.  If it is there we return the value, otherwise we add a

@@ -1,5 +1,66 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
+(define-interface r6rs-records-procedural-interface
+  (export make-record-type-descriptor
+	  record-type-descriptor?
+	  make-record-constructor-descriptor
+	  record-constructor record-predicate
+	  record-accessor record-mutator))
+
+(define-interface r6rs-records-inspection-interface
+  (export record-type-name
+	  record-type-parent
+	  record-type-sealed?
+	  record-type-uid
+	  record-type-generative?
+	  record-type-field-names
+	  record-type-opaque?
+	  record-field-mutable?
+
+	  record? record-rtd))
+
+(define-interface r6rs-records-internal-interface
+  (export nongenerative-record-types
+	  delete-nongenerative-record-type))
+
+(define-structures ((r6rs-records-procedural r6rs-records-procedural-interface)
+		    (r6rs-records-inspection r6rs-records-inspection-interface)
+		    (r6rs-records-internal r6rs-records-internal-interface))
+  (open scheme
+	(subset util (unspecific))
+	(subset features (make-immutable!))
+	(modify record-types (hide record-accessor))
+	define-record-types
+	(modify records (prefix primitive:))
+	r6rs-lists
+	exceptions
+	tables
+	(subset command-state (user-context-accessor user-context-modifier))
+	locks)
+  (optimize auto-integrate)
+  (files record-procedural))
+
+(define-structure r6rs-records-commands (export)
+  (open scheme
+	r6rs-records-procedural r6rs-records-inspection r6rs-records-internal
+	(subset command-processor (define-user-command-syntax
+				    user-command-environment))
+	(subset command-state (command-output))
+	(subset environments (environment-define!)))
+  (files record-command))
+
+(define-interface r6rs-records-syntactic-interface
+  (export ((define-record-type record-type-descriptor record-constructor-descriptor)
+	   :syntax)))
+
+(define-structure r6rs-records-syntactic r6rs-records-syntactic-interface
+  (open scheme
+	(subset primitives (checked-record-ref checked-record-set! record))
+	r6rs-records-procedural
+	loopholes types)
+  (for-syntax (open scheme exceptions))
+  (files record-syntactic))
+
 (define-interface r6rs-unicode-interface
   (compound-interface unicode-normalizations-interface
 		      (export char-titlecase
