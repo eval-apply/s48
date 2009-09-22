@@ -419,14 +419,21 @@
 (define-interface record-types-interface
   (export make-record-type
 	  record-constructor
+	  record-standard-constructor
 	  record-accessor
 	  record-modifier
 	  record-predicate
 	  define-record-discloser
 	  define-record-resumer
 	  record-type?
+	  record-type<=?
 	  record-type-field-names
-	  record-type-name))
+	  record-type-name
+	  record-type-parent
+	  record-type-data
+	  record-type-size
+	  set-record-type-data!
+	  ))
 
 (define-interface define-record-types-interface
   (export (define-record-type :syntax)
