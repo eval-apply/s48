@@ -45,14 +45,11 @@ static s48_ref_t	posix_opendir(s48_call_t call, s48_ref_t svname),
 					s48_ref_t mode_enum),
 			posix_create_symbolic_link(s48_call_t call,
 						   s48_ref_t svname1, s48_ref_t svname2),
-			posix_read_symbolic_link(s48_call_t call, s48_ref_t svname),
-			posix_ctime(s48_call_t call, s48_ref_t sch_time),
-                        posix_time(s48_call_t call);
+			posix_read_symbolic_link(s48_call_t call, s48_ref_t svname);
 /*
  * Record types imported from Scheme.
  */
-static s48_ref_t	posix_time_type_binding,
-			posix_file_info_type_binding,
+static s48_ref_t        posix_file_info_type_binding,
 			posix_file_mode_type_binding,
 			posix_user_id_type_binding;
 
@@ -78,17 +75,11 @@ s48_init_posix_dir(void)
   S48_EXPORT_FUNCTION(posix_open);
   S48_EXPORT_FUNCTION(posix_file_stuff);
 
-  S48_EXPORT_FUNCTION(posix_ctime);
-  S48_EXPORT_FUNCTION(posix_time);
-
   S48_EXPORT_FUNCTION(posix_file_info);
 
   S48_EXPORT_FUNCTION(posix_create_symbolic_link);
   S48_EXPORT_FUNCTION(posix_read_symbolic_link);
 
-  posix_time_type_binding = 
-    s48_get_imported_binding_2("posix-time-type");
-    
   posix_user_id_type_binding = 
     s48_get_imported_binding_2("posix-user-id-type");
     
@@ -343,66 +334,6 @@ posix_file_stuff(s48_call_t call, s48_ref_t op, s48_ref_t arg0, s48_ref_t arg1)
 }
 
 /* ************************************************************ */
-/*
- * Convert a time_t into a Scheme time record.
- */
-static s48_ref_t
-enter_time(s48_call_t call, time_t time)
-{
-  s48_ref_t	sch_time;
-  s48_ref_t	temp;
-
-  sch_time = s48_make_record_2(call, posix_time_type_binding);
-
-  /* Stashing the time value into temp before handing tit off to
-     S48_UNSAFE_RECORD_SET is necessary because its evaluation may
-     cause GC; that GC could destroy the temporary holding the value
-     of sch_time. */
-
-  temp = s48_enter_long_2(call, time);
-  s48_unsafe_record_set_2(call, sch_time, 0, temp);
-
-  return sch_time;
-}
-
-/*
- * Convert a Scheme time record into a time_t.
- */
-static time_t
-extract_time(s48_call_t call, s48_ref_t time)
-{
-  s48_check_record_type_2(call, time, posix_time_type_binding);
-
-  return s48_extract_long_2(call, s48_unsafe_record_ref_2(call, time, 0));
-}
-
-/*
- * The posix ctime() procedure, which converts a time_t into a string, using
- * the local time zone.
- *
- * ENTER_STRING does a copy, which gets us out of ctime()'s static buffer.
- */
-static s48_ref_t
-posix_ctime(s48_call_t call, s48_ref_t sch_time)
-{
-  time_t	time;
-
-  s48_check_record_type_2(call, sch_time, posix_time_type_binding);
-  time = extract_time(call, sch_time);
-  return s48_enter_string_latin_1_2(call, ctime(&time));
-}
-
-static s48_ref_t
-posix_time(s48_call_t call)
-{
-  time_t the_time, status;
-
-  RETRY_OR_RAISE_NEG(status, time(&the_time));
-    
-  return enter_time(call, the_time);
-}
-
-/* ************************************************************ */
 /* File modes.
  *
  * We translate the local bits into our own bits and vice versa.
@@ -479,6 +410,10 @@ s48_extract_mode(s48_call_t call, s48_ref_t sch_mode)
  * Interface to stat(), fstat(), and lstat().
  */
 
+/* from time.c */
+extern s48_ref_t s48_posix_enter_time(s48_call_t call, time_t time);
+
+
 static s48_ref_t
 posix_file_info(s48_call_t call, s48_ref_t svname,
 		s48_ref_t follow_link_p,
@@ -536,11 +471,11 @@ posix_file_info(s48_call_t call, s48_ref_t svname,
   s48_unsafe_record_set_2(call, info, 7, temp);
   temp = s48_enter_long_2(call, sbuf.st_size);
   s48_unsafe_record_set_2(call, info, 8, temp);
-  temp = enter_time(call, sbuf.st_atime);
+  temp = s48_posix_enter_time(call, sbuf.st_atime);
   s48_unsafe_record_set_2(call, info, 9, temp);
-  temp = enter_time(call, sbuf.st_mtime);
+  temp = s48_posix_enter_time(call, sbuf.st_mtime);
   s48_unsafe_record_set_2(call, info, 10, temp);
-  temp = enter_time(call, sbuf.st_ctime);
+  temp = s48_posix_enter_time(call, sbuf.st_ctime);
   s48_unsafe_record_set_2(call, info, 11, temp);
 
   return info;

@@ -1,6 +1,7 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+extern void s48_init_posix_time(void);
 extern void s48_init_posix_dir(void);
 extern void s48_init_posix_user(void);
 extern void s48_init_posix_regexp(void);
@@ -11,6 +12,8 @@ extern void s48_init_posix_proc(void);
 void
 s48_on_load(void)
 {
+  s48_init_posix_time();
+  s48_init_posix_dir();
   s48_init_posix_dir();
   s48_init_posix_user();
   s48_init_posix_regexp();
