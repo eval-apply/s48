@@ -216,10 +216,14 @@ $(posix_dir)/dir.o: c/posix/dir.c \
   c/event.h c/fd-io.h $(posix_dir)/posix.h
 	$(CC_POSIX)
 
+$(posix_dir)/time.o: c/posix/time.c \
+	$(SCHEME48HS) c/c-mods.h $(posix_dir)/posix.h
+	$(CC_POSIX)
+
 POSIX_OBJECTS = $(posix_dir)/user.o     $(posix_dir)/regexp.o	\
                 $(posix_dir)/proc-env.o $(posix_dir)/proc.o	\
                 $(posix_dir)/io.o	$(posix_dir)/dir.o	\
-		$(posix_dir)/posix.o
+		$(posix_dir)/posix.o	$(posix_dir)/time.o
 
 $(POSIX_EXTERNAL) : $(POSIX_OBJECTS)
 	$(LD) -o $@ $(POSIX_OBJECTS) $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) 

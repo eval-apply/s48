@@ -63,6 +63,18 @@
 	  time=? time<? time<=? time>? time>=?
 	  time->string
 	  current-time
+	  make-date date?
+	  date-second date-minute date-hour
+	  date-month-day date-month
+	  date-year
+	  date-week-day
+	  date-year-day
+	  date-dst
+
+	  date->string
+	  time->utc-date
+	  time->local-date
+	  date->time
 	  ))
 
 (define-interface posix-users-interface
@@ -87,7 +99,6 @@
 	  ))
 
 (define-structures ((posix-files posix-files-interface)
-		    (posix-time  posix-time-interface)
 		    (posix-users posix-users-interface))
   (open scheme define-record-types finite-types
 	external-calls load-dynamic-externals
@@ -99,6 +110,13 @@
 	os-strings)
   (for-syntax (open scheme bitwise))
   (files dir))
+
+(define-structure posix-time  posix-time-interface
+  (open scheme
+	define-record-types
+	external-calls load-dynamic-externals
+	os-strings)
+  (files time))
 
 (define-structure posix-file-options (export ((file-option file-options)
 					        :syntax)

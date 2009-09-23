@@ -777,9 +777,11 @@ This returns contents of the symbolic link at \var{path}.
 
 %----------------
 % Time - seconds since the epoch.
-\section{Time}
+\section{Time and Date}
 
 These procedures are in structures \code{posix-time} and \code{posix}.
+
+\subsection{Time}
 
 \begin{protos}
 \proto{make-time}{ integer}{time}
@@ -811,16 +813,75 @@ These perform various comparison operations on the \code{time}\/s.
 \end{protos}
 \noindent
 \code{Time->string} returns a string representation of \cvar{time} in the
- following form.
+locale's version of the following form.
 \begin{example}
 "Wed Jun 30 21:49:08 1993
 "
 \end{example}
 
-%----------------
-% Dates - what a mess.
+\subsection{Date}
+
+A date is a time specification relative to a specific but implicit
+time zone, broken out into the familar
+year-month-day-hour-minute-second format.
+
+\begin{protos}
+\proto{make-date}{ second minute hour month-day month year week-day year-day dst}{date}
+\proto{date?}{ x}{boolean}
+\proto{date-second}{ date}{second}
+\proto{date-minute}{ date}{minute}
+\proto{date-hour}{ date}{hour}
+\proto{date-month-day}{ date}{month-day}
+\proto{date-month}{ date}{month}
+\proto{date-year}{ date}{year}
+\proto{date-week-day}{ date}{week-day}
+\proto{date-year-day}{ date}{year-day}
+\proto{date-date-dst}{ date}{dst}
+\end{protos}
 %
-% This is not yet working.
+These are the constructor, predicate and corresponding accessors for
+date objects.  The meaning of the various field types are as follows:
+
+\begin{center}
+  \begin{tabular}{lll}
+    \cvar{seconds} & seconds & (0--60) \\
+    \cvar{minutes} & minutes & (0--59) \\
+    \cvar{hour} & hours & (0--23) \\
+    \cvar{month-day} & day of month & (1--31) \\
+    \cvar{mon}     & month of year & (0--11) \\
+    \cvar{year}    & year & since 1900\\
+    \cvar{week-day}    & day of week & (Sunday = 0) \\
+    \cvar{year-day}    & day of year & (0--365) \\
+    \cvar{dst}   & is summer time in effect? & \code{\#t}, \code{\#f} or unspecific
+  \end{tabular}
+\end{center}
+
+\begin{protos}
+\proto{date->string}{ date}{string}
+\end{protos}
+%
+returns a string representation of \cvar{date} in the
+locale's version of the following form:
+\begin{example}
+"Wed Jun 30 21:49:08 1993
+"
+\end{example}
+
+\begin{protos}
+\proto{time->utc-date}{ time}{date}
+\proto{time->local-date}{ time}{date}
+\end{protos}
+%
+These convert a time object into a date object; the first does this
+relative to the UTC time zone, the second relative to the current
+timezone setting.
+
+\begin{protos}
+\proto{date->time}{ date}{time}
+\end{protos}
+%
+This converts a date object into a time object relative to the current
+timezone setting.
 
 \section{I/O}
 
@@ -1068,6 +1129,7 @@ C procedure & Scheme procedure(s) \\
  C procedure & Scheme procedure(s) \\
 \endhead
 \code{access}&\code{accessible?}\\
+\code{asctime}&\code{date->string}\\
 \code{chdir}&\code{set-working-directory!}\\
 \code{close}&\code{close-input-port, close-output-port,}\\
  &\code{\ \ close-channel, close-socket}\\
@@ -1096,11 +1158,14 @@ C procedure & Scheme procedure(s) \\
 \code{getpid}&\code{get-process-id}\\
 \code{getppid}&\code{get-parent-process-id}\\
 \code{getuid}&\code{get-user-id}\\
+\code{gmtime}&\code{time->local-date}\\
 \code{isatty}&\code{port-is-a-terminal?}\\
 \code{link}&\code{link}\\
+\code{localtime}&\code{time->utc-date}\\
 \code{lstat}&\code{get-file/link-info}\\
 \code{mkdir}&\code{make-directory}\\
 \code{mkfifo}&\code{make-fifo}\\
+\code{mktime}&\code{date->time}\\
 \code{open}&\code{open-file}\\
 \code{opendir}&\code{open-directory-stream}\\
 \code{pipe}&\code{open-pipe}\\
