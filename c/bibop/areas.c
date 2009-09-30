@@ -2,6 +2,7 @@
    See file COPYING. */
 
 #include <stdlib.h>
+#include <string.h>
 #include "utils.h"
 #include "areas.h"
 #include "page_constants.h"
