@@ -26,7 +26,7 @@
 (define (open-directory-stream name)
   (let ((dir (make-directory-box name
 				 (call-imported-binding-2 posix-opendir
-							(os-string->byte-vector (x->os-string name))))))
+							(x->os-byte-vector name)))))
     (add-finalizer! dir close-directory-stream)
     dir))
 
@@ -70,7 +70,7 @@
 
 (define (set-working-directory! name)
   (call-imported-binding-2 posix-working-directory 
-			 (os-string->byte-vector (x->os-string name))))
+			 (x->os-byte-vector name)))
 
 (import-definition posix-working-directory)
 
@@ -86,13 +86,12 @@
 (define (open-file path options . mode)
   (let* ((input? (file-options-on? options (file-options read-only)))
 	 (channel (call-imported-binding-2 posix-open
-					 (os-string->byte-vector
-					  (x->os-string path))
-					 options
-					 (if (null? mode)
-					     #f
-					     (car mode))
-					 input?)))
+					   (x->os-byte-vector path)
+					   options
+					   (if (null? mode)
+					       #f
+					       (car mode))
+					   input?)))
     (if input?
 	(input-channel->port channel)
 	(output-channel->port channel))))
@@ -112,8 +111,8 @@
 
 (define (link existing new)
   (file-stuff 1
-	      (os-string->byte-vector (x->os-string existing))
-	      (os-string->byte-vector (x->os-string new))))
+	      (x->os-byte-vector existing)
+	      (x->os-byte-vector new)))
 
 (import-lambda-definition-2 file-stuff (op arg1 arg2) "posix_file_stuff")
 
@@ -124,10 +123,10 @@
 ; int mkfifo(char path, mode_t mode)
 
 (define (make-directory path mode)
-  (file-stuff 2 (os-string->byte-vector (x->os-string path)) mode))
+  (file-stuff 2 (x->os-byte-vector path) mode))
 
 (define (make-fifo path mode)
-  (file-stuff 3 (os-string->byte-vector (x->os-string path)) mode))
+  (file-stuff 3 (x->os-byte-vector path) mode))
 
 ;----------------
 ; 5.5 File Removal
@@ -135,19 +134,19 @@
 ; int unlink(char *path)
 
 (define (unlink path)
-  (file-stuff 4 (os-string->byte-vector (x->os-string path)) #f))
+  (file-stuff 4 (x->os-byte-vector path) #f))
 
 ; int rmdir(char *path)
 
 (define (remove-directory path)
-  (file-stuff 5 (os-string->byte-vector (x->os-string path)) #f))
+  (file-stuff 5 (x->os-byte-vector path) #f))
 
 ; int rename(char *old, char *new)
 
 (define (rename old new)
   (file-stuff 6
-	      (os-string->byte-vector (x->os-string old))
-	      (os-string->byte-vector (x->os-string new))))
+	      (x->os-byte-vector old)
+	      (x->os-byte-vector new)))
 
 ;----------------
 ; The C function posix_file_info() knows the offsets of these fields.
@@ -195,13 +194,13 @@
 
 (define (get-file-info name)
   (call-imported-binding-2 posix-file-info
-			 (os-string->byte-vector (x->os-string name))
-			 #t file-types))
+			   (x->os-byte-vector name)
+			   #t file-types))
 
 (define (get-file/link-info name)
   (call-imported-binding-2 posix-file-info
-			 (os-string->byte-vector (x->os-string name))
-			 #f file-types))
+			   (x->os-byte-vector name)
+			   #f file-types))
 
 (define (get-port-info port)
   (let ((channel (port->channel port)))
@@ -358,8 +357,7 @@
 (define (name->user-info name)
   (apply make-user-info
 	 (external-name->user-info
-	  (os-string->byte-vector
-	   (x->os-string name)))))
+	  (x->os-byte-vector name))))
 
 (import-lambda-definition-2 external-user-id->user-info (user-id) "posix_getpwuid")
 (import-lambda-definition-2 external-name->user-info (name) "posix_getpwnam")
@@ -407,8 +405,7 @@
 (define (name->group-info name)
   (apply make-group-info
 	 (external-name->group-info
-	  (os-string->byte-vector
-	   (x->os-string name)))))
+	  (x->os-byte-vector name))))
 
 (import-lambda-definition-2 external-group-id->group-info (group-id) "posix_getgrgid")
 (import-lambda-definition-2 external-name->group-info (name) "posix_getgrnam")
@@ -436,7 +433,7 @@
 
 (define (accessible? path mode0 . more-modes)
   (file-stuff 7
-	      (os-string->byte-vector (x->os-string path))
+	      (x->os-byte-vector path)
 	      (if (null? more-modes)
 		  (access-mode-mask mode0)
 		  (apply + (map access-mode-mask
@@ -464,9 +461,9 @@
 (import-lambda-definition-2 external-read-symbolic_link (name) "posix_read_symbolic_link")
 
 (define (create-symbolic-link name1 name2)
-  (external-create-symbolic-link (os-string->byte-vector (x->os-string name1))
-				 (os-string->byte-vector (x->os-string name2))))
+  (external-create-symbolic-link (x->os-byte-vector name1)
+				 (x->os-byte-vector name2)))
 
 (define (read-symbolic-link name)
   (byte-vector->os-string
-   (external-read-symbolic_link (os-string->byte-vector (x->os-string name)))))
+   (external-read-symbolic_link (x->os-byte-vector name))))

@@ -39,7 +39,7 @@
 			  "posix_exec")
 
 (define (thing->exec-arg-byte-string thing)
-  (os-string->byte-vector (x->os-string thing)))
+  (x->os-byte-vector thing))
 
 (define (exec-with-alias program lookup? environment arguments)
   (external-exec-with-alias (thing->exec-arg-byte-string program)

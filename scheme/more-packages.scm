@@ -371,7 +371,7 @@
 
     ;; Kludge
     (define (system cmd-line)
-      (s48-system (os-string->byte-vector (x->os-string cmd-line))))))
+      (s48-system (x->os-byte-vector cmd-line)))))
     
 ; Rudimentary object dump and restore
 

@@ -958,6 +958,19 @@ take file names all accept \var{os-string-thing} arguments.  OS
 strings are in the \code{os-strings} structure.
 
 \begin{protos}
+\proto{os-string?}{ value}{boolean}
+\proto{make-os-string}{ text-codec string/byte-vector}{os-string}
+\end{protos}
+%
+The \code{os-string?} predicate returns \code{\#t} if its argument is
+an OS string, \code{\#f} otherwise.
+
+The \code{make-os-string} procedure creates an OS string from a text
+codec and a byte vector or string that defines its contents.  If the
+argument is a byte vector, it does not matter if it is NUL-terminated
+or not.
+
+\begin{protos}
 \proto{string->os-string}{ string}{os-string}
 \proto{byte-vector->os-string}{ byte-vector}{os-string}
 \proto{x->os-string}{ os-string-thing}{os-string}
@@ -979,6 +992,29 @@ with the same contents; for an OS string created from a byte vector,
 \code{os-string->byte-vector} will return a byte vector with the same
 contents.  For the other cases, data loss as determined by the text
 codec is possible.
+
+\begin{protos}
+\proto{os-string-text-codec}{ os-string}{text-codec}
+\end{protos}
+%
+This procedure returns the text codec of the OS string.
+
+\begin{protos}
+\proto{os-string=?}{ os-string os-string}{boolean}
+\end{protos}
+%
+This procedure returns \code{\#t} if its arguments denote the same
+byte sequence, \code{\#f} otherwise.
+
+\begin{protos}
+\proto{x->os-byte-vector}{ os-string-thing}{byte-vector}
+\proto{string->os-byte-vector}{ string}{byte-vector}
+\end{protos}
+%
+These are convenience procedures: The first is the composition of
+\code{x->os-string} and \code{os-string->byte-vector}, and the second
+is the composition of \code{string->os-string} and
+\code{os-string->byte-vector}.
 
 \begin{protos}
 \proto{current-os-string-text-codec}{}{text-codec}

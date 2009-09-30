@@ -667,8 +667,12 @@
 
 (define-interface os-strings-interface
   (export os-string?
+	  make-os-string 
 	  string->os-string byte-vector->os-string x->os-string
+	  string->os-byte-vector x->os-byte-vector
 	  os-string->string os-string->byte-vector
+	  os-string-text-codec
+	  os-string=?
 	  call-with-os-string-text-codec
 	  current-os-string-text-codec))
 

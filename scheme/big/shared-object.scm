@@ -32,8 +32,7 @@
 (define (open-shared-object name complete-name?)
   (let ((shared-object (make-shared-object name
 					   complete-name?
-					   (external-dlopen (os-string->byte-vector
-							     (x->os-string name))
+					   (external-dlopen (x->os-byte-vector name)
 							    complete-name?))))
     (add-finalizer! shared-object close-shared-object)
     shared-object))
