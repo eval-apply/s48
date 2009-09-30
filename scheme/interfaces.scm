@@ -93,6 +93,7 @@
 	  record-ref
 	  record-set!
 	  record?
+	  record-type<=?
 	  return-from-callback
 	  schedule-interrupt            ;interrupts re-exports this
 	  session-data			;channels

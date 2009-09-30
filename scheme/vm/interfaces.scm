@@ -294,6 +294,13 @@
 	  ensure-space
 	  ))
 
+(define-interface vm-records-interface
+  (export typed-record?
+	  record-has-type?
+	  possibly-record-type?
+	  record-type-name
+	  record-type<=?))
+
 (define-interface vmio-interface
   (export initialize-i/o-system+gc
 
@@ -556,7 +563,7 @@
 	  push-exception-setup!
 
 	  any-> string-> boolean-> fixnum-> vm-integer-> char-> char-scalar-value->
-	  vector-> code-vector-> 
+	  vector-> record-type-> code-vector-> 
 	  input-type no-coercion
 	  
 	  no-result

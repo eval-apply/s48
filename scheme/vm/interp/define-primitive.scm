@@ -111,6 +111,7 @@
 (define location->    (input-type location?    no-coercion))
 (define string->      (input-type vm-string?   no-coercion))
 (define vector->      (input-type vm-vector?   no-coercion))
+(define record-type-> (input-type possibly-record-type? no-coercion))
 (define code-vector-> (input-type code-vector? no-coercion))
 (define vm-integer->  (input-type (lambda (x) (or (fixnum? x)
 						  (bignum? x))) no-coercion))

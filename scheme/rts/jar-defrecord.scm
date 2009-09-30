@@ -34,7 +34,7 @@
 	    (define ?pred
 	      (lambda (x)
 		(and (record? x)
-		     (eq? ?type (record-ref x 0)))))))))
+		     (record-type<=? (record-ref x 0) ?type))))))))
 
 (define-syntax define-synchronized-record-type
   (syntax-rules ()

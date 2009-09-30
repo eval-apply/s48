@@ -291,6 +291,7 @@
   (reverse-list->string 2)
   (assq 2)
   (unassigned-check 1)
+  (record-type<=? 2)
   ; If the byte = 0 then do not log in the current proposal
   (checked-record-ref index 3)
   (checked-record-set! index 4)

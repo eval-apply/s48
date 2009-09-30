@@ -43,7 +43,7 @@
 	records record-types records-internal
 	loopholes
 	low-proposals	;provisional-checked-record-{ref|set!}
-	primitives)	;unspecific
+	primitives)	;unspecific, record-type<=?
   (files (rts jar-defrecord)))
 
 (define-structures ((methods methods-interface)
