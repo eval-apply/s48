@@ -21,7 +21,7 @@
 ;
 ; The VM references both the record type and the resumer (in
 ; heap/write-image.scm), as well as the extension-slot index and the
-; extension count (in vm/interp/proposal.scm), so their offsets should
+; extension count (in vm/data/record.scm), so their offsets should
 ; not be changed.
 
 (define *first-extension-slot* 11)
@@ -92,13 +92,6 @@
   '(resumer uid name field-names number-of-fields discloser parent extension-count size data base))
 
 ;----------------
-
-(define (record-type<=? rt1 rt2)
-  (or (eq? rt1 rt2)
-      (let ((ec2 (record-type-extension-count rt2)))
-	(and (>= (record-type-extension-count rt1)
-		 ec2)
-	     (eq? (record-type-base rt1 ec2) rt2)))))
 
 ; Given a record type and the name of a field, return the field's index.
 

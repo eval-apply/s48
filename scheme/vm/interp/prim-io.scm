@@ -513,17 +513,6 @@
 			      "???"))
 		       out))))
 
-(define (typed-record? thing)
-  (and (record? thing)
-       (< 0 (record-length thing))
-       (let ((type (record-ref thing 0)))
-	 (and (record? type)
-	      (< 3 (record-length type))
-	      (vm-symbol? (record-ref type 3))))))
-
-(define (record-type-name record)
-  (vm-symbol->string (record-ref (record-ref record 0) 3)))
-
 ;----------------------------------------------------------------
 ; RESUME-PROC is called when the image is resumed.
 ; This does a garbage collection rooting from RESUME-PROC, writes the heap

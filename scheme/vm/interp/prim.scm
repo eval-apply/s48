@@ -578,6 +578,8 @@
 
 ; Unnecessary primitives
 
+(define-primitive record-type<=? (record-type-> record-type->) record-type<=? return-boolean)
+
 (define-primitive string=? (string-> string->) vm-string=? return-boolean)
 
 ; Special primitive called by the reader.
