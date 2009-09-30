@@ -526,9 +526,9 @@ s48_add_pending_fd(int fd, psbool is_input)
     fd_setsize *= 2;
     fds = (fd_struct **) realloc (fds, sizeof (fd_struct *) * fd_setsize);
     if (fds == NULL) 
-      fprintf(stderr, "ERROR: realloc of fds to %d elements failed, errno = %d\n",
-	      errno,
-	      fd_setsize);
+      fprintf(stderr, "ERROR: realloc of fds to %ld elements failed, errno = %d\n",
+	      fd_setsize,
+	      errno);
     return (PSFALSE);
   }
   data = fds[fd];
@@ -582,7 +582,7 @@ s48_remove_fd(int fd)
   struct fd_struct	*data;
 
   if (! (0 <= fd && fd < fd_setsize)) {
-    fprintf(stderr, "ERROR: s48_remove_fd fd %d not in [0, %d)\n",
+    fprintf(stderr, "ERROR: s48_remove_fd fd %d not in [0, %ld)\n",
 	    fd,
 	    fd_setsize);
     return PSFALSE;
@@ -960,7 +960,7 @@ s48_sysdep_init(void)
 
   if (pollfds == NULL) {
     fprintf(stderr,
-	    "Failed to alloc array of file descriptors to poll with %d elements, errno = %d\n",
+	    "Failed to alloc array of file descriptors to poll with %ld elements, errno = %d\n",
 	    pollfds_size,
 	    errno);
     exit(1);
@@ -972,7 +972,7 @@ s48_sysdep_init(void)
 
   if (fds == NULL) {
     fprintf(stderr,
-	    "Failed to alloc fds with %d elements, errno = %d\n",
+	    "Failed to alloc fds with %ld elements, errno = %d\n",
 	    fd_setsize,
 	    errno);
     exit(1);

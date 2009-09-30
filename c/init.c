@@ -104,19 +104,19 @@ s48_main(int argc, char *argv[])
   if (errors != 0) {
     fprintf(stderr,
 "Usage: %s [options] [-a arguments]\n\
-Options: -h <heap-size>    %s heap size in words (default %d).%s\n\
+Options: -h <heap-size>    %s heap size in words (default %ld).%s\n\
 	 -s <stack-size>   Stack buffer size in words.\n\
          -i <file>         Load image from file (default \"%s\")\n",
 	    me,
 #if S48_GC_BIBOP
 	    "Maximum",
-	    DEFAULT_HEAP_SIZE,
+	    (long)DEFAULT_HEAP_SIZE,
 "\n                           A heap size of 0 means the heap can grow\n\
                            unboundedly. This is dangerous because it can\n\
                            cause your system to run out of memory.",
 #else
 	    "Total",
-	    DEFAULT_HEAP_SIZE,
+	    (long)DEFAULT_HEAP_SIZE,
 	    "",
 #endif
 	    DEFAULT_IMAGE_NAME
