@@ -17,7 +17,7 @@
 ; #### lossiness
 
 (define-record-type os-string :os-string
-  (make-os-string text-codec string byte-vector)
+  (really-make-os-string text-codec string byte-vector)
   os-string?
   (text-codec os-string-text-codec)
   ; may be #f, will get cached value
@@ -49,18 +49,31 @@
 (define (call-with-os-string-text-codec codec thunk)
   (let-fluid $os-string-text-codec (lambda () codec)
 	     thunk))
-  
+
+(define (make-os-string codec thing)
+  (call-with-values
+      (lambda ()
+	(cond
+	 ((string? thing)
+	  (values (make-immutable! thing) #f))
+	 ((byte-vector? thing)
+	  (values #f (make-immutable! (byte-vector-copy-z thing))))
+	 (else
+	  (assertion-violation 'make-os-string "invalid argument" thing))))
+    (lambda (str bv)
+      (really-make-os-string codec str bv))))
+
 (define (string->os-string s)
   (let ((c (string-copy s)))
     (make-immutable! c)
-    (make-os-string (current-os-string-text-codec)
-		    c #f)))
+    (really-make-os-string (current-os-string-text-codec)
+			   c #f)))
 
 (define (byte-vector->os-string b)
   (let ((c (byte-vector-copy-z b)))
     (make-immutable! b)
-    (make-os-string (current-os-string-text-codec)
-		    #f c)))
+    (really-make-os-string (current-os-string-text-codec)
+			   #f c)))
 
 (define (os-string->byte-vector oss)
   (or (os-string-byte-vector oss)
@@ -101,6 +114,19 @@
    ((string? x) (string->os-string x))
    ((byte-vector? x) (byte-vector->os-string x))))
 
+(define (os-string=? os1 os2)
+  (byte-vector=? (os-string->byte-vector os1) (os-string->byte-vector os2)))
+
+; frequent idioms
+
+(define (string->os-byte-vector s)
+  (os-string->byte-vector (string->os-string s)))
+
+(define (x->os-byte-vector x)
+  (os-string->byte-vector (x->os-string x)))
+
+; Utilities
+
 (define (byte-vector-copy-z b)
   (let* ((size-old (byte-vector-length b))
 	 (nul? (and (positive? size-old)
@@ -109,5 +135,19 @@
 	 (result (make-byte-vector size 0)))
     (copy-bytes! b 0 result 0 size-old)
     result))
+
+; this must be frequently duplicated ...
+(define (byte-vector=? b1 b2)
+  (let ((size-1 (byte-vector-length b1))
+	(size-2 (byte-vector-length b2)))
+    (and (= size-1 size-2)
+	 (let loop ((i 0))
+	   (cond
+	    ((>= i size-1) #t)
+	    ((= (byte-vector-ref b1 i) (byte-vector-ref b2 i))
+	     (loop (+ 1 i)))
+	    (else #f))))))
+
+; Initialization
 
 (initialize-os-string-text-codec!)

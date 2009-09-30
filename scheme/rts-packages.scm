@@ -115,6 +115,7 @@
 		    (os-strings-internal (export initialize-os-string-text-codec!)))
   (open scheme-level-1
 	define-record-types
+	exceptions
 	byte-vectors
 	(subset primitives (system-parameter make-immutable! copy-bytes!))
 	(subset architecture (system-parameter-option))

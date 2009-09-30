@@ -76,9 +76,7 @@
 
 (define (lookup-environment-variable name)
   (cond
-   ((external-lookup-environment-variable
-     (os-string->byte-vector
-      (x->os-string name)))
+   ((external-lookup-environment-variable (x->os-byte-vector name))
     => x->os-string)
    (else #f)))
 
