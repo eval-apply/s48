@@ -182,7 +182,9 @@
 
 (define-structure conditions conditions-interface
   (open scheme-level-1 low-exceptions
-	define-record-types)
+	define-record-types
+	record-types
+	(subset records (record-type)))
   (files (rts condition)))
 
 (define-structure writing writing-interface
