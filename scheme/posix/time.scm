@@ -88,6 +88,7 @@
 (import-lambda-definition-2 posix-time->utc-date (time) "posix_gmtime")
 (import-lambda-definition-2 posix-time->local-date (time) "posix_localtime")
 (import-lambda-definition-2 posix-date->time (date) "posix_mktime")
+(import-lambda-definition-2 posix-strftime (format date) "posix_strftime")
 
 (define (date->string d)
   (os-string->string
@@ -102,4 +103,9 @@
 
 (define (date->time d)
   (posix-date->time (date->vector d)))
+
+(define (format-date format d)
+  (os-string->string 
+   (byte-vector->os-string
+    (posix-strftime (x->os-byte-vector format) (date->vector d)))))
 

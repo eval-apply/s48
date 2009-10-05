@@ -75,6 +75,7 @@
 	  time->utc-date
 	  time->local-date
 	  date->time
+	  format-date
 	  ))
 
 (define-interface posix-users-interface

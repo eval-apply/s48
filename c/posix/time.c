@@ -6,7 +6,7 @@
  */
 
 #include <time.h>
-
+#include <stdlib.h>
 #include "scheme48.h"
 
 static s48_ref_t posix_ctime(s48_call_t call, s48_ref_t sch_time);
@@ -16,6 +16,7 @@ static s48_ref_t posix_asctime(s48_call_t call, s48_ref_t sch_t);
 static s48_ref_t posix_localtime(s48_call_t call, s48_ref_t sch_time);
 static s48_ref_t posix_gmtime(s48_call_t call, s48_ref_t sch_time);
 static s48_ref_t posix_mktime(s48_call_t call, s48_ref_t sch_t);
+static s48_ref_t posix_strftime(s48_call_t call, s48_ref_t sch_format, s48_ref_t sch_t);
 
 static s48_ref_t posix_time_type_binding;
 
@@ -35,6 +36,7 @@ s48_init_posix_time(void)
   S48_EXPORT_FUNCTION(posix_localtime);
   S48_EXPORT_FUNCTION(posix_gmtime);
   S48_EXPORT_FUNCTION(posix_mktime);
+  S48_EXPORT_FUNCTION(posix_strftime);
 }
 
 /* ************************************************************ */
@@ -194,3 +196,37 @@ posix_mktime(s48_call_t call, s48_ref_t sch_t)
     return s48_posix_enter_time(call, time);
 }
 
+/* This is really ANSI C, but so is all of the above. */
+
+static s48_ref_t
+posix_strftime(s48_call_t call, s48_ref_t sch_format, s48_ref_t sch_t)
+{
+  struct tm t;
+  extract_tm(call, sch_t, &t);
+
+  char local_buf[1024];
+  char* buf = local_buf;
+  size_t buf_size = 1024;
+  size_t status;
+  for (;;)
+    {
+      status = strftime(buf, buf_size, s48_extract_byte_vector_2(call, sch_format), &t);
+      if (status > 0)
+	{
+	  s48_ref_t result = s48_enter_byte_string_2(call, buf);
+	  if (buf != local_buf)
+	    free(buf);
+	  return result;
+	}
+      else
+	{
+	  if (buf != local_buf)
+	    free(buf);
+	  buf_size *= 2;
+	  buf = malloc(buf_size * sizeof(char));
+	  if (buf == NULL)
+	    s48_out_of_memory_error_2(call);
+	}
+    }
+  
+}
