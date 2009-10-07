@@ -80,51 +80,54 @@
 ; --------------------
 ; Built-in Scheme types
 
-(define-simple-type :syntax    () #f)
-(define-simple-type :values    () #f)    ;any number of values
+; We don't call them :<type> because some of these would conflict with
+; the types from the `types' structure.
+
+(define-simple-type <syntax>    () #f)
+(define-simple-type <values>    () #f)    ;any number of values
 
 (define (value? x) #t)
-(define-simple-type :value     (:values) value?)
-(define-simple-type :zero      (:values) (lambda (x) #f))
+(define-simple-type <value>     (<values>) value?)
+(define-simple-type <zero>      (<values>) (lambda (x) #f))
 
-(define-simple-type :number    (:value) number?)
-(define-simple-type :complex   (:number) complex?)
-(define-simple-type :real      (:complex) real?)
-(define-simple-type :rational  (:real) rational?)
-(define-simple-type :integer   (:rational) integer?)
-(define-simple-type :exact-integer (:integer)
+(define-simple-type <number>    (<value>) number?)
+(define-simple-type <complex>   (<number>) complex?)
+(define-simple-type <real>      (<complex>) real?)
+(define-simple-type <rational>  (<real>) rational?)
+(define-simple-type <integer>   (<rational>) integer?)
+(define-simple-type <exact-integer> (<integer>)
   (lambda (n) (and (integer? n) (exact? n))))
 
-(define-simple-type :boolean   (:value) boolean?)
-(define-simple-type :symbol    (:value) symbol?)
-(define-simple-type :char      (:value) char?)
-(define-simple-type :null      (:value) null?)
-(define-simple-type :pair      (:value) pair?)
-(define-simple-type :vector    (:value) vector?)
-(define-simple-type :string    (:value) string?)
-(define-simple-type :procedure (:value) procedure?)
+(define-simple-type <boolean>   (<value>) boolean?)
+(define-simple-type <symbol>    (<value>) symbol?)
+(define-simple-type <char>      (<value>) char?)
+(define-simple-type <null>      (<value>) null?)
+(define-simple-type <pair>      (<value>) pair?)
+(define-simple-type <vector>    (<value>) vector?)
+(define-simple-type <string>    (<value>) string?)
+(define-simple-type <procedure> (<value>) procedure?)
 
-(define-simple-type :input-port  (:value) input-port?)
-(define-simple-type :output-port (:value) output-port?)
-(define-simple-type :eof-object	 (:value) eof-object?)
+(define-simple-type <input-port>  (<value>) input-port?)
+(define-simple-type <output-port> (<value>) output-port?)
+(define-simple-type <eof-object>	 (<value>) eof-object?)
 
 ; If there is no RECORD? predicate, do
-;   (define-simple-type :record	 (:value) value?)
+;   (define-simple-type <record>	 (<value>) value?)
 ; and change the DISCLOSE method for records to
 ;   (or (disclose-record obj) (next-method)).
 
-(define-simple-type :record	 (:value) record?)
+(define-simple-type <record>	 (<value>) record?)
 
 ; If record types are not records, un-comment the following line.
-; (define-simple-type :record-type (:value) record-type?)
+; (define-simple-type :record-type (<value>) record-type?)
 
 ; Given a record type, RECORD-TYPE-PRIORITY returns its priority.
 ; Here we establish that every record type is a direct subtype of the
-; :RECORD type.
+; <RECORD> type.
 
 (define record-type-priority
   (let ((r-priority
-	 (simple-type-priority (make-simple-type (list :record) #f #f))))
+	 (simple-type-priority (make-simple-type (list <record>) #f #f))))
     (lambda (rt) r-priority)))
 
 ; --------------------
@@ -392,7 +395,7 @@
 		      (?formal ...) (?type ...) ?next
 		      . ?rest)
      (method-internal ?specs
-		      (?formal ... ?spec) (?type ... :value) ?next
+		      (?formal ... ?spec) (?type ... <value>) ?next
 		      . ?rest))
 
     ((method-internal ?rest
@@ -448,7 +451,7 @@
 
 (define-generic type-superiors &type-superiors (t))
 
-(define-method &type-superiors ((t :record-type)) (list :record))
+(define-method &type-superiors ((t :record-type)) (list <record>))
 (define-method &type-superiors ((t :simple-type)) (simple-type-superiors t))
 
 
@@ -497,7 +500,7 @@
 
 (define-method &disclose (obj) #f)
 
-(define-method &disclose ((obj :record))
+(define-method &disclose ((obj <record>))
   (or (disclose-record obj)
       '(record)))
 

@@ -323,7 +323,7 @@
 	reduce
 	(modify posix-regexps (rename (make-regexp make-posix-regexp)))
 	posix-regexps-internal
-	util)			;every
+	(subset util (every)))
   (optimize auto-integrate)
   (files func-regexp))
 

@@ -43,9 +43,9 @@
     (set-environment-for-commands! p)))
 
 (define (get-reflective-tower env)    ;Returns promise of (eval . env)
-  (environment-macro-eval (if (package? env)
-			      (package->environment env)
-			      env)))	;Mumble
+  (comp-env-macro-eval (if (package? env)
+			   (package->environment env)
+			   env)))	;Mumble
 
 
 ; load-package
@@ -326,7 +326,10 @@
 ; Exec package
 
 (define (make-exec-package commands tower built-in)
-  (make-simple-package (list commands (*structure-ref built-in 'scheme))
+  (make-simple-package (list commands
+			     ;; we want the `load' from `usual-commands'
+			     (make-modified-structure (*structure-ref built-in 'scheme)
+						      '((hide load))))
 		       #t		;unstable?
 		       tower
 		       'exec))

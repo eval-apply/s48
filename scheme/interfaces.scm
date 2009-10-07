@@ -125,8 +125,8 @@
 	  set-transport-link-cell-next!
 	  write-byte
 	  write-char
-	  encode-char
-	  decode-char))
+	  char->utf
+	  utf->char))
 
 (define-interface syntax-transformers-interface
   (export make-explicit-renaming-transformer/4
@@ -444,28 +444,28 @@
   (export (define-generic :syntax)
 	  (define-method :syntax)
 	  (define-simple-type :syntax)
-	  :values
-	  :value
-	  :number
-	  :complex
-	  :real
-	  :rational
-	  :integer
-	  :exact-integer
-	  :boolean
-	  :symbol
-	  :char
-	  :null
-	  :pair
-	  :vector
-	  :string
-	  :procedure
-	  :input-port
-	  :output-port
-	  :eof-object
-	  :record
+	  <values>
+	  <value>
+	  <number>
+	  <complex>
+	  <real>
+	  <rational>
+	  <integer>
+	  <exact-integer>
+	  <boolean>
+	  <symbol>
+	  <char>
+	  <null>
+	  <pair>
+	  <vector>
+	  <string>
+	  <procedure>
+	  <input-port>
+	  <output-port>
+	  <eof-object>
+	  <record>
 	  :record-type
-	  :zero
+	  <zero>
 	  singleton
 	  disclose &disclose))
 
@@ -780,7 +780,7 @@
 	  maybe-commit-and-make-ready
 	  maybe-commit-no-interrupts
 	  spawn-on-scheduler spawn-on-root
-	  wait
+	  wait-for-event
 	  upcall propogate-upcall
 	  interrupt-thread
 	  kill-thread!
@@ -910,7 +910,7 @@
 	  continuation-code
 	  continuation-template
 	  continuation?
-	  :continuation
+	  <continuation>
 
 	  vm-exception-continuation?
 	  vm-exception-continuation-exception
@@ -950,7 +950,7 @@
 	  set-global-translation!
 	  set-translation!
 	  make-translations with-translations
-	  translations))
+	  current-translations))
 
 ; Things for the compiler.
 
@@ -978,7 +978,7 @@
   (export usual-transform))
 
 (define-interface meta-types-interface
-  (export same-type?
+  (export ; same-type? ; conflicts with `same-type?' from methods
 	  subtype?
 	  meet?
 	  join-type
@@ -1111,10 +1111,10 @@
 	  bind-source-file-name	; re-exported by syntactic
 	  source-file-name
 
-	  environment-macro-eval
-	  environment-define!
+	  comp-env-macro-eval
+	  comp-env-define!
 
-	  extract-package-from-environment))	; temporary
+	  extract-package-from-comp-env))	; temporary
 
 (define-interface syntactic-interface
   (export expand

@@ -81,7 +81,7 @@
   (open scheme test-suites matchers tlc-tables
 	weak 
 	define-record-types
-        (subset srfi-1 (member find))
+        (subset srfi-1 (find))
 	(subset srfi-13 (string=))
         srfi-27         ; sources of random bits
         srfi-28         ; basic format strings

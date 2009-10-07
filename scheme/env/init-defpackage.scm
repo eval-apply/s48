@@ -8,15 +8,15 @@
 ; a DEFINE-STRUCTURE form is evaluated.
 
 (define-reflective-tower-maker
-  (let ((environment-macro-eval
-	  (*structure-ref compiler-envs 'environment-macro-eval))
+  (let ((comp-env-macro-eval
+	  (*structure-ref compiler-envs 'comp-env-macro-eval))
 	(make-simple-interface
 	  (*structure-ref interfaces 'make-simple-interface))
 	(env (interaction-environment)))
     (lambda (clauses id)
       (if (null? clauses)
 	  ;; (make-reflective-tower eval (list scheme) id)
-	  (environment-macro-eval (package->environment env))
+	  (comp-env-macro-eval (package->environment env))
 	  (delay
 	    (let ((package (eval `(a-package ,(if id
 						  `(for-syntax ,id)

@@ -840,7 +840,7 @@
   (export sorted? merge merge! sort sort!))
 
 (define-structure srfi-95 srfi-95-interface
-  (open scheme srfi-63
+  (open (modify scheme (hide equal?)) srfi-63
 	(modify sorting (prefix olin:))
 	(modify list-merge-sort (prefix olin:))
 	(modify vector-merge-sort (prefix olin:)))

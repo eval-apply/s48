@@ -112,10 +112,10 @@
 
 ; Define disclosers that are most important for error messages.
 
-(define-method &disclose ((obj :closure))
+(define-method &disclose ((obj <closure>))
   (list 'procedure (template-ref (closure-template obj) 1)))
 
-(define-method &disclose ((obj :location))
+(define-method &disclose ((obj <location>))
   (list 'location (location-id obj)))
 
 ; (put 'with-handler 'scheme-indent-hook 1)

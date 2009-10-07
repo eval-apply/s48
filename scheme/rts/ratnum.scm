@@ -5,10 +5,10 @@
 ; Rational arithmetic
 ; Assumes that +, -, etc. perform integer arithmetic.
 
-(define-simple-type :exact-rational (:rational :exact)
+(define-simple-type <exact-rational> (<rational> <exact>)
   (lambda (n) (and (rational? n) (exact? n))))
 
-(define-extended-number-type :ratnum (:exact-rational :exact) ;?
+(define-extended-number-type <ratnum> (<exact-rational> <exact>) ;?
   (make-ratnum num den)
   ratnum?
   (num ratnum-numerator)
@@ -97,27 +97,27 @@
 
 ; Extend the generic number procedures
 
-(define-method &rational? ((n :ratnum)) #t)
+(define-method &rational? ((n <ratnum>)) #t)
 
-(define-method &numerator   ((n :ratnum)) (ratnum-numerator n))
-(define-method &denominator ((n :ratnum)) (ratnum-denominator n))
+(define-method &numerator   ((n <ratnum>)) (ratnum-numerator n))
+(define-method &denominator ((n <ratnum>)) (ratnum-denominator n))
 
-(define-method &exact? ((n :ratnum)) #t)
+(define-method &exact? ((n <ratnum>)) #t)
 
-;(define-method &exact->inexact ((n :ratnum))
+;(define-method &exact->inexact ((n <ratnum>))
 ;  (/ (exact->inexact (numerator n))
 ;     (exact->inexact (denominator n))))
 
-;(define-method &inexact->exact ((n :rational))  ;?
+;(define-method &inexact->exact ((n <rational>))  ;?
 ;  (/ (inexact->exact (numerator n))
 ;     (inexact->exact (denominator n))))
 
-(define-method &/ ((m :exact-integer) (n :exact-integer))
+(define-method &/ ((m <exact-integer>) (n <exact-integer>))
   (integer/ m n))
 
 (define (define-ratnum-method mtable proc)
-  (define-method mtable ((m :ratnum) (n :exact-rational)) (proc m n))
-  (define-method mtable ((m :exact-rational) (n :ratnum)) (proc m n)))
+  (define-method mtable ((m <ratnum>) (n <exact-rational>)) (proc m n))
+  (define-method mtable ((m <exact-rational>) (n <ratnum>)) (proc m n)))
 
 (define-ratnum-method &+ rational+)
 (define-ratnum-method &- rational-)
@@ -126,16 +126,16 @@
 (define-ratnum-method &= rational=)
 (define-ratnum-method &< rational<)
 
-(define-method &floor ((m :ratnum)) (rational-floor m))
+(define-method &floor ((m <ratnum>)) (rational-floor m))
 
-;(define-method &sqrt ((p :ratnum))
+;(define-method &sqrt ((p <ratnum>))
 ;  (if (< p 0)
 ;      (next-method)
 ;      (integer/ (sqrt (numerator p))
 ;                (sqrt (denominator p)))))
 
 
-(define-method &number->string ((p :ratnum) radix)
+(define-method &number->string ((p <ratnum>) radix)
   (string-append (number->string (ratnum-numerator p) radix)
 		 "/"
 		 (number->string (ratnum-denominator p) radix)))

@@ -4,7 +4,7 @@
 
 ;;;; Extended number support
 
-(define-simple-type :extended-number (:number) extended-number?)
+(define-simple-type <extended-number> (<number>) extended-number?)
 
 (define-record-type extended-number-type :extended-number-type
   (really-make-extended-number-type field-names supers priority predicate id)
@@ -25,7 +25,7 @@
 	       supers
 	       (+ (apply max
 			 (map type-priority
-			      (cons :extended-number supers)))
+			      (cons <extended-number> supers)))
 		  10)
 	       (lambda (x)
 		 (and (extended-number? x)
@@ -171,17 +171,17 @@
 (define-method &complex?  (x) (real? x))
 (define-method &number?   (x) (complex? x))
 
-(define-method &real-part ((x :real)) x)
+(define-method &real-part ((x <real>)) x)
 
-(define-method &imag-part ((x :real))
+(define-method &imag-part ((x <real>))
   (if (exact? x) 0 (exact->inexact 0)))
 
-(define-method &magnitude ((x :real))
+(define-method &magnitude ((x <real>))
   (abs x))
 
 (define pi (delay (* 2 (asin 1)))) ; can't compute at build time
 
-(define-method &angle ((x :real))
+(define-method &angle ((x <real>))
   (cond
    ((positive? x)
     (if (exact? x)
@@ -191,11 +191,11 @@
    ((exact? x)    (assertion-violation 'angle "invalid argument to angle" x))
    (else x)))
 
-(define-method &floor ((n :integer)) n)
+(define-method &floor ((n <integer>)) n)
 
-(define-method &numerator ((n :integer)) n)
+(define-method &numerator ((n <integer>)) n)
 
-(define-method &denominator ((n :integer))
+(define-method &denominator ((n <integer>))
   (if (exact? n) 1 (exact->inexact 1)))
 
 ; Make sure this has very low priority, so that it's only tried as a
@@ -235,15 +235,15 @@
 		    (exact->inexact m))
 		   (else m)))))))
 
-(define-simple-type :exact (:number)
+(define-simple-type <exact> (<number>)
   (lambda (n) (and (number? n) (exact? n))))
 
-(define-method &inexact->exact ((n :exact)) n)
+(define-method &inexact->exact ((n <exact>)) n)
 
-(define-simple-type :inexact (:number)
+(define-simple-type <inexact> (<number>)
   (lambda (n) (and (number? n) (inexact? n))))
 
-(define-method &exact->inexact ((n :inexact)) n)
+(define-method &exact->inexact ((n <inexact>)) n)
 
 ; Whattakludge.
 

@@ -29,7 +29,7 @@
 		       n
 		       radix))
 
-(define-method &number->string ((n :exact-integer) radix)
+(define-method &number->string ((n <exact-integer>) radix)
   (integer->string n radix))
 
 (define integer->string    ;Won't necessarily work if n is inexact
@@ -138,7 +138,7 @@
 
 ; Read exact integers
 
-(define-simple-type :integer-string (:string)
+(define-simple-type <integer-string> (<string>)
   (lambda (s)
     (and (string? s)
 	 (let loop ((i (- (string-length s) 1)))
@@ -154,7 +154,7 @@
 			       (or (char=? c #\+) (or (char=? c #\-)))))
 		      (loop (- i 1)))))))))
 
-(define-method &really-string->number ((string :integer-string) radix xact?)
+(define-method &really-string->number ((string <integer-string>) radix xact?)
   (let ((n (string->integer string radix)))
     (if n
 	(set-exactness n xact?)

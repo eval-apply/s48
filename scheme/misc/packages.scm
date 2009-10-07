@@ -93,7 +93,7 @@
 	  <function>
 	  <generic-function>
 	  <method>
-	  <class>
+	  :class
 
 	  <object>
 	  <number>

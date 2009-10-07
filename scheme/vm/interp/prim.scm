@@ -22,7 +22,7 @@
   (fixnum->)
   (lambda (x)
     (if (scalar-value? x)
-	(goto return (scalar-value->char x))
+	(goto return (scalar-value->vm-char x))
 	(raise-exception wrong-type-argument 0 (enter-fixnum x)))))
 
 (define-primitive scalar-value?
@@ -41,7 +41,7 @@
 		 (> (+ start count) (code-vector-length buffer)))
 	     (raise-exception wrong-type-argument 0
 			      (enter-fixnum encoding)
-			      (scalar-value->char value)
+			      (scalar-value->vm-char value)
 			      buffer (enter-fixnum start) (enter-fixnum count))
 	     (call-with-values
 		 (lambda () 
@@ -56,13 +56,13 @@
 		     (raise-exception bad-option 0
 				      (enter-fixnum encoding)))))))))))
 
-(define-encode-char encode-char
+(define-encode-char char->utf
   (lambda (ok? out-of-space? count)
     (push (enter-boolean (and ok? (not out-of-space?))))
     (push (if ok? (enter-fixnum count) false))
     (goto return-values 2 null 0)))
 
-(define-encode-char encode-char!
+(define-encode-char char->utf!
   (lambda (ok? out-of-space? count)
     (goto return unspecific-value)))
 
@@ -89,22 +89,22 @@
 			 (lambda () (values ok? incomplete? value count))
 		       ?cont))))))))))
 
-(define-decode-char decode-char
+(define-decode-char utf->char
   (lambda (ok? incomplete? value count)
     (push (if (and ok? (not incomplete?))
-	      (scalar-value->char value)
+	      (scalar-value->vm-char value)
 	      false))
     (push (if ok? (enter-fixnum count) false))
     (goto return-values 2 null 0)))
 
 ; this makes limited sense: we only get the exception side effect
-(define-decode-char decode-char!
+(define-decode-char utf->char!
   (lambda (ok? incomplete? value count)
     (goto return unspecific-value)))
 
 (define-primitive eof-object?
   (any->)
-  (lambda (x) (vm-eq? x eof-object))
+  (lambda (x) (vm-eq? x vm-eof-object))
   return-boolean)
 
 ;----------------
@@ -272,7 +272,7 @@
 	   (raise-exception index-out-of-range 0
 			    vector (enter-fixnum index) (enter-elt char))))))
 
-(let ((proc (make-byte-setter vm-string-set! vm-string-length scalar-value->char)))
+(let ((proc (make-byte-setter vm-string-set! vm-string-length scalar-value->vm-char)))
   (define-primitive string-set! (string-> fixnum-> char-scalar-value->) proc))
 
 (let ((proc (make-byte-setter code-vector-set! code-vector-length enter-fixnum)))
@@ -314,7 +314,7 @@
 			       (lambda (string length)
 				 0)
 			       vm-string-set!
-			       scalar-value->char
+			       scalar-value->vm-char
 			       #f)))
   (define-primitive make-string (fixnum-> char-scalar-value->) proc))
   
@@ -387,7 +387,7 @@
 
 (define-primitive eof-object ()
   (lambda ()
-    (goto return eof-object)))
+    (goto return vm-eof-object)))
 
 (define-primitive trap (any->)
   (lambda (arg)
@@ -595,7 +595,7 @@
                (i (- n 1) (- i 1)))
               ((< i 0)
 	       (goto return obj))
-            (vm-string-set! obj i (char->scalar-value (vm-car l))))))))
+            (vm-string-set! obj i (vm-char->scalar-value (vm-car l))))))))
 
 (define-primitive string-hash (string->) vm-string-hash return-fixnum)
 

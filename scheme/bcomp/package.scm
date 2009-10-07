@@ -74,7 +74,8 @@
 	 (new-struct (make-structure (structure-package structure)
 				     (lambda ()
 				       (interface-maker
-				         (structure-interface structure))))))
+				         (structure-interface structure)))
+				    (structure-name structure))))
     (if (structure-unstable? structure)
 	(add-to-population! new-struct (structure-clients structure)))
     new-struct))
@@ -396,6 +397,7 @@
 (define (initialize-package! package)
   (let ((opens ((package-opens-thunk package))))
     (set-package-opens! package opens)
+    (check-for-duplicates! package)
     (for-each (lambda (struct)
 		(if (structure-unstable? struct)
 		    (add-to-population! package (structure-clients struct))))
@@ -409,9 +411,35 @@
 			       (cdr name+struct)))
 	    (package-accesses package)))
 
+(define (check-for-duplicates! package)
+  (let ((imported-names (make-symbol-table)) ; maps names to pair of first binding, lists of structures
+	(duplicates '()))
+    (for-each (lambda (struct)
+		(for-each-export 
+		 (lambda (name type binding)
+		   (cond
+		    ((table-ref imported-names name)
+		     => (lambda (p)
+			  (if (not (same-denotation? (car p) binding))
+			      (begin
+				(set! duplicates (cons name duplicates))
+				(if (not (memq struct (cdr p)))
+				    (set-cdr! p (cons struct (cdr p))))))))
+		    (else
+		     (table-set! imported-names name (cons binding (list struct))))))
+		 struct))
+	      (package-opens package))
+    (for-each (lambda (duplicate)
+		(apply warning 'check-for-duplicates!
+		       "duplicate name in opened structure"
+		       duplicate
+		       package
+		       (cdr (table-ref imported-names duplicate))))
+	      duplicates)))
+
 ; (define (package->environment? env)
 ;   (eq? env (package->environment
-;	        (extract-package-from-environment env))))
+;	        (extract-package-from-comp-env env))))
 
 
 ; --------------------

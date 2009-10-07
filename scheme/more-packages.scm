@@ -69,7 +69,7 @@
         methods exceptions
 	enumerated
 	loopholes
-	more-types		;:double
+	more-types		;<double>
         primitives)             ;vm-extension double?
   (files (rts floatnum))
   (optimize auto-integrate))
@@ -133,13 +133,13 @@
 ; Transport Link Cell Tables
 
 (define-structure tconc-queues tconc-queues-interface
-  (open scheme-level-1 low-exceptions)
+  (open scheme-level-1 exceptions)
   (files (big tconc-queue))
   (optimize auto-integrate))
 
 (define-structure tlc-tables tlc-tables-interface
   (open scheme-level-1 
-        low-exceptions
+        exceptions
         define-record-types
         tconc-queues
         (subset primitives   (make-transport-link-cell
@@ -185,7 +185,7 @@
 (define-structure pp (export p pretty-print define-indentation)
   (open scheme-level-2
         tables
-        methods)               ;disclose
+        (subset methods (disclose)))
   (files (big pp)))
 
 (define-structure formats (export format)
@@ -200,7 +200,7 @@
 	proposals
 	util				; unspecific
 	exceptions
-	(subset primitives      (copy-bytes! write-byte encode-char decode-char))
+	(subset primitives      (copy-bytes! write-byte char->utf utf->char))
 	(subset architecture    (text-encoding-option))
 	enumerated
 	encodings
@@ -387,7 +387,7 @@
         fluids
         ascii
         bitwise
-        methods                 ;disclose
+        (subset methods (disclose))
         templates)              ;template-info
   (files (big dump)))
 

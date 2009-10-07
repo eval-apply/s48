@@ -1,5 +1,7 @@
 (define-structure srfi-13-test (export srfi-13-tests)
-  (open scheme test-suites matchers
+  (open (modify scheme
+		(hide string-fill! string->list string-copy))
+	test-suites matchers
 	srfi-13)
   (files srfi-13-check))
 
@@ -18,7 +20,7 @@
   (files srfi-19-check))
 
 (define-structure srfi-95-test (export srfi-95-tests)
-  (open scheme test-suites srfi-63 srfi-95)
+  (open (modify scheme (hide equal?)) test-suites srfi-63 srfi-95)
   (files srfi-95-check))
 
 (define-structure portable-srfi-test (export portable-srfi-tests)
