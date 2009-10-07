@@ -38,14 +38,13 @@ extern long s48_get_file_size(unsigned char *);
 extern void	s48_sysdep_init(void);
 extern void	s48_initialize_external_modules(void);
 
-int
-s48_main(int argc, char *argv[])
+long
+s48_initialize(int *argcp, char *argv[])
 {
   char *image_name = DEFAULT_IMAGE_NAME;
   long heap_size = DEFAULT_HEAP_SIZE;    /* in numbers of cells */
   long stack_size = DEFAULT_STACK_SIZE;  /* in numbers of cells */
   int errors = 0;
-  long return_value;
   char *stack;
 
 #if defined(STATIC_AREAS)
@@ -56,7 +55,8 @@ s48_main(int argc, char *argv[])
   extern long i_count, *i_areas[], i_sizes[];
 #endif
 
-  long vm_argc = 0;
+  int argc = *argcp;
+  int vm_argc = 0;
   char *me = *argv;		/* Save program name. */
 
   {
@@ -166,7 +166,7 @@ Options: -h <heap-size>    %s heap size in words (default %ld).%s\n\
   /* Heap und stack are ok. Enable the GC. */
   s48_allow_gcB();
 
-  return_value = s48_call_startup_procedure(argv, vm_argc);
+  argcp = (int *) &vm_argc;
 
-  return(return_value);
+  return 0;
 }
