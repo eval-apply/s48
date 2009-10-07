@@ -62,7 +62,6 @@
 
 (define (make-immutable! thing) thing)
 (define (immutable? thing) #f)
-(define (unspecific) (if #f #f))
 
 ; BITWISE -- use alt/bitwise.scm (!)
 ; ASCII -- use alt/ascii.scm

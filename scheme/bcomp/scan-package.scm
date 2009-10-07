@@ -74,7 +74,7 @@
 				(append (reverse (cdr clause)) transforms)
 				primitives?))
 		       ((reader)
-			(let ((r (force (environment-macro-eval (package->environment package)))))
+			(let ((r (force (comp-env-macro-eval (package->environment package)))))
 			  (set-package-reader! package ((car r) (cadr clause) (cdr r))))
 			(values stuff transforms primitives?))
 		       (else

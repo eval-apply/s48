@@ -4,7 +4,7 @@
 ; --------------------
 ; DISCLOSE methods
 
-(define-method &disclose ((obj :closure))
+(define-method &disclose ((obj <closure>))
   (let ((id (template-id (closure-template obj)))
         (name (template-print-name (closure-template obj))))
     (if name
@@ -23,14 +23,14 @@
               name)
         (list 'procedure id))))
 
-(define-method &disclose ((obj :template))
+(define-method &disclose ((obj <template>))
   (let ((id (template-id obj))
         (name (template-print-name obj)))
     (if name
         (list 'template id name)
         (list 'template id))))
 
-(define-method &disclose ((obj :location))
+(define-method &disclose ((obj <location>))
   (cons 'location
         (cons (location-id obj)
               (let ((name (location-name obj)))
@@ -38,14 +38,14 @@
                     (list name (location-package-name obj))
                     '())))))
 
-(define-method &disclose ((obj :cell))
+(define-method &disclose ((obj <cell>))
   (if (cell-unassigned? obj)
       (list 'uninitialized-cell)
       (list 'cell (cell-ref obj))))
 
 ;; this overwrites the method defined in rts/continuation.scm
 
-(define-method &disclose ((obj :continuation))
+(define-method &disclose ((obj <continuation>))
   (list (if (vm-exception-continuation? obj)
 	    'vm-exception-continuation
 	    'continuation)
@@ -56,7 +56,7 @@
 		  (template-id tem))
 	      '?))))
   
-(define-method &disclose ((obj :code-vector))
+(define-method &disclose ((obj <code-vector>))
  (cons 'byte-vector
        (let ((z (code-vector-length obj)))
          (do ((i (- z 1) (- i 1))
@@ -64,7 +64,7 @@
              ((< i 0) l))))
   )
 
-(define-method &disclose ((obj :channel))
+(define-method &disclose ((obj <channel>))
   (let ((status (channel-status obj)))
     (list (cond ((= status (enum channel-status-option closed))
 		 'closed-channel)
@@ -79,7 +79,7 @@
 	  (channel-id obj)
 	  (channel-os-index obj))))
 
-(define-method &disclose ((obj :port))
+(define-method &disclose ((obj <port>))
   (disclose-port obj))
 
 (define (template-print-name tem)

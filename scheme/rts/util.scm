@@ -6,7 +6,8 @@
 
 ;;;; Utilities
 
-(define (unspecific) (if #f #f))
+; we import something equivalent to this from `primitives':
+; (define (unspecific) (if #f #f))
 
 (define (reduce cons nil list)		;used by length, append, etc.
   (if (null? list)

@@ -150,7 +150,7 @@
 (define (cenv->package cenv)
   (cond ((procedure? cenv)
          ;; This returns #f if package is stable (static linking).
-         (extract-package-from-environment cenv))
+         (extract-package-from-comp-env cenv))
         ((package? cenv)
 	 cenv)
         ((structure? cenv)

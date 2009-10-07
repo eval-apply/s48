@@ -276,7 +276,7 @@
 (define-interface extended-numbers-interface
   (export (define-extended-number-type :syntax)
 	  (define-opcode-extension :syntax)
-	  :exact :inexact
+	  <exact> <inexact>
 	  string-position
 	  &+
 	  &-

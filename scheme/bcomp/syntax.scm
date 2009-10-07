@@ -37,7 +37,7 @@
   (let ((new-form (destructure-define form)))
     (if new-form
 	 (begin
-	   (environment-define! env (cadr new-form) usual-variable-type)
+	   (comp-env-define! env (cadr new-form) usual-variable-type)
 	   new-form)
 	 (syntax-violation 'syntax-rules "ill-formed definition" form))))
 
@@ -53,16 +53,16 @@
 	   (name? (cadr form)))
       (let ((name (cadr form))
 	    (source (caddr form))
-	    (package (extract-package-from-environment env)))
-	(environment-define! env
-			     name
-			     syntax-type
-			     (process-syntax (if (null? (cdddr form))
-						 source
-						 `(cons ,source ',(cadddr form)))
-					     env
-					     name
-					     package))
+	    (package (extract-package-from-comp-env env)))
+	(comp-env-define! env
+			  name
+			  syntax-type
+			  (process-syntax (if (null? (cdddr form))
+					      source
+					      `(cons ,source ',(cadddr form)))
+					  env
+					  name
+					  package))
 	'())
       `(,(syntax-violation 'define-syntax "ill-formed syntax definition" form))))
 
@@ -565,7 +565,7 @@
 	(expand (syntax-violation 'letrec-syntax "invalid expression" exp) env))))
     
 (define (process-syntax form env name env-or-package)
-  (let ((eval+env (force (environment-macro-eval env))))
+  (let ((eval+env (force (comp-env-macro-eval env))))
     (make-transform/macro ((car eval+env) form (cdr eval+env))
 			  env-or-package
 			  syntax-type

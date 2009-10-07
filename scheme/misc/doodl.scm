@@ -9,22 +9,22 @@
 
 ; Tests are in test-doodl.scm.
 
-(define <object>     :value)
-(define <number>     :number)
-(define <complex>    :complex)
-(define <real>	     :real)
-(define <rational>   :rational)
-(define <integer>    :integer)
-(define <pair>	     :pair)
-(define <symbol>     :symbol)
-(define <char>	     :char)
-(define <null>	     :null)
-(define <vector>     :vector)
-(define <string>     :string)
-(define <eof-object> :eof-object)
-(define <function>   :procedure)
-(define <input-port> :input-port)
-(define <output-port> :output-port)
+(define <object>     <value>)
+(define <number>     <number>)
+(define <complex>    <complex>)
+(define <real>	     <real>)
+(define <rational>   <rational>)
+(define <integer>    <integer>)
+(define <pair>	     <pair>)
+(define <symbol>     <symbol>)
+(define <char>	     <char>)
+(define <null>	     <null>)
+(define <vector>     <vector>)
+(define <string>     <string>)
+(define <eof-object> <eof-object>)
+(define <function>   <procedure>)
+(define <input-port> <input-port>)
+(define <output-port> <output-port>)
 
 
 ; --------------------
@@ -176,7 +176,7 @@
 
 ; Instances
 
-(define-record-type instance <instance>
+(define-record-type instance :instance
   (make-instance classes slots)
   instance?
   (classes instance-classes)
@@ -195,7 +195,7 @@
 
 ; Classes
 
-(define-record-type class <class>
+(define-record-type class :class
   (really-make-class classes predicate priority slots id)
   class?
   (classes class-classes)
@@ -204,11 +204,11 @@
   (slots class-slots)
   (id class-id))
 
-(define-record-discloser <class>
+(define-record-discloser :class
   (lambda (c) `(class ,(class-id c))))
 
-(really-define-method &type-predicate ((c <class>)) (class-predicate c))
-(really-define-method &type-priority ((c <class>)) (class-priority c))
+(really-define-method &type-predicate ((c :class)) (class-predicate c))
+(really-define-method &type-priority ((c :class)) (class-priority c))
 
 (define (make-class supers slots id)
   (letrec ((class
@@ -218,7 +218,7 @@
 		   (and (instance? x)
 			(memq class (instance-classes x))))
 		 (if (null? supers)	;Priority
-		     (type-priority <instance>)
+		     (type-priority :instance)
 		     (+ (apply max (map type-priority supers))
 			*increment*))
 		 (unionq slots
@@ -241,7 +241,7 @@
 
 (define-generic-function make (class . key/value-pairs))
 
-(define-method make ((c <class>) . key/value-pairs)
+(define-method make ((c :class) . key/value-pairs)
   (let ((i (make-instance (cons c (class-classes c))
 			  (map (lambda (slot)
 				 (cons slot '*uninitialized*))
@@ -251,7 +251,7 @@
 
 (define-generic-function initialize (i . key/value-pairs))
 
-(define-method initialize ((i <instance>)) (unspecific))
+(define-method initialize ((i :instance)) (unspecific))
 
 
 (define (unionq l1 l2)

@@ -101,7 +101,7 @@
 (define (with-translations translations thunk)
   (let-fluid $translations (make-cell '()) thunk))
 
-(define (translations) (cell-ref (fluid $translations)))
+(define (current-translations) (cell-ref (fluid $translations)))
 (define (set-translations! new)
   (cell-set! (fluid $translations) new))
 
@@ -110,7 +110,7 @@
 	(amend-alist! from to *global-translations*)))
 
 (define (set-translation! from to)
-  (set-translations! (amend-alist! from to (translations))))
+  (set-translations! (amend-alist! from to (current-translations))))
 
 (define (amend-alist! from to alist)
   (let ((probe (assoc from alist)))
@@ -122,7 +122,7 @@
 
 (define (translate name)
   (let ((len (string-length name)))
-    (let loop ((ts (append *global-translations* (translations))))
+    (let loop ((ts (append *global-translations* (current-translations))))
       (if (null? ts)
 	  name
 	  (let* ((from (caar ts))

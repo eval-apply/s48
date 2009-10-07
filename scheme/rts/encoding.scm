@@ -235,7 +235,7 @@
 
 ))))
 
-(define-coding-procs (primitive-encode-char primitive-decode-char)
+(define-coding-procs (char->utf utf->char)
   char-encoding-length/encoding
   string-encoding-length/encoding
   encode-char/encoding

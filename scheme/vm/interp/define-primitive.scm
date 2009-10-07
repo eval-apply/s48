@@ -105,7 +105,7 @@
 (define any->         (input-type (lambda (x) x #t) no-coercion))
 (define fixnum->      (input-type fixnum?      extract-fixnum))
 (define char->        (input-type vm-char?     extract-char))
-(define char-scalar-value-> (input-type vm-char? char->scalar-value))
+(define char-scalar-value-> (input-type vm-char? vm-char->scalar-value))
 (define vm-char->     (input-type vm-char?     no-coercion))
 (define boolean->     (input-type vm-boolean?  extract-boolean))
 (define location->    (input-type location?    no-coercion))
@@ -130,7 +130,7 @@
   (goto return (enter-fixnum x)))
 
 (define (return-scalar-value-char x)
-  (goto return (scalar-value->char x)))
+  (goto return (scalar-value->vm-char x)))
 
 (define (return-unspecific x)
   x ;ignored

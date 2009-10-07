@@ -965,16 +965,16 @@
 					 "unknown compiler continuation" (enumerand->name regular op) cont)))))
 	      (direct-closed-compilator regular))))))
 
-  (define-encode/decode 'encode-char 
+  (define-encode/decode 'char->utf
     (proc (exact-integer-type char-type value-type exact-integer-type exact-integer-type)
 	  (make-some-values-type (list boolean-type value-type)))
     5 2
-    (enum op encode-char) (enum op encode-char!))
+    (enum op char->utf) (enum op char->utf!))
 
-  (define-encode/decode 'decode-char 
+  (define-encode/decode 'utf->char
     (proc (exact-integer-type value-type exact-integer-type exact-integer-type)
 	  (make-some-values-type (list value-type value-type)))
     4 2
-    (enum op decode-char) (enum op decode-char!)))
+    (enum op utf->char) (enum op utf->char!)))
 
   

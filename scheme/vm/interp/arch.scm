@@ -296,11 +296,11 @@
   (checked-record-ref index 3)
   (checked-record-set! index 4)
 
-  (encode-char 5)
-  (encode-char! 5)
+  (char->utf 5)
+  (char->utf! 5)
 
-  (decode-char 4)
-  (decode-char! 4)
+  (utf->char 4)
+  (utf->char! 4)
 
   ;; ports (buffered I/O) - these are all unnecessary
   ;; byte = 0 -> port is supplied

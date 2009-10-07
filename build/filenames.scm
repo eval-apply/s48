@@ -34,7 +34,11 @@
 (define methods 0) 
 (define tables 0) 
 
+(define exceptions #f) ; avoid undefined warning
+
 (flatload linker-structures)
+
+(set! exceptions low-exceptions) ; so we don't have to import low-exceptions in the linker
 
 (define q-f (all-file-names link-config)) 
 

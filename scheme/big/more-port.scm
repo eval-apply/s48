@@ -44,9 +44,9 @@
 
 (define-text-codec utf-8/diy "UTF-8/DIY"
   (lambda (char buffer start count)
-    (encode-char (enum text-encoding-option utf-8) char buffer start count))
+    (char->utf (enum text-encoding-option utf-8) char buffer start count))
   (lambda (buffer start count)
-    (decode-char (enum text-encoding-option utf-8)  buffer start count)))
+    (utf->char (enum text-encoding-option utf-8)  buffer start count)))
 
 ;----------------
 ; Input ports that keep track of the current row and column.

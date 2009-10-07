@@ -428,7 +428,7 @@
 ; Another same thing, except that we have to be careful because we need to
 ; set the current thread's time field to a non-integer.
 
-(define (wait)
+(define (wait-for-event)
   (let ((interrupts (set-enabled-interrupts! no-interrupts)))
     (let ((thread (current-thread)))
       (if (not (and (thread-events thread)

@@ -227,8 +227,7 @@
 	    bitwise
 	    code-vectors
 	    features
-	    records
-	    low-exceptions)
+	    records)
 	   :structure)))
 
 (define-interface low-structures-interface
@@ -240,7 +239,6 @@
 	    code-vectors
 	    features
 	    records
-	    low-exceptions
 	    cells
 	    channels
 	    closures

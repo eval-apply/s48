@@ -91,9 +91,9 @@
 	    exception-continuation-cells
 	    0))))
 
-(define-simple-type :continuation (:value) continuation?)
+(define-simple-type <continuation> (<value>) continuation?)
 
-(define-method &disclose ((obj :continuation))
+(define-method &disclose ((obj <continuation>))
   (list (if (vm-exception-continuation? obj)
 	    'vm-exception-continuation
 	    'continuation)
