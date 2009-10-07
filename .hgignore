@@ -3,7 +3,8 @@ syntax: regexp
 (^|/)\.hg($|/)
 (^|/)\.hgtags($|/)
 .*~$
-\.DS_Store$
+(^|/)\.DS_Store$
+(^|/)\._*
 ^aclocal\.m4$
 ^autom4te\.cache
 ^config\.status$
