@@ -325,7 +325,7 @@ c/bibop/remset.o: c/bibop/remset.h c/bibop/memory.h c/scheme48.h	       \
 # End of BIBOP GC rules
 
 $(VM): c/main.o $(LIBSCHEME48) c/scheme48.exp c/scheme48.def
-	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) -o $@ c/main.o	$(LIBSCHEME48)
+	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) -o $@ c/main.o	$(LIBSCHEME48) $(LIBS)
 	# Cygwin
 	if test -x /usr/bin/dlltool; then \
 		dlltool --dllname $(VM).exe --output-lib $(VM).a --def $(srcdir)/c/scheme48.def; \
