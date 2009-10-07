@@ -538,6 +538,8 @@
 	    r6rs-enums
 	    r6rs-sorting
 	    r6rs-reader
+	    r6rs-reader-command
+	    r6rs-reader-internals
 
 	    ; POSIX packages (see scheme/posix/packages.scm)
 	    posix-files

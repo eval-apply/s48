@@ -212,7 +212,10 @@
 (define-sharp-macro #\#
   (lambda (c port)
     (read-char port)
-    ((fluid $sharp-sharp) port)))
+    ((current-sharp-sharp) port)))
+
+(define (current-sharp-sharp)
+  (fluid $sharp-sharp))
 
 (define $sharp-sharp
   (make-fluid (lambda (port) (reading-error port "## in invalid context"))))
