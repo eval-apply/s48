@@ -22,6 +22,9 @@ LIBOBJS = @LIBOBJS@
 
 GC_OBJS = @GC_OBJS@
 
+ADDITIONAL_EXTERNALS = @ADDITIONAL_EXTERNALS@
+ADDITIONAL_EXTERNAL_OBJS = @ADDITIONAL_EXTERNAL_OBJS@
+
 ASM_OBJECTS = @ASM_OBJECTS@
 ASM_STYLE = @ASM_STYLE@
 
@@ -143,7 +146,7 @@ LIBSCHEME48 = c/libscheme48.a
 POSIX_EXTERNAL = c/posix.so
 SRFI_27_EXTERNAL = c/srfi-27.so
 FFI_TEST_EXTERNAL = c/ffi-test.so
-EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(FFI_TEST_EXTERNAL)
+EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(FFI_TEST_EXTERNAL) $(ADDITIONAL_EXTERNALS)
 UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o
 OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
 	c/extension.o c/free.o c/double_to_string.o c/bignum.o c/ffi.o \
@@ -179,7 +182,8 @@ Makefile: ${srcdir}/Makefile.in config.status
 
 EXTERNAL_OBJECTS = c/net/socket.o c/net/address.o c/net/net.o c/unix/socket.o \
 		   c/unix/dynlink.o \
-		   c/unix/sysexits.o $(ASM_OBJECTS)
+		   c/unix/sysexits.o $(ASM_OBJECTS) \
+		   $(ADDITIONAL_EXTERNAL_OBJS)
 
 # POSIX rules; this could have its own Makefile, but I don't want to bother.
 
