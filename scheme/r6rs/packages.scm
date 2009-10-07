@@ -145,7 +145,9 @@
     (define vector-sort olin:vector-stable-sort)
     (define vector-sort! olin:vector-sort!)))
 
-(define-structure r6rs-reader (export get-datum)
+(define-structures ((r6rs-reader (export get-datum))
+		    (r6rs-reader-internals (export define-sharp-macro 
+						   reading-error)))
   (open (modify scheme (hide read))
 	conditions exceptions
 	byte-vectors
@@ -153,4 +155,14 @@
 	(subset primitives (make-immutable!))
 	(subset silly (reverse-list->string)))
   (files reader)
+  (optimize auto-integrate))
+
+(define-structure r6rs-reader-command (export read-form)
+  (open (modify scheme (hide read))
+	r6rs-reader
+	r6rs-reader-internals
+	conditions exceptions
+	(subset command-processor (with-sharp-sharp current-sharp-sharp))
+	nodes command-state)
+  (files reader-command)
   (optimize auto-integrate))

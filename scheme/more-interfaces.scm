@@ -24,6 +24,8 @@
 	  read-command			;take
 	  read-command-carefully	;inspect
 	  read-form
+	  with-sharp-sharp              ; ##
+	  current-sharp-sharp           ; ##
 	  run-sentinels
 	  set-command-results!
 	  start-command-processor
