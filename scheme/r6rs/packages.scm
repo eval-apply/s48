@@ -129,7 +129,7 @@
 	constant-tables
 	(subset tables (symbol-hash))
 	(subset names (desyntaxify))
-	code-quote)
+	code-quotation)
   (files enum))
 
 (define-interface r6rs-sorting-interface

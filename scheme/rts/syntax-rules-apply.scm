@@ -78,11 +78,7 @@
              (append (map (lambda (var)
                             (cons var
                                   (map (lambda (env)
-					 ;; Normally, the assq works.
-					 ;; However, reification breaks identity, which is where
-					 ;; we need to revert to assoc.
-                                         (cdr (or (assq var env) ; fast
-						  (assoc var env)))) ; slow
+                                         (cdr (assq var env)))
                                        envs)))
                           (ellipsis-form-vars pattern))
                      pattern-env)))
@@ -106,8 +102,7 @@
           ((name? template)
            (rename template))
           ((pattern-variable? template)
-           (cdr (or (assq template pattern-env) ; fast
-		    (assoc template pattern-env)))) ; slow
+           (cdr (assq template pattern-env)))
           ((ellipsis-form? template)
            (rewrite-ellipsis label lose template pattern-env))
           ((vector-marker? template)
@@ -120,8 +115,7 @@
   (let ((template (ellipsis-form-body template))
         (vars     (ellipsis-form-vars template)))
     (let ((vals (map (lambda (var)
-                       (reverse (cdr (or (assq var pattern-env) ; fast
-					 (assoc var pattern-env))))) ; slow
+                       (reverse (cdr (assq var pattern-env))))
                      vars)))
       (if (or (null? (cdr vals))
               (apply = (map length vals)))

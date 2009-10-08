@@ -242,7 +242,7 @@
 	    cells
 	    channels
 	    closures
-	    code-quote
+	    code-quotation
 	    escapes
 	    locations
 	    loopholes
@@ -415,6 +415,7 @@
 	    bignums ratnums recnums floatnums
 	    build
 	    callback
+	    code-quote ; compatibility to earlier versions
 	    command-levels
 	    command-processor
 	    command-state

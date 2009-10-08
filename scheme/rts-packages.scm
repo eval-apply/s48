@@ -9,7 +9,8 @@
   (open scheme-level-0 ascii low-exceptions
 	(subset primitives (unspecific))
         bitwise
-	code-quote syntax-transformers)			; needed by SYNTAX-RULES
+	debug-messages
+	code-quotation syntax-transformers)			; needed by SYNTAX-RULES
   (usual-transforms case quasiquote syntax-rules)
   (files (rts charmap)
 	 (rts base)

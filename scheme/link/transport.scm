@@ -87,11 +87,15 @@
 
 (define *locations* #f)  ; Table of already-transported locations
 
+; We need to preserve sharing of vectors because `syntax-rules' relies on it.
+(define *vector-alist* #f) ; Table of already-transported vectors
+
 (define (initialize-memory)
   (set! *hp*      0)
   (set! *heap*    '())
   (set! *symbols* (make-table))
-  (set! *locations* (make-table location-id)))
+  (set! *locations* (make-table location-id))
+  (set! *vector-alist* '()))
 
 ; Allocate a new stored object in the heap.  DATA is whatever data is
 ; associated with the object, LEN is the length of the object (not
@@ -228,13 +232,18 @@
                          #t))  ;***
 
 (define (transport-vector-like vector type length ref immutable?)
-  (let* ((data (allocate-d-vector type length immutable?))
-         (descriptor (car data))
-         (new (cdr data)))
-    (do ((i 0 (+ i 1)))
-        ((>= i length))
-      (vector-set! new i (transport (ref vector i) vector type)))
-    descriptor))
+  (cond
+   ((assq vector *vector-alist*)
+    => cdr)
+   (else
+    (let* ((data (allocate-d-vector type length immutable?))
+	   (descriptor (car data))
+	   (new (cdr data)))
+      (do ((i 0 (+ i 1)))
+	  ((>= i length))
+	(vector-set! new i (transport (ref vector i) vector type)))
+      (set! *vector-alist* (cons (cons vector descriptor) *vector-alist*))
+      descriptor))))
 
 ;==============================================================================
 ; Writing the heap out to a port.

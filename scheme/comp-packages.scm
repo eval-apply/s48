@@ -94,7 +94,7 @@
   (open scheme-level-2
 	names		;name?
 	fluids		;used in definition of %file-name%
-	code-quote
+	code-quotation
 	syntax-rules-compiler
 	util
 	tables 
