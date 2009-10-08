@@ -27,12 +27,14 @@
 	 weak
 	 contin))
 
-(define-structure code-quote (export (code-quote :syntax))
+; NB: Our syntax-rules implementation really wants a quote here that
+; preserves sharing.  Scheme 48 doesn't traditionally do this.
+(define-structure code-quotation (export (code-quote :syntax))
   (open scheme-level-2)
   (begin
     (define-syntax code-quote
       (lambda (e r c)
-	`(,(r 'quote) ,(cadr e))))))
+	e)))) ; this version should never get called
 
 (define-structure syntax-transformers syntax-transformers-interface
   (open scheme-level-2)

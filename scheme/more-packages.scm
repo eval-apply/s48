@@ -462,7 +462,7 @@
 
 (define-structure finite-types (export ((define-finite-type
 					 define-enumerated-type) :syntax))
-  (open scheme-level-2 code-quote define-record-types
+  (open scheme-level-2 code-quotation define-record-types
 	enumerated
 	features)		; make-immutable
   (files (big finite-type)))
@@ -536,4 +536,5 @@
   (syntax-rules () ((define-package . ?rest) (define-structures . ?rest))))
 (define table tables)
 (define record records)
-
+; It used to be called `code-quote', so this is the name the linker imports.
+(define code-quote code-quotation)

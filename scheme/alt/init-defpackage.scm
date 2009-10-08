@@ -19,13 +19,9 @@
 		  (lambda (code inserted)
 		    ;; Pair of the procedure and list of auxiliary names
 		    (cons
-		     (eval `(let-syntax ((code-quote
-					  (syntax-rules ()
-					    ((code-quote ?thing) '?thing))))
-			      ;; turn 4-arg transformer into 3-arg transformer
-			      (let ((transformer ,code))
-				(lambda (exp rename compare)
-				  (transformer exp name? rename compare))))
+		     (eval `(let ((transformer ,code))
+			      (lambda (exp rename compare) ; turn 4-arg transformer into 3-arg transformer
+				(transformer exp name? rename compare)))
 			   env)
 		     inserted)))
 		exp))
@@ -43,6 +39,3 @@
 
 (define-reader read)
 
-(define-syntax code-quote
-  (syntax-rules ()
-    ((code-quote ?thing) '?thing)))
