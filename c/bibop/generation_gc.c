@@ -380,17 +380,19 @@ static unsigned long calc_generation_other_space_size(Generation* g) {
 
 /* FPage 6 - 7 - 8 */
 inline static void init_areas(int count) {
-  int i, j, x, y;
+  int i, current_target, 
+    creation_space_target_small_below_generation_index, 
+    creation_space_target_generation_index;
   unsigned long current_size;
 
   /* Generation indices for the creation_space */
 #if (S48_GENERATIONS_COUNT > 1)
-  x = 1;
+  creation_space_target_small_below_generation_index = 1;
 #else
-  x = 0;
+  creation_space_target_small_below_generation_index = 0;
 #endif
 
-  y = 0;
+  creation_space_target_generation_index = 0;
 
   /* REMARK: At the very first collection, the image is loaded, which
      has source compiled code that rarely changes. At this point there
@@ -404,8 +406,8 @@ inline static void init_areas(int count) {
 
 #if (S48_USE_STATIC_SPACE)
   if (s48_gc_count() == 0) {
-    x = S48_GENERATIONS_COUNT - 1;
-    y = x;
+    creation_space_target_small_below_generation_index = S48_GENERATIONS_COUNT - 1;
+    creation_space_target_generation_index = creation_space_target_small_below_generation_index;
   }
 #endif
 
@@ -415,7 +417,8 @@ inline static void init_areas(int count) {
      collection will be moved into an older generation */
   if (creation_space.small_below != NULL) {     
     assert(creation_space.small_below->next == NULL);
-    creation_space.small_below->target_space = generations[x].current_space;
+    creation_space.small_below->target_space = 
+      generations[creation_space_target_small_below_generation_index].current_space;
     creation_space.small_below->action = GC_ACTION_COPY_SMALL;
   }
   /* the objects of the small_above area, large area and weaks area,
@@ -423,16 +426,17 @@ inline static void init_areas(int count) {
      the youngest (first) generation, to be soon recollected */
   if (creation_space.small_above != NULL) {
     assert(creation_space.small_above->next == NULL);
-    creation_space.small_above->target_space = generations[y].current_space;
+    creation_space.small_above->target_space = 
+      generations[creation_space_target_generation_index].current_space;
     creation_space.small_above->action = GC_ACTION_COPY_SMALL;
   }
   
   assert(creation_space.weaks->next == NULL);
-  creation_space.weaks->target_space = generations[y].current_space;
+  creation_space.weaks->target_space = generations[creation_space_target_generation_index].current_space;
   creation_space.weaks->action = GC_ACTION_COPY_WEAK;
   
   FOR_ALL_AREAS(creation_space.large,
-		area->target_space = generations[y].current_space;
+		area->target_space = generations[creation_space_target_generation_index].current_space;
 		area->action = GC_ACTION_MARK_LARGE );
   
   /* FPage 7 */
@@ -491,19 +495,19 @@ inline static void init_areas(int count) {
     
 #if (S48_PROMOTION_THRESHOLD)
     
-    j = ( (current_size - generations[i].last_size)
+    current_target = ( (current_size - generations[i].last_size)
 	  > S48_PROMOTION_THRESHOLD) 
       ? i + 1  
       : i;
     
 #elif (S48_PROMOTION_HEAP_LIMIT)
     /* Look  out! Spaces are allready swapped !!! */
-    j = (current_size > S48_PROMOTION_HEAP_LIMIT)
+    current_target = (current_size > S48_PROMOTION_HEAP_LIMIT)
       ? i + 1
       : i;
     
 #elif (S48_PROMOTION_AGE_LIMIT)
-    j = (generations[i].self_count > 0 &&
+    current_target = (generations[i].self_count > 0 &&
 	 generations[i].self_count % S48_PROMOTION_AGE_LIMIT == 0)
       ? i + 1
       : i;
@@ -513,28 +517,28 @@ inline static void init_areas(int count) {
 #endif
 
 #if (S48_USE_STATIC_SPACE)
-    j = (s48_gc_count() == 0) ? x : j ;
+    current_target = (s48_gc_count() == 0) ? creation_space_target_small_below_generation_index : current_target ;
 #endif
     
     /* Adjust index j (for the last generation) */
 #if (S48_USE_STATIC_SPACE)
-    j = (j >= S48_GENERATIONS_COUNT - 1) ? S48_GENERATIONS_COUNT - 2 : j ;
+    current_target = (current_target >= S48_GENERATIONS_COUNT - 1) ? S48_GENERATIONS_COUNT - 2 : current_target ;
 #else
-    j = (j >= S48_GENERATIONS_COUNT) ? S48_GENERATIONS_COUNT - 1 : j ;
+    current_target = (current_target >= S48_GENERATIONS_COUNT) ? S48_GENERATIONS_COUNT - 1 : current_target ;
 #endif
     
     /* promotion targets */
-    set_targets(generations[i].other_space, generations[j].current_space);
+    set_targets(generations[i].other_space, generations[current_target].current_space);
 
     /* Wilson's opportunistic object promotion targets */
-    if ( i != j ) {
+    if ( i != current_target ) {
     reset_young_targets(generations[i].other_space,
 			generations[i].current_space);
     }
 
 #if (BIBOP_LOG)
     s48_bibop_log("generations[%i].other_space -> generations[%i].current_space",
-		  i, j);
+		  i, current_target);
 #endif    
 
     /* actions: the ones that will be evacuated now */
@@ -708,6 +712,9 @@ static void collect(int count, psbool emergency) {
   }
 
   s48_post_gc_cleanup(major_p, emergency);
+
+  /* for objects resurrected in some post-gc-cleanup, trace again */
+  do_gc();
 
   for (i = 0; i < count; i++) {    
     clear_space(generations[i].other_space);
