@@ -380,7 +380,7 @@
 	       (hint-flags (address-info-flags))
 	       (hint-family (address-family unspec))
 	       (hint-socket-type #f)
-	       (hint-protocol 'f))
+	       (hint-protocol #f))
     (cond
      ((get-xxx-info
        (external-getaddrinfo
