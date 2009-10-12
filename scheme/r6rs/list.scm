@@ -188,9 +188,10 @@
 	       ((?equal? obj (car list)) list)
 	       (else (loop (cdr list)))))))))
 
-(define-member-like member equal?)
-(define-member-like memv eqv?)
-(define-member-like memq eq?)
+; take the versions from `scheme'
+;(define-member-like member equal?)
+;(define-member-like memv eqv?)
+;(define-member-like memq eq?)
 
 (define (assp proc alist)
   (assert-procedure 'assp proc)
@@ -213,6 +214,11 @@
 	       (if (?equal? obj (car p))
 		   p
 		   (loop (cdr alist))))))))))
+
+; take the versions from `scheme'
+;(define-member-like assoc equal?)
+;(define-member-like assv eqv?)
+;(define-member-like assq eq?)
 
 (define (cons* obj . objs)
   (if (null? objs)
