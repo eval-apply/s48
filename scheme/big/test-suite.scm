@@ -121,12 +121,15 @@
    (lambda (exit)
      (with-exception-handler
       (lambda (c)
-	(primitive-cwcc
-	 (lambda (cont)
-	   (register-failure!
-	    (make-check-failure (fluid $test-case)
-				actual-exp #f c cont pos expected))))
-	(exit))
+	(if (serious-condition? c)
+	    (begin
+	      (primitive-cwcc
+	       (lambda (cont)
+		 (register-failure!
+		  (make-check-failure (fluid $test-case)
+				      actual-exp #f c cont pos expected))))
+	      (exit))
+	    (raise-continuable c)))
       (lambda ()
 	(call-with-values actual-thunk consumer))))))
 
@@ -172,14 +175,17 @@
    (lambda (exit)
      (with-exception-handler
       (lambda (c)
-	(primitive-cwcc
-	 (lambda (cont)
-	   (cond
-	    ((not (matches? matcher c))
-	     (register-failure!
-	      (make-check-exception-failure (fluid $test-case)
-					    actual-exp #f c cont matcher))))))
-	(exit))
+	(if (serious-condition? c)
+	    (begin
+	      (primitive-cwcc
+	       (lambda (cont)
+		 (cond
+		  ((not (matches? matcher c))
+		   (register-failure!
+		    (make-check-exception-failure (fluid $test-case)
+						  actual-exp #f c cont matcher))))))
+	      (exit))
+	    (raise-continuable c)))
       (lambda ()
 	(call-with-values
 	    actual-thunk
