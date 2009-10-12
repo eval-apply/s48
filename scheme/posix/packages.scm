@@ -99,6 +99,15 @@
 	  name->group-info
 	  ))
 
+(define-interface posix-errnos-interface
+  (export (errno :syntax)
+	  errno-name
+	  errno-os-number
+	  integer->errno
+	  name->errno
+          errno=?
+          errno?))
+
 (define-structures ((posix-files posix-files-interface)
 		    (posix-users posix-users-interface))
   (open scheme define-record-types finite-types
@@ -327,6 +336,19 @@
   (optimize auto-integrate)
   (files func-regexp))
 
+
+(define-structure posix-errnos posix-errnos-interface
+  (open scheme
+	exceptions
+	define-record-types
+	finite-types
+	external-calls load-dynamic-externals
+	(subset unicode-char-maps (string-upcase string-foldcase))
+	session-data
+	interrupts
+	reinitializers)
+  (files errno))
+
 ; All in one chunk.
 
 (define-structure posix (compound-interface
@@ -337,7 +359,8 @@
 			  (interface-of posix-i/o)
 			  (interface-of posix-time)
 			  (interface-of posix-users)
-			  (interface-of posix-regexps))
+			  (interface-of posix-regexps)
+			  (interface-of posix-errnos))
   (open posix-processes
 	posix-process-data
 	posix-platform-names
@@ -345,5 +368,6 @@
 	posix-i/o
 	posix-time
 	posix-users
-	posix-regexps))
+	posix-regexps
+	posix-errnos))
 

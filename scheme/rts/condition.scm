@@ -201,6 +201,12 @@
   (reason vm-exception-reason) ; symbol
   )
 
+; OS errors (errno or Windows error codes)
+
+(define-condition-type &os-error &error
+  make-os-error os-error?
+  (code os-error-code))
+
 ; I/O errors
 
 (define-condition-type &i/o-error &error

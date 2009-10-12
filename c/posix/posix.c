@@ -8,6 +8,7 @@ extern void s48_init_posix_regexp(void);
 extern void s48_init_posix_proc_env(void);
 extern void s48_init_posix_io(void);
 extern void s48_init_posix_proc(void);
+extern void s48_init_posix_errno(void);
 
 void
 s48_on_load(void)
@@ -20,12 +21,15 @@ s48_on_load(void)
   s48_init_posix_proc_env();
   s48_init_posix_io();
   s48_init_posix_proc();
+  s48_init_posix_errno();
 }
 
 extern void s48_uninit_posix_proc(void);
+extern void s48_uninit_posix_errno(void);
 
 void
 s48_on_unload(void)
 {
   s48_uninit_posix_proc();
+  s48_uninit_posix_errno();
 }

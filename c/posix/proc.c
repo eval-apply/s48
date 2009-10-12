@@ -56,7 +56,7 @@ static char		**enter_byte_vector_array(s48_call_t call, s48_ref_t strings),
 static s48_ref_t child_pids;
 static s48_ref_t unnamed_signals;
 
-static s48_ref_t lookup_record(s48_call_t call, s48_ref_t *list_loc, int offset, s48_ref_t key);
+s48_ref_t s48_lookup_record(s48_call_t call, s48_ref_t *list_loc, int offset, s48_ref_t key);
 
 /*
  * Record types imported from Scheme.
@@ -158,7 +158,7 @@ make_pid(s48_call_t call, pid_t c_pid)
 static s48_ref_t
 lookup_pid(s48_call_t call, pid_t c_pid)
 {
-  return lookup_record(call, &child_pids, 0, s48_enter_long_2(call, c_pid));
+  return s48_lookup_record(call, &child_pids, 0, s48_enter_long_2(call, c_pid));
 }
 
 /*
@@ -170,8 +170,8 @@ lookup_pid(s48_call_t call, pid_t c_pid)
  * This is too much C code!  It should all be done in Scheme.
  */
 
-static s48_ref_t
-lookup_record(s48_call_t call, s48_ref_t *the_list_loc, int offset, s48_ref_t key)
+s48_ref_t
+s48_lookup_record(s48_call_t call, s48_ref_t *the_list_loc, int offset, s48_ref_t key)
 {
   int		cleanup_p = 0;
   s48_ref_t	the_list = *the_list_loc;
@@ -553,7 +553,7 @@ enter_signal(s48_call_t call, int c_signal)
 
   if (canonical == -1) {
     s48_ref_t fx_signal = s48_enter_long_2(call, c_signal);
-    s48_ref_t unnamed = lookup_record(call, &unnamed_signals, 1, fx_signal);
+    s48_ref_t unnamed = s48_lookup_record(call, &unnamed_signals, 1, fx_signal);
     
     if (!s48_false_p_2(call, unnamed))
       return unnamed;

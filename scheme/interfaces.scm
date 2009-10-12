@@ -585,6 +585,8 @@
 
 	  &vm-exception make-vm-exception vm-exception?
 	  vm-exception-opcode vm-exception-reason
+	  &os-error make-os-error os-error?
+	  os-error-code
 	  &i/o-error make-i/o-error i/o-error?
 	  &i/o-port-error make-i/o-port-error i/o-port-error? i/o-error-port
 	  &decoding-error make-decoding-error decoding-error?
