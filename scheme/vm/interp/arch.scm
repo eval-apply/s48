@@ -578,11 +578,10 @@
    template
    weak-pointer
    shared-binding
-   unused-d-header1
    transport-link-cell
 
    ;; B-vector types (not traced by GC)
-   string        ; = least b-vector type
+   string        ; = least b-vector type, note that the BIBOP GC knows this in c/bibop/data.h
    byte-vector
    double        ; double precision floating point
    bignum
