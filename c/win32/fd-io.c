@@ -1462,8 +1462,8 @@ s48_dup_socket_channel(s48_call_t call, s48_ref_t channel)
 }
 
 /*
- * Given a bound socket, accept a connection and return the resulting
- * socket as a pair of channels (after marking it non-blocking).
+ * Given a bound socket, accept a connection and return a pair of the
+ * input channel and the raw socket address.
  *
  * If the accept fails because the client hasn't connected yet, then we
  * return #f.
@@ -1537,7 +1537,7 @@ s48_accept(s48_call_t call, s48_ref_t channel, s48_ref_t retry_p)
       
       accept_socket = WSASocket(AF_INET,
 				SOCK_STREAM,
-				0, /* protocol */
+				0, /*  protocol */
 				NULL,
 				0, /* reserved */
 				WSA_FLAG_OVERLAPPED);
@@ -1547,17 +1547,16 @@ s48_accept(s48_call_t call, s48_ref_t channel, s48_ref_t retry_p)
       
       stream_descriptor->socket_data.hatched_socket = accept_socket;
 
-      maybe_grow_callback_data_buffer(callback_data,
-				      /* it's what the manual says: */
-				      sizeof(struct sockaddr_in) + 16
-				      + sizeof(struct sockaddr_in) + 16);
+#define SOCKADDR_BUFFER_SIZE (sizeof(struct sockaddr_storage) + 16)
+
+      maybe_grow_callback_data_buffer(callback_data, SOCKADDR_BUFFER_SIZE * 2);
       
       status = AcceptEx(socket,
 			accept_socket,
 			callback_data->buffer,
 			0,
-			sizeof(struct sockaddr_in) + 16,
-			sizeof(struct sockaddr_in) + 16,
+			SOCKADDR_BUFFER_SIZE,
+			SOCKADDR_BUFFER_SIZE,
 			&bytecount,
 			&callback_data->overlap);
     }
@@ -1578,7 +1577,7 @@ s48_accept(s48_call_t call, s48_ref_t channel, s48_ref_t retry_p)
       else
 	s48_os_error_2(call, "s48_accept", WSAGetLastError(), 2,
 		       channel, retry_p);
-    }
+    } 
 			 
   /*
    * Check for a connection.
@@ -1614,9 +1613,13 @@ s48_accept(s48_call_t call, s48_ref_t channel, s48_ref_t retry_p)
 	{
 	  ps_close_fd(accept_socket_fd);
 	  s48_raise_scheme_exception_2(call, s48_extract_long_2(call, input_channel), 0);
-	};
+	}
     
-      return input_channel;
+      return s48_cons_2(call, 
+			input_channel
+			s48_enter_sockaddr(call,
+					   (const struct sockaddr*)(callback_data->buffer + SOCKADDR_BUFFER_SIZE),
+					   SOCKADDR_BUFFER_SIZE));
     }
 
   if (WSAGetLastError() == ERROR_IO_PENDING)

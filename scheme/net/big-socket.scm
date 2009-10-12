@@ -39,9 +39,11 @@
 	    (socket-output-port socket))))
 
 (define (socket-accept socket)
-  (let ((newsock (net:socket-accept socket)))
-    (values (socket-input-port newsock)
-	    (socket-output-port newsock))))
+  (call-with-values
+      (lambda () (net:socket-accept socket))
+    (lambda (newsock address)
+      (values (socket-input-port newsock)
+	      (socket-output-port newsock)))))
 
 ; UDP sockets
 
