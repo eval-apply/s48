@@ -125,12 +125,14 @@
 			  "s48_connect")
 
 (define (socket-accept socket)
-  (let* ((channel (blocking-socket-op socket external-accept))
+  (let* ((pair (blocking-socket-op socket external-accept))
+	 (channel (car pair))
 	 (newsock (channel->socket (socket-address-family socket)
 				   (socket-socket-type socket)
 				   channel)))
     (attach-socket-ports! newsock (external-dup-socket-channel channel))
-    newsock))
+    (values newsock
+	    (raw->socket-address (cdr pair)))))
 
 (import-lambda-definition-2 external-accept (channel retry?)
 			  "s48_accept")

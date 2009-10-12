@@ -120,8 +120,8 @@ s48_dup_socket_channel(s48_call_t call, s48_ref_t sch_channel)
 }
 
 /*
- * Given a bound socket, accept a connection and return the resulting
- * socket as a pair of channels (after marking it non-blocking).
+ * Given a bound socket, accept a connection and return a pair of the
+ * input channel and the raw socket address.
  *
  * If the accept fails because the client hasn't connected yet, then we
  * return #f.
@@ -143,12 +143,6 @@ s48_accept(s48_call_t call, s48_ref_t sch_channel, s48_ref_t sch_retry_p)
   
   connect_fd = accept(socket_fd, (struct sockaddr *)&address, &len);
   
-  /*
-   * Check for a connection.  If we have one we create two channels, one
-   * input and one, with a dup()'ed fd, output.  Lots of error checking
-   * makes this messy.
-   */
-
   if (connect_fd >= 0) {
     
     RETRY_OR_RAISE_NEG(status, fcntl(connect_fd, F_SETFL, O_NONBLOCK));
@@ -161,9 +155,11 @@ s48_accept(s48_call_t call, s48_ref_t sch_channel, s48_ref_t sch_retry_p)
       {
 	ps_close_fd(connect_fd);		/* retries if interrupted */
 	s48_raise_scheme_exception_2(call, s48_extract_long_2(call, input_channel), 0);
-      };
+      }
     
-    return input_channel;
+    return s48_cons_2(call,
+		      input_channel,
+		      s48_enter_sockaddr(call, (const struct sockaddr*)&address, len));
   }
 
   /*
