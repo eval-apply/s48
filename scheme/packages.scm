@@ -548,6 +548,7 @@
 	    posix-processes
 	    posix-regexps
 	    posix-i/o
+	    posix-errnos
 	    regexps regexps-internal
 	    posix
 

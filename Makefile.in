@@ -212,6 +212,11 @@ $(posix_dir)/proc.o: c/posix/proc.c \
 	c/event.h $(posix_dir)/posix.h $(posix_dir)/s48_signals.h
 	$(CC_POSIX)
 
+$(posix_dir)/errno.o: c/posix/errno.c \
+	$(SCHEME48HS) c/c-mods.h \
+	c/event.h $(posix_dir)/posix.h $(posix_dir)/s48_errno.h
+	$(CC_POSIX)
+
 $(posix_dir)/posix.o: c/posix/posix.c
 	$(CC_POSIX)
 
@@ -227,7 +232,8 @@ $(posix_dir)/time.o: c/posix/time.c \
 POSIX_OBJECTS = $(posix_dir)/user.o     $(posix_dir)/regexp.o	\
                 $(posix_dir)/proc-env.o $(posix_dir)/proc.o	\
                 $(posix_dir)/io.o	$(posix_dir)/dir.o	\
-		$(posix_dir)/posix.o	$(posix_dir)/time.o
+		$(posix_dir)/posix.o	$(posix_dir)/time.o	\
+		$(posix_dir)/errno.o
 
 $(POSIX_EXTERNAL) : $(POSIX_OBJECTS)
 	$(LD) -o $@ $(POSIX_OBJECTS) $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) 

@@ -24,6 +24,7 @@ The POSIX bindings are available in several structures:
  \code{posix-time} & time functions \\
  \code{posix-users} & users and groups \\
  \code{posix-regexps} & regular expression matching \\
+ \code{posix-errnos} & POSIX error codes\\
  \code{posix} & all of the above
 \end{tabular}
 \end{center}
@@ -1174,6 +1175,137 @@ If the pattern in \cvar{regexp} contained submatches, then the results
 
 \cvar{Starts-line?} should be true if \cvar{string} starts at the beginning
  of a line and \cvar{ends-line?} should be true if it ends one.
+
+\section{Error codes}
+
+POSIX functions report the nature of an error via \textit{system error
+  numbers}---OS-specific integers that encode a variety of different
+error situations.  At the Scheme level, error numbers are represented
+as \textit{errnos}, objects that specify a name for the error
+sitation.  Errnos are definted in the structures \code{posix-errnos}
+and \code{posix}.
+
+Currently, the system reports such error situations by raising
+exceptions with condition type \code{\&os-error}.  The
+\code{\&os-error} condition type has a field \code{code} that contains
+the system error number.
+
+There are two varieties of errnos available, {\em named} and {\em anonymous}.
+A named errno is one for which we have a symbolic name, such as \code{fault}
+ or \code{intr}.  
+Anonymous errnos, for which we only have the current operating system's
+ errno number, have no meaning in other operating systems.
+Named errnos preserve their meaning in image files.
+Not all named errnos are available from all OS's and
+ there may be multiple names for a single OS errno number.
+
+\begin{protos}
+\syntaxproto{errno}{ \cvar{errno-name}}{errno}
+\proto{name->errno}{ symbol}{errno or {\tt \#f}}
+\proto{integer->errno}{ integer}{errno}
+\proto{errno?}{ x}{boolean}
+\proto{errno-name}{ errno}{symbol or {\tt \#f}}
+\proto{errno-os-number}{ errno}{integer}
+\proto{errno=?}{ errno0 errno1}{boolean}
+\end{protos}
+\noindent
+The syntax \code{errno} returns a (named) errno associated with
+\cvar{errno-name}.
+\code{Name->errno} returns a (named) errno or \code{\#f} if the
+ the errno \cvar{name} is not supported by the operating system.
+The errno returned by \code{integer->errno} is a named errno if
+ \cvar{integer} corresponds to a named errno in the current operating
+ system; otherwise it returns an anonymous errno.
+\code{Errno-name} returns a symbol if \cvar{errno} is named and
+ \code{\#f} if it is anonymous. 
+\code{Errno=?} returns \code{\#t} if \cvar{errno0} and \cvar{errno1}
+ have the same operating system number and \code{\#f} if they do not.
+
+\subsection{POSIX errnos}
+The following lists the names of the POSIX errnos.
+\begin{center}
+\begin{longtable}{@{\ttfamily}lp{0.6\textwidth}}
+   toobig			     & Argument list too long.\\
+   acces				& Permission denied.\\
+   addrinuse				& Address in use.\\
+   addrnotavail			& Address not available.\\
+   afnosupport		       & Address family not supported.\\
+   again & Resource unavailable, try again.\\
+   already			     & Connection already in progress.\\
+   badf				& Bad file descriptor.\\
+   badmsg				& Bad message.\\
+   busy				& Device or resource busy.\\
+   canceled				& Operation canceled.\\
+   child				& No child processes.\\
+   connaborted			& Connection aborted.\\
+   connrefused			& Connection refused.\\
+   connreset				& Connection reset.\\
+   deadlk			      & Resource deadlock would occur.\\
+   destaddrreq		       & Destination address required.\\
+   dom	     & Mathematics argument out of domain of function.\\
+   dquot				& Reserved.\\
+   exist				& File exists.\\
+   fault				& Bad address.\\
+   fbig				& File too large.\\
+   hostunreach			& Host is unreachable.\\
+   idrm				& Identifier removed.\\
+   ilseq				& Illegal byte sequence.\\
+   inprogress				& Operation in progress.\\
+   intr				& Interrupted function.\\
+   inval				& Invalid argument.\\
+   io					& I/O error.\\
+   isconn				& Socket is connected.\\
+   isdir				& Is a directory.\\
+   loop			  & Too many levels of symbolic links.\\
+   mfile				& Too many open files.\\
+   mlink				& Too many links.\\
+   msgsize				& Message too large.\\
+   multihop				& Reserved.\\
+   nametoolong			& Filename too long.\\
+   netdown				& Network is down.\\
+   netreset			      & Connection aborted by network.\\
+   netunreach				& Network unreachable.\\
+   nfile			      & Too many files open in system.\\
+   nobufs				& No buffer space available.\\
+   nodata & No message is available on the STREAM head read queue. \\
+   nodev				& No such device.\\
+   noent				& No such file or directory.\\
+   noexec			       & Executable file format error.\\
+   nolck				& No locks available.\\
+   nolink				& Reserved.\\
+   nomem				& Not enough space.\\
+   nomsg			     & No message of the desired type.\\
+   noprotoopt				& Protocol not available.\\
+   nospc				& No space left on device.\\
+   nosr				& No STREAM resources. \\
+   nostr				&  Not a STREAM. \\
+   nosys				& Function not supported.\\
+   notconn				& The socket is not connected.\\
+   notdir				& Not a directory.\\
+   notempty				& Directory not empty.\\
+   notsock				& Not a socket.\\
+   notsup				& Not supported.\\
+   notty			& Inappropriate I/O control operation.\\
+   nxio				& No such device or address.\\
+   opnotsupp			  & Operation not supported on socket.\\
+   overflow		  & Value too large to be stored in data type.\\
+   perm				& Operation not permitted.\\
+   pipe				& Broken pipe.\\
+   proto				& Protocol error.\\
+   protonosupport			& Protocol not supported.\\
+   prototype			     & Protocol wrong type for socket.\\
+   range				& Result too large.\\
+   rofs				& Read-only file system.\\
+   spipe				& Invalid seek.\\
+   srch				& No such process.\\
+   stale				& Reserved.\\
+   time			     & Stream ioctl() timeout. \\
+   timedout				& Connection timed out.\\
+   txtbsy				& Text file busy.\\
+   wouldblock	& Operation would block.\\
+   xdev				& Cross-device link.\\
+\end{longtable}
+\end{center}
 
 \section{C to Scheme correspondence}
 \label{function-correspondence}
