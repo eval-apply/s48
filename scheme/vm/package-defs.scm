@@ -132,7 +132,7 @@
 	gc gc-roots gc-util)
   (files (interp shared-binding)))
 
-(define-structure io-opcodes (export)
+(define-structure io-opcodes (export message-element) ; for debugging
   (open prescheme vm-utilities vm-architecture ps-receive enum-case
 	interpreter-internal
 	channel-io vmio

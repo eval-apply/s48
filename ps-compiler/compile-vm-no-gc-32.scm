@@ -6,7 +6,8 @@
 (in 'simplify-let '(run (set! *duplicate-lambda-size* 15)))
 (in 'prescheme-compiler
     '(run (prescheme-compiler
-	   '(vm external-gc-roots interpreter-gc)
+	   '(vm external-gc-roots interpreter-gc 
+		io-opcodes) ; message-element
 	   '("../scheme/platform-interfaces.scm"
 	     "../scheme/vm/ps-platform-32-packages.scm"
 	     "../scheme/vm/interfaces.scm"
