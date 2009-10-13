@@ -237,10 +237,12 @@
 	  string string-append list->string))
 
 (define-structure srfi-13 srfi-13-interface
-  (open scheme-level-2
+  (open (modify scheme-level-2
+		(hide string-copy string-upcase string-downcase string-titlecase string-fill! string->list))
 	bitwise
 	srfi-8 srfi-14
-	unicode-char-maps
+	(modify unicode-char-maps
+		(hide string-upcase string-downcase string-titlecase))
 	(subset exceptions (assertion-violation)))
   (files srfi-13))
 
@@ -624,7 +626,7 @@
   (export (lazy :syntax) force (delay :syntax)))
 
 (define-structure srfi-45 srfi-45-interface
-  (open scheme
+  (open (modify scheme (hide delay force))
 	define-record-types)
   (files srfi-45))
 

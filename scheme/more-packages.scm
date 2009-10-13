@@ -75,7 +75,7 @@
   (optimize auto-integrate))
 
 (define-structure unicode-char-maps unicode-char-maps-interface
-  (open scheme
+  (open (modify scheme (hide string-ci=? string-ci<?))
 	set-text-procedures
 	unicode
 	finite-types

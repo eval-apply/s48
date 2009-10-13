@@ -221,6 +221,13 @@
   (make-compiler-env (lambda (name)
 		       (package-lookup package name))
 		     (lambda (name type . maybe-static)
+		       (cond
+			((and (symbol? name) ; generated names are hopefully of no interest here
+			      (opened-structure-for-name package name))
+			 => (lambda (struct)
+			      (warning 'package-define!
+				       "name from opened structure redefined"
+				       package name struct))))
 		       (package-define! package
 					name
 					type
@@ -230,6 +237,16 @@
 					    (car maybe-static))))
 		     tower
 		     package))	; interim hack
+
+(define (opened-structure-for-name package name)
+  (let loop ((opens (package-opens-really package)))
+    (cond
+     ((null? opens)
+      #f)
+     ((structure-lookup (car opens) name #t)
+      (car opens))
+     (else
+      (loop (cdr opens))))))
 
 ; Two tables that we add lazily.
 
