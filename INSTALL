@@ -36,8 +36,8 @@ specific options, however:
 --enable-gc=<gc>
 
 configures Scheme 48 with a specific garbage collector (GC).  Two GCs
-ship with the system "twospace" and "bibop": The twospace GC is the
-default---it is simple, but has inferior performance and requires a
+ship with the system "twospace" and "bibop"---the default is "bibop":
+The twospace GC is simple, but has inferior performance and requires a
 fixed limit on the heap size.  The bibop GC is much more sophisticated
 and faster, and it allows specifying "-h 0" on the command line,
 meaning that the heap will expand as necessary to accomodate the

@@ -18,8 +18,8 @@ AC_ARG_ENABLE([gc],
                   * ) AC_MSG_ERROR([Invalid argument to --enable-gc]) ;;
 		esac
 	      ],
-	      [AC_DEFINE([S48_GC_TWOSPACE], 1, [Define if building with two-space GC.])
-	       GC_OBJS='${GC_TWOSPACE_OBJS}'])dnl
+	      [AC_DEFINE([S48_GC_BIBOP], 1, [Define if building with BIBOP GC.])
+	       GC_OBJS='${GC_BIBOP_OBJS}'])dnl
 ])dnl
 AC_SUBST(S48_GC_TWOSPACE)
 AC_SUBST(S48_GC_BIBOP)
