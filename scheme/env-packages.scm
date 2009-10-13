@@ -81,7 +81,7 @@
 	command-state
         undefined               ; noting-undefined-variables
 	environments		; with-interaction-environment
-	evaluation		; eval, load-into
+	(modify evaluation (hide load)) ; eval, load-into
         ;; packages		; package?
 	root-scheduler		; scheme-exit-now
 	i/o			; silently

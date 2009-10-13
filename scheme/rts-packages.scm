@@ -363,7 +363,8 @@
 
 (define-structures ((threads threads-interface)
 		    (threads-internal threads-internal-interface))
-  (open scheme-level-1 enumerated queues cells
+  (open (modify scheme-level-1 (hide min))
+	enumerated queues cells
 	(subset proposals            (define-synchronized-record-type))
 	define-record-types
 	interrupts
