@@ -327,6 +327,49 @@
 	 ((?name constructor-descriptor) ?constructor-descriptor)
 	 ((?name dispatch ?args ?known ?unknown) (?unknown . ?args)))))))
 
+; Retrofitting RTS record types to R6RS record types.
+; For now, we do default constructors only.
+; (define-retrofitted-record-type r6rs-type rts-type (mutable field1) (immutable field2) ...)
+; (define-retrofitted-record-type (r6rs-type r6rs-base-type) rts-type (mutable field1) ...)
+
+(define-syntax define-retrofitted-record-type
+  (lambda (e r c)
+    (cons (r 'define-retrofitted-record-type-helper)
+	  (cons (length (list-tail e 6))
+		(cdr e)))))
+
+(define-syntax define-retrofitted-record-type-helper
+  (syntax-rules ()
+    ((define-retrofitted-record-type-helper ?field-count 
+       (?r6rs-type ?r6rs-parent-type) ?rts-type ?uid ?sealed? ?opaque? ?field-spec1 ...)
+     (begin
+       (retrofit-record-type! ?rts-type ?uid ?sealed? ?opaque? '#(?field-spec1 ...))
+       (define cd (make-record-constructor-descriptor ?rts-type #f #f))
+       (?r6rs-parent-type dispatch (?r6rs-type ?rts-type cd ?field-count)
+			  define-known-retrofitted-record-type-helper
+			  define-unknown-retrofitted-record-type-helper)))
+    ((define-retrofitted-record-type-helper ?field-count
+       ?r6rs-type ?rts-type ?uid ?sealed? ?opaque? ?field-spec1 ...)
+     (begin
+       (retrofit-record-type! ?rts-type ?uid ?sealed? ?opaque? '#(?field-spec1 ...))
+       (define cd (make-record-constructor-descriptor ?rts-type #f #f))
+       (define-known-record-type-name ?r6rs-type ?rts-type cd ?field-count #t)))))
+
+(define-syntax define-known-retrofitted-record-type-helper
+  (lambda (e r c)
+    (apply 
+     (lambda (_ parent-field-count parent-default-constructor? r6rs-type rts-type cd field-count)
+       `(,(r 'define-known-record-type-name)
+	 ,r6rs-type ,rts-type ,cd ,(+ parent-field-count field-count) ,parent-default-constructor?))
+     e)))
+
+(define-syntax define-unknown-retrofitted-record-type-helper
+  (lambda (e r c)
+    (apply 
+     (lambda (_ r6rs-type rts-type cd field-count)
+       `(,(r 'define-unknown-record-type-name) ,r6rs-type ,rts-type ,cd))
+     e)))
+
 (define-syntax record-type-descriptor
   (syntax-rules ()
     ((record-type-descriptor ?type)

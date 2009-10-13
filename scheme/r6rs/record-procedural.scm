@@ -76,16 +76,7 @@
       #f))))
 
 (define (make-record-type-descriptor name parent uid sealed? opaque? fields)
-  (if (and parent
-	   (record-type-sealed? parent))
-      (assertion-violation 'make-record-type-descriptor "can't extend a sealed parent class"
-			   name parent uid sealed? opaque? fields))
-  (if (and parent
-	   (not (record-type-uid parent)) ; parent generative
-	   uid)			  ; ... but this one is non-generative
-      (assertion-violation 'make-record-type-descriptor
-			   "a generative type can only be extended to give a generative type"
-			   name parent uid sealed? opaque? fields))
+  (check-parent-type 'make-record-type-descriptor name parent uid sealed? opaque? fields)
   (let ((opaque? (if parent
 		     (or (record-type-opaque? parent)
 			 opaque?)
@@ -94,22 +85,58 @@
     (let ((rtd (make-record-type name (map field-spec-name field-specs) parent))
 	  (data (make-record-type-data uid sealed? opaque? field-specs
 				       (not (exists field-spec-mutable? field-specs)))))
-      (set-record-type-data! rtd data)
-      (if uid
-	  (let ((table (nongenerative-record-types-table)))
-	    (obtain-lock nongenerative-record-types-table-lock)
-	    (cond
-	     ((table-ref table uid)
-	      => (lambda (old-rtd)
-		   (release-lock nongenerative-record-types-table-lock)
-		   (if (record-type-descriptor=? rtd old-rtd)
-		       old-rtd
-		       (assertion-violation "mismatched nongenerative record types with identical uids"
-					    old-rtd rtd))))
-	     (else
-	      (table-set! table uid rtd)
-	      (release-lock nongenerative-record-types-table-lock)))))
+      (record-record-type-data! rtd data)
       rtd)))
+
+(define (check-parent-type caller name parent uid sealed? opaque? fields)
+  (if (and parent
+	   (record-type-sealed? parent))
+      (assertion-violation caller "can't extend a sealed parent class"
+			   name parent uid sealed? opaque? fields))
+  (if (and parent
+	   (not (record-type-uid parent)) ; parent generative
+	   uid)			  ; ... but this one is non-generative
+      (assertion-violation caller
+			   "a generative type can only be extended to give a generative type"
+			   name parent uid sealed? opaque? fields)))  
+
+(define (record-record-type-data! rtd data)
+  (set-record-type-data! rtd data)
+  (cond
+   ((record-type-data-uid data)
+    => (lambda (uid)
+	 (let ((table (nongenerative-record-types-table)))
+	   (obtain-lock nongenerative-record-types-table-lock)
+	   (cond
+	    ((table-ref table uid)
+	     => (lambda (old-rtd)
+		  (release-lock nongenerative-record-types-table-lock)
+		  (if (record-type-descriptor=? rtd old-rtd)
+		      old-rtd
+		      (assertion-violation "mismatched nongenerative record types with identical uids"
+					   old-rtd rtd))))
+	    (else
+	     (table-set! table uid rtd)
+	     (release-lock nongenerative-record-types-table-lock))))))))
+
+; making non-R6RS record types into R6RS record types
+(define (retrofit-record-type! rtd uid sealed? opaque? fields)
+  (let ((parent (record-type-parent rtd))
+	(name (record-type-name rtd)))
+    (if (and parent
+	     (not (record-type-data? (record-type-data parent))))
+	(assertion-violation 'retrofit-record-type!
+			     "parent type not an R6RS record type"
+			     parent))
+    (check-parent-type 'retrofit-record-type! name parent uid sealed? opaque? fields)
+    (let ((opaque? (if parent
+		       (or (record-type-opaque? parent)
+			   opaque?)
+		       opaque?))
+	  (field-specs (map parse-field-spec (vector->list fields))))
+      (record-record-type-data! rtd
+				(make-record-type-data uid sealed? opaque? field-specs
+						       (not (exists field-spec-mutable? field-specs)))))))
 
 (define (record-type-descriptor? thing)
   (and (record-type? thing)
