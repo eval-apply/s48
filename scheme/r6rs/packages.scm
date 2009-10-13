@@ -20,7 +20,8 @@
 	  record? record-rtd))
 
 (define-interface r6rs-records-internal-interface
-  (export nongenerative-record-types
+  (export retrofit-record-type!
+	  nongenerative-record-types
 	  delete-nongenerative-record-type))
 
 (define-structures ((r6rs-records-procedural r6rs-records-procedural-interface)
@@ -53,13 +54,111 @@
   (export ((define-record-type record-type-descriptor record-constructor-descriptor)
 	   :syntax)))
 
-(define-structure r6rs-records-syntactic r6rs-records-syntactic-interface
+(define-interface r6rs-records-syntactic-internal-interface
+  (export (define-retrofitted-record-type :syntax)))
+
+(define-structures ((r6rs-records-syntactic r6rs-records-syntactic-interface)
+		    (r6rs-records-syntactic-internal r6rs-records-syntactic-internal-interface))
   (open scheme
 	(subset primitives (checked-record-ref checked-record-set! record))
 	r6rs-records-procedural
+	r6rs-records-internal
 	loopholes types)
   (for-syntax (open scheme exceptions))
   (files record-syntactic))
+
+(define-interface r6rs-conditions-interface
+  (export condition
+	  condition?
+	  simple-conditions
+	  condition-predicate
+	  condition-accessor
+	  define-condition-type
+	  (&condition :syntax)
+	  (&message :syntax)
+	  make-message-condition
+	  message-condition?
+	  condition-message
+	  (&warning :syntax)
+	  make-warning
+	  warning?
+	  (&serious :syntax)
+	  make-serious-condition
+	  serious-condition?
+	  (&error :syntax)
+	  make-error
+	  error?
+	  (&violation :syntax)
+	  make-violation
+	  violation?
+	  (&non-continuable :syntax)
+	  make-noncontinuable-violation
+	  non-continuable-violation?
+	  (&implementation-restriction :syntax)
+	  make-implementation-restriction-violation
+	  implementation-restriction-violation?
+	  (&lexical :syntax)
+	  make-lexical-violation
+	  lexical-violation?
+	  (&syntax :syntax)
+	  make-syntax-violation
+	  syntax-violation?
+	  (&undefined :syntax)
+	  make-undefined-violation
+	  undefined-violation?
+	  (&assertion :syntax)
+	  make-assertion-violation
+	  assertion-violation?
+	  (&irritants :syntax)
+	  make-irritants-condition
+	  irritants-condition?
+	  condition-irritants
+	  (&who :syntax)
+	  make-who-condition
+	  who-condition?
+	  condition-who))
+
+(define-structure r6rs-conditions r6rs-conditions-interface
+  (open scheme
+	r6rs-records-syntactic
+	r6rs-records-syntactic-internal
+	(subset record-types (define-record-discloser))
+	(modify conditions (prefix rts:))
+	(subset conditions (condition
+			    condition?
+			    simple-conditions
+			    condition-predicate
+			    condition-accessor
+			    make-message-condition
+			    message-condition?
+			    condition-message
+			    make-warning
+			    warning?
+			    make-serious-condition
+			    serious-condition?
+			    make-error
+			    error?
+			    make-violation
+			    violation?
+			    make-noncontinuable-violation
+			    non-continuable-violation?
+			    make-implementation-restriction-violation
+			    implementation-restriction-violation?
+			    make-lexical-violation
+			    lexical-violation?
+			    make-syntax-violation
+			    syntax-violation?
+			    make-undefined-violation
+			    undefined-violation?
+			    make-assertion-violation
+			    assertion-violation?
+			    make-irritants-condition
+			    irritants-condition?
+			    condition-irritants
+			    make-who-condition
+			    who-condition?
+			    condition-who)))
+  (files condition))
 
 (define-interface r6rs-unicode-interface
   (compound-interface unicode-normalizations-interface

@@ -527,11 +527,13 @@
 
 	    ; R6RS packages
 
+	    r6rs-conditions
 	    r6rs-records-procedural
 	    r6rs-records-inspection
 	    r6rs-records-internal
 	    r6rs-records-commands
 	    r6rs-records-syntactic
+	    r6rs-records-syntactic-internal
 	    r6rs-unicode
 	    r6rs-lists
 	    r6rs-enums
