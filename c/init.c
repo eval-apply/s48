@@ -39,7 +39,7 @@ extern void	s48_sysdep_init(void);
 extern void	s48_initialize_external_modules(void);
 
 long
-s48_initialize(int *argcp, char *argv[])
+s48_initialize(int *argcp, char ***argv)
 {
   char *image_name = DEFAULT_IMAGE_NAME;
   long heap_size = DEFAULT_HEAP_SIZE;    /* in numbers of cells */
@@ -57,7 +57,7 @@ s48_initialize(int *argcp, char *argv[])
 
   int argc = *argcp;
   int vm_argc = 0;
-  char *me = *argv;		/* Save program name. */
+  char *me = *(*argv);		/* Save program name. */
 
   {
     /* initialize floating-point printer */
@@ -66,27 +66,27 @@ s48_initialize(int *argcp, char *argv[])
     s48_free_init();
   }
 
-  argv++; argc--;		/* Skip program name. */
+  (*argv)++; argc--;		/* Skip program name. */
 
-  for (; argc > 0; argc--, argv++)
-    if (argv[0][0] == '-')
-      switch (argv[0][1]) {
+  for (; argc > 0; argc--, (*argv)++)
+    if ((*argv)[0][0] == '-')
+      switch ((*argv)[0][1]) {
       case 'h':
-	argc--; argv++;
+	argc--; (*argv)++;
 	if (argc == 0) { errors++; break; }
-	heap_size = atol(*argv);
+	heap_size = atol(*(*argv));
 	if (heap_size < 0) errors++;  /* 0 means now no limit */
 	break;
       case 's':
-	argc--; argv++;
+	argc--; (*argv)++;
 	if (argc == 0) { errors++; break; }
-	stack_size = atoi(*argv);
+	stack_size = atoi(*(*argv));
 	if (stack_size <= 0) errors++;
 	break;
       case 'i':
-	argc--; argv++;
+	argc--; (*argv)++;
 	if (argc == 0) { errors++; break; }
-	image_name = *argv;
+	image_name = *(*argv);
 	break;
       case 'a':
 	argc--;
@@ -94,12 +94,12 @@ s48_initialize(int *argcp, char *argv[])
 	argc = 0;
 	break;
       default:
-	fprintf(stderr, "Invalid argument: %s\n", *argv);
+	fprintf(stderr, "Invalid argument: %s\n", *(*argv));
 	errors++;
       }
     else
-      if (argv[0][0] != '\0') {
-	fprintf(stderr, "Invalid argument: %s\n", *argv);
+      if ((*argv)[0][0] != '\0') {
+	fprintf(stderr, "Invalid argument: %s\n", *(*argv));
 	errors++; }
   if (errors != 0) {
     fprintf(stderr,
@@ -166,7 +166,7 @@ Options: -h <heap-size>    %s heap size in words (default %ld).%s\n\
   /* Heap und stack are ok. Enable the GC. */
   s48_allow_gcB();
 
-  argcp = (int *) &vm_argc;
+  *argcp = vm_argc;
 
   return 0;
 }
