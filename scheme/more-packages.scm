@@ -296,7 +296,8 @@
 		(expose error assertion-violation))
 	(modify debugging	(rename (breakpoint rts-breakpoint))
 		                (expose breakpoint))
-	(subset primitives	(copy-bytes!)))
+	(subset primitives	(copy-bytes!))
+	(subset util (filter)))
   (files (big big-util)))
 
 (define-structure big-scheme big-scheme-interface
