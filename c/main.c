@@ -1,12 +1,12 @@
 
-extern long s48_initialize(int *argc, char ** argv);
+extern long s48_initialize(int *argc, char ***argv);
 
 int
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
   long return_value;
 
-  return_value = s48_initialize(&argc, argv);
+  return_value = s48_initialize(&argc, &argv);
 
   if (return_value != 0)
     return return_value;
