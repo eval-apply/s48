@@ -1082,7 +1082,9 @@
 	  transform-env		; These are used to reify transforms.
 	  transform-aux-names
 	  transform-source
-	  transform-id))
+	  transform-id
+
+	  make-transform)) ; backwards compatibility
 
 (define-interface bindings-interface
   (export binding?
