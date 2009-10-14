@@ -41,6 +41,9 @@
 	  (make-immutable!
 	   (really-make-transform 'macro proc env type aux-names source id)))))))
 
+; for backwards compatibility with the PreScheme compiler
+(define make-transform make-transform/macro)
+
 (define (make-transform/inline thing env type source id)
   (let ((type (if (or (pair? type)
 		      (symbol? type))
