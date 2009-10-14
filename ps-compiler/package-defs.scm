@@ -8,7 +8,9 @@
 (define-structures ((node     node-interface)
 		    (variable variable-interface)
 		    (primop   primop-interface))
-  (open scheme big-scheme comp-util arch parameters
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util arch parameters
 	defrecord)
   (for-syntax (open scheme big-scheme let-nodes))
   (begin 
@@ -50,7 +52,10 @@
 ; Pretty printer
 
 (define-structure pp-cps (export pp-cps)
-  (open scheme big-scheme comp-util node structure-refs)
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util
+	node structure-refs)
   (access i/o)  ; force-output
   (files (node pp-cps)))
 
@@ -91,7 +96,9 @@
 (define-structure node-vector (export node->vector
 				      vector->node
 				      vector->leaf-node)
-  (open scheme big-scheme comp-util node parameters
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util node parameters
 	defrecord)
   (files (node vector)))
 
@@ -99,12 +106,16 @@
 
 (define-structures ((front       front-interface)
 		    (front-debug front-debug-interface))
-  (open scheme big-scheme comp-util node simplify parameters jump
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util node simplify parameters jump
 	remove-cells flow-values)
   (files (front top)))       ; main entry points and debugging utilities
 
 (define-structure cps-util (export cps-call cps-sequence)
-  (open scheme big-scheme comp-util node
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util node
 	define-record-types)
   (files (front cps)))
 
@@ -113,7 +124,11 @@
 (define-structure jump (export integrate-jump-procs!
 			       find-jump-procs
 			       procs->jumps)
-  (open scheme big-scheme comp-util node parameters ssa
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util 
+	(modify node (hide node?)) ; we have our own node?
+	parameters ssa
 	define-record-types)
   (files (front jump)))
 
@@ -121,7 +136,9 @@
 
 (define-structures ((simplify (export simplify-node))
 		    (simplify-internal simplify-internal-interface))
-  (open scheme big-scheme comp-util node parameters node-vector)
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util node parameters node-vector)
   (for-syntax (open scheme big-scheme simp-patterns))
   (begin
     (define-syntax pattern-simplifier
@@ -133,7 +150,9 @@
 ; Simplifying calls to lambda nodes
 
 (define-structure simplify-let (export simplify-let)
-  (open scheme big-scheme comp-util node parameters
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util node parameters
 	simplify-join simplify-internal)
   (files (simp let)))
 
@@ -142,7 +161,9 @@
 ; minimizing code expansion.
 
 (define-structure simplify-join (export substitute-join-arguments)
-  (open scheme big-scheme comp-util node)
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util node)
   (files (simp join)))
 
 ; The expander for PATTERN-SIMPLIFIER, a macro for writing algebraic
@@ -174,7 +195,7 @@
 
 (define-structure comp-util utilities-interface
   (open scheme 
-	big-scheme
+	(modify big-scheme (hide table->entry-list))
 	(modify defrecord (prefix rk:))
 	define-record-types
 	structure-refs expanding-vectors)
@@ -224,7 +245,9 @@
   (files (util strong)))
 
 (define-structure dominators (export find-dominators!)
-  (open scheme big-scheme comp-util
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util
 	define-record-types)
   (optimize auto-integrate)
   (files (util dominators)))

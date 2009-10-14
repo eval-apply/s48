@@ -5,9 +5,11 @@
 ; Everything else
 
 (define-structures ((prescheme-compiler (export)))
-  (open scheme big-scheme conditions comp-util structure-refs
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	conditions comp-util structure-refs
 	prescheme-front-end prescheme-display
-	parameters
+	(subset parameters (determine-lambda-protocol))
 	node
 	front-debug forms
 	ps-types
@@ -24,11 +26,13 @@
   (files top))
 
 (define-structures ((prescheme-display (export display-forms-as-scheme)))
-  (open scheme big-scheme
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
 	structure-refs
-	names
+	(modify names (hide name->symbol))
 	bindings		;binding-place
-	nodes
+	;; their literal-node? is equivalent, but wasn't exported until 2007
+	(modify nodes (hide literal-node? schemify))
 	variable primop external-values ps-primitives
 	flatten-internal	;generated-top-variable?
 	external-constants)
@@ -38,11 +42,15 @@
 (define-structures ((protocol (export normal-protocol
 				      goto-protocol
 				      goto-protocol?)))
-  (open scheme big-scheme comp-util set-parameters ps-primops ps-types node)
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util set-parameters ps-primops ps-types node)
   (files spec))
 
 (define-structures ((prescheme-front-end (export prescheme-front-end)))
-  (open scheme big-scheme comp-util structure-refs
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util structure-refs
 	linking expand flatten forms
 	ps-types inference
 	variable
@@ -56,7 +64,9 @@
   (files front-end))
 
 (define-structures ((forms form-interface))
-  (open scheme big-scheme comp-util node expand defrecord
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util node expand defrecord
 	node-vector queues to-cps
 	structure-refs
 	eval-node         ; closure stuff
@@ -72,14 +82,17 @@
 ; Translating Scheme into evaluated nodes
 
 (define-structures ((expand (export scan-packages)))
-  (open scheme big-scheme comp-util structure-refs
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util structure-refs
 	variable
-	bindings nodes
+	bindings 
+	(modify nodes (hide define-node?)) ; we'd shadow this
 	ps-primitives   ;eval-primitive
 	eval-node       ;eval-node
 	scan-package	;package-source
 	locations
-	util		;fold
+	(subset util (fold))
 	syntactic)
   (access packages)     ;package->environment
   (files expand))
@@ -94,19 +107,29 @@
 					   primitive-expander
 					   primitive-expands-in-place?
 					   primitive-inference-rule)))
-  (open scheme big-scheme comp-util defrecord)
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util defrecord)
   (files primitive))
 
 (define-structures ((primitive-data (export)))
-  (open scheme big-scheme comp-util ps-primitives
-	bindings nodes
+  (open scheme 
+	(modify big-scheme (hide table->entry-list any?))
+	comp-util ps-primitives
+	bindings 
+	;; ours is equivalent, but theirs wasn't exported until 2007
+	(modify nodes (hide lambda-node?))
 	ascii structure-refs
 	ps-primops		;get-prescheme-primop
 	linking			;define-prescheme!
 	inference-internal	;check-arg-type
 	type-variables		;make-arith-op-uvar
 	record-types
-	prescheme ps-memory
+	(modify prescheme (hide error
+				peek-char read-char write-char newline
+				open-input-file open-output-file 
+				close-input-port close-output-port))
+	ps-memory
 	ps-types external-constants external-values
 	floatnums		;floatnum?
 	locations
@@ -123,7 +146,8 @@
 				       closure-temp set-closure-temp!
 				       apply-closure
 				       unspecific? constant?)))
-  (open scheme define-record-types
+  (open (modify scheme (hide eval))
+	define-record-types
 	nodes
 	ps-types		;expand-type-spec
 	external-values
@@ -136,9 +160,14 @@
 
 (define-structures ((flatten (export flatten-definitions))
 		    (flatten-internal (export generated-top-variable?)))
-  (open scheme big-scheme comp-util defrecord
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util defrecord
 	structure-refs
-	bindings nodes
+	bindings 
+	;; ours are equivalent, but theirs weren't exported until 2007
+	(modify nodes (hide name-node? lambda-node?
+			    make-similar-node)) ; ours is different
 	variable
 	eval-node 	;closure stuff, constant?
 	ps-primitives	;primitive stuff
@@ -153,9 +182,14 @@
   (files flatten substitute))
 
 (define-structures ((to-cps (export x->cps)))
-  (open scheme big-scheme comp-util
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util
 	variable
-	names bindings nodes
+	names bindings 
+	;; ours are equivalent, but theirs weren't exported until 2007
+	(modify nodes (hide lambda-node?
+			    literal-node?))
 	primop
 	structure-refs
 	cps-util enumerated
@@ -170,7 +204,9 @@
 ; Processing interface and package definitions
 
 (define-structures ((linking linking-interface))
-  (open scheme big-scheme structure-refs comp-util
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	structure-refs comp-util
 	interfaces packages environments usual-macros
 	defpackage types ;for making interfaces
         reflective-tower-maker
@@ -199,7 +235,9 @@
 		    (record-types record-type-interface)
 		    (expand-define-record-type
 		     (export expand-define-record-type)))
-  (open scheme big-scheme comp-util define-record-types)
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util define-record-types)
   (files type
 	 type-scheme
 	 type-var
@@ -207,9 +245,15 @@
 
 (define-structures ((inference inference-interface)
 		    (inference-internal inference-internal-interface))
-  (open scheme big-scheme front variable comp-util transitive
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	front variable comp-util transitive
 	ps-types type-variables
-	bindings nodes
+	bindings 
+	;; ours are equivalent, but theirs didn't exist until 2007
+	(modify nodes (hide name-node?
+			    lambda-node?
+			    literal-node?))
 	structure-refs
 	ps-primitives
 	ps-primops    ; get-prescheme-primop
@@ -221,7 +265,9 @@
 
 (define-structures ((node-types (export instantiate-type&value
 					make-monomorphic!)))
-  (open scheme big-scheme front node comp-util
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	front node comp-util
 	ps-types type-variables
 	inference-internal)  ; unify!
   (files node-type))
@@ -230,22 +276,31 @@
 ; Primops
 
 (define-structures ((ps-primops ps-primop-interface))
-  (open scheme big-scheme comp-util node simplify-internal
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util node simplify-internal
 	linking ps-types front expand platform)
   (files (primop primop)))
 
 (define-structures ((ps-c-primops ps-c-primop-interface))
-  (open scheme big-scheme comp-util node simplify-internal
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util node simplify-internal
 	define-record-types
 	ps-types ps-primops)
   (for-syntax (open scheme big-scheme))
   (files (primop c-primop)))
 
 (define-structures ((primop-data (export)))
-  (open scheme big-scheme comp-util node simplify-internal simplify-let
+  (open scheme 
+	(modify big-scheme (hide table->entry-list))
+	comp-util node
+	(modify simplify-internal (hide simplify-unknown-call))
+	simplify-let
 	front expand type-variables inference-internal
 	ps-types ps-primops record-types
-	parameters node-vector
+	(subset parameters (determine-lambda-protocol))
+	node-vector
 	node-types)   ; instantiate-type&value
   (files (primop base)
 	 (primop arith)
@@ -254,14 +309,16 @@
 	 ))
 
 (define-structures ((c-primop-data (export)))
-  (open scheme big-scheme comp-util node simplify
+  (open scheme
+	(modify big-scheme (hide table->entry-list))
+	comp-util node simplify
 	ps-types ps-primops ps-c-primops
 	platform
 	front
 	structure-refs
 	c-internal
 	ps-types type-variables inference-internal
-	inference          ; get-variable-type
+	(subset inference (get-variable-type))
 	forms
 	compiler-byte-vectors
 	record-types
@@ -290,12 +347,14 @@
 
 (define-structures ((c (export write-c-file hoist-nested-procedures))
 		    (c-internal c-internal-interface))
-  (open scheme ascii big-scheme comp-util strongly-connected node forms
+  (open scheme ascii 
+	(modify big-scheme (hide table->entry-list))
+	comp-util strongly-connected node forms
 	defrecord
 	ps-primops ps-c-primops
 	ps-types type-variables
 	flatten-internal   ; generated-top-variable?
-	inference          ; get-variable-type
+	(subset inference (get-variable-type))
 	inference-internal ; literal-value-type
 	protocol           ; goto-protocol?
 	i/o		   ; force-output

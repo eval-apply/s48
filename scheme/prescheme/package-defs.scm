@@ -9,14 +9,18 @@
 						external-constant-enum-name
 						external-constant-name
 						external-constant-c-string)))
-  (open (modify scheme (rename (open-input-file   scheme:open-input-file)
-			       (open-output-file  scheme:open-output-file)
-			       (close-input-port  scheme:close-input-port)
-			       (close-output-port scheme:close-output-port)
-			       (read-char         scheme:read-char)
-			       (peek-char         scheme:peek-char)))
+  (open (modify scheme
+		(rename (open-input-file   scheme:open-input-file)
+			(open-output-file  scheme:open-output-file)
+			(close-input-port  scheme:close-input-port)
+			(close-output-port scheme:close-output-port)
+			(read-char         scheme:read-char)
+			(peek-char         scheme:peek-char))
+		(hide write-char newline))
 	(subset i/o (byte-ready? read-byte peek-byte write-byte))
-	code-vectors bitwise ascii primitives enumerated
+	code-vectors bitwise ascii 
+	(subset primitives (unspecific))
+	enumerated
 	platform
 	signals ; #### replace by EXCEPTIONS at some point in the future
 	define-record-types

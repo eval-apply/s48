@@ -24,7 +24,6 @@
           vector-replace
           copy-list
           copy-vector
-          symbol-hash
           string-hash
           char->ascii
           object-hash
