@@ -2,33 +2,25 @@
 
 ; Bindings: used to store bindings in packages.
 
-; Representation is type place operator-or-transform-or-#f [path].
+; Representation is type place operator-or-transform-or-#f.
 ; PLACE is a unique (to EQ?) value, usually a location.
 
 (define-record-type binding :binding
-  (really-make-binding type place static path)
+  (really-make-binding type place static)
   binding?
   (type binding-type set-binding-type!)
   (place binding-place set-binding-place!)
-  (static binding-static set-binding-static!)
-  (path binding-path))
+  (static binding-static set-binding-static!))
 
 (define-record-discloser :binding
   (lambda (b)
     (list 'binding
 	  (binding-type b)
 	  (binding-place b)
-	  (binding-static b)
-	  (binding-path b))))
+	  (binding-static b))))
 
 (define (make-binding type place static)
-  (really-make-binding type place static #f))
-
-(define (add-path binding path)
-  (really-make-binding (binding-type binding)
-		       (binding-place binding)
-		       (binding-static binding)
-		       path))
+  (really-make-binding type place static))
 
 ; Used when updating a package binding.
 
