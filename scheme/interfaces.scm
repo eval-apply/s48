@@ -1093,9 +1093,7 @@
 	  set-binding-place!	;for package mutation, used in package.scm
 	  binding-static
 	  binding-type
-	  binding-path
 
-	  add-path
 	  clobber-binding!
 	  maybe-fix-place!
 	  forget-integration
