@@ -211,9 +211,9 @@
 ;   two arguments.  The first argument is a list of DEFINE-STRUCTURE
 ;   clauses, and the second is some identifying information (no
 ;   semantic content).  The procedure should return a "reflective
-;   tower", which is a pair (<eval-proc> . <env>).  To evaluate the
-;   right-hand side of a DEFINE-SYNTAX (LET-SYNTAX, etc.) form,
-;   <eval-proc> is called on the right-hand side and <env>.
+;   tower", which is a promise that returns a pair (<eval-proc> . <env>).
+;   To evaluate the right-hand side of a DEFINE-SYNTAX (LET-SYNTAX, etc.) 
+;   form, <eval-proc> is called on the right-hand side and <env>.
 ; Got that?
 
 (define-syntax define-reflective-tower-maker

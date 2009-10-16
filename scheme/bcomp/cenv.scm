@@ -33,9 +33,9 @@
 ; Making the initial compiler environment.
 ;
 ;  lookup : name -> binding or (binding . path) or #f
-;  define : name type [static] -> void
-;  macro-eval : form -> delay that returns (<eval> . <env>) for evaluating
-;   macro expanders
+;  define! : name type [static] -> void
+;  macro-eval : reflective tower, i.e. promise that returns
+;               (<eval> . <env>) for evaluating macro expanders
 
 (define (make-compiler-env lookup define! macro-eval package)
   (lambda (name)

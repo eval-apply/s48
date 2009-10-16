@@ -55,6 +55,8 @@
 (define-record-discloser :transform
   (lambda (m) (list 'transform (transform-id m))))
 
+; See also: Rees, "Implementing Lexically Scoped Macros",
+; Lisp Pointers VI(1), January-March 1993
 (define (maybe-apply-macro-transform transform exp parent-name env-of-use)
   (let* ((token (cons #f #f))
 	 (new-env (bind-aliases token transform env-of-use))

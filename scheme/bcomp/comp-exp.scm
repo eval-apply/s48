@@ -682,6 +682,8 @@
 
 ; Find lookup result that was cached by classifier
 
+; The binding property is either a location, a 1- or 2-element list with
+; stack index and template index, or 'unbound
 (define (name-node-binding node)
   (or (node-ref node 'binding)
       (node-form node)))
