@@ -48,6 +48,8 @@
   (check-exception
    (get-datum (make-string-input-port "h\\x65llo")))
   (check
+   (get-datum (make-string-input-port "\\x2e;reader.")) => (string->symbol ".reader."))
+  (check
    (get-datum (make-string-input-port "'foo")) => '(quote foo))
   (check
    (get-datum (make-string-input-port "`foo")) => '(quasiquote foo))

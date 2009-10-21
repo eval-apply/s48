@@ -320,7 +320,7 @@
 (define (report-failures p failures)
   (if (null? failures)
       (begin
-	(display "ALL TESTS SUCCEDED" p)
+	(display "ALL TESTS SUCCEEDED" p)
 	(newline p))
       (begin
 	(display "FAILURES:" p)
