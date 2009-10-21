@@ -207,12 +207,13 @@
 
 ; This doesn't remove the delimiter from the port.
 (define (decode-hex-digits port delimiter? desc)
-  (let loop ((rev-digits '()))
+  (let loop ((rev-digits '())
+             (n-digits 0))
     (let ((c (peek-char port)))
       (cond
        ((delimiter? c)
 	(integer->char
-	 (string->number (list->string (reverse rev-digits)) 16)))
+	 (string->number (reverse-list->string rev-digits n-digits) 16)))
        ((eof-object? c)
 	(reading-error
 	 port
@@ -223,7 +224,8 @@
 		       c))
        (else
 	(read-char port)
-	(loop (cons c rev-digits)))))))
+	(loop (cons c rev-digits)
+              (+ 1 n-digits)))))))
 
 (define (char-hex-digit? c)
   (let ((scalar-value (char->integer c)))
