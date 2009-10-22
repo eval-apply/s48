@@ -543,20 +543,21 @@
   (lambda (op op-node exp env)
     (if (and (at-least-this-long? exp 3)
 	     (let-specs? (cadr exp)))
-	(let ((specs (cadr exp)))
-	  (expand-body
-	    (cddr exp)
-	    (bindrec (map car specs)
-		     (lambda (new-env)
-		       (map (lambda (spec)
-			      (make-binding syntax-type
-					    (list 'letrec-syntax)
-					    (process-syntax (cadr spec)
-							    new-env
-							    (car spec)
-							    new-env)))
-			    specs))
-		     env)))
+	(let* ((specs (cadr exp))
+	       (bindings (map (lambda (spec)
+				(make-binding syntax-type
+					      (list 'letrec-syntax)
+					      'unassigned))
+			      specs))
+	       (new-env (bind (map car specs) bindings env)))
+	  (for-each (lambda (spec binding)
+		      (set-binding-static! binding
+					   (process-syntax (cadr spec)
+							   new-env
+							   (car spec)
+							   new-env)))
+		    specs bindings)
+	  (expand-body (cddr exp) new-env))
 	(syntax-violation 'letrec-syntax "invalid expression" exp))))
     
 (define (process-syntax form env name env-or-package)

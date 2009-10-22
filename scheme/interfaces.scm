@@ -1092,7 +1092,8 @@
 	  make-binding
 	  binding-place
 	  set-binding-place!	;for package mutation, used in package.scm
-	  binding-static
+	  binding-static 
+	  set-binding-static! ; for letrec-syntax
 	  binding-type
 
 	  clobber-binding!
@@ -1108,8 +1109,9 @@
 
 (define-interface compiler-envs-interface
   (export make-compiler-env	; re-exported by syntactic
+	  compiler-env?
 	  lookup
-	  bind1 bind bindrec
+	  bind1 bind
 
 	  bind-source-file-name	; re-exported by syntactic
 	  source-file-name
