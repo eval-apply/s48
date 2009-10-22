@@ -8,27 +8,35 @@
 ;
 ; Special names are used to retrieve various values from compiler environments.
 
+(define-record-type compiler-specials :compiler-specials
+  (make-compiler-specials lookup define! macro-eval package source-file-name)
+  compiler-specials?
+  (lookup compiler-specials-lookup)
+  (define! compiler-specials-define!)
+  (macro-eval compiler-specials-macro-eval)
+  (package compiler-specials-package)
+  (source-file-name compiler-specials-source-file-name))
+
+(define-record-type compiler-env :compiler-env
+  (really-make-compiler-env specials alist)
+  compiler-env?
+  (specials compiler-env-specials)
+  (alist compiler-env-alist))
+
 (define (lookup cenv name)
-  (cenv name))
+  (cond
+   ((assq name (compiler-env-alist cenv)) => cdr)
+   (else
+    ((compiler-specials-lookup (compiler-env-specials cenv)) name))))
 
 (define (bind1 name binding cenv)
-  (lambda (a-name)
-    (if (eq? a-name name)
-	binding
-	(lookup cenv a-name))))
+  (really-make-compiler-env (compiler-env-specials cenv)
+			    (cons (cons name binding) (compiler-env-alist cenv))))
 
 (define (bind names bindings cenv)
-  (cond ((null? names) cenv)
-	(else
-	 (bind1 (car names)
-		(car bindings)
-		(bind (cdr names) (cdr bindings) cenv)))))
-
-(define (bindrec names cenv->bindings cenv)
-  (set! cenv (bind names
-		   (cenv->bindings (lambda (a-name) (cenv a-name)))
-		   cenv))
-  cenv)
+  (really-make-compiler-env (compiler-env-specials cenv)
+			    (append (map cons names bindings)
+				    (compiler-env-alist cenv))))
 
 ; Making the initial compiler environment.
 ;
@@ -38,39 +46,25 @@
 ;               (<eval> . <env>) for evaluating macro expanders
 
 (define (make-compiler-env lookup define! macro-eval package)
-  (lambda (name)
-    (cond ((eq? name funny-name/macro-eval)
-	   macro-eval)
-	  ((eq? name funny-name/define!)
-	   define!)
-	  ((eq? name funny-name/source-file-name)
-	   #f)
-	  ((eq? name funny-name/package)
-	   package)
-	  (else
-	   (lookup name)))))
+  (really-make-compiler-env (make-compiler-specials lookup define! macro-eval package #f)
+			    '()))
 
 ; EVAL function for evaluating macro expanders.
 
-(define funny-name/macro-eval (string->symbol "Eval function for macros"))
-
 (define (comp-env-macro-eval cenv)
-  (cenv funny-name/macro-eval))
+  (compiler-specials-macro-eval (compiler-env-specials cenv)))
 
 ; Function for adding definitions to the outer package.
 
-(define funny-name/define! (string->symbol "Definition function"))
-
 (define (comp-env-define! cenv name type . maybe-value)
-  (apply (cenv funny-name/define!) name type maybe-value))
+  (apply (compiler-specials-define! (compiler-env-specials cenv))
+	 name type maybe-value))
 
 ; The package on which the compiler environment is based.  This is a
 ; temporary hack to keep the package-editing code working.
 
-(define funny-name/package (string->symbol "Base package"))
-
 (define (extract-package-from-comp-env cenv)
-  (cenv funny-name/package))
+  (compiler-specials-package (compiler-env-specials cenv)))
 
 ; The name of the source file.
 ;   This is used by the %FILE-NAME% special form,
@@ -78,14 +72,20 @@
 ;    each package, 
 ;   which is (finally) used to look up filenames in the correct directory.
 
-(define funny-name/source-file-name (string->symbol "Source file name"))
-
 (define (bind-source-file-name filename env)
   (if filename
-      (bind1 funny-name/source-file-name filename env)
+      (let ((specials (compiler-env-specials env)))
+	(really-make-compiler-env (make-compiler-specials 
+				   (compiler-specials-lookup specials)
+				   (compiler-specials-define! specials)
+				   (compiler-specials-macro-eval specials)
+				   (compiler-specials-package specials)
+				   filename)
+				  (compiler-env-alist env)))
       env))
 
 (define (source-file-name cenv)
-  (cenv funny-name/source-file-name))
+  (compiler-specials-source-file-name (compiler-env-specials cenv)))
+
 
 

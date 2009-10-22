@@ -58,7 +58,7 @@
 ; Nodes
 
 (define-structure compiler-envs compiler-envs-interface
-  (open scheme-level-2
+  (open scheme-level-2 define-record-types
 	meta-types bindings)
   (files (bcomp cenv))
   (optimize auto-integrate))
