@@ -82,8 +82,8 @@
     (or (eqv? name1 name2)
 	(and (name? name1)	; why might they not be names?
 	     (name? name2)
-	     (let ((v1 (cenv-lookup environment name1))
-		   (v2 (cenv-lookup environment name2)))
+	     (let ((v1 (lookup environment name1))
+		   (v2 (lookup environment name2)))
 	       (if v1
 		   (and v2 (same-denotation? v1 v2))
 		   (and (not v2)
@@ -108,8 +108,8 @@
 	  (if (and (generated? name)
 		   (eq? (generated-token name)
 			token))
-	      (cenv-lookup env-of-definition (generated-name name))
-	      (cenv-lookup env-of-use name)))
+	      (lookup env-of-definition (generated-name name))
+	      (lookup env-of-use name)))
 	env-of-use)))
 
 ; Generate names for bindings reached in ENV reached via PARENT-NAME.
@@ -131,8 +131,3 @@
 			       "non-name argument to rename procedure"
 			       name parent-name)))))
 
-;----------------
-; We break an abstraction here to avoid a circular module dependency.
-
-(define (cenv-lookup cenv name)
-  (cenv name))
