@@ -96,7 +96,7 @@
 	  bind-socket socket-listen
 	  socket-connect
 	  socket-input-port socket-output-port
-	  shutdown-socket
+	  shutdown-socket (shutdown-option :syntax)
 	  socket-address socket-peer-address
 	  (message-options :syntax)
 	  socket-send socket-receive
