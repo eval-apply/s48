@@ -91,7 +91,8 @@
   (export make-socket socket?
 	  make-socket-pair
 	  socket-address-family socket-socket-type
-	  dup-socket socket-accept close-socket
+	  dup-socket port->socket
+	  socket-accept close-socket
 	  bind-socket socket-listen
 	  socket-connect
 	  socket-input-port socket-output-port
