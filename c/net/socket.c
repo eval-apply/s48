@@ -26,6 +26,7 @@ do {								\
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <errno.h>
 #include <fcntl.h>
 
@@ -261,6 +262,9 @@ DEFINE_SOCKET_OPTION_SETTER(s48_setsockopt_SO_SNDLOWAT, SOL_SOCKET, SO_SNDLOWAT,
 DEFINE_SOCKET_OPTION_GETTER(s48_getsockopt_SO_SNDLOWAT, SOL_SOCKET, SO_SNDLOWAT, int)
 /* SO_SNDTIMEO makes output functions block */
 
+DEFINE_SOCKET_OPTION_SETTER(s48_setsockopt_TCP_NODELAY, IPPROTO_TCP, TCP_NODELAY, boolean)
+DEFINE_SOCKET_OPTION_GETTER(s48_getsockopt_TCP_NODELAY, IPPROTO_TCP, TCP_NODELAY, boolean)
+
 /* RFC 3493 */
 
 DEFINE_SOCKET_OPTION_SETTER(s48_setsockopt_IPV6_UNICAST_HOPS, SOL_SOCKET, IPV6_UNICAST_HOPS, int)
@@ -341,6 +345,8 @@ s48_init_net_sockets(void)
   S48_EXPORT_FUNCTION(s48_getsockopt_SO_RCVLOWAT);
   S48_EXPORT_FUNCTION(s48_setsockopt_SO_SNDLOWAT);
   S48_EXPORT_FUNCTION(s48_getsockopt_SO_SNDLOWAT);
+  S48_EXPORT_FUNCTION(s48_setsockopt_TCP_NODELAY);
+  S48_EXPORT_FUNCTION(s48_getsockopt_TCP_NODELAY);
 
   S48_EXPORT_FUNCTION(s48_setsockopt_IPV6_UNICAST_HOPS);
   S48_EXPORT_FUNCTION(s48_getsockopt_IPV6_UNICAST_HOPS);
