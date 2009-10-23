@@ -23,6 +23,7 @@
 
 	  make-ipv6-address ipv6-address?
 	  ipv6-address-any ipv6-address-loopback
+	  ipv6-address-elements
 	  make-ipv6-socket-address ipv6-socket-address?
 	  socket-address-ipv6-address socket-address-ipv6-port
 	  socket-address-ipv6-scope-id
