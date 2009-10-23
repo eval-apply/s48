@@ -266,6 +266,10 @@
   "s48_setsockopt_SO_SNDLOWAT")
 (define-socket-option-getter socket-minimum-send-count
   "s48_getsockopt_SO_SNDLOWAT")
+(define-socket-option-setter set-socket-tcp-nodelay?!
+  "s48_setsockopt_TCP_NODELAY")
+(define-socket-option-getter socket-tcp-nodelay?
+  "s48_getsockopt_TCP_NODELAY")
 
 (define-socket-option-setter set-socket-ipv6-unicast-hops!
   "s48_setsockopt_IPV6_UNICAST_HOPS")

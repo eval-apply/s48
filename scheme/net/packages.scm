@@ -123,6 +123,8 @@
 	  socket-minimum-receive-count
 	  set-socket-minimum-send-count!
 	  socket-minimum-send-count
+	  set-socket-tcp-nodelay?!
+	  socket-tcp-nodelay?
 
 	  set-socket-ipv6-unicast-hops!
 	  socket-ipv6-unicast-hops
