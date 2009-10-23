@@ -108,6 +108,34 @@
           errno=?
           errno?))
 
+(define-interface posix-syslog-interface
+  (export (syslog-option :syntax)
+	  syslog-option?
+
+	  make-syslog-options
+	  syslog-options?
+	  (syslog-options :syntax)
+
+	  (syslog-facility :syntax)
+	  syslog-facility?
+
+	  (syslog-level :syntax)
+	  syslog-level?
+
+	  make-syslog-mask
+	  syslog-mask?
+	  (syslog-mask :syntax)
+	  syslog-mask-all
+	  syslog-mask-upto
+
+	  with-syslog-destination
+
+	  syslog
+
+	  open-syslog-channel
+	  close-syslog-channel
+	  with-syslog-channel))
+
 (define-structures ((posix-files posix-files-interface)
 		    (posix-users posix-users-interface))
   (open scheme define-record-types finite-types
@@ -349,6 +377,19 @@
 	reinitializers)
   (files errno))
 
+(define-structure posix-syslog posix-syslog-interface
+  (open scheme
+	exceptions
+	fluids
+	locks
+	define-record-types
+	finite-types enum-sets enum-sets-internal
+	external-calls
+	load-dynamic-externals
+	reinitializers
+	os-strings)
+  (files syslog))
+
 ; All in one chunk.
 
 (define-structure posix (compound-interface
@@ -360,7 +401,8 @@
 			  (interface-of posix-time)
 			  (interface-of posix-users)
 			  (interface-of posix-regexps)
-			  (interface-of posix-errnos))
+			  (interface-of posix-errnos)
+			  (interface-of posix-syslog))
   (open posix-processes
 	posix-process-data
 	posix-platform-names
@@ -369,5 +411,6 @@
 	posix-time
 	posix-users
 	posix-regexps
-	posix-errnos))
+	posix-errnos
+	posix-syslog))
 
