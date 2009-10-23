@@ -51,7 +51,8 @@
 
 (define (make-read/write-i/o-error who status channel buffer start count wait?)
   (condition
-   (make-i/o-error status)
+   (make-i/o-error)
+   (make-os-error status)
    (make-who-condition who)
    (make-message-condition
     (os-string->string
