@@ -1190,7 +1190,7 @@ the syslog facility.
 Log messages carry a variety of parameters beside the text of the
 message itself, namely a set of options controlling the output format
 and destination, the facility identifying the class of programs the
-message is coming from, an identifier specifying the conrete program,
+message is coming from, an identifier specifying the concrete program,
 and the level identifying the importance of the message.  Moreover, a
 log mask can prevent messages at certain levels to be actually sent to
 the syslog daemon.
@@ -1372,7 +1372,7 @@ levels up to and including a certain level, starting with
 
 Scheme~48 dynamically maintains implicit connections to the syslog
 facility specifying a current identifier, current options, a current
-facility and a current log mask.  Hence, every thread
+facility and a current log mask.  Every thread
 maintains it own implicit connection to syslog.  Note that the
 connection is not implicitly preserved across a \code{spawn}.
 
