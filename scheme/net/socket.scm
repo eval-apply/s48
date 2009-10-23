@@ -50,6 +50,10 @@
 		   (socket-socket-type sock)
 		   (external-dup-socket-channel (socket-channel sock))))
 
+(define (port->socket port family type)
+  (channel->socket family type
+		   (external-dup-socket-channel (port->channel port))))
+
 (define make-socket-pair
   (opt-lambda (family type (protocol 0))
     (let ((p (external-socketpair (address-family->raw family)
