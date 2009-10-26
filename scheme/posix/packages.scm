@@ -170,8 +170,10 @@
   (export get-process-id get-parent-process-id
 
 	  ; I am not happy with these names.  They don't mention the process.
-	  get-user-id get-effective-user-id set-user-id!
-	  get-group-id get-effective-group-id set-group-id!
+	  get-user-id get-effective-user-id
+	  set-user-id! set-effective-user-id!
+	  get-group-id get-effective-group-id
+	  set-group-id! set-effective-group-id!
 
 	  get-groups
 	  get-login-name
