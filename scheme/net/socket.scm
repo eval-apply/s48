@@ -73,8 +73,9 @@
 (define (close-socket socket)
   (cond
    ((or (socket-input-port socket) (socket-output-port socket))
-    (cond 
-     ((socket-input-port socket) => close-input-port)
+    (cond
+     ((socket-input-port socket) => close-input-port))
+    (cond
      ((socket-output-port socket) => close-output-port)))
    (else
     (let ((channel (socket-channel socket)))
