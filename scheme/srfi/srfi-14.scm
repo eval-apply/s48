@@ -787,18 +787,6 @@
 	  (p i (byte-vector-ref s i))
 	  (loop (- i 1))))))
 
-(define (byte-vector=? b1 b2)
-  (let ((size-1 (byte-vector-length b1))
-	(size-2 (byte-vector-length b2)))
-    (and (= size-1 size-2)
-	 (let loop ((i 0))
-	   (cond
-	    ((>= i size-1) #t)
-	    ((= (byte-vector-ref b1 i) (byte-vector-ref b2 i))
-	     (loop (+ 1 i)))
-	    (else
-	      #f))))))
-
 ;; Utility for srfi-14-base-char-sets.scm, which follows
 
 ; The range vector is an even-sized vector with [lower, upper)

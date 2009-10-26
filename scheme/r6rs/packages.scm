@@ -265,3 +265,9 @@
 	nodes command-state)
   (files reader-command)
   (optimize auto-integrate))
+
+(define-structure r6rs-equal (export equal?)
+  (open (modify scheme-level-1 (hide equal?))
+        byte-vectors)
+  (files equal)
+  (optimize auto-integrate))
