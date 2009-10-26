@@ -271,3 +271,8 @@
         byte-vectors)
   (files equal)
   (optimize auto-integrate))
+
+(define-structure r6rs-control (export when unless case-lambda)
+  (open scheme-level-2
+        srfi-16)
+  (files control))

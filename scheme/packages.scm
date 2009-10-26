@@ -542,6 +542,7 @@
 	    r6rs-reader-command
 	    r6rs-reader-internals
             r6rs-equal
+            r6rs-control
 
 	    ; POSIX packages (see scheme/posix/packages.scm)
 	    posix-files
