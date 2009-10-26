@@ -32,10 +32,16 @@
   (call-imported-binding-2 posix-get-id #f #f))
 
 (define (set-user-id! user-id)
-  (call-imported-binding-2 posix-set-id! #t user-id))
+  (call-imported-binding-2 posix-set-id! #t #t user-id))
+
+(define (set-effective-user-id! user-id)
+  (call-imported-binding-2 posix-set-id! #t #f user-id))
 
 (define (set-group-id! group-id)
-  (call-imported-binding-2 posix-set-id! #f group-id))
+  (call-imported-binding-2 posix-set-id! #f #t group-id))
+
+(define (set-effective-group-id! group-id)
+  (call-imported-binding-2 posix-set-id! #f #f group-id))
 
 (import-definition posix-get-pid)
 (import-definition posix-get-id)
