@@ -21,12 +21,12 @@ $vm -i $initial -a batch <<EOF
 ,load =scheme48/sort/interfaces.scm
 ,load =scheme48/sort/packages.scm
 ,load =scheme48/more-packages.scm
+,load =scheme48/posix/packages.scm
+,load =scheme48/srfi/packages.scm
 ,load =scheme48/r6rs/packages.scm
 ,load =scheme48/net/packages.scm
-,load =scheme48/posix/packages.scm
 ,load =scheme48/cml/interfaces.scm
 ,load =scheme48/cml/packages.scm
-,load =scheme48/srfi/packages.scm
 (ensure-loaded command-processor)
 (ensure-loaded usual-commands)
 ,go ((*structure-ref command 'command-processor)
