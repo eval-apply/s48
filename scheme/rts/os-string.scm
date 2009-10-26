@@ -136,18 +136,6 @@
     (copy-bytes! b 0 result 0 size-old)
     result))
 
-; this must be frequently duplicated ...
-(define (byte-vector=? b1 b2)
-  (let ((size-1 (byte-vector-length b1))
-	(size-2 (byte-vector-length b2)))
-    (and (= size-1 size-2)
-	 (let loop ((i 0))
-	   (cond
-	    ((>= i size-1) #t)
-	    ((= (byte-vector-ref b1 i) (byte-vector-ref b2 i))
-	     (loop (+ 1 i)))
-	    (else #f))))))
-
 ; Initialization
 
 (initialize-os-string-text-codec!)

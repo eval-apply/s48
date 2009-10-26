@@ -6,7 +6,7 @@ dnl
 AC_DEFUN([S48_PICK_GC], [dnl
 AC_ARG_ENABLE([gc],
 [AC_HELP_STRING([--enable-gc=GC],
-                [choose garbage collector (twospace, bibop), default is twospace])],
+                [choose garbage collector (twospace, bibop), default is bibop])],
               [dnl
                 case $enableval in
                   twospace )
