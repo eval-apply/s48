@@ -45,7 +45,10 @@
   (call-imported-binding-2 posix-get-groups))
 
 (define (get-login-name)
-  (call-imported-binding-2 posix-get-login))
+  (let ((name (call-imported-binding-2 posix-get-login)))
+    (if name
+        (byte-vector->os-string name)
+        name)))
 
 (import-definition posix-get-groups)
 (import-definition posix-get-login)
@@ -85,7 +88,7 @@
    ((lookup-environment-variable name)
     => os-string->string)
    (else #f)))
-   
+
 (define (environment-alist)
   (map (lambda (pair)
 	 (cons (x->os-string (car pair))
