@@ -553,6 +553,7 @@
 	    posix-regexps
 	    posix-i/o
 	    posix-errnos
+	    posix-syslog
 	    regexps regexps-internal
 	    posix
 

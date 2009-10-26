@@ -217,6 +217,10 @@ $(posix_dir)/errno.o: c/posix/errno.c \
 	c/event.h $(posix_dir)/posix.h $(posix_dir)/s48_errno.h
 	$(CC_POSIX)
 
+$(posix_dir)/syslog.o: c/posix/syslog.c \
+	$(SCHEME48HS)
+	$(CC_POSIX)
+
 $(posix_dir)/posix.o: c/posix/posix.c
 	$(CC_POSIX)
 
@@ -233,7 +237,7 @@ POSIX_OBJECTS = $(posix_dir)/user.o     $(posix_dir)/regexp.o	\
                 $(posix_dir)/proc-env.o $(posix_dir)/proc.o	\
                 $(posix_dir)/io.o	$(posix_dir)/dir.o	\
 		$(posix_dir)/posix.o	$(posix_dir)/time.o	\
-		$(posix_dir)/errno.o
+		$(posix_dir)/errno.o	$(posix_dir)/syslog.o
 
 $(POSIX_EXTERNAL) : $(POSIX_OBJECTS)
 	$(LD) -o $@ $(POSIX_OBJECTS) $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) 
