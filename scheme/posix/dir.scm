@@ -87,6 +87,7 @@
   (let* ((input? (file-options-on? options (file-options read-only)))
 	 (channel (call-imported-binding-2 posix-open
 					   (x->os-byte-vector path)
+					   path
 					   options
 					   (if (null? mode)
 					       #f
