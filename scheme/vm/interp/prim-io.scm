@@ -50,7 +50,7 @@
 	     (lose (enum exception wrong-type-argument)))
 	    ((fixnum? spec)
 	     (if (<= 0 (extract-fixnum spec))
-	 (win (extract-fixnum spec))
+		 (win (extract-fixnum spec))
 		 (lose (enum exception wrong-type-argument))))
 	    ((code-vector? spec)
 	     (receive (channel status)
