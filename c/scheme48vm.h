@@ -33,7 +33,7 @@ extern char		s48_external_event_pendingPUunsafe(void);
 extern long		s48_dequeue_external_eventBUunsafe(char*);
 
 /* imported and exported bindings */	  
-S48_EXTERN void		s48_define_exported_binding(char *, s48_value);
+S48_EXTERN s48_value	s48_define_exported_binding(char *, s48_value);
 S48_EXTERN s48_value	s48_get_imported_binding(char *);
 
 /* for raising exceptions in external code */
@@ -77,6 +77,7 @@ extern s48_value	s48_really_add_channel(s48_value, s48_value, long);
 /* external allocation and GC roots */
 extern void		s48_gc_root(void);
 extern s48_value	s48_allocate_stob(long type, long size);
+extern s48_value	s48_allocate_weak_stob(long type, long size);
 S48_EXTERN void		s48_push_gc_rootsB(char *, long);
 S48_EXTERN psbool	s48_pop_gc_rootsB(void);
 extern char *		s48_set_gc_roots_baseB(void);

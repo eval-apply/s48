@@ -26,3 +26,10 @@
 				      (not (fl< y x)))))
 (define flonum>= (flonum-comparison (lambda (x y)
 				      (not (fl< x y)))))
+
+(define (flonum-rational? n)
+  (let ((x (extract-double n)))
+    ;; infinities and NaNs aren't rational
+    (and (fl= x x)
+	 (not (fl= x (fl/ 1.0 0.0)))
+	 (not (fl= x (fl/ -1.0 0.0))))))

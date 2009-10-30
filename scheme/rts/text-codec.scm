@@ -27,9 +27,9 @@
   (really-make-text-codec names
 			  code
 			  (lambda (char buffer start count)
-			    (encode-char code char buffer start count))
+			    (char->utf code char buffer start count))
 			  (lambda (buffer start count)
-			    (decode-char code buffer start count))))
+			    (utf->char code buffer start count))))
 
 (define (make-text-codec names encode-char-proc decode-char-proc)
   (really-make-text-codec names #f encode-char-proc decode-char-proc))

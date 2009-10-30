@@ -6,8 +6,10 @@
 ; macro or an in-line procedure.
 
 (define-record-type transform :transform
-  (really-make-transform xformer env type aux-names source id)
+  (really-make-transform kind xformer env type aux-names source id)
   transform?
+  ;; macro or inline
+  (kind      transform-kind)
   (xformer   transform-procedure)
   (env	     transform-env)
   (type	     transform-type)
@@ -15,19 +17,46 @@
   (source    transform-source)    ;for reification
   (id	     transform-id))
 
-(define (make-transform thing env type source id)
+(define (make-transform/macro thing env type source id)
+  (let ((type (if (or (pair? type)
+		      (symbol? type))
+		  (sexp->type type #t)
+		  type)))
+    (call-with-values
+	(lambda ()
+	  (if (pair? thing)
+	      (values (car thing) (cdr thing))
+	      (values thing #f)))
+      (lambda (transformer aux-names)
+	;; The usual old-style transformers take 3 args: exp rename compare.
+	;; However, syntax-rules-generated transformers need a 4th arg, name?.
+	;; Distinguish between the two kinds.
+	(let ((proc
+	       (cond
+		((explicit-renaming-transformer/4? transformer)
+		 (explicit-renaming-transformer/4-proc transformer))
+		(else ; standard explicit-renaming transformers take only 3 args
+		 (lambda (exp name? rename compare)
+		   (transformer exp rename compare))))))
+	  (make-immutable!
+	   (really-make-transform 'macro proc env type aux-names source id)))))))
+
+; for backwards compatibility with the PreScheme compiler
+(define make-transform make-transform/macro)
+
+(define (make-transform/inline thing env type source id)
   (let ((type (if (or (pair? type)
 		      (symbol? type))
 		  (sexp->type type #t)
 		  type)))
     (make-immutable!
-     (if (pair? thing)
-	 (really-make-transform (car thing) env type (cdr thing) source id)
-	 (really-make-transform thing       env type #f          source id)))))
+     (really-make-transform 'inline (car thing) env type (cdr thing) source id))))
 
 (define-record-discloser :transform
   (lambda (m) (list 'transform (transform-id m))))
 
+; See also: Rees, "Implementing Lexically Scoped Macros",
+; Lisp Pointers VI(1), January-March 1993
 (define (maybe-apply-macro-transform transform exp parent-name env-of-use)
   (let* ((token (cons #f #f))
 	 (new-env (bind-aliases token transform env-of-use))
@@ -35,7 +64,7 @@
 				      token
 				      parent-name))
 	 (compare (make-keyword-comparator new-env)))
-    (values ((transform-procedure transform) exp rename compare)
+    (values ((transform-procedure transform) exp name? rename compare)
 	    new-env)))
 
 (define (apply-inline-transform transform exp parent-name)

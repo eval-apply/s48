@@ -35,7 +35,7 @@
 		(if (define-node? form)
 		    (maybe-update-known-type form package)))
 	      forms)
-    (sort-forms forms #t)))
+    (sort-forms forms)))
 
 (define (maybe-update-known-type node package)
   (let* ((lhs (cadr (node-form node)))
@@ -142,6 +142,11 @@
       (analyze (caddr exp) free usages))))
 
 (define-usage-analyzer 'letrec syntax-type
+  (lambda (node free usages)
+    (let ((exp (node-form node)))
+      (analyze-letrec (cadr exp) (caddr exp) free usages))))
+
+(define-usage-analyzer 'letrec* syntax-type
   (lambda (node free usages)
     (let ((exp (node-form node)))
       (analyze-letrec (cadr exp) (caddr exp) free usages))))

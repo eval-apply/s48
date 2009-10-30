@@ -398,9 +398,5 @@
 	 (error-message "unknown type of event")
 	 0)))
 
-; Return a bitmask for INTERRUPT.
-
-(define (interrupt-bit interrupt)
-  (shift-left 1 interrupt))
 
 

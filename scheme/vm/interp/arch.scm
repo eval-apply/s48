@@ -5,7 +5,7 @@
 
 ;;;; Architecture description
 
-(define architecture-version "Vanilla 39")
+(define architecture-version "Vanilla 40")
 
 ; Things that the VM and the runtime system both need to know.
 
@@ -119,9 +119,9 @@
   (tail-call nargs two-bytes 1 +)   ; same, no return pointer but stack frame size, moves arguments
   (big-call offset two-byte-nargs 1 +) ; ditto, nargs counts are two bytes
 
-  (known-tail-call nargs two-bytes 1 +)
-  (known-call offset nargs 1 +) ; like CALL, but no protocol conversion
-  (big-known-call offset two-byte-nargs 1 +) ; ditto, nargs count are two bytes
+  (known-tail-call nargs two-bytes byte 1 +) ; byte = 1 says n-ary, 0 says fixed arity
+  (known-call offset nargs byte 1 +) ; like CALL, but no protocol conversion
+  (big-known-call offset two-byte-nargs byte 1 +) ; ditto, nargs count are two bytes
 
   (poll)
   (apply offset two-byte-nargs 2 +)   ; last argument is procedure to call, second to
@@ -221,7 +221,7 @@
                      
   (location-defined? 1)
   (set-location-defined?! 2)
-  ((immutable? make-immutable! make-mutable!) 1)
+  ((immutable? make-immutable!) 1)
 
   ;; channels (unbuffered, non-blocking I/O)
   (open-channel 4)
@@ -235,6 +235,9 @@
 
   ;; weak-pointers
   (make-weak-pointer 1)
+
+  ;; transport link cells
+  (make-transport-link-cell 4)
 
   ;; Optimistic concurrency
   (current-proposal)
@@ -272,6 +275,7 @@
   (schedule-interrupt 1)
   (wait 2)                      ; do nothing until something happens
   (call-external-value 1 +)
+  (call-external-value-2 1 +)
   (lookup-shared-binding 2)
   (undefine-shared-binding 2)
   (find-undefined-imported-bindings)
@@ -287,15 +291,16 @@
   (reverse-list->string 2)
   (assq 2)
   (unassigned-check 1)
+  (record-type<=? 2)
   ; If the byte = 0 then do not log in the current proposal
   (checked-record-ref index 3)
   (checked-record-set! index 4)
 
-  (encode-char 5)
-  (encode-char! 5)
+  (char->utf 5)
+  (char->utf! 5)
 
-  (decode-char 4)
-  (decode-char! 4)
+  (utf->char 4)
+  (utf->char! 4)
 
   ;; ports (buffered I/O) - these are all unnecessary
   ;; byte = 0 -> port is supplied
@@ -573,11 +578,10 @@
    template
    weak-pointer
    shared-binding
-   unused-d-header1
    transport-link-cell
 
    ;; B-vector types (not traced by GC)
-   string        ; = least b-vector type
+   string        ; = least b-vector type, note that the BIBOP GC knows this in c/bibop/data.h
    byte-vector
    double        ; double precision floating point
    bignum
@@ -630,7 +634,7 @@
       (channel-os-index)
       (channel-close-silently?))
     (transport-link-cell transport-link-cell? make-transport-link-cell
-      (transport-link-cell-key) ; must always be younger, hence no mutator
+      (transport-link-cell-key) ; may never be younger than TLC, hence no mutator
       (transport-link-cell-value set-transport-link-cell-value!)
       (transport-link-cell-tconc set-transport-link-cell-tconc!)
       (transport-link-cell-next set-transport-link-cell-next!))

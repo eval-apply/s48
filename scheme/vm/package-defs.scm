@@ -48,7 +48,8 @@
 	text-encodings
 	return-codes
 	gc-roots gc gc-util
-	heap stack external external-events)
+	heap stack external external-events
+	vm-records)
   (for-syntax (open scheme destructuring signals))
   (files (interp interp)
 	 (interp call)
@@ -131,7 +132,7 @@
 	gc gc-roots gc-util)
   (files (interp shared-binding)))
 
-(define-structure io-opcodes (export)
+(define-structure io-opcodes (export message-element) ; for debugging
   (open prescheme vm-utilities vm-architecture ps-receive enum-case
 	interpreter-internal
 	channel-io vmio
@@ -141,7 +142,8 @@
 	symbols external-opcodes
 	stack			;pop
 	stob			;immutable
-	text-encodings)
+	text-encodings
+	vm-records)
   (files (interp prim-io)))
 
 (define-structure proposal-opcodes (export initialize-proposals!+gc)
@@ -152,7 +154,8 @@
 	stob
 	external	;get-proposal-lock! release-proposal-lock!
 	gc		;s48-trace-value
-	gc-roots)	;add-gc-root!
+	gc-roots	;add-gc-root!
+	vm-records)
   (files (interp proposal)))
 
 (define-structures ((stack stack-interface)
@@ -315,7 +318,8 @@
 (define-structure external-gc-roots external-gc-roots-interface
   (open prescheme ps-memory
 	memory data
-	gc gc-roots)
+	gc gc-roots
+	(subset external (trace-external-calls)))
   (files (heap gc-root)))
 
 ;----------------------------------------------------------------
@@ -345,6 +349,12 @@
   ;(optimize auto-integrate)
   (files (data defdata)
 	 (data struct)))
+
+(define-structure vm-records vm-records-interface
+  (open prescheme
+	struct
+	data)
+  (files (data record)))
 
 (define-structure string-tables string-table-interface
   (open prescheme vm-utilities vm-architecture
@@ -499,7 +509,8 @@
 					    flonum-multiply
 					    flonum-divide
 					    flonum= flonum< flonum>
-					    flonum<= flonum>=)
+					    flonum<= flonum>=
+					    flonum-rational?)
   (open prescheme 
 	ps-memory
 	ps-flonums

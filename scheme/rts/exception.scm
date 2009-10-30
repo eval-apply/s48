@@ -112,10 +112,10 @@
 
 ; Define disclosers that are most important for error messages.
 
-(define-method &disclose ((obj :closure))
+(define-method &disclose ((obj <closure>))
   (list 'procedure (template-ref (closure-template obj) 1)))
 
-(define-method &disclose ((obj :location))
+(define-method &disclose ((obj <location>))
   (list 'location (location-id obj)))
 
 ; (put 'with-handler 'scheme-indent-hook 1)
@@ -129,20 +129,27 @@
    thunk))
 
 (define (raise obj)
-  (let* ((cell (make-cell (fluid-cell-ref $exception-handlers))))
+  (let* ((cell (make-cell (fluid-cell-ref $exception-handlers)))
+	 (current-handler #f))
     (let-fluid
      $exception-handlers cell
      (lambda ()
        (let loop ((handlers (fluid-cell-ref $exception-handlers))
 		  (obj obj))
-	 (cell-set! cell (cdr handlers))
-	 ((car handlers) obj
-	  (lambda maybe-obj
-	    (if (null? maybe-obj)
-		(loop (cdr handlers) obj)
-		(loop (cdr handlers) (car maybe-obj)))))
-	 (assertion-violation 'raise "exception handler returned"
-			      (car handlers) obj))))))
+	 (let ((rest (cdr handlers)))
+	   (cell-set! cell rest)
+	   (set! current-handler (car handlers))
+	   (current-handler obj
+			    (lambda maybe-obj
+			      (if (null? maybe-obj)
+				  (loop rest obj)
+				  (loop rest (car maybe-obj)))))))
+       (if (pair? (cell-ref cell))	; don't skip the last one
+	   (assertion-violation 'raise "exception handler returned"
+				current-handler obj))))
+    ;; go back to the top
+    (assertion-violation 'raise "exception handler returned"
+			 current-handler obj)))
 
 (define (raise-continuable obj)
   (let* ((cell (make-cell (fluid-cell-ref $exception-handlers))))
@@ -171,7 +178,7 @@
                   (lambda ()
                     (let ((var condition))      ; clauses may SET! var
                       (guard-aux (handler-k (lambda ()
-                                              (raise condition)))
+                                              (raise-continuable condition)))
                                  clause ...))))))))
           (lambda ()
             (call-with-values

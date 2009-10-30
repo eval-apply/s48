@@ -10,3 +10,4 @@
 (define maybe-open-input-file open-input-file)
 (define maybe-open-output-file open-output-file)
 
+(define (unspecific) (if #f #f))

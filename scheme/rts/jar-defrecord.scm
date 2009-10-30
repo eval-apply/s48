@@ -11,6 +11,10 @@
 
 (define-syntax define-record-type
   (syntax-rules ()
+    ((define-record-type ?type ; compatibility with SRFI 9
+       (?constructor ?arg ...) . ?more)
+     (define-record-type ?type ?type
+       (?constructor ?arg ...) . ?more))
     ((define-record-type ?id ?type
        (?constructor ?arg ...)
        (?field . ?field-stuff)
@@ -30,7 +34,7 @@
 	    (define ?pred
 	      (lambda (x)
 		(and (record? x)
-		     (eq? ?type (record-ref x 0)))))))))
+		     (record-type<=? (record-ref x 0) ?type))))))))
 
 (define-syntax define-synchronized-record-type
   (syntax-rules ()

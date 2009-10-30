@@ -21,7 +21,7 @@
 	filenames
 	debug-data		;with-fresh-compiler-state
 	locations
-	tables fluids low-exceptions util)
+	tables fluids exceptions util)
   (files (link link)))
 
 (define-structure reification (export reify-structures)
@@ -34,7 +34,7 @@
 	locations
 	primops
 	tables records
-	low-exceptions		;error
+	exceptions		;error
 	features		;force-output
 	util			;filter
 	inline)			;name->extrinsic
@@ -76,12 +76,14 @@
 (define-structure link-config (export )  ;dummy structure...
   (open scheme-level-2
 	linker
+	names ; name?
+	syntax-rules-apply
 	defpackage
 	types
 	analysis
 	loadc
 	flatloading
 	interfaces
-	low-exceptions)    ;warning
+	exceptions)    ;warning
   ;; (files (alt init-defpackage.scm))  -- or (env ...), depending
   )

@@ -1,20 +1,24 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
 
-
 ;   This is a backquote-like macro for building nodes.
 ;
 ;   One goal is to produce code that is as efficient as possible.
+;   We aren't quite there yet.
 ;
 ; (LET-NODES (<spec1> ... <specN>) . <body>)
-; (NEW-LAMBDA (<ident> (<var1> ... <varN>) <call>))
-; (NEW-LAMBDA (<ident> (<var1> ... <varN> . <last-vars>)) <call>)
-; (NEW-CALL <primop-id> <exits> <arg> ...)
-;
-;
+; (NEW-CALL <primop-id> <exits> . <arg-list>)
+; These all create cont lambdas:
+; (NEW-LAMBDA (<var1> ... <varN>) <call-exp>)
+; (NEW-LAMBDA (<var1> ... <varN> . <last-vars>) <call-exp>)
+; (NEW-LAMBDA <vars> <call-exp>)
+; (NEW-LAMBDA (<var1> ... <varN>))
+; (NEW-LAMBDA (<var1> ... <varN> . <last-vars>))
+; (NEW-LAMBDA <vars>)
 ;
 ; <spec> ::= (<ident> <real-call>) |                            ; call node
-;            (<ident> (<var1> ... <varN>) <call>) |             ; lambda node
-;            (<ident> (<var1> ... <varN> . <last-vars>) <call>) ; lambda node
+;            (<ident> (<var1> ... <varN>) <call>) |             ; cont lambda node
+;            (<ident> (<var1> ... <varN> . <last-vars>) <call>) ; cont lambda node
+;            (<ident> <vars> <call>) |                          ; cont lambda node
 ;
 ; <var>  ::= #f |             Ignored variable position
 ;            <ident> |        Evaluate <ident> and copy it, rebinding <ident>
@@ -37,46 +41,20 @@
 ;            (! foo)     foo evaluates to a node
 ;            foo         short for (! foo) when foo is an atom
 ;            #f          put nothing here
-;            (<primop-id> . <args>)   a nested call
+;            (<primop-id> . <arg-list>)   a nested (simple) call
 ;--------------------------------------
-;
+
 ; Example:
 ;
-;  (let-nodes ((c1 (l1 1 cont))
-;              (l1 ((j type/pointer)) (proc 2 l2 l3 . rest))
-;              (l2 () ((jump cont (* j)) '(true-value type/boolean)))
-;              (l3 () ((jump cont (* j)) '(false-value type/boolean))))
-;    (replace-body node c1))
-;
-;  ==>
-;
-;  (LET ((J (CREATE-VARIABLE 'J TYPE/POINTER)))
-;    (LET ((C1 (CREATE-CALL-NODE '2 1))
-;          (C.1225 (CREATE-CALL-NODE (+ '3 (LENGTH REST)) '2))
-;          (L1 (CREATE-LAMBDA-NODE 'C 'CONT (FLIST1 J '())))
-;          (C.1224 (CREATE-CALL-NODE '4 0))
-;          (L2 (CREATE-LAMBDA-NODE 'C 'CONT '()))
-;          (C.1223 (CREATE-CALL-NODE '4 0))
-;          (L3 (CREATE-LAMBDA-NODE 'C 'CONT '())))
-;      (ATTACH 0 C1 L1)
-;      (ATTACH 1 C1 CONT)
-;      (ATTACH 0 C.1225 PROC)
-;      (ATTACH-CALL-ARGS C.1225 (APPEND (LIST L2 L3) REST))
-;      (ATTACH-BODY L1 C.1225)
-;      (ATTACH 0 C.1224 (CREATE-PRIMOP-NODE PRIMOP/JUMP))
-;      (ATTACH-THREE-CALL-ARGS C.1224
-;                              (CREATE-JUMP-MARKER CONT)
-;                              (CREATE-REFERENCE-NODE J)
-;                              (CREATE-LITERAL-NODE TRUE-VALUE TYPE/BOOLEAN))
-;      (ATTACH-BODY L2 C.1224)
-;      (ATTACH 0 C.1223 (CREATE-PRIMOP-NODE PRIMOP/JUMP))
-;      (ATTACH-THREE-CALL-ARGS C.1223
-;                              (CREATE-JUMP-MARKER CONT)
-;                              (CREATE-REFERENCE-NODE J)
-;                              (CREATE-LITERAL-NODE FALSE-VALUE TYPE/BOOLEAN))
-;      (ATTACH-BODY L3 C.1223)
-;      (REPLACE-BODY NODE C1)))
-; 
+; (let-nodes ((call (let 1 l1 . vals))
+; 	      (l1 vars lr1))
+;   call)
+; ====>
+; (let ((call (make-call-node (get-primop (enum primop let) (+ 1 (length vals)) 1)))
+;       (l1 (make-lambda-node 'c 'cont (append (list) vars))))
+;   (attach-call-args call (append (list l1) vals))
+;   (attach-body l1 lr1)
+;   call)
 
 (define (expand-let-nodes form rename compare)
   (destructure (((#f specs . body) form))
@@ -87,10 +65,12 @@
 	    ,@code
 	    ,@body)))))
 
-; (NEW-LAMBDA (<ident> (<var1> ... <varN>) <call>))
-; (NEW-LAMBDA (<ident> (<var1> ... <varN> . <last-vars>)) <call>)
-; (NEW-LAMBDA (<ident> (<var1> ... <varN>)))
-; (NEW-LAMBDA (<ident> (<var1> ... <varN> . <last-vars>)))
+; (NEW-LAMBDA (<var1> ... <varN>) <call-exp>)
+; (NEW-LAMBDA (<var1> ... <varN> . <last-vars>) <call-exp>)
+; (NEW-LAMBDA <vars> <call-exp>)
+; (NEW-LAMBDA (<var1> ... <varN>))
+; (NEW-LAMBDA (<var1> ... <varN> . <last-vars>))
+; (NEW-LAMBDA <vars>)
 
 (define (expand-new-lambda form rename compare)
   (destructure (((#f vars . maybe-call) form))
@@ -171,8 +151,6 @@
 ;
 ; <real-call> ::= (<arg0> <exits> <arg1> ... <argN>) |
 ;                 (<arg0> <exits> <arg1> ... <argN> . <last-args>))
-;                 ((JUMP l-node value) <arg1> ... <argN>)
-;                 ((JUMP l-node value) <arg1> ... <argN> . <last-args>)
 
 (define (construct-call name specs r c)
   (destructure (((proc . args) specs))
@@ -245,6 +223,8 @@
 ;            (* foo)      reference to foo (which evaluates to a variable)
 ;            (! foo)      foo evaluates to a node
 ;            name         short for (! name) when foo is an atom
+;            #f          put nothing here
+;            (<primop-id> . <arg-list>)   a nested (simple) call
 
 (define (construct-node spec r c)
   (cond ((atom? spec) spec)

@@ -40,10 +40,10 @@
   ((port-handler-discloser (port-handler port))
      port))
 
-(define-method &disclose ((port :input-port))
+(define-method &disclose ((port <input-port>))
   (disclose-port port))
 
-(define-method &disclose ((port :output-port))
+(define-method &disclose ((port <output-port>))
   (disclose-port port))
 
 ;----------------

@@ -44,9 +44,9 @@
 
 (define-text-codec utf-8/diy "UTF-8/DIY"
   (lambda (char buffer start count)
-    (encode-char (enum text-encoding-option utf-8) char buffer start count))
+    (char->utf (enum text-encoding-option utf-8) char buffer start count))
   (lambda (buffer start count)
-    (decode-char (enum text-encoding-option utf-8)  buffer start count)))
+    (utf->char (enum text-encoding-option utf-8)  buffer start count)))
 
 ;----------------
 ; Input ports that keep track of the current row and column.
@@ -256,6 +256,31 @@
 
 (define (string-output-port-output port)
   (utf-8->string (byte-vector-output-port-output port) #\?))
+
+
+; extract list of byte-vector chunks
+(define (byte-vector-output-port-chunks port)
+  (ensure-atomicity 
+   (check-buffer-timestamp! port)      ; makes the proposal check this
+   (let* ((full (provisional-cdr (port-data port)))
+	  (last (port-buffer port))
+	  (index (provisional-port-index port))
+	  (last-copy (make-byte-vector index 0)))
+     (copy-bytes! last 0 last-copy 0 index)
+     (reverse (cons last-copy full)))))
+
+(define (write-byte-vector-output-port-output port other-port)
+  (for-each (lambda (chunk)
+	      (write-block chunk
+			   0
+			   (byte-vector-length chunk)
+			   other-port))
+	    (byte-vector-output-port-chunks port)))
+
+(define (write-string-output-port-output port other-port)
+  (for-each (lambda (chunk)
+	      (display (utf-8->string chunk #\?) other-port))
+	    (byte-vector-output-port-chunks port)))
 
 (define string-output-port-handler
   (make-buffered-output-port-handler

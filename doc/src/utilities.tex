@@ -286,7 +286,7 @@ The array interface is derived from one invented by Alan Bawden.
  must be a non-negative integer.
 Every element is initially set to \cvar{value}.
 \code{Array} Returns a new array with the given dimensions and elements.
-\cvar{Dimensions} must be a list of non-negative integers, 
+\cvar{Dimensions} must be a list of positive integers, 
 The number of elements should be the equal to the product of the
  dimensions.
 The elements are stored in row-major order.
@@ -543,6 +543,7 @@ Ignoring the declarations, which will have to wait for another edition of
  record and access or modify it using a single VM instruction.
 
 \section{Finite record types}
+\label{sec:finite-types}
 
 The structure \code{finite-types} has
  two macros for defining `finite' record types.
@@ -769,6 +770,7 @@ For example, \code{make-integer-table} could be defined
 \proto{table-ref}{ table key}{value or {\tt \#f}}
 \protonoresultnoindex{table-set!}{ table key value}\mainschindex{table-set"!}
 \protonoresult{table-walk}{ procedure table}
+\proto{table->entry-list}{ table}{list of pairs}
 \end{protos}
 \noindent
 \code{Table?} is the predicate for tables.
@@ -776,6 +778,8 @@ For example, \code{make-integer-table} could be defined
  in \cvar{table}.
 \code{Table-walk} applies \cvar{procedure}, which must accept two arguments,
  to every associated key and non-\code{\#f} value in \code{table}.
+\code{Table->entry-list} returns a list with the values of
+the table.
 
 \begin{protos}
 \proto{default-hash-function}{ value}{integer}
@@ -845,7 +849,7 @@ They return \code{\#f} if \var{port} does not keep track of its location.
  \code{(current-row \cvar{port})} is not 0.
 
 \begin{example}
-(define p (open-output-port "/tmp/temp"))
+(define p (make-tracking-output-port (open-output-file "/tmp/temp")))
 (list (current-row p) (current-column p))
     \evalsto '(0 0)
 (display "012" p)
@@ -955,6 +959,19 @@ take file names all accept \var{os-string-thing} arguments.  OS
 strings are in the \code{os-strings} structure.
 
 \begin{protos}
+\proto{os-string?}{ value}{boolean}
+\proto{make-os-string}{ text-codec string/byte-vector}{os-string}
+\end{protos}
+%
+The \code{os-string?} predicate returns \code{\#t} if its argument is
+an OS string, \code{\#f} otherwise.
+
+The \code{make-os-string} procedure creates an OS string from a text
+codec and a byte vector or string that defines its contents.  If the
+argument is a byte vector, it does not matter if it is NUL-terminated
+or not.
+
+\begin{protos}
 \proto{string->os-string}{ string}{os-string}
 \proto{byte-vector->os-string}{ byte-vector}{os-string}
 \proto{x->os-string}{ os-string-thing}{os-string}
@@ -976,6 +993,29 @@ with the same contents; for an OS string created from a byte vector,
 \code{os-string->byte-vector} will return a byte vector with the same
 contents.  For the other cases, data loss as determined by the text
 codec is possible.
+
+\begin{protos}
+\proto{os-string-text-codec}{ os-string}{text-codec}
+\end{protos}
+%
+This procedure returns the text codec of the OS string.
+
+\begin{protos}
+\proto{os-string=?}{ os-string os-string}{boolean}
+\end{protos}
+%
+This procedure returns \code{\#t} if its arguments denote the same
+byte sequence, \code{\#f} otherwise.
+
+\begin{protos}
+\proto{x->os-byte-vector}{ os-string-thing}{byte-vector}
+\proto{string->os-byte-vector}{ string}{byte-vector}
+\end{protos}
+%
+These are convenience procedures: The first is the composition of
+\code{x->os-string} and \code{os-string->byte-vector}, and the second
+is the composition of \code{string->os-string} and
+\code{os-string->byte-vector}.
 
 \begin{protos}
 \proto{current-os-string-text-codec}{}{text-codec}
@@ -2608,9 +2648,9 @@ The matching procedures will ignore any characters following an
 (exact-match? pattern "abx")       \evalsto #f
 (exact-match? pattern "xxabcxx")   \evalsto #f
 
-(match pattern "abc")              \evalsto (#\{match 0 3\})
+(match pattern "abc")              \evalsto #\{match 0 3\}
 (match pattern "abx")              \evalsto #f
-(match pattern "xxabcxx")          \evalsto (#\{match 2 5\})
+(match pattern "xxabcxx")          \evalsto #\{match 2 5\}
 
 (let ((x (match (sequence (text "ab")
                           (submatch 'foo (text "cd"))

@@ -53,6 +53,9 @@
 
 	  accessible?
 	  (access-mode :syntax)
+
+	  create-symbolic-link
+	  read-symbolic-link
 	  ))
 
 (define-interface posix-time-interface
@@ -60,6 +63,19 @@
 	  time=? time<? time<=? time>? time>=?
 	  time->string
 	  current-time
+	  make-date date?
+	  date-second date-minute date-hour
+	  date-month-day date-month
+	  date-year
+	  date-week-day
+	  date-year-day
+	  date-dst
+
+	  date->string
+	  time->utc-date
+	  time->local-date
+	  date->time
+	  format-date
 	  ))
 
 (define-interface posix-users-interface
@@ -83,8 +99,44 @@
 	  name->group-info
 	  ))
 
+(define-interface posix-errnos-interface
+  (export (errno :syntax)
+	  errno-name
+	  errno-os-number
+	  integer->errno
+	  name->errno
+          errno=?
+          errno?))
+
+(define-interface posix-syslog-interface
+  (export (syslog-option :syntax)
+	  syslog-option?
+
+	  make-syslog-options
+	  syslog-options?
+	  (syslog-options :syntax)
+
+	  (syslog-facility :syntax)
+	  syslog-facility?
+
+	  (syslog-level :syntax)
+	  syslog-level?
+
+	  make-syslog-mask
+	  syslog-mask?
+	  (syslog-mask :syntax)
+	  syslog-mask-all
+	  syslog-mask-upto
+
+	  with-syslog-destination
+
+	  syslog
+
+	  open-syslog-channel
+	  close-syslog-channel
+	  with-syslog-channel))
+
 (define-structures ((posix-files posix-files-interface)
-		    (posix-time  posix-time-interface)
 		    (posix-users posix-users-interface))
   (open scheme define-record-types finite-types
 	external-calls load-dynamic-externals
@@ -96,6 +148,13 @@
 	os-strings)
   (for-syntax (open scheme bitwise))
   (files dir))
+
+(define-structure posix-time  posix-time-interface
+  (open scheme
+	define-record-types
+	external-calls load-dynamic-externals
+	os-strings)
+  (files time))
 
 (define-structure posix-file-options (export ((file-option file-options)
 					        :syntax)
@@ -301,9 +360,35 @@
 	reduce
 	(modify posix-regexps (rename (make-regexp make-posix-regexp)))
 	posix-regexps-internal
-	util)			;every
+	(subset util (every)))
   (optimize auto-integrate)
   (files func-regexp))
+
+
+(define-structure posix-errnos posix-errnos-interface
+  (open scheme
+	exceptions
+	define-record-types
+	finite-types
+	external-calls load-dynamic-externals
+	(subset unicode-char-maps (string-upcase string-foldcase))
+	session-data
+	interrupts
+	reinitializers)
+  (files errno))
+
+(define-structure posix-syslog posix-syslog-interface
+  (open scheme
+	exceptions
+	fluids
+	locks
+	define-record-types
+	finite-types enum-sets enum-sets-internal
+	external-calls
+	load-dynamic-externals
+	reinitializers
+	os-strings)
+  (files syslog))
 
 ; All in one chunk.
 
@@ -315,7 +400,9 @@
 			  (interface-of posix-i/o)
 			  (interface-of posix-time)
 			  (interface-of posix-users)
-			  (interface-of posix-regexps))
+			  (interface-of posix-regexps)
+			  (interface-of posix-errnos)
+			  (interface-of posix-syslog))
   (open posix-processes
 	posix-process-data
 	posix-platform-names
@@ -323,5 +410,7 @@
 	posix-i/o
 	posix-time
 	posix-users
-	posix-regexps))
+	posix-regexps
+	posix-errnos
+	posix-syslog))
 

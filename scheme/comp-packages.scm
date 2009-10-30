@@ -31,7 +31,8 @@
 	low-exceptions
 	meta-types	;sexp->type
 	bindings	;same-denotation?
-	features)	;make-immutable! string-hash
+	features	;make-immutable! string-hash
+	syntax-transformers)
   (files (bcomp name)
 	 (bcomp transform))
   (optimize auto-integrate))
@@ -85,15 +86,22 @@
   (files (bcomp syntax))
   (optimize auto-integrate))
 
+(define-structure syntax-rules-compiler (export compile-rules)
+  (open scheme-level-2 (subset util (receive)) names syntax-rules-data)
+  (files (bcomp syntax-rules-compiler)))
+
 (define-structure usual-macros usual-macros-interface
   (open scheme-level-2
 	names		;name?
 	fluids		;used in definition of %file-name%
-	code-quote
+	code-quotation
+	syntax-rules-compiler
 	util
-	tables low-exceptions)
+	tables 
+	low-exceptions
+	syntax-transformers)
   (files (bcomp usual)
-	 (bcomp rules)))
+	 (bcomp syntax-rules)))
 
 ; Little utilities to be phased out by changing the format of lambda var lists
 ; in nodes.
@@ -208,6 +216,7 @@
 	fluids filenames cells
 	features		;current-noise-port force-output
 	low-exceptions          ;error
+	(subset packages-internal (package-reader))
 	)
   (files (bcomp read-form)))
 
@@ -253,6 +262,7 @@
   (open scheme-level-2 util
 	packages packages-internal
 	meta-types bindings
+	compiler-envs
 	reading-forms
 	filenames
 	low-exceptions
@@ -287,7 +297,9 @@
 
 (define-structure defpackage defpackage-interface
   (open scheme-level-2
-	packages syntactic usual-macros types
+	packages 
+	(subset packages-internal (set-package-reader!))
+	syntactic usual-macros types
 	interfaces
 	source-file-names	;%file-name%
 	low-exceptions		;error

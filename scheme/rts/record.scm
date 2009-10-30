@@ -19,20 +19,48 @@
 ; Make a record type from a name, used for printing and debugging, and
 ; a list of field names.
 ;
-; The VM references both the record type and the resumer, so their offsets
-; should not be changed.
+; The VM references both the record type and the resumer (in
+; heap/write-image.scm), as well as the extension-slot index and the
+; extension count (in vm/data/record.scm), so their offsets should
+; not be changed.
 
-(define (make-record-type name field-names)
-  (set! *record-type-uid* (+ *record-type-uid* 1))
-  (let ((r (make-record 7 (unspecific))))
-    (record-set! r 0 *record-type*)
-    (record-set! r 1 default-record-resumer)
-    (record-set! r 2 *record-type-uid*)
-    (record-set! r 3 name)
-    (record-set! r 4 field-names)
-    (record-set! r 5 (length field-names))
-    (record-set! r 6 (make-default-record-discloser name))
-    r))
+(define *first-extension-slot* 11)
+
+(define (make-record-type name field-names . maybe-parent)
+  (set! *record-type-uid* (+ 1 *record-type-uid*))
+  (let* ((parent
+	  (if (pair? maybe-parent)
+	      (car maybe-parent)
+	      #f))
+	 (extension-count
+	  (if parent
+	      (+ 1 (record-type-extension-count parent))
+	      0))
+	 (size (length field-names))
+	 (rt (make-record (+ 1 extension-count *first-extension-slot*) (unspecific))))
+
+    (record-set! rt 0 *record-type*)
+    (record-set! rt 1 default-record-resumer)
+    (record-set! rt 2 *record-type-uid*)
+    (record-set! rt 3 name)
+    (record-set! rt 4 field-names)
+    (record-set! rt 5 size)
+    (record-set! rt 6 (make-default-record-discloser name))
+    (record-set! rt 7 parent)
+    (record-set! rt 8 extension-count)
+    (record-set! rt 9 (+ (if parent
+			     (record-type-size parent)
+			     0)
+			 size))
+    
+    (if parent
+	(do ((i 0 (+ 1 i)))
+	    ((= i extension-count))
+	  (record-set! rt (+ i *first-extension-slot*)
+		       (record-type-base parent i))))
+    (record-set! rt (+ extension-count *first-extension-slot*) rt)
+
+    rt))
 
 (define (record-type? obj)
   (and (record? obj)
@@ -48,13 +76,23 @@
 (define (record-type-number-of-fields rt) (record-ref rt 5))
 (define (record-type-discloser rt)        (record-ref rt 6))
 (define (set-record-type-discloser! rt d) (record-set! rt 6 d))
+(define (record-type-parent rt)           (record-ref rt 7))
+(define (record-type-extension-count rt)  (record-ref rt 8))
+(define (record-type-size rt)             (record-ref rt 9))
+; for additional stuff not used here, i.e. sealed, opaque etc.
+(define (record-type-data rt)             (record-ref rt 10))
+(define (set-record-type-data! rt d)      (record-set! rt 10 d))
+(define (record-type-base rt i)
+  (record-ref rt (+ i *first-extension-slot*)))
+
 
 ; This is a hack; it is read by the script that makes c/scheme48.h.
 
 (define record-type-fields
-  '(resumer uid name field-names number-of-fields discloser))
+  '(resumer uid name field-names number-of-fields discloser parent extension-count size data base))
 
 ;----------------
+
 ; Given a record type and the name of a field, return the field's index.
 
 (define (record-field-index rt name)
@@ -66,35 +104,72 @@
 				(record-type-name rt)
 				name))
 	  ((eq? name (car names))
-	   i)
+	   (+ (record-type-parent-size rt) i))
 	  (else
 	   (loop (cdr names) (+ i 1))))))
 
-; Return procedure for contstruction records of type RT.  NAMES is a list of
+(define (record-type-parent-size rt)
+  (cond
+   ((record-type-parent rt)
+    => record-type-size)
+   (else 0)))
+
+; Return procedure for constructing records of type RT.  NAMES is a list of
 ; field names which the constructor will take as arguments.  Other fields are
 ; uninitialized.
 
+; This is legacy code needed for linking, so don't change.  Works only
+; for base types.
+
 (define (record-constructor rt names)
+  (if (record-type-parent rt)
+      (assertion-violation 'record-constructor "works only for base types" rt names))
   (let ((indexes (map (lambda (name)
 			(record-field-index rt name))
 		      names))
-	(size (+ 1 (record-type-number-of-fields rt))))
+	(size (+ 1 (record-type-size rt))))
     (lambda args
       (let ((r (make-record size (unspecific))))
 	(record-set! r 0 rt)
 	(let loop ((is indexes) (as args))
-	  (if (null? as)
-	      (if (null? is)
-		  r
-		  (assertion-violation 'record-constructor
-				       "too few arguments to record constructor"
-				       rt names args))
-	      (if (null? is)
-		  (assertion-violation 'record-constructor
-				       "too many arguments to record constructor"
-				       rt names args)
-		  (begin (record-set! r (car is) (car as))
-			 (loop (cdr is) (cdr as))))))))))
+	  (cond
+	   ((null? as)
+	    (if (null? is)
+		r
+		(assertion-violation 'record-constructor
+				     "too few arguments to record constructor"
+				     rt names args)))
+	   ((null? is)
+	    (assertion-violation 'record-constructor
+				 "too many arguments to record constructor"
+				 rt names args))
+	   (else
+	    (record-set! r (car is) (car as))
+	    (loop (cdr is) (cdr as)))))))))
+
+; Return procedure for constructing records of type RT.  Takes as
+; many arguments as there are fields.
+
+(define (record-standard-constructor rt)
+  (let ((size (+ 1 (record-type-size rt))))
+    (lambda args
+      (let ((r (make-record size (unspecific))))
+	(record-set! r 0 rt)
+	(let loop ((i 1) (as args))
+	  (cond
+	   ((null? as)
+	    (if (= i size)
+		r
+		(assertion-violation 'record-constructor
+				     "too few arguments to record constructor"
+				     rt args)))
+	   ((= i size)
+	    (assertion-violation 'record-constructor
+				 "too many arguments to record constructor"
+				 rt args))
+	   (else
+	    (record-set! r i (car as))
+	    (loop (+ 1 i) (cdr as)))))))))
 
 ; Making accessors, modifiers, and predicates for record types.
 
@@ -102,7 +177,7 @@
   (let ((index (record-field-index rt name))
 	(error-cruft `(record-accessor ,rt ',name)))
     (lambda (r)
-      (if (eq? (record-type r) rt)
+      (if (record-type<=? (record-type r) rt)
 	  (record-ref r index)
 	  (assertion-violation 'record-accessor "invalid record access"
 			       error-cruft r)))))
@@ -111,7 +186,7 @@
   (let ((index (record-field-index rt name))
 	(error-cruft `(record-modifier ,rt ',name)))
     (lambda (r x)
-      (if (eq? (record-type r) rt)
+      (if (record-type<=? (record-type r) rt)
 	  (record-set! r index x)
 	  (assertion-violation 'record-modifier "invalid record modification"
 			       error-cruft r x)))))
@@ -119,7 +194,7 @@
 (define (record-predicate rt)
   (lambda (x)
     (and (record? x)
-	 (eq? (record-type x) rt))))
+	 (record-type<=? (record-type x) rt))))
 
 ;----------------
 ; A discloser is a procedure that takes a record of a particular type and
@@ -170,7 +245,7 @@
   (if (and (record-type? rt)
 	   (or (eq? #t resumer)
 	       (and (eq? #f resumer)
-		    (< 0 (record-type-number-of-fields rt)))
+		    (< 0 (record-type-size rt)))
 	       (procedure? resumer)))
       (set-record-type-resumer! rt resumer)
       (assertion-violation 'define-record-resumer "invalid argument" rt resumer)))

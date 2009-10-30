@@ -1,6 +1,8 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+#define NO_OLD_FFI 1
+
 /*
  * Socket addresses
  */
@@ -55,37 +57,37 @@ typedef pthread_t thread_type;
 #include "address.h"
 
 static int
-maybe_extract_latin1_string(s48_value sch_str, char* buffer, size_t size)
+maybe_extract_latin1_string(s48_call_t call, s48_ref_t sch_str, char* buffer, size_t size)
 {
-  if (s48_string_length(sch_str) > (size - 1))
+  if (s48_string_length_2(call, sch_str) > (size - 1))
     return 0;
-  s48_copy_string_to_latin_1(sch_str, buffer);
-  buffer[s48_string_length(sch_str)] = '\0';
+  s48_copy_string_to_latin_1_2(call, sch_str, buffer);
+  buffer[s48_string_length_2(call, sch_str)] = '\0';
   return 1;
 }
 
 static char*
-maybe_extract_fresh_latin1_string(s48_value sch_str, size_t size)
+maybe_extract_fresh_latin1_string(s48_call_t call, s48_ref_t sch_str, size_t size)
 {
   char *result;
-  if (s48_string_length(sch_str) > (size - 1))
+  if (s48_string_length_2(call, sch_str) > (size - 1))
     return NULL;
   
   result = malloc(size);
   if (result == NULL)
-    s48_out_of_memory_error();
+    s48_out_of_memory_error_2(call);
 
-  s48_copy_string_to_latin_1(sch_str, result);
-  result[s48_string_length(sch_str)] = '\0';
+  s48_copy_string_to_latin_1_2(call, sch_str, result);
+  result[s48_string_length_2(call, sch_str)] = '\0';
   return result;
 }
  
 /* The C code knows about these constants. */
 
 sa_family_t
-s48_extract_af(s48_value sch_af_val)
+s48_extract_af(s48_call_t call, s48_ref_t sch_af_val)
 {
-  long af_val = s48_extract_fixnum(sch_af_val);
+  long af_val = s48_extract_long_2(call, sch_af_val);
   if (af_val > 100) /* unknown address family */
     return af_val - 100;
   else
@@ -102,68 +104,62 @@ s48_extract_af(s48_value sch_af_val)
     }
 }
 
-s48_value
-s48_enter_af(sa_family_t af)
+s48_ref_t
+s48_enter_af(s48_call_t call, sa_family_t af)
 {
   switch(af)
     {
     case AF_INET:
-      return s48_enter_fixnum(0);
+      return s48_enter_long_as_fixnum_2(call, 0);
     case AF_INET6:
-      return s48_enter_fixnum(1);
+      return s48_enter_long_as_fixnum_2(call, 1);
     case AF_UNIX:
-      return s48_enter_fixnum(2);
+      return s48_enter_long_as_fixnum_2(call, 2);
     case AF_UNSPEC:
-      return s48_enter_fixnum(3);
+      return s48_enter_long_as_fixnum_2(call, 3);
     default:
-      return s48_enter_fixnum((int) af + 100);
+      return s48_enter_long_as_fixnum_2(call, (int) af + 100);
     }
 }
 
 /* IPv4 addresses */
 
-/* may GC */
-static s48_value
-enter_in_addr(const struct in_addr* addr)
+static s48_ref_t
+enter_in_addr(s48_call_t call, const struct in_addr* addr)
 {
-  return s48_enter_unsigned_integer(ntohl(addr->s_addr));
+  return s48_enter_unsigned_long_2(call, ntohl(addr->s_addr));
 }
 
 static void
-extract_in_addr(s48_value sch_addr, struct in_addr* addr)
+extract_in_addr(s48_call_t call, s48_ref_t sch_addr, struct in_addr* addr)
 {
-  addr->s_addr = htonl(s48_extract_unsigned_integer(sch_addr));
+  addr->s_addr = htonl(s48_extract_unsigned_long_2(call, sch_addr));
 }
 
-/* may GC */
-static s48_value
-s48_enter_sockaddr_in_raw(const struct sockaddr_in *saddr)
+static s48_ref_t
+s48_enter_sockaddr_in_raw(s48_call_t call, const struct sockaddr_in *saddr)
 {
-  s48_value sch_native = S48_MAKE_VALUE(struct sockaddr_in);
-  memcpy(S48_EXTRACT_VALUE_POINTER(sch_native, void), saddr,
+  s48_ref_t sch_native = s48_make_value_2(call, struct sockaddr_in);
+  memcpy(s48_extract_value_pointer_2(call, sch_native, void), saddr,
 	 sizeof(struct sockaddr_in));
   return sch_native;
 }
 
-/* may GC */
-static s48_value
-s48_enter_sockaddr_in(const struct sockaddr_in *saddr)
+static s48_ref_t
+s48_enter_sockaddr_in(s48_call_t call, const struct sockaddr_in *saddr)
 {
-  S48_DECLARE_GC_PROTECT(1);
-  s48_value sch_saddr = s48_make_vector(4, S48_UNSPECIFIC);
-  S48_GC_PROTECT_1(sch_saddr);
+  s48_ref_t sch_saddr = s48_make_vector_2(call, 4, s48_unspecific_2(call));
 
-  S48_VECTOR_SET(sch_saddr, 0, s48_enter_sockaddr_in_raw(saddr));
-  S48_VECTOR_SET(sch_saddr, 1, s48_enter_af(AF_INET));
-  S48_VECTOR_SET(sch_saddr, 2, s48_enter_fixnum(ntohs(saddr->sin_port)));
-  S48_VECTOR_SET(sch_saddr, 3, enter_in_addr(&(saddr->sin_addr)));
+  s48_vector_set_2(call, sch_saddr, 0, s48_enter_sockaddr_in_raw(call, saddr));
+  s48_vector_set_2(call, sch_saddr, 1, s48_enter_af(call, AF_INET));
+  s48_vector_set_2(call, sch_saddr, 2, s48_enter_long_as_fixnum_2(call, ntohs(saddr->sin_port)));
+  s48_vector_set_2(call, sch_saddr, 3, enter_in_addr(call, &(saddr->sin_addr)));
 
-  S48_GC_UNPROTECT();
   return sch_saddr;
 }
 
-static s48_value
-s48_make_sockaddr_in_raw(s48_value sch_in_addr, s48_value sch_port)
+static s48_ref_t
+s48_make_sockaddr_in_raw(s48_call_t call, s48_ref_t sch_in_addr, s48_ref_t sch_port)
 {
   struct sockaddr_in saddr;
 #ifdef SIN6_LEN
@@ -171,35 +167,34 @@ s48_make_sockaddr_in_raw(s48_value sch_in_addr, s48_value sch_port)
   saddr.sin_len = sizeof(struct sockaddr_in);
 #endif
   saddr.sin_family = AF_INET;
-  saddr.sin_port = htons(s48_extract_fixnum(sch_port));
-  extract_in_addr(sch_in_addr, &(saddr.sin_addr));
-  return s48_enter_sockaddr_in_raw(&saddr);
+  saddr.sin_port = htons(s48_extract_long_2(call, sch_port));
+  extract_in_addr(call, sch_in_addr, &(saddr.sin_addr));
+  return s48_enter_sockaddr_in_raw(call, &saddr);
 }
 
-static s48_value
-s48_get_inaddr_any(void)
+static s48_ref_t
+s48_get_inaddr_any(s48_call_t call)
 {
   struct in_addr addr;
   addr.s_addr = htonl(INADDR_ANY);
-  return enter_in_addr(&addr);
+  return enter_in_addr(call, &addr);
 }
 
-static s48_value
-s48_get_inaddr_broadcast(void)
+static s48_ref_t
+s48_get_inaddr_broadcast(s48_call_t call)
 {
   struct in_addr addr;
   addr.s_addr = htonl(INADDR_BROADCAST);
-  return enter_in_addr(&addr);
+  return enter_in_addr(call, &addr);
 }
 
 /* IPv6 addresses */
 
-/* may GC */
-s48_value
-s48_enter_in6_addr(const struct in6_addr* addr)
+s48_ref_t
+s48_enter_in6_addr(s48_call_t call, const struct in6_addr* addr)
 {
-  s48_value sch_addr = s48_make_byte_vector(16);
-  char* bytes = s48_extract_byte_vector(sch_addr);
+  s48_ref_t sch_addr = s48_make_byte_vector_2(call, 16);
+  char* bytes = s48_extract_byte_vector_2(call, sch_addr);
   int i = 0;
   while (i < 16)
     {
@@ -210,9 +205,9 @@ s48_enter_in6_addr(const struct in6_addr* addr)
 }
 
 void
-s48_extract_in6_addr(s48_value sch_addr, struct in6_addr* addr)
+s48_extract_in6_addr(s48_call_t call, s48_ref_t sch_addr, struct in6_addr* addr)
 {
-  char* bytes = s48_extract_byte_vector(sch_addr);
+  char* bytes = s48_extract_byte_vector_2(call, sch_addr);
   int i = 0;
   while (i < 16)
     {
@@ -221,61 +216,56 @@ s48_extract_in6_addr(s48_value sch_addr, struct in6_addr* addr)
     }
 }
 
-/* may GC */
-static s48_value
-s48_enter_sockaddr_in6_raw(const struct sockaddr_in6 *saddr)
+static s48_ref_t
+s48_enter_sockaddr_in6_raw(s48_call_t call, const struct sockaddr_in6 *saddr)
 {
-  s48_value sch_native = S48_MAKE_VALUE(struct sockaddr_in6);
-  memcpy(S48_EXTRACT_VALUE_POINTER(sch_native, void), saddr,
+  s48_ref_t sch_native = s48_make_value_2(call, struct sockaddr_in6);
+  memcpy(s48_extract_value_pointer_2(call, sch_native, void), saddr,
 	 sizeof(struct sockaddr_in6));
   return sch_native;
 }
 
-/* may GC */
-static s48_value
-s48_enter_sockaddr_in6(const struct sockaddr_in6 *saddr)
+static s48_ref_t
+s48_enter_sockaddr_in6(s48_call_t call, const struct sockaddr_in6 *saddr)
 {
-  S48_DECLARE_GC_PROTECT(1);
-  s48_value sch_saddr = s48_make_vector(5, S48_UNSPECIFIC);
-  S48_GC_PROTECT_1(sch_saddr);
+  s48_ref_t sch_saddr = s48_make_vector_2(call, 5, s48_unspecific_2(call));
 
-  S48_VECTOR_SET(sch_saddr, 0, s48_enter_sockaddr_in6_raw(saddr));
-  S48_VECTOR_SET(sch_saddr, 1, s48_enter_af(AF_INET6));
-  S48_VECTOR_SET(sch_saddr, 2, s48_enter_fixnum(ntohs(saddr->sin6_port)));
+  s48_vector_set_2(call, sch_saddr, 0, s48_enter_sockaddr_in6_raw(call, saddr));
+  s48_vector_set_2(call, sch_saddr, 1, s48_enter_af(call, AF_INET6));
+  s48_vector_set_2(call, sch_saddr, 2, s48_enter_long_as_fixnum_2(call, ntohs(saddr->sin6_port)));
   /* flowinfo is insignificant */
-  S48_VECTOR_SET(sch_saddr, 3, s48_enter_in6_addr(&(saddr->sin6_addr)));
-  S48_VECTOR_SET(sch_saddr, 4, s48_enter_unsigned_integer(saddr->sin6_scope_id));
+  s48_vector_set_2(call, sch_saddr, 3, s48_enter_in6_addr(call, &(saddr->sin6_addr)));
+  s48_vector_set_2(call, sch_saddr, 4, s48_enter_unsigned_long_2(call, saddr->sin6_scope_id));
 
-  S48_GC_UNPROTECT();
   return sch_saddr;
 }
 
-static s48_value
-s48_make_sockaddr_in6_raw(s48_value sch_addr, s48_value sch_port,
-			  s48_value sch_scope_id)
+static s48_ref_t
+s48_make_sockaddr_in6_raw(s48_call_t call, s48_ref_t sch_addr, s48_ref_t sch_port,
+			  s48_ref_t sch_scope_id)
 {
   struct sockaddr_in6 saddr;
 #ifdef SIN6_LEN
   saddr.sin6_len = sizeof(struct sockaddr_in6);
 #endif
   saddr.sin6_family = AF_INET6;
-  saddr.sin6_port = htons(s48_extract_fixnum(sch_port));
+  saddr.sin6_port = htons(s48_extract_long_2(call, sch_port));
   saddr.sin6_flowinfo = 0;
-  s48_extract_in6_addr(sch_addr, &(saddr.sin6_addr));
-  saddr.sin6_scope_id = s48_extract_unsigned_integer(sch_scope_id);
-  return s48_enter_sockaddr_in6_raw(&saddr);
+  s48_extract_in6_addr(call, sch_addr, &(saddr.sin6_addr));
+  saddr.sin6_scope_id = s48_extract_unsigned_long_2(call, sch_scope_id);
+  return s48_enter_sockaddr_in6_raw(call, &saddr);
 }
 
-static s48_value
-s48_get_in6addr_any(void)
+static s48_ref_t
+s48_get_in6addr_any(s48_call_t call)
 {
-  return s48_enter_in6_addr(&in6addr_any);
+  return s48_enter_in6_addr(call, &in6addr_any);
 }
 
-static s48_value
-s48_get_in6addr_loopback(void)
+static s48_ref_t
+s48_get_in6addr_loopback(s48_call_t call)
 {
-  return s48_enter_in6_addr(&in6addr_loopback);
+  return s48_enter_in6_addr(call, &in6addr_loopback);
 }
 
 #ifdef SUN_LEN
@@ -289,93 +279,83 @@ s48_get_in6addr_loopback(void)
 
 /* Unix domain addresses */
 
-/* may GC */
-static s48_value
-s48_enter_sockaddr_un_raw(const struct sockaddr_un *saddr)
+static s48_ref_t
+s48_enter_sockaddr_un_raw(s48_call_t call, const struct sockaddr_un *saddr)
 {
   size_t len = SOCKADDR_UN_LEN(*saddr);
-  s48_value sch_native = S48_MAKE_SIZED_VALUE(len);
-  memcpy(S48_EXTRACT_VALUE_POINTER(sch_native, void), saddr, len+1);
+  s48_ref_t sch_native = s48_make_sized_value_2(call, len);
+  memcpy(s48_extract_value_pointer_2(call, sch_native, void), saddr, len+1);
   return sch_native;
 }
 
-static s48_value
-s48_make_sockaddr_un_raw(s48_value sch_path)
+static s48_ref_t
+s48_make_sockaddr_un_raw(s48_call_t call, s48_ref_t sch_path)
 {
   struct sockaddr_un saddr;
   size_t max_path_len = sizeof(saddr) + ((char*)&(saddr.sun_path) - (char*)&saddr);
-  s48_value sch_native;
+  s48_ref_t sch_native;
 
-  if (S48_BYTE_VECTOR_LENGTH(sch_path) > max_path_len)
-    s48_assertion_violation("s48_make_sockaddr_un_raw", "path too long", 1,
-			    sch_path);
+  if (s48_byte_vector_length_2(call, sch_path) > max_path_len)
+    s48_assertion_violation_2(call, "s48_make_sockaddr_un_raw", "path too long", 1,
+			      sch_path);
   
   saddr.sun_family = AF_UNIX;
-  strcpy(saddr.sun_path, s48_extract_byte_vector(sch_path));
+  strcpy(saddr.sun_path, s48_extract_byte_vector_2(call, sch_path));
 
 #ifdef SIN6_LEN
   saddr.sun_len = SUN_LEN(&saddr);
 #endif
 
-  return s48_enter_sockaddr_un_raw(&saddr);
+  return s48_enter_sockaddr_un_raw(call, &saddr);
 }
 
 
-/* may GC */
-static s48_value
-s48_enter_sockaddr_un(const struct sockaddr_un *saddr)
+static s48_ref_t
+s48_enter_sockaddr_un(s48_call_t call, const struct sockaddr_un *saddr)
 {
-  S48_DECLARE_GC_PROTECT(1);
-  s48_value sch_saddr = s48_make_vector(3, S48_UNSPECIFIC);
-  S48_GC_PROTECT_1(sch_saddr);
+  s48_ref_t sch_saddr = s48_make_vector_2(call, 3, s48_unspecific_2(call));
 
-  S48_VECTOR_SET(sch_saddr, 0, s48_enter_sockaddr_un_raw(saddr));
-  S48_VECTOR_SET(sch_saddr, 1, s48_enter_af(AF_UNIX));
-  S48_VECTOR_SET(sch_saddr, 2, s48_enter_byte_string((char*)saddr->sun_path));
+  s48_vector_set_2(call, sch_saddr, 0, s48_enter_sockaddr_un_raw(call, saddr));
+  s48_vector_set_2(call, sch_saddr, 1, s48_enter_af(call, AF_UNIX));
+  s48_vector_set_2(call, sch_saddr, 2, s48_enter_byte_string_2(call, (char*)saddr->sun_path));
 
-  S48_GC_UNPROTECT();
   return sch_saddr;
-		
 }
 
 #endif /* !_WIN32 */
 
 /* Generic addresses */
 
-/* may GC */
-static s48_value
-s48_enter_sockaddr_unknown_raw(const struct sockaddr *saddr, socklen_t addrlen)
+static s48_ref_t
+s48_enter_sockaddr_unknown_raw(s48_call_t call, const struct sockaddr *saddr, socklen_t addrlen)
 {
-  s48_value sch_native = S48_MAKE_SIZED_VALUE(addrlen);
-  memcpy(S48_EXTRACT_VALUE_POINTER(sch_native, void), saddr,
+  s48_ref_t sch_native = s48_make_sized_value_2(call, addrlen);
+  memcpy(s48_extract_value_pointer_2(call, sch_native, void), saddr,
 	 addrlen);
   return sch_native;
 }
 
 
-s48_value
-s48_enter_sockaddr(const struct sockaddr* saddr, socklen_t addrlen)
+s48_ref_t
+s48_enter_sockaddr(s48_call_t call, const struct sockaddr* saddr, socklen_t addrlen)
 {
   switch (saddr->sa_family)
     {
     case AF_INET:
-      return s48_enter_sockaddr_in((const struct sockaddr_in*) saddr);
+      return s48_enter_sockaddr_in(call, (const struct sockaddr_in*) saddr);
     case AF_INET6:
-      return s48_enter_sockaddr_in6((const struct sockaddr_in6*) saddr);
+      return s48_enter_sockaddr_in6(call, (const struct sockaddr_in6*) saddr);
 #ifndef _WIN32
     case AF_UNIX:
-      return s48_enter_sockaddr_un((const struct sockaddr_un*) saddr);
+      return s48_enter_sockaddr_un(call, (const struct sockaddr_un*) saddr);
 #endif
     default:
       {
-	S48_DECLARE_GC_PROTECT(1);
-	s48_value sch_saddr = s48_make_vector(2, S48_UNSPECIFIC);
-	S48_GC_PROTECT_1(sch_saddr);
+	s48_ref_t sch_saddr = s48_make_vector_2(call, 2, s48_unspecific_2(call));
 	
-	S48_VECTOR_SET(sch_saddr, 0, s48_enter_sockaddr_unknown_raw(saddr, addrlen));
-	S48_VECTOR_SET(sch_saddr, 1, s48_enter_af(saddr->sa_family));
+	s48_vector_set_2(call, sch_saddr, 0, s48_enter_sockaddr_unknown_raw(call, saddr, addrlen));
+	s48_vector_set_2(call, sch_saddr, 1, s48_enter_af(call, saddr->sa_family));
 	
-	S48_GC_UNPROTECT();
 	return sch_saddr;
       }
     }
@@ -386,37 +366,35 @@ s48_enter_sockaddr(const struct sockaddr* saddr, socklen_t addrlen)
 #ifndef _WIN32 /* supposedly available on Vista, so there's hope */
 
 /* note an error is indicated by 0 */
-static s48_value
-s48_if_nametoindex(s48_value sch_ifname)
+static s48_ref_t
+s48_if_nametoindex(s48_call_t call, s48_ref_t sch_ifname)
 {
   char name[IF_NAMESIZE];
-  if (!maybe_extract_latin1_string(sch_ifname, name, sizeof(name)))
-    return s48_enter_fixnum(0);
-  return s48_enter_unsigned_integer(if_nametoindex(name));
+  if (!maybe_extract_latin1_string(call, sch_ifname, name, sizeof(name)))
+    return s48_enter_long_as_fixnum_2(call, 0);
+  return s48_enter_unsigned_long_2(call, if_nametoindex(name));
 }
 
-static s48_value
-s48_if_indextoname(s48_value sch_ifindex)
+static s48_ref_t
+s48_if_indextoname(s48_call_t call, s48_ref_t sch_ifindex)
 {
   char ifname[IF_NAMESIZE];
-  if (if_indextoname(s48_extract_unsigned_integer(sch_ifindex), ifname) != NULL)
-    return s48_enter_string_latin_1(ifname);
+  if (if_indextoname(s48_extract_unsigned_long_2(call, sch_ifindex), ifname) != NULL)
+    return s48_enter_string_latin_1_2(call, ifname);
   else
-    s48_os_error("s48_if_indextoname", errno, 1, sch_ifindex);
+    s48_os_error_2(call, "s48_if_indextoname", errno, 1, sch_ifindex);
 }
 
 /* Return a vector with alternating names and indices. */
-static s48_value
-s48_if_nameindex(void)
+static s48_ref_t
+s48_if_nameindex(s48_call_t call)
 {
-  s48_value sch_table = S48_UNSPECIFIC;
+  s48_ref_t sch_table;
   struct if_nameindex *index = if_nameindex();
   int index_size;
-  S48_DECLARE_GC_PROTECT(1);
 
-  S48_GC_PROTECT_1(sch_table);
   if (index == NULL)
-    s48_os_error("s48_if_nameindex", errno, 0);
+    s48_os_error_2(call, "s48_if_nameindex", errno, 0);
 
   index_size = 0;
   {
@@ -428,21 +406,20 @@ s48_if_nameindex(void)
       }
   }
 
-  sch_table = s48_make_vector(2 * index_size, S48_UNSPECIFIC);
+  sch_table = s48_make_vector_2(call, 2 * index_size, s48_unspecific_2(call));
   
   {
     int i = 0;
     while (i < index_size)
       {
-	S48_VECTOR_SET(sch_table, i * 2,
-		       s48_enter_unsigned_integer(index[i].if_index));
-	S48_VECTOR_SET(sch_table, (i * 2) + 1,
-		       s48_enter_string_latin_1(index[i].if_name));
+	s48_vector_set_2(call, sch_table, i * 2,
+			 s48_enter_unsigned_long_2(call, index[i].if_index));
+	s48_vector_set_2(call, sch_table, (i * 2) + 1,
+			 s48_enter_string_latin_1_2(call, index[i].if_name));
 	++i;
       }
   }
   if_freenameindex(index);
-  S48_GC_UNPROTECT();
   return sch_table;
 }
 
@@ -451,9 +428,9 @@ s48_if_nameindex(void)
 /* Nodename translation */
 
 int
-s48_extract_socket_type(s48_value sch_socktype)
+s48_extract_socket_type(s48_call_t call, s48_ref_t sch_socktype)
 {
-  long socktype_val = s48_extract_fixnum(sch_socktype);
+  long socktype_val = s48_extract_long_2(call, sch_socktype);
   if (socktype_val > 100)
     return socktype_val - 100;
   else
@@ -466,42 +443,42 @@ s48_extract_socket_type(s48_value sch_socktype)
       }
 }
 
-s48_value
-s48_enter_socket_type(int socktype)
+s48_ref_t
+s48_enter_socket_type(s48_call_t call, int socktype)
 {
   switch (socktype)
     {
     case SOCK_STREAM:
-      return s48_enter_fixnum(0);
+      return s48_enter_long_as_fixnum_2(call, 0);
     case SOCK_DGRAM:
-      return s48_enter_fixnum(1);
+      return s48_enter_long_as_fixnum_2(call, 1);
     default: 
-      return s48_enter_fixnum((int) socktype + 100); 
+      return s48_enter_long_as_fixnum_2(call, (int) socktype + 100); 
     }
 }
 
 static int
-extract_ai_flags(s48_value sch_flags)
+extract_ai_flags(s48_call_t call, s48_ref_t sch_flags)
 {
-  long flags = s48_extract_fixnum(sch_flags);
+  long flags = s48_extract_long_2(call, sch_flags);
   return (((flags & 0x01) ? AI_PASSIVE : 0)
 	  | ((flags & 0x02) ? AI_CANONNAME : 0)
 	  | ((flags & 0x04) ? AI_NUMERICHOST : 0));
 }
 
-static s48_value
-enter_ai_flags(int flags)
+static s48_ref_t
+enter_ai_flags(s48_call_t call, int flags)
 {
   return
-    s48_enter_fixnum(((flags & AI_PASSIVE) ? 0x01 : 0)
-		     | ((flags & AI_CANONNAME) ? 0x02 : 0)
-		     | ((flags & AI_NUMERICHOST) ? 0x04 : 0));
+    s48_enter_long_as_fixnum_2(call, ((flags & AI_PASSIVE) ? 0x01 : 0)
+			       | ((flags & AI_CANONNAME) ? 0x02 : 0)
+			       | ((flags & AI_NUMERICHOST) ? 0x04 : 0));
 }
 
 static int
-extract_ip_protocol(s48_value sch_protocol)
+extract_ip_protocol(s48_call_t call, s48_ref_t sch_protocol)
 {
-  long ip = s48_extract_fixnum(sch_protocol);
+  long ip = s48_extract_long_2(call, sch_protocol);
   if (ip > 100)
     return ip - 100;
   else
@@ -522,25 +499,25 @@ extract_ip_protocol(s48_value sch_protocol)
     }
 }
 
-static s48_value
-enter_ip_protocol(int protocol)
+static s48_ref_t
+enter_ip_protocol(s48_call_t call, int protocol)
 {
   switch (protocol)
     {
     case IPPROTO_IP:
-      return s48_enter_fixnum(0);
+      return s48_enter_long_as_fixnum_2(call, 0);
     case IPPROTO_IPV6:
-      return s48_enter_fixnum(1);
+      return s48_enter_long_as_fixnum_2(call, 1);
     case IPPROTO_ICMP:
-      return s48_enter_fixnum(2);
+      return s48_enter_long_as_fixnum_2(call, 2);
     case IPPROTO_RAW:
-      return s48_enter_fixnum(3);
+      return s48_enter_long_as_fixnum_2(call, 3);
     case IPPROTO_TCP:
-      return s48_enter_fixnum(4);
+      return s48_enter_long_as_fixnum_2(call, 4);
     case IPPROTO_UDP:
-      return s48_enter_fixnum(5);
+      return s48_enter_long_as_fixnum_2(call, 5);
     default:
-      return s48_enter_fixnum(protocol + 100);
+      return s48_enter_long_as_fixnum_2(call, protocol + 100);
     }
 }
 
@@ -554,22 +531,19 @@ struct getaddrinfo_handshake
   struct addrinfo* result;
 };
 
-static s48_value
-enter_addrinfo(const struct addrinfo *ai)
+static s48_ref_t
+enter_addrinfo(s48_call_t call, const struct addrinfo *ai)
 {
-  S48_DECLARE_GC_PROTECT(1);
-  s48_value sch_ai = s48_make_vector(5, S48_UNSPECIFIC);
-  S48_GC_PROTECT_1(sch_ai);
+  s48_ref_t sch_ai = s48_make_vector_2(call, 5, s48_unspecific_2(call));
 	
-  S48_VECTOR_SET(sch_ai, 0, s48_enter_af(ai->ai_family));
-  S48_VECTOR_SET(sch_ai, 1, s48_enter_socket_type(ai->ai_socktype));
-  S48_VECTOR_SET(sch_ai, 2, enter_ip_protocol(ai->ai_protocol));
-  S48_VECTOR_SET(sch_ai, 3,
-		 (ai->ai_canonname != NULL)
-		 ? s48_enter_string_latin_1(ai->ai_canonname) : S48_FALSE);
-  S48_VECTOR_SET(sch_ai, 4, s48_enter_sockaddr(ai->ai_addr, ai->ai_addrlen));
+  s48_vector_set_2(call, sch_ai, 0, s48_enter_af(call, ai->ai_family));
+  s48_vector_set_2(call, sch_ai, 1, s48_enter_socket_type(call, ai->ai_socktype));
+  s48_vector_set_2(call, sch_ai, 2, enter_ip_protocol(call, ai->ai_protocol));
+  s48_vector_set_2(call, sch_ai, 3,
+		   (ai->ai_canonname != NULL)
+		   ? s48_enter_string_latin_1_2(call, ai->ai_canonname) : s48_false_2(call));
+  s48_vector_set_2(call, sch_ai, 4, s48_enter_sockaddr(call, ai->ai_addr, ai->ai_addrlen));
   
-  S48_GC_UNPROTECT();
   return sch_ai;
 }
 
@@ -581,8 +555,8 @@ free_getaddrinfo_handshake(struct getaddrinfo_handshake *handshake)
   free(handshake);
 }
 
-static s48_value
-get_addrinfo_result(struct getaddrinfo_handshake *handshake)
+static s48_ref_t
+get_addrinfo_result(s48_call_t call, struct getaddrinfo_handshake *handshake)
 {
   struct addrinfo *p;
   int i, addrinfo_count;
@@ -594,9 +568,9 @@ get_addrinfo_result(struct getaddrinfo_handshake *handshake)
       int status = handshake->status;
       free_getaddrinfo_handshake(handshake);
       if (status == EAI_NONAME)
-	return S48_FALSE;
+	return s48_false_2(call);
       else
-	s48_error("s48_getaddrinfo_result", gai_strerror(status), 0);
+	s48_error_2(call, "s48_getaddrinfo_result", gai_strerror(status), 0);
     }
 
   addrinfo_count = 0;
@@ -608,31 +582,27 @@ get_addrinfo_result(struct getaddrinfo_handshake *handshake)
     }
 
   {
-    S48_DECLARE_GC_PROTECT(1);
-    s48_value sch_result = s48_make_vector(addrinfo_count, S48_UNSPECIFIC);
+    s48_ref_t sch_result = s48_make_vector_2(call, addrinfo_count, s48_unspecific_2(call));
 
-    S48_GC_PROTECT_1(sch_result);
-    
     i = 0;
     p = handshake->result;
     while (i < addrinfo_count)
       {
-	S48_VECTOR_SET(sch_result, i, enter_addrinfo(p));
+	s48_vector_set_2(call, sch_result, i, enter_addrinfo(call, p));
 	p = p->ai_next;
 	++i;
       }
     
     freeaddrinfo(handshake->result);
     free_getaddrinfo_handshake(handshake);
-    S48_GC_UNPROTECT();
     return sch_result;
   }
 }
 
-static s48_value
-s48_getaddrinfo_result(s48_value sch_handshake)
+static s48_ref_t
+s48_getaddrinfo_result(s48_call_t call, s48_ref_t sch_handshake)
 {
-  return get_addrinfo_result(s48_extract_pointer(sch_handshake));
+  return get_addrinfo_result(call, s48_extract_pointer_2(call, sch_handshake));
 }
 
 #ifdef HAVE_THREADS
@@ -650,10 +620,10 @@ DECLARE_THREAD_PROC(getaddrinfo_thread, void_handshake)
 }
 #endif
 
-static s48_value
-s48_getaddrinfo(s48_value sch_nodename, s48_value sch_servname,
-		s48_value sch_hint_flags, s48_value sch_hint_family,
-		s48_value sch_hint_socktype, s48_value sch_hint_protocol)
+static s48_ref_t
+s48_getaddrinfo(s48_call_t call, s48_ref_t sch_nodename, s48_ref_t sch_servname,
+		s48_ref_t sch_hint_flags, s48_ref_t sch_hint_family,
+		s48_ref_t sch_hint_socktype, s48_ref_t sch_hint_protocol)
 {
   struct getaddrinfo_handshake *handshake;
 #ifdef HAVE_THREADS
@@ -662,38 +632,38 @@ s48_getaddrinfo(s48_value sch_nodename, s48_value sch_servname,
 
   handshake = malloc(sizeof(struct getaddrinfo_handshake));
   if (handshake == NULL)
-    s48_out_of_memory_error();
+    s48_out_of_memory_error_2(call);
 
-  if (S48_EQ_P(sch_nodename, S48_FALSE))
+  if (s48_false_p_2(call, sch_nodename))
       handshake->nodename = NULL;
   else
     {
       handshake->nodename
-	= maybe_extract_fresh_latin1_string(sch_nodename, NI_MAXHOST);
+	= maybe_extract_fresh_latin1_string(call, sch_nodename, NI_MAXHOST);
       if (handshake->nodename == NULL)
-	return S48_FALSE; /* debatable */
+	return s48_false_2(call); /* debatable */
     }
 
-  if (S48_EQ_P(sch_servname, S48_FALSE))
+  if (s48_false_p_2(call, sch_servname))
     handshake->servname = NULL;
   else
     {
       handshake->servname
-	= maybe_extract_fresh_latin1_string(sch_servname, NI_MAXSERV);
+	= maybe_extract_fresh_latin1_string(call, sch_servname, NI_MAXSERV);
       if (handshake->servname == NULL)
-	return S48_FALSE; /* debatable */
+	return s48_false_2(call); /* debatable */
     }
   
-  handshake->hints.ai_flags = extract_ai_flags(sch_hint_flags);
-  handshake->hints.ai_family = s48_extract_af(sch_hint_family);
+  handshake->hints.ai_flags = extract_ai_flags(call, sch_hint_flags);
+  handshake->hints.ai_family = s48_extract_af(call, sch_hint_family);
   handshake->hints.ai_socktype
-    = (S48_EQ_P(sch_hint_socktype, S48_FALSE)
+    = (s48_false_p_2(call, sch_hint_socktype)
        ? 0
-       : s48_extract_socket_type(sch_hint_socktype));
+       : s48_extract_socket_type(call, sch_hint_socktype));
   handshake->hints.ai_protocol
-    = (S48_EQ_P(sch_hint_protocol, S48_FALSE)
+    = (s48_false_p_2(call, sch_hint_protocol)
        ? 0
-       : extract_ip_protocol(sch_hint_protocol));
+       : extract_ip_protocol(call, sch_hint_protocol));
   handshake->hints.ai_addrlen = 0;
   handshake->hints.ai_canonname = NULL;
   handshake->hints.ai_addr = NULL;
@@ -708,33 +678,30 @@ s48_getaddrinfo(s48_value sch_nodename, s48_value sch_servname,
       handshake->status
 	= getaddrinfo(handshake->nodename, handshake->servname,
 		      &(handshake->hints), &(handshake->result));
-      return get_addrinfo_result(handshake);
+      return get_addrinfo_result(call, handshake);
     }
 #ifdef HAVE_THREADS
   else
     {
-      s48_value sch_event_uid = S48_UNSPECIFIC;
-      s48_value sch_handshake = S48_UNSPECIFIC;
-      s48_value sch_result;
-      S48_DECLARE_GC_PROTECT(2);
+      s48_ref_t sch_event_uid;
+      s48_ref_t sch_handshake;
+      s48_ref_t sch_result;
 
       DETACH_THREAD(t);
 
-      S48_GC_PROTECT_2(sch_event_uid, sch_handshake);
-      sch_event_uid = s48_enter_integer(handshake->event_uid);
-      sch_handshake = s48_enter_pointer(handshake);
+      sch_event_uid = s48_enter_long_2(call, handshake->event_uid);
+      sch_handshake = s48_enter_pointer_2(call, handshake);
 
-      sch_result = s48_cons(sch_event_uid, sch_handshake);
-      S48_GC_UNPROTECT();
+      sch_result = s48_cons_2(call, sch_event_uid, sch_handshake);
       return sch_result;
     }
 #endif
 }
 
 static int
-extract_ni_flags(s48_value sch_flags)
+extract_ni_flags(s48_call_t call, s48_ref_t sch_flags)
 {
-  long flags = s48_extract_fixnum(sch_flags);
+  long flags = s48_extract_long_2(call, sch_flags);
   return (((flags & 0x01) ? NI_NOFQDN : 0)
 	  | ((flags & 0x02) ? NI_NUMERICHOST : 0)
 	  | ((flags & 0x04) ? NI_NAMEREQD : 0)
@@ -742,15 +709,16 @@ extract_ni_flags(s48_value sch_flags)
 	  | ((flags & 0x10) ? NI_DGRAM: 0));
 }
 
-static s48_value
-enter_ni_flags(int flags)
+static s48_ref_t
+enter_ni_flags(s48_call_t call, int flags)
 {
   return
-    s48_enter_fixnum(((flags & NI_NOFQDN) ? 0x01 : 0)
-		     | ((flags & NI_NUMERICHOST) ? 0x02 : 0)
-		     | ((flags & NI_NAMEREQD) ? 0x04 : 0)
-		     | ((flags & NI_NUMERICSERV) ? 0x08 : 0)
-		     | ((flags & NI_DGRAM) ? 0x10 : 0));
+    s48_enter_long_as_fixnum_2(call,
+			       ((flags & NI_NOFQDN) ? 0x01 : 0)
+			       | ((flags & NI_NUMERICHOST) ? 0x02 : 0)
+			       | ((flags & NI_NAMEREQD) ? 0x04 : 0)
+			       | ((flags & NI_NUMERICSERV) ? 0x08 : 0)
+			       | ((flags & NI_DGRAM) ? 0x10 : 0));
 }
 
 struct getnameinfo_handshake
@@ -764,12 +732,10 @@ struct getnameinfo_handshake
   char serv[NI_MAXSERV];
 };
 
-static s48_value
-getnameinfo_result(struct getnameinfo_handshake* handshake)
+static s48_ref_t
+getnameinfo_result(s48_call_t call, struct getnameinfo_handshake* handshake)
 {
-  s48_value sch_host = S48_UNSPECIFIC, sch_serv = S48_UNSPECIFIC;
-  s48_value sch_result = S48_UNSPECIFIC;
-  S48_DECLARE_GC_PROTECT(3);
+  s48_ref_t sch_result;
 
   s48_unregister_external_event_uid(handshake->event_uid);
 
@@ -777,25 +743,23 @@ getnameinfo_result(struct getnameinfo_handshake* handshake)
     {
       int status = handshake->status;
       free(handshake);
-      s48_error("s48_getnameinfo_result", gai_strerror(status), 0);
+      s48_error_2(call, "s48_getnameinfo_result", gai_strerror(status), 0);
     }
 
-  S48_GC_PROTECT_3(sch_host, sch_serv, sch_result);
   /* we use a vector to be able to distinguish from a pair */
-  sch_result = s48_make_vector(2, S48_UNSPECIFIC);
-  S48_VECTOR_SET(sch_result, 0, s48_enter_string_latin_1(handshake->host));
-  S48_VECTOR_SET(sch_result, 1, s48_enter_string_latin_1(handshake->serv));
-  S48_GC_UNPROTECT();
+  sch_result = s48_make_vector_2(call, 2, s48_unspecific_2(call));
+  s48_vector_set_2(call, sch_result, 0, s48_enter_string_latin_1_2(call, handshake->host));
+  s48_vector_set_2(call, sch_result, 1, s48_enter_string_latin_1_2(call, handshake->serv));
 
   free(handshake);
 
   return sch_result;
 }
 
-static s48_value
-s48_getnameinfo_result(s48_value sch_handshake)
+static s48_ref_t
+s48_getnameinfo_result(s48_call_t call, s48_ref_t sch_handshake)
 {
-  return getnameinfo_result(s48_extract_pointer(sch_handshake));
+  return getnameinfo_result(call, s48_extract_pointer_2(call, sch_handshake));
 }
 
 #ifdef HAVE_THREADS
@@ -815,12 +779,12 @@ DECLARE_THREAD_PROC(getnameinfo_thread, void_handshake)
 #endif
 
 
-static s48_value
-s48_getnameinfo(s48_value sch_saddr, s48_value sch_flags)
+static s48_ref_t
+s48_getnameinfo(s48_call_t call, s48_ref_t sch_saddr, s48_ref_t sch_flags)
 {
   const struct sockaddr *sa
-    = S48_EXTRACT_VALUE_POINTER(sch_saddr, const struct sockaddr);
-  socklen_t salen = S48_VALUE_SIZE(sch_saddr);
+    = s48_extract_value_pointer_2(call, sch_saddr, const struct sockaddr);
+  socklen_t salen = s48_value_size_2(call, sch_saddr);
 #ifdef HAVE_THREADS
   thread_type t;
 #endif
@@ -829,12 +793,12 @@ s48_getnameinfo(s48_value sch_saddr, s48_value sch_flags)
     = malloc(sizeof(struct getnameinfo_handshake));
 
   if (handshake == NULL)
-    s48_out_of_memory_error();
+    s48_out_of_memory_error_2(call);
 
   memcpy(&(handshake->addr), sa, salen);
   handshake->len = salen;
 
-  handshake->flags = extract_ni_flags(sch_flags);
+  handshake->flags = extract_ni_flags(call, sch_flags);
 
   handshake->event_uid = s48_external_event_uid();
 
@@ -847,24 +811,21 @@ s48_getnameinfo(s48_value sch_saddr, s48_value sch_flags)
 		      handshake->host, NI_MAXHOST,
 		      handshake->serv, NI_MAXSERV,
 		      handshake->flags);
-      return getnameinfo_result(handshake);
+      return getnameinfo_result(call, handshake);
     }
 #ifdef HAVE_THREADS
   else
     {
-      s48_value sch_event_uid = S48_UNSPECIFIC;
-      s48_value sch_handshake = S48_UNSPECIFIC;
-      s48_value sch_result;
-      S48_DECLARE_GC_PROTECT(2);
+      s48_ref_t sch_event_uid;
+      s48_ref_t sch_handshake;
+      s48_ref_t sch_result;
 
       DETACH_THREAD(t);
 
-      S48_GC_PROTECT_2(sch_event_uid, sch_handshake);
-      sch_event_uid = s48_enter_integer(handshake->event_uid);
-      sch_handshake = s48_enter_pointer(handshake);
+      sch_event_uid = s48_enter_long_2(call, handshake->event_uid);
+      sch_handshake = s48_enter_pointer_2(call, handshake);
 
-      sch_result = s48_cons(sch_event_uid, sch_handshake);
-      S48_GC_UNPROTECT();
+      sch_result = s48_cons_2(call, sch_event_uid, sch_handshake);
       return sch_result;
     }
 #endif
@@ -872,11 +833,13 @@ s48_getnameinfo(s48_value sch_saddr, s48_value sch_flags)
 
 /* Adress conversion */
 
-s48_value
-s48_inet_pton(s48_value sch_af, s48_value sch_src)
+s48_ref_t
+s48_inet_pton(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_src)
 {
-  sa_family_t af = s48_extract_af(sch_af);
+  sa_family_t af = s48_extract_af(call, sch_af);
+#ifndef _WIN32
   int status;
+#endif
 
   switch (af)
     {
@@ -884,20 +847,20 @@ s48_inet_pton(s48_value sch_af, s48_value sch_src)
       {
 	char src[INET_ADDRSTRLEN+1]; /* be safe */
 	struct in_addr addr;
-	s48_copy_string_to_latin_1(sch_src, src);
-	src[s48_string_length(sch_src)] = '\0';
+	s48_copy_string_to_latin_1_2(call, sch_src, src);
+	src[s48_string_length_2(call, sch_src)] = '\0';
 #ifdef _WIN32
 	{
 	  INT size = sizeof(struct in_addr);
 	  if (WSAStringToAddress(src, AF_INET, 0, 
 				 (LPSOCKADDR)&addr, &size)
 	      == 0)
-	  return enter_in_addr(&addr);
+	    return enter_in_addr(call, &addr);
 	}
 #else
 	status = inet_pton(AF_INET, src, &addr);
 	if (status == 1)
-	  return enter_in_addr(&addr);
+	  return enter_in_addr(call, &addr);
 #endif
 	break;
       }
@@ -905,33 +868,33 @@ s48_inet_pton(s48_value sch_af, s48_value sch_src)
       {
 	char src[INET6_ADDRSTRLEN+1]; /* be safe */
 	struct in6_addr addr;
-	s48_copy_string_to_latin_1(sch_src, src);
-	src[s48_string_length(sch_src)] = '\0';
+	s48_copy_string_to_latin_1_2(call, sch_src, src);
+	src[s48_string_length_2(call, sch_src)] = '\0';
 #ifdef _WIN32
 	{
 	  INT size = sizeof(struct in6_addr);
 	  if (WSAStringToAddress(src, AF_INET6, 0,
 				 (LPSOCKADDR)&addr, &size)
 	      == 0)
-	  return s48_enter_in6_addr(&addr);
+	    return s48_enter_in6_addr(call, &addr);
 	}
 #else
 	status = inet_pton(AF_INET6, src, &addr);
 	if (status == 1)
-	  return s48_enter_in6_addr(&addr);
+	  return s48_enter_in6_addr(call, &addr);
 #endif
       }
     default:
-      s48_assertion_violation("s48_inet_pton", "invalid adddress family", 1, sch_af);
+      s48_assertion_violation_2(call, "s48_inet_pton", "invalid adddress family", 1, sch_af);
     }
 
-  return S48_FALSE;
+  return s48_false_2(call);
 }
 
-static s48_value
-s48_inet_ntop(s48_value sch_af, s48_value sch_src)
+static s48_ref_t
+s48_inet_ntop(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_src)
 {
-  sa_family_t af = s48_extract_af(sch_af);
+  sa_family_t af = s48_extract_af(call, sch_af);
 
   switch (af)
     {
@@ -939,53 +902,53 @@ s48_inet_ntop(s48_value sch_af, s48_value sch_src)
       {
 	char dest[INET_ADDRSTRLEN+1]; /* be safe */
 	struct in_addr addr;
-	extract_in_addr(sch_src, &addr);
+	extract_in_addr(call, sch_src, &addr);
 #ifdef _WIN32
 	{
 	  DWORD destlen;
 	  if (WSAAddressToString((struct sockaddr *)&addr, sizeof(struct in_addr),
 				 NULL, dest, &destlen) != 0)
-	    s48_os_error("s48_inet_ntop", WSAGetLastError(), 2, sch_af, sch_src);
+	    s48_os_error_2(call, "s48_inet_ntop", WSAGetLastError(), 2, sch_af, sch_src);
 	}
 	    
 #else
 	if (inet_ntop(AF_INET, &addr, dest, sizeof(dest)) == NULL)
-	  s48_os_error("s48_inet_ntop", errno, 2, sch_af, sch_src);
+	  s48_os_error_2(call, "s48_inet_ntop", errno, 2, sch_af, sch_src);
 #endif
-	return s48_enter_string_latin_1(dest);
+	return s48_enter_string_latin_1_2(call, dest);
       }
     case AF_INET6:
       {
 	char dest[INET6_ADDRSTRLEN+1]; /* be safe */
 	struct in6_addr addr;
-	s48_extract_in6_addr(sch_src, &addr);
+	s48_extract_in6_addr(call, sch_src, &addr);
 #ifdef _WIN32
 	{
 	  DWORD destlen;
 	  if (WSAAddressToString((struct sockaddr *)&addr, sizeof(struct in6_addr),
 				 NULL, dest, &destlen) != 0)
-	    s48_os_error("s48_inet_ntop", WSAGetLastError(), 2, sch_af, sch_src);
+	    s48_os_error_2(call, "s48_inet_ntop", WSAGetLastError(), 2, sch_af, sch_src);
 	}
 #else
 	if (inet_ntop(AF_INET6, &addr, dest, sizeof(dest)) == NULL)
-	  s48_os_error("s48_inet_ntop", errno, 2, sch_af, sch_src);
+	  s48_os_error_2(call, "s48_inet_ntop", errno, 2, sch_af, sch_src);
 #endif
-	return s48_enter_string_latin_1(dest);
+	return s48_enter_string_latin_1_2(call, dest);
       }
     default:
-      s48_assertion_violation("s48_inet_ntop", "invalid adddress family", 1, sch_af);
+      s48_assertion_violation_2(call, "s48_inet_ntop", "invalid adddress family", 1, sch_af);
     }
 }
 
 /* Address testing */
 
 #define DEFINE_ADDRESS_TESTER(name) \
-static s48_value \
-s48_##name(s48_value sch_addr) \
+static s48_ref_t \
+s48_##name(s48_call_t call, s48_ref_t sch_addr) \
 { \
   struct in6_addr addr; \
-  s48_extract_in6_addr(sch_addr, &addr); \
-  return S48_ENTER_BOOLEAN(name(&addr)); \
+  s48_extract_in6_addr(call, sch_addr, &addr);	\
+  return s48_enter_boolean_2(call, name(&addr)); \
 }
 
 DEFINE_ADDRESS_TESTER(IN6_IS_ADDR_UNSPECIFIED)

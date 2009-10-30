@@ -212,10 +212,14 @@
     (examine (caddr (node-form node)) constrained value-type)
     unspecific-type))
 
-(define-reconstructor 'letrec syntax-type
-  (lambda (node constrained want-type)
-    (let ((form (node-form node)))
-      (reconstruct-letrec (cadr form) (caddr form) constrained want-type))))
+(let ((letrec-reconstructor
+       (lambda (node constrained want-type)
+	 (let ((form (node-form node)))
+	   (reconstruct-letrec (cadr form) (caddr form) constrained want-type)))))
+  (define-reconstructor 'letrec syntax-type
+    letrec-reconstructor)
+  (define-reconstructor 'letrec* syntax-type
+    letrec-reconstructor))
 
 (define-reconstructor 'pure-letrec syntax-type
   (lambda (node constrained want-type)

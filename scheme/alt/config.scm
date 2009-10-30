@@ -62,7 +62,7 @@
 
 ; Packages are not what they appear to be.
 
-(define (make-a-package opens-thunk accesses-thunk tower
+(define (make-a-package opens-thunk accesses-thunk tower reader
 			file-name clauses name)
   (vector '<a-package>
 	  (delay (opens-thunk))
@@ -126,7 +126,7 @@
   (register-package! package))
 
 (define dummy-package
-  (make-a-package (lambda () '()) (lambda () '()) #f "" '() #f))
+  (make-a-package (lambda () '()) (lambda () '()) #f #f "" '() #f))
 (define dummy-interface
   (make-simple-interface 'dummy-interface '())) 
 	 
@@ -209,3 +209,5 @@
 (define interface-of structure-interface)
 
 (define-reflective-tower-maker list)
+(define-reader read)
+

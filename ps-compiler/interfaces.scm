@@ -24,7 +24,6 @@
           vector-replace
           copy-list
           copy-vector
-          symbol-hash
           string-hash
           char->ascii
           object-hash
@@ -33,6 +32,7 @@
           make-xvector xvector-length xvector-ref xvector-set! xvector->vector
 
           (define-subrecord :syntax)
+	  (define-subrecord-type :syntax)
           ;(define-simple-record-type :syntax)
           (define-local-syntax :syntax)
           ))
@@ -67,6 +67,7 @@
 	  variable-generate set-variable-generate!
           erase-variable
           variable-index copy-variable used? unused?
+	  variable-flag-accessor variable-flag-setter variable-flag-remover
           variable-known-value
 	  add-variable-known-value!
 	  remove-variable-known-value!

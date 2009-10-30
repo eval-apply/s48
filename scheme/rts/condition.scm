@@ -1,41 +1,17 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
-; Sort-of the R6RS condition library: We'll need record inheritance to
-; do the real thing.
+; Sort-of the R6RS condition library.
 
-(define-record-type condition-type :condition-type
-  (make-condition-type name parent)
-  condition-type?
-  (name condition-type-name)
-  (parent condition-type-parent))
+(define-record-type &condition
+  (make-simple-condition)
+  simple-condition?)
 
-(define-record-discloser :condition-type
-  (lambda (r)
-    (cond
-     ((condition-type-parent r)
-      => (lambda (parent)
-	   (list 'condition-type (condition-type-name r)
-		 (condition-type-name parent))))
-     (else
-      (list 'condition-type (condition-type-name r))))))
-
-(define-record-type simple-condition :simple-condition
-  (make-simple-condition type data)
-  simple-condition?
-  (type simple-condition-type)
-  (data simple-condition-data))
-
-(define-record-discloser :simple-condition
-  (lambda (r)
-    (list 'simple-condition
-	  (simple-condition-type r) (simple-condition-data r))))
-
-(define-record-type compound-condition :compound-condition
+(define-record-type &compound-condition
   (make-compound-condition components)
   compound-condition?
   (components explode-condition))
 
-(define-record-discloser :compound-condition
+(define-record-discloser &compound-condition
   (lambda (r)
     (cons 'compound-condition
 	  (explode-condition r))))
@@ -70,59 +46,42 @@
 					component))))
 	       components))))
 
-  ;; does ct-1 represent an ancestor of ct-2?
-(define (condition-type-ancestor? ct-1 ct-2)
-  (let loop ((ct-2 ct-2))
-    (or (eq? ct-1 ct-2)
-	(and ct-2
-	     (loop (condition-type-parent ct-2))))))
-
-(define (simple-condition-has-type? con type)
-  (let loop ((con-type (simple-condition-type con)))
-    (cond
-     ((not con-type) #f)
-     ((eq? con-type type) #t)
-     (else (loop (condition-type-parent con-type))))))
-
 (define (condition-predicate type)
-  (if (not (condition-type? type))
-      (assertion-violation? 'condition-predicate
-			    "not a condition type"
-			    type))
-  (lambda (con)
-    (cond
-     ((simple-condition? con)
-      (simple-condition-has-type? con type))
-     ((compound-condition? con)
-      (any? (lambda (simple)
-	      (simple-condition-has-type? simple type))
-	    (explode-condition con)))
-     (else #f))))
+  (if (not (record-type<=? type &condition))
+      (assertion-violation 'condition-predicate
+			   "not a subtype of &condition"
+			   type))
+  (let ((simple-pred (record-predicate type)))
+    (lambda (con)
+      (cond
+       ((simple-condition? con)
+	(simple-pred con))
+       ((compound-condition? con)
+	(any? simple-pred (explode-condition con)))
+       (else #f)))))
 
 (define (condition-accessor type simple-access)
-  (if (not (condition-type? type))
-      (assertion-violation 'condition-accessor
-			   "not a condition type"
+  (if (not (record-type<=? type &condition))
+      (assertion-violation 'condition-predicate
+			   "not a subtype of &condition"
 			   type))
-  (lambda (con)
-    (cond
-     ((simple-condition? con)
-      (simple-access (simple-condition-data con)))
-     ((compound-condition? con)
+  (let ((simple-pred (record-predicate type)))
+    (lambda (con)
       (cond
-       ((first (lambda (simple)
-		 (simple-condition-has-type? simple type))
-	       (explode-condition con))
-	=> (lambda (simple)
-	     (simple-access (simple-condition-data simple))))
+       ((simple-condition? con)
+	(simple-access con))
+       ((compound-condition? con)
+	(cond
+	 ((first simple-pred (explode-condition con))
+	  => simple-access)
+	 (else
+	  (assertion-violation '<condition-accessor>
+			       "condition isn't of type"
+			       con type))))
        (else
 	(assertion-violation '<condition-accessor>
 			     "condition isn't of type"
-			     con type))))
-     (else
-      (assertion-violation '<condition-accessor>
-			   "condition isn't of type"
-			   con type)))))
+			     con type))))))
 
 (define-syntax define-condition-type
   (syntax-rules ()
@@ -148,23 +107,18 @@
        ()
        ((?field1 ?accessor1 ?condition-accessor1) ...))
      (begin
-       (define-record-type ?name record-type
-	 (real-constructor ?field1 ...)
-	 (?field1 ?condition-accessor1)
-	 ...)
+       (define ?name (make-record-type '?name '(?field1 ...) ?supertype))
 
-       (define-record-discloser record-type
+       (define-record-discloser ?name
 	 (lambda (r)
 	   (list '?name (?condition-accessor1 r) ...)))
 
-       (define ?name
-	 (make-condition-type '?name ?supertype))
-
-       (define (?constructor ?field1 ...)
-	 (make-simple-condition ?name (real-constructor ?field1 ...)))
+       (define ?constructor (record-standard-constructor ?name))
        
        (define ?predicate (condition-predicate ?name))
 
+       (define ?condition-accessor1 (record-accessor ?name '?field1))
+       ...
        (define ?accessor1
 	 (condition-accessor ?name ?condition-accessor1))
        ...))))
@@ -192,8 +146,6 @@
 	   (loop (cdr list))))))
 
 ;; Standard condition types
-
-(define &condition (make-condition-type '&condition #f))
 
 (define-condition-type &message &condition 
   make-message-condition message-condition?
@@ -249,12 +201,18 @@
   (reason vm-exception-reason) ; symbol
   )
 
+; OS errors (errno or Windows error codes)
+
+(define-condition-type &os-error &error
+  make-os-error os-error?
+  (code os-error-code))
+
 ; I/O errors
 
 (define-condition-type &i/o-error &error
   make-i/o-error i/o-error?)
 
-(define-condition-type &i/o-port-error &error ; #### should be &i/o-error
+(define-condition-type &i/o-port-error &i/o-error
   make-i/o-port-error i/o-port-error?
   (port i/o-error-port))
 
@@ -309,21 +267,20 @@
 		   (condition-irritants con)
 		   '()))
 	(more-stuff
-	 (map simple-condition-data
-	      (delete-first
-	       (lambda (con) ; make sure interesting subtypes still get printed
-		 (memq (simple-condition-type con)
-		       *covered-condition-txpes*))
-	       ;; we don't expect interesting subtypes here
-	       (delete-first
-		vm-exception?
-		(delete-first
-		 message-condition?
-		 (delete-first
-		  who-condition?
-		  (delete-first
-		   irritants-condition?
-		   (simple-conditions con)))))))))
+	 (delete-first
+	  (lambda (con)	; make sure interesting subtypes still get printed
+	    (memq (record-type con)
+		  *covered-condition-txpes*))
+	  ;; we don't expect interesting subtypes here
+	  (delete-first
+	   vm-exception?
+	   (delete-first
+	    message-condition?
+	    (delete-first
+	     who-condition?
+	     (delete-first
+	      irritants-condition?
+	      (simple-conditions con))))))))
     (values type who message (append stuff more-stuff))))
 
 (define (delete-first pred? l)

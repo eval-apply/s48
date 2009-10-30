@@ -1,19 +1,24 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
-
 (define-structures ((scheme-level-1 scheme-level-1-interface)
 		    (util util-interface)
 		    (set-text-procedures (export set-char-map-procedures!
-						 set-string-ci-procedures!)))
+						 set-string-ci-procedures!))
+		    (syntax-rules-data syntax-rules-data-interface)
+		    (syntax-rules-apply syntax-rules-apply-interface))
   (open scheme-level-0 ascii low-exceptions
+	(subset primitives (unspecific))
         bitwise
-	code-quote)			; needed by SYNTAX-RULES
+	debug-messages
+	code-quotation syntax-transformers)			; needed by SYNTAX-RULES
   (usual-transforms case quasiquote syntax-rules)
   (files (rts charmap)
 	 (rts base)
 	 (rts util)
 	 (rts number)
-	 (rts lize))	  ; Rationalize
+	 (rts lize)	  ; Rationalize
+	 (rts syntax-rules-data)
+	 (rts syntax-rules-apply))
   (optimize auto-integrate))
 
 
@@ -40,7 +45,7 @@
 	records record-types records-internal
 	loopholes
 	low-proposals	;provisional-checked-record-{ref|set!}
-	primitives)	;unspecific
+	primitives)	;unspecific, record-type<=?
   (files (rts jar-defrecord)))
 
 (define-structures ((methods methods-interface)
@@ -86,7 +91,7 @@
 	bitwise
 	unicode
 	byte-vectors
-	(subset primitives (encode-char decode-char))
+	(subset primitives (char->utf utf->char))
 	(subset architecture (text-encoding-option))
 	enumerated enum-case)
   (files (rts text-codec))
@@ -96,9 +101,7 @@
   (open scheme-level-2
 	unicode
 	byte-vectors
-	(modify primitives 
-		(prefix primitive-)
-		(expose encode-char decode-char))
+	(subset primitives (char->utf utf->char))
 	(subset architecture (text-encoding-option))
 	text-codecs
 	enumerated
@@ -112,6 +115,7 @@
 		    (os-strings-internal (export initialize-os-string-text-codec!)))
   (open scheme-level-1
 	define-record-types
+	exceptions
 	byte-vectors
 	(subset primitives (system-parameter make-immutable! copy-bytes!))
 	(subset architecture (system-parameter-option))
@@ -134,7 +138,7 @@
 	(subset threads-internal (maybe-commit-no-interrupts))
 	session-data
 	debug-messages	; for error messages
-	methods         ; &disclose :input-port :output-port
+	methods         ; &disclose <input-port> <output-port>
 	number-i/o      ; number->string for debugging
 	text-codecs
 	handle		; report-errors-as-warnings
@@ -179,7 +183,9 @@
 
 (define-structure conditions conditions-interface
   (open scheme-level-1 low-exceptions
-	define-record-types)
+	define-record-types
+	record-types
+	(subset records (record-type)))
   (files (rts condition)))
 
 (define-structure writing writing-interface
@@ -188,7 +194,7 @@
 	number-i/o
 	(subset i/o             (write-char write-string))
 	(subset i/o-internal    (output-port-option))
-	methods				;disclose
+	(subset methods         (disclose))
 	(subset i/o-internal	(open-output-port?))
 	exceptions
 	(subset channels	(channel? channel-id))
@@ -224,7 +230,7 @@
 ; Hairier stuff now.
 
 (define-structure templates templates-interface
-  (open scheme-level-1 primitives methods)
+  (open scheme-level-1 primitives)
   (files (rts template))
   (optimize auto-integrate))
 
@@ -236,24 +242,26 @@
   (files (rts continuation))
   (optimize auto-integrate))
 
-(define-structure more-types (export :closure :code-vector :location :double
-				     :template :channel :port :weak-pointer
-				     :shared-binding :cell)
+(define-structure more-types (export <closure> <code-vector> <location> <double>
+				     <template> <channel> <port> <weak-pointer>
+				     <shared-binding> <cell> <transport-link-cell>)
   (open scheme-level-1 methods
 	closures code-vectors locations cells templates channels ports
 	primitives shared-bindings)
-  (begin (define-simple-type :closure     (:value) closure?)
-	 (define-simple-type :code-vector (:value) code-vector?)
-	 (define-simple-type :location    (:value) location?)
-	 (define-simple-type :cell        (:value) cell?)
-	 (define-simple-type :template    (:value) template?)
-	 (define-simple-type :channel     (:value) channel?)
-	 (define-simple-type :port        (:value) port?)
-	 (define-simple-type :double      (:rational) double?)
-	 (define-simple-type :weak-pointer (:value) weak-pointer?)
-	 (define-method &disclose ((obj :weak-pointer)) (list 'weak-pointer))
-	 (define-simple-type :shared-binding (:value) shared-binding?)
-	 (define-method &disclose ((obj :shared-binding))
+  (begin (define-simple-type <closure>     (<value>) closure?)
+	 (define-simple-type <code-vector> (<value>) code-vector?)
+	 (define-simple-type <location>    (<value>) location?)
+	 (define-simple-type <cell>        (<value>) cell?)
+	 (define-simple-type <template>    (<value>) template?)
+	 (define-simple-type <channel>     (<value>) channel?)
+	 (define-simple-type <port>        (<value>) port?)
+	 (define-simple-type <double>      (<rational>) double?)
+	 (define-simple-type <weak-pointer> (<value>) weak-pointer?)
+	 (define-method &disclose ((obj <weak-pointer>)) (list 'weak-pointer))
+	 (define-simple-type <transport-link-cell> (<value>) transport-link-cell?)
+	 (define-method &disclose ((obj <transport-link-cell>)) (list 'transport-link-cell))
+	 (define-simple-type <shared-binding> (<value>) shared-binding?)
+	 (define-method &disclose ((obj <shared-binding>))
 	   (list (if (shared-binding-is-import? obj)
 		     'imported-binding
 		     'exported-binding)
@@ -355,7 +363,8 @@
 
 (define-structures ((threads threads-interface)
 		    (threads-internal threads-internal-interface))
-  (open scheme-level-1 enumerated queues cells
+  (open (modify scheme-level-1 (hide min))
+	enumerated queues cells
 	(subset proposals            (define-synchronized-record-type))
 	define-record-types
 	interrupts
@@ -415,8 +424,7 @@
 	(subset channel-i/o	(waiting-for-i/o?
 				 initialize-channel-i/o!
 				 abort-unwanted-reads!))
-	(modify primitives      (rename (wait primitive-wait))
-		                (expose wait unspecific)))
+	(modify primitives      (expose wait unspecific)))
   (files (rts root-scheduler)))
 
 (define-structure enum-case (export (enum-case :syntax))

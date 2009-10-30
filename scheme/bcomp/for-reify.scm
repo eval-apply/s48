@@ -35,8 +35,15 @@
     (make-table-immutable! (package-definitions p))
     p))
 
-(define (transform names+proc env type-exp source name)
-  (make-transform names+proc env (sexp->type type-exp #t) source name))
+(define (transform kind names+proc env type-exp source name)
+  (cond
+   ((eq? kind 'macro)
+    (make-transform/macro names+proc env (sexp->type type-exp #t) source name))
+   ((eq? kind 'inline)
+    (make-transform/inline names+proc env (sexp->type type-exp #t) source name))
+   (else
+    (assertion-violation 'transform
+			 "unknown transform kind" kind))))
 
 (define (package-define-static! package name static)
   (package-define! package

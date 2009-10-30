@@ -23,6 +23,7 @@
 
 	  make-ipv6-address ipv6-address?
 	  ipv6-address-any ipv6-address-loopback
+	  ipv6-address-elements
 	  make-ipv6-socket-address ipv6-socket-address?
 	  socket-address-ipv6-address socket-address-ipv6-port
 	  socket-address-ipv6-scope-id
@@ -91,11 +92,12 @@
   (export make-socket socket?
 	  make-socket-pair
 	  socket-address-family socket-socket-type
-	  dup-socket socket-accept close-socket
+	  dup-socket port->socket
+	  socket-accept close-socket
 	  bind-socket socket-listen
 	  socket-connect
 	  socket-input-port socket-output-port
-	  shutdown-socket
+	  shutdown-socket (shutdown-option :syntax)
 	  socket-address socket-peer-address
 	  (message-options :syntax)
 	  socket-send socket-receive
@@ -123,6 +125,8 @@
 	  socket-minimum-receive-count
 	  set-socket-minimum-send-count!
 	  socket-minimum-send-count
+	  set-socket-tcp-nodelay?!
+	  socket-tcp-nodelay?
 
 	  set-socket-ipv6-unicast-hops!
 	  socket-ipv6-unicast-hops

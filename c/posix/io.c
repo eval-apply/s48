@@ -19,20 +19,20 @@
 #include "fd-io.h"
 
 extern void		s48_init_posix_io(void);
-static s48_value	posix_dup(s48_value channel, s48_value new_mode),
-			posix_dup2(s48_value channel, s48_value new_fd),
-			posix_pipe(void),
-			posix_close_on_exec_p(s48_value channel),
-			posix_set_close_on_exec(s48_value channel,
-						s48_value close_p),
-     			posix_io_flags(s48_value channel, s48_value options);
+static s48_ref_t	posix_dup(s48_call_t call, s48_ref_t channel, s48_ref_t new_mode),
+			posix_dup2(s48_call_t call, s48_ref_t channel, s48_ref_t new_fd),
+			posix_pipe(s48_call_t call),
+			posix_close_on_exec_p(s48_call_t call, s48_ref_t channel),
+			posix_set_close_on_exec(s48_call_t call, s48_ref_t channel,
+						s48_ref_t close_p),
+     			posix_io_flags(s48_call_t call, s48_ref_t channel, s48_ref_t options);
 
-static s48_value	s48_enter_file_options(int options);
+static s48_ref_t	s48_enter_file_options(s48_call_t call, int options);
   
 /*
  * Record types imported from Scheme.
  */
-static s48_value	posix_file_options_enum_set_type_binding = S48_FALSE;
+static s48_ref_t	posix_file_options_enum_set_type_binding;
 
 /*
  * Install all exported functions in Scheme48.
@@ -47,9 +47,8 @@ s48_init_posix_io(void)
   S48_EXPORT_FUNCTION(posix_set_close_on_exec);
   S48_EXPORT_FUNCTION(posix_io_flags);
 
-  S48_GC_PROTECT_GLOBAL(posix_file_options_enum_set_type_binding);
   posix_file_options_enum_set_type_binding =
-    s48_get_imported_binding("posix-file-options-enum-set-type");
+    s48_get_imported_binding_2("posix-file-options-enum-set-type");
 }
 
 /*
@@ -64,41 +63,43 @@ s48_init_posix_io(void)
  *
  */
 
-static s48_value
-posix_dup(s48_value channel, s48_value new_mode)
+static s48_ref_t
+posix_dup(s48_call_t call, s48_ref_t channel, s48_ref_t new_mode)
 {
   int		new_fd, old_fd, flags;
-  long 		status;
-  s48_value	old_mode;
-  s48_value 	new_channel;
+  long          status;
+  s48_ref_t	s48_status;
+  s48_ref_t	old_mode;
+  s48_ref_t 	new_channel;
 
-  if (!S48_CHANNEL_P(channel) ||
-      S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_assertion_violation("posix_dup", "not an open channel", 1, channel);
+  if (!s48_channel_p_2(call, channel) ||
+      s48_eq_p_2(call, s48_channel_status_2(call, channel), s48_channel_status_closed_2(call)))
+    s48_assertion_violation_2(call, "posix_dup", "not an open channel", 1, channel);
   
-  old_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
-  old_mode = S48_UNSAFE_CHANNEL_STATUS(channel);
+  old_fd = s48_unsafe_extract_long_2(call, s48_unsafe_channel_os_index_2(call, channel));
+  old_mode = s48_unsafe_channel_status_2(call, channel);
 
   RETRY_OR_RAISE_NEG(new_fd, dup(old_fd));
   
-  status = s48_set_channel_os_index(channel, new_fd);
+  s48_status = s48_set_channel_os_index_2(call, channel, new_fd);
 
-  if (status != S48_TRUE) {
+  if (!s48_true_p_2(call, s48_status)) {
     ps_close_fd(new_fd);		/* retries if interrupted */
-    s48_raise_scheme_exception(s48_extract_fixnum(status), 1, channel); }
+    s48_raise_scheme_exception_2(call, s48_extract_long_2(call, s48_status), 1, channel); }
 
-  if (new_mode == S48_CHANNEL_STATUS_OUTPUT
-      && old_mode == S48_CHANNEL_STATUS_INPUT) {
+  if (s48_eq_p_2(call, new_mode, s48_channel_status_output_2(call))
+      && s48_eq_p_2(call, old_mode, s48_channel_status_input_2(call))) {
     RETRY_OR_RAISE_NEG(flags, fcntl(new_fd, F_GETFL));
     RETRY_OR_RAISE_NEG(status, fcntl(new_fd, F_SETFL, flags | O_NONBLOCK)); }
 
-  new_channel = s48_add_channel((new_mode == S48_FALSE) ? old_mode : new_mode,
-				S48_UNSAFE_CHANNEL_ID(channel),
-				old_fd);
+  new_channel = s48_add_channel_2(call,
+				  s48_false_p_2(call, new_mode) ? old_mode : new_mode,
+				  s48_unsafe_channel_id_2(call, channel),
+				  old_fd);
 
-  if (!S48_CHANNEL_P(new_channel)) {
+  if (!s48_channel_p_2(call, new_channel)) {
     ps_close_fd(old_fd);		/* retries if interrupted */
-    s48_raise_scheme_exception(s48_extract_fixnum(new_channel), 1, channel); }
+    s48_raise_scheme_exception_2(call, s48_extract_long_2(call, new_channel), 1, channel); }
 
   return new_channel;
 }
@@ -114,41 +115,42 @@ posix_dup(s48_value channel, s48_value new_mode)
  *   return s48_add_channel(old_fd);
  */
 
-static s48_value
-posix_dup2(s48_value channel, s48_value new_fd)
+static s48_ref_t
+posix_dup2(s48_call_t call, s48_ref_t channel, s48_ref_t new_fd)
 {
-  s48_value 	new_channel;
-  long 		s48_status;
+  s48_ref_t 	new_channel;
+  s48_ref_t	s48_status;
   int 		status;
   int 		new_c_fd, old_c_fd;
 
-  if (!S48_CHANNEL_P(channel) ||
-      S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_assertion_violation("posix_dup2", "not an open channel", 1, channel);
+  if (!s48_channel_p_2(call, channel) ||
+      s48_eq_p_2(call, s48_channel_status_2(call, channel), s48_channel_status_closed_2(call)))
+    s48_assertion_violation_2(call, "posix_dup2", "not an open channel", 1, channel);
 
-  if (!S48_FIXNUM_P(new_fd) || new_fd < 0)
-    s48_assertion_violation("posix_dup2", "fd not a nonnegative fixnum", 1, new_fd);
+  if (!s48_fixnum_p_2(call, new_fd) || new_fd < 0)
+    s48_assertion_violation_2(call, "posix_dup2", "fd not a nonnegative fixnum", 1, new_fd);
 
-  old_c_fd = s48_extract_fixnum(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
-  new_c_fd = s48_extract_fixnum(new_fd);
+  old_c_fd = s48_extract_long_2(call, s48_unsafe_channel_os_index_2(call, channel));
+  new_c_fd = s48_extract_long_2(call, new_fd);
 
   s48_close_channel(new_c_fd);
 
   RETRY_OR_RAISE_NEG(status, dup2(old_c_fd, new_c_fd));
 
-  s48_status = s48_set_channel_os_index(channel, new_c_fd);
+  s48_status = s48_set_channel_os_index_2(call, channel, new_c_fd);
 
-  if (s48_status != S48_TRUE) {
+  if (!s48_true_p_2(call, s48_status)) {
     ps_close_fd(new_c_fd);		/* retries if interrupted */
-    s48_raise_scheme_exception(s48_extract_fixnum(s48_status), 1, channel); }
+    s48_raise_scheme_exception_2(call, s48_extract_long_2(call, s48_status), 1, channel); }
 
-  new_channel = s48_add_channel(S48_UNSAFE_CHANNEL_STATUS(channel),
-				S48_UNSAFE_CHANNEL_ID(channel),
-				old_c_fd);
+  new_channel = s48_add_channel_2(call,
+				  s48_unsafe_channel_status_2(call, channel),
+				  s48_unsafe_channel_id_2(call, channel),
+				  old_c_fd);
 
-  if (!S48_CHANNEL_P(new_channel)) {
+  if (!s48_channel_p_2(call, new_channel)) {
     ps_close_fd(old_c_fd);		/* retries if interrupted */
-    s48_raise_scheme_exception(s48_extract_fixnum(new_channel), 1, channel); }
+    s48_raise_scheme_exception_2(call, s48_extract_long_2(call, new_channel), 1, channel); }
 
   return new_channel;
 }
@@ -162,73 +164,69 @@ posix_dup2(s48_value channel, s48_value new_fd)
  *    return s48_cons(s48_add_channel(fds[1]), s48_add_channel(fds[2]));
  */
 
-static s48_value
-posix_pipe()
-{
-  int 		fildes[2],
+static s48_ref_t
+posix_pipe(s48_call_t call)
+{  int 		fildes[2],
     		status;
-  s48_value	in_channel = S48_FALSE,
-            	out_channel = S48_FALSE;
-  s48_value 	id = s48_enter_string_latin_1("pipe");
-
-  S48_DECLARE_GC_PROTECT(3);
-  
-  S48_GC_PROTECT_3(in_channel, out_channel, id);
+  s48_ref_t	in_channel, out_channel;
+  s48_ref_t 	id = s48_enter_string_latin_1_2 (call, "pipe");
 
   RETRY_OR_RAISE_NEG(status, pipe(fildes));
 
-  in_channel = s48_add_channel(S48_CHANNEL_STATUS_INPUT, id, fildes[0]);
+  in_channel = s48_add_channel_2(call, s48_channel_status_input_2(call), id, fildes[0]);
 
-  if (!S48_CHANNEL_P(in_channel)) {
+  if (!s48_channel_p_2(call, in_channel)) {
     ps_close_fd(fildes[0]);		/* retries if interrupted */
     ps_close_fd(fildes[1]);		/* retries if interrupted */
-    s48_raise_scheme_exception(s48_extract_fixnum(in_channel), 0); }
+    s48_raise_scheme_exception_2(call, s48_extract_long_2(call, in_channel), 0); }
 
   RETRY_OR_RAISE_NEG(status, fcntl(fildes[1], F_SETFL, O_NONBLOCK));
-  out_channel = s48_add_channel(S48_CHANNEL_STATUS_OUTPUT, id, fildes[1]);
+  out_channel = s48_add_channel_2(call, s48_channel_status_output_2(call), id, fildes[1]);
 
-  if (!S48_CHANNEL_P(out_channel)) {
+  if (!s48_channel_p_2(call, out_channel)) {
     s48_close_channel(fildes[0]);
     ps_close_fd(fildes[1]);		/* retries if interrupted */
-    s48_raise_scheme_exception(s48_extract_fixnum(in_channel), 0); }
+    s48_raise_scheme_exception_2(call, s48_extract_long_2(call, in_channel), 0); }
 
-  S48_GC_UNPROTECT();
-
-  return s48_cons(in_channel, out_channel);
+  return s48_cons_2(call, in_channel, out_channel);
 }
 
-static s48_value
-posix_close_on_exec_p(s48_value channel)
+static s48_ref_t
+posix_close_on_exec_p(s48_call_t call, s48_ref_t channel)
 {
   int	c_fd,
 	status;
 
-  if (!S48_CHANNEL_P(channel) ||
-      S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_assertion_violation("posix_close_on_exec_p", "not an open channel", 1, channel);
+  if (!s48_channel_p_2(call, channel) ||
+      s48_eq_p_2(call, 
+		 s48_channel_status_2(call, channel),
+		 s48_channel_status_closed_2(call)))
+    s48_assertion_violation_2(call, "posix_close_on_exec_p", "not an open channel", 1, channel);
   
-  c_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
+  c_fd = s48_unsafe_extract_long_2(call, s48_unsafe_channel_os_index_2(call, channel));
 
   RETRY_OR_RAISE_NEG(status, fcntl(c_fd, F_GETFD));
 
-  return S48_ENTER_BOOLEAN(status & FD_CLOEXEC);
+  return s48_enter_boolean_2(call, status & FD_CLOEXEC);
 }
 
-static s48_value
-posix_set_close_on_exec(s48_value channel, s48_value value)
+static s48_ref_t
+posix_set_close_on_exec(s48_call_t call, s48_ref_t channel, s48_ref_t value)
 {
   int	status, new_status;
   int	c_fd;
 
-  if (!S48_CHANNEL_P(channel) ||
-      S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_assertion_violation("posix_set_close_on_exec", "not an open channel", 1, channel);
+  if (!s48_channel_p_2(call, channel) ||
+      s48_eq_p_2(call,
+		 s48_channel_status_2(call, channel),
+		 s48_channel_status_closed_2(call)))
+    s48_assertion_violation_2(call, "posix_set_close_on_exec", "not an open channel", 1, channel);
 
-  c_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
+  c_fd = s48_unsafe_extract_long_2(call, s48_unsafe_channel_os_index_2(call, channel));
   
   RETRY_OR_RAISE_NEG(status, fcntl(c_fd, F_GETFD));
 
-  if (S48_EXTRACT_BOOLEAN(value))
+  if (s48_extract_boolean_2(call, value))
     new_status = status | FD_CLOEXEC;
   else
     new_status = status & ! FD_CLOEXEC;
@@ -236,33 +234,35 @@ posix_set_close_on_exec(s48_value channel, s48_value value)
   if (new_status != status)
     RETRY_OR_RAISE_NEG(status, fcntl(c_fd, F_SETFD, new_status));
   
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
-static s48_value
-posix_io_flags(s48_value channel, s48_value options)
+static s48_ref_t
+posix_io_flags(s48_call_t call, s48_ref_t channel, s48_ref_t options)
 {
   int	status;
   int	c_fd;
 
-  if (!S48_CHANNEL_P(channel) ||
-      S48_CHANNEL_STATUS(channel) == S48_CHANNEL_STATUS_CLOSED)
-    s48_assertion_violation("posix_io_flags", "not an open channel", 1, channel);
+  if (!s48_channel_p_2(call, channel) ||
+      s48_eq_p_2(call,
+		 s48_channel_status_2(call, channel),
+		 s48_channel_status_closed_2(call)))
+    s48_assertion_violation_2(call, "posix_io_flags", "not an open channel", 1, channel);
 
-  c_fd = S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(channel));
+  c_fd = s48_unsafe_extract_long_2(call, s48_unsafe_channel_os_index_2(call, channel));
 
-  if (options == S48_FALSE) {
+  if (s48_false_p_2(call, options)) {
   
     RETRY_OR_RAISE_NEG(status, fcntl(c_fd, F_GETFL));
 
-    return s48_enter_file_options(status);
+    return s48_enter_file_options(call, status);
   }
   else {
-    int c_options = s48_extract_file_options(options);
+    int c_options = s48_extract_file_options(call, options);
 
     RETRY_OR_RAISE_NEG(status, fcntl(c_fd, F_SETFL, c_options));
     
-    return S48_UNSPECIFIC;
+    return s48_unspecific_2(call);
   }
 }
 
@@ -272,10 +272,10 @@ posix_io_flags(s48_value channel, s48_value options)
  * We translate the local bits into our own bits and vice versa.
  */
 
-s48_value
-s48_enter_file_options(int file_options)
+s48_ref_t
+s48_enter_file_options(s48_call_t call, int file_options)
 {
-  s48_value	sch_file_options;
+  s48_ref_t	sch_file_options;
   int		my_file_options;
 
   my_file_options =
@@ -299,22 +299,22 @@ s48_enter_file_options(int file_options)
     (O_WRONLY   & file_options ? 04000 : 0);
 
   sch_file_options
-    = s48_integer2enum_set(posix_file_options_enum_set_type_binding,
-			   my_file_options);
+    = s48_integer2enum_set_2(call, posix_file_options_enum_set_type_binding,
+			     my_file_options);
 
   return sch_file_options;
 }
 
 int
-s48_extract_file_options(s48_value sch_file_options)
+s48_extract_file_options(s48_call_t call, s48_ref_t sch_file_options)
 {
   int	c_file_options;
   long	file_options;
 
-  s48_check_enum_set_type(sch_file_options,
-			  posix_file_options_enum_set_type_binding);
+  s48_check_enum_set_type_2(call, sch_file_options,
+			    posix_file_options_enum_set_type_binding);
 
-  file_options = s48_enum_set2integer(sch_file_options);
+  file_options = s48_enum_set2integer_2(call, sch_file_options);
 
   c_file_options =
     (00001 & file_options ? O_CREAT    : 0) |

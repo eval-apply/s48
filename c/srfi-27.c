@@ -12,11 +12,11 @@
    The method provides the following functions via the C/Scheme
    interface of Scheme 48 0.57 to 'mrg32k3a-b.scm':
 
-      s48_value mrg32k3a_pack_state1(s48_value state);
-      s48_value mrg32k3a_unpack_state1(s48_value state);
-      s48_value mrg32k3a_random_range();
-      s48_value mrg32k3a_random_integer(s48_value state, s48_value range);
-      s48_value mrg32k3a_random_real(s48_value state);
+      s48_ref_t mrg32k3a_pack_state1(s48_ref_t state);
+      s48_ref_t mrg32k3a_unpack_state1(s48_ref_t state);
+      s48_ref_t mrg32k3a_random_range();
+      s48_ref_t mrg32k3a_random_integer(s48_ref_t state, s48_ref_t range);
+      s48_ref_t mrg32k3a_random_real(s48_ref_t state);
 
    As Scheme48 FIXNUMs cannot cover the range {0..m1-1}, we break up
    all values x in the state into x0+x1*w, where w = 2^16 = 65536.
@@ -119,14 +119,11 @@ static double mrg32k3a(state_t *s) { /* (double), in {0..m1-1} */
    ==================
 */
 
-s48_value mrg32k3a_pack_state1(s48_value state) {
-  s48_value result;
+s48_ref_t mrg32k3a_pack_state1(s48_call_t call, s48_ref_t state) {
+  s48_ref_t result;
   state_t   s;
-  S48_DECLARE_GC_PROTECT(1);
 
-  S48_GC_PROTECT_1(state); /* s48_extract_integer may GC */
-
-#define REF(i) (double)s48_extract_integer(S48_VECTOR_REF(state, (long)(i)))
+#define REF(i) (double)s48_extract_long_2(call, s48_vector_ref_2(call, state, (long)(i)))
 
   /* copy the numbers from state into s */
   s.x10 = REF( 0) + 65536.0 * REF( 1);
@@ -138,32 +135,27 @@ s48_value mrg32k3a_pack_state1(s48_value state) {
 
 #undef REF
 
-  S48_GC_UNPROTECT();
-
   /* box s into a Scheme object */
-  result = S48_MAKE_VALUE(state_t);
-  S48_SET_VALUE(result, state_t, s);
+  result = s48_make_value_2(call, state_t);
+  s48_set_value_2(call, result, state_t, s);
   return result;
 }
 
-s48_value mrg32k3a_unpack_state1(s48_value state) {
-  s48_value result = S48_UNSPECIFIC;
+s48_ref_t mrg32k3a_unpack_state1(s48_call_t call, s48_ref_t state) {
+  s48_ref_t result;
   state_t   s;
 
-  S48_DECLARE_GC_PROTECT(1);
-  S48_GC_PROTECT_1(result);
-
   /* unbox s from the Scheme object */
-  s = S48_EXTRACT_VALUE(state, state_t);
+  s = s48_extract_value_2(call, state, state_t);
 
   /* make and fill a Scheme vector with the numbers */
-  result = s48_make_vector((long)12, S48_FALSE);
+  result = s48_make_vector_2(call, (long)12, s48_false_2(call));
 
 #define SET(i, x) { \
   long x1 = (long)((x) / 65536.0); \
   long x0 = (long)((x) - 65536.0 * (double)x1); \
-  S48_VECTOR_SET(result, (long)(i+0), s48_enter_integer(x0)); \
-  S48_VECTOR_SET(result, (long)(i+1), s48_enter_integer(x1)); }
+  s48_vector_set_2(call, result, (long)(i+0), s48_enter_long_2(call, x0)); \
+  s48_vector_set_2(call, result, (long)(i+1), s48_enter_long_2(call, x1)); }
 
   SET( 0, s.x10);
   SET( 2, s.x11);
@@ -174,25 +166,23 @@ s48_value mrg32k3a_unpack_state1(s48_value state) {
 
 #undef SET
 
-  S48_GC_UNPROTECT();
-
   return result;
 }
 
-s48_value mrg32k3a_random_range(void) {
-  return s48_enter_fixnum(m_max);  
+s48_ref_t mrg32k3a_random_range(s48_call_t call) {
+  return s48_enter_long_2(call, m_max);  
 }
 
-s48_value mrg32k3a_random_integer(s48_value state, s48_value range) {
+s48_ref_t mrg32k3a_random_integer(s48_call_t call, s48_ref_t state, s48_ref_t range) {
   long    result;
   state_t s;
   long    n;
   double  x, q, qn, xq;
 
-  s = S48_EXTRACT_VALUE(state, state_t);
-  n = s48_extract_integer(range);
+  s = s48_extract_value_2(call, state, state_t);
+  n = s48_extract_long_2(call, range);
   if (!( ((long)1 <= n) && (n <= m_max) ))
-    s48_assertion_violation("mrg32k3a_random_integer", "invalid range", 1, state);
+    s48_assertion_violation_2(call, "mrg32k3a_random_integer", "invalid range", 1, state);
 
   /* generate result in {0..n-1} using the rejection method */
   q  = (double)( (unsigned long)(m1 / (double)n) );
@@ -204,35 +194,35 @@ s48_value mrg32k3a_random_integer(s48_value state, s48_value range) {
 
   /* check the range */
   if (!( (0.0 <= xq) && (xq < (double)m_max) ))
-    s48_assertion_violation("mrg32k3a_random_integer", "invalid xq", 1, s48_enter_integer((long)xq));
+    s48_assertion_violation_2(call, "mrg32k3a_random_integer", "invalid xq", 1, s48_enter_long_2(call, (long)xq));
 
   /* return result */
   result = (long)xq;
-  S48_SET_VALUE(state, state_t, s);
-  return s48_enter_fixnum(result);
+  s48_set_value_2(call, state, state_t, s);
+  return s48_enter_long_2(call, result);
 }
 
-s48_value mrg32k3a_random_real(s48_value state) {
+s48_ref_t mrg32k3a_random_real(s48_call_t call, s48_ref_t state) {
   state_t s;
   double  x;
 
-  s = S48_EXTRACT_VALUE(state, state_t);
+  s = s48_extract_value_2(call, state, state_t);
   x = (mrg32k3a(&s) + 1.0) * norm;
-  S48_SET_VALUE(state, state_t, s);
-  return s48_enter_double(x);
+  s48_set_value_2(call, state, state_t, s);
+  return s48_enter_double_2(call, x);
 }
 
 #ifdef _WIN32
-static s48_value current_time(void){
+static s48_ref_t current_time(s48_call_t call){
   SYSTEMTIME systemTime;
   GetSystemTime(&systemTime);
-  return s48_enter_unsigned_integer((unsigned long) systemTime.wSecond);
+  return s48_enter_unsigned_long_2(call, (unsigned long) systemTime.wSecond);
 }
 #else
-static s48_value current_time(void){
+static s48_ref_t current_time(s48_call_t call){
   struct timeval tv;
   gettimeofday(&tv, NULL);
-  return s48_enter_integer(tv.tv_sec);
+  return s48_enter_long_2(call, tv.tv_sec);
 }
 #endif
 

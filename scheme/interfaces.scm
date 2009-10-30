@@ -4,7 +4,7 @@
 ; Some interfaces.  Order of presentation is a bit random.
 
 (define-interface scheme-level-0-interface
-  (export ((if begin lambda letrec quote set!
+  (export ((if begin lambda letrec letrec* quote set!
 	       define define-syntax let-syntax letrec-syntax)
 	   :syntax)
 	  
@@ -54,6 +54,7 @@
 (define-interface primitives-interface
   (export add-finalizer!
 	  call-external-value
+	  call-external-value-2
 	  channel-parameter
 	  checked-record-ref
 	  checked-record-set!
@@ -78,7 +79,6 @@
 	  make-double
 	  make-extended-number
 	  make-immutable!
-	  make-mutable!
 	  make-record
 	  make-template
 	  make-weak-pointer
@@ -93,6 +93,7 @@
 	  record-ref
 	  record-set!
 	  record?
+	  record-type<=?
 	  return-from-callback
 	  schedule-interrupt            ;interrupts re-exports this
 	  session-data			;channels
@@ -113,10 +114,24 @@
 	  wait
 	  weak-pointer-ref
 	  weak-pointer?
+	  make-transport-link-cell
+	  transport-link-cell?
+	  transport-link-cell-key
+	  transport-link-cell-value 
+	  set-transport-link-cell-value!
+	  transport-link-cell-tconc 
+	  set-transport-link-cell-tconc!
+	  transport-link-cell-next 
+	  set-transport-link-cell-next!
 	  write-byte
 	  write-char
-	  encode-char
-	  decode-char))
+	  char->utf
+	  utf->char))
+
+(define-interface syntax-transformers-interface
+  (export make-explicit-renaming-transformer/4
+	  explicit-renaming-transformer/4?
+	  explicit-renaming-transformer/4-proc))
 
 (define-interface bitwise-interface
   (export arithmetic-shift
@@ -154,10 +169,8 @@
 (define-interface closures-interface
   (export closure?
 	  make-closure
-	  closure-env
-	  closure-template
-	  set-closure-env!
-	  set-closure-template!))
+	  closure-env set-closure-env!
+	  closure-template set-closure-template!))
 
 (define-interface byte-vectors-interface
   (export byte-vector?
@@ -171,6 +184,7 @@
 	  ;; not support this feature.
 	  make-unmovable-byte-vector
 
+          byte-vector=?
 	  byte-vector))
 
 ; Same again, but with old names for compatibility.
@@ -407,14 +421,21 @@
 (define-interface record-types-interface
   (export make-record-type
 	  record-constructor
+	  record-standard-constructor
 	  record-accessor
 	  record-modifier
 	  record-predicate
 	  define-record-discloser
 	  define-record-resumer
 	  record-type?
+	  record-type<=?
 	  record-type-field-names
-	  record-type-name))
+	  record-type-name
+	  record-type-parent
+	  record-type-data
+	  record-type-size
+	  set-record-type-data!
+	  ))
 
 (define-interface define-record-types-interface
   (export (define-record-type :syntax)
@@ -424,28 +445,28 @@
   (export (define-generic :syntax)
 	  (define-method :syntax)
 	  (define-simple-type :syntax)
-	  :values
-	  :value
-	  :number
-	  :complex
-	  :real
-	  :rational
-	  :integer
-	  :exact-integer
-	  :boolean
-	  :symbol
-	  :char
-	  :null
-	  :pair
-	  :vector
-	  :string
-	  :procedure
-	  :input-port
-	  :output-port
-	  :eof-object
-	  :record
+	  <values>
+	  <value>
+	  <number>
+	  <complex>
+	  <real>
+	  <rational>
+	  <integer>
+	  <exact-integer>
+	  <boolean>
+	  <symbol>
+	  <char>
+	  <null>
+	  <pair>
+	  <vector>
+	  <string>
+	  <procedure>
+	  <input-port>
+	  <output-port>
+	  <eof-object>
+	  <record>
 	  :record-type
-	  :zero
+	  <zero>
 	  singleton
 	  disclose &disclose))
 
@@ -565,6 +586,8 @@
 
 	  &vm-exception make-vm-exception vm-exception?
 	  vm-exception-opcode vm-exception-reason
+	  &os-error make-os-error os-error?
+	  os-error-code
 	  &i/o-error make-i/o-error i/o-error?
 	  &i/o-port-error make-i/o-port-error i/o-port-error? i/o-error-port
 	  &decoding-error make-decoding-error decoding-error?
@@ -647,8 +670,12 @@
 
 (define-interface os-strings-interface
   (export os-string?
+	  make-os-string 
 	  string->os-string byte-vector->os-string x->os-string
+	  string->os-byte-vector x->os-byte-vector
 	  os-string->string os-string->byte-vector
+	  os-string-text-codec
+	  os-string=?
 	  call-with-os-string-text-codec
 	  current-os-string-text-codec))
 
@@ -756,7 +783,7 @@
 	  maybe-commit-and-make-ready
 	  maybe-commit-no-interrupts
 	  spawn-on-scheduler spawn-on-root
-	  wait
+	  wait-for-event
 	  upcall propogate-upcall
 	  interrupt-thread
 	  kill-thread!
@@ -886,7 +913,7 @@
 	  continuation-code
 	  continuation-template
 	  continuation?
-	  :continuation
+	  <continuation>
 
 	  vm-exception-continuation?
 	  vm-exception-continuation-exception
@@ -926,7 +953,7 @@
 	  set-global-translation!
 	  set-translation!
 	  make-translations with-translations
-	  translations))
+	  current-translations))
 
 ; Things for the compiler.
 
@@ -935,15 +962,16 @@
 	  make-string-table
 	  make-symbol-table
 	  make-integer-table
+	  make-datum-table
 	  make-table-maker
 	  table?
           table-size
 	  table-ref
 	  table-set!
-	  table-walk
+	  table-walk table->entry-list
 	  make-table-immutable!
 
-	  string-hash symbol-hash
+	  string-hash symbol-hash datum-hash
 	  default-hash-function))
 
 ;----------------
@@ -953,7 +981,7 @@
   (export usual-transform))
 
 (define-interface meta-types-interface
-  (export same-type?
+  (export ; same-type? ; conflicts with `same-type?' from methods
 	  subtype?
 	  meet?
 	  join-type
@@ -1044,16 +1072,20 @@
 	  ))
 
 (define-interface transforms-interface
-  (export make-transform
+  (export make-transform/macro
+	  make-transform/inline
 	  maybe-apply-macro-transform
 	  apply-inline-transform
 	  transform?
+	  transform-kind
 	  transform-type
 
 	  transform-env		; These are used to reify transforms.
 	  transform-aux-names
 	  transform-source
-	  transform-id))
+	  transform-id
+
+	  make-transform)) ; backwards compatibility
 
 (define-interface bindings-interface
   (export binding?
@@ -1062,9 +1094,7 @@
 	  set-binding-place!	;for package mutation, used in package.scm
 	  binding-static
 	  binding-type
-	  binding-path
 
-	  add-path
 	  clobber-binding!
 	  maybe-fix-place!
 	  forget-integration
@@ -1084,10 +1114,10 @@
 	  bind-source-file-name	; re-exported by syntactic
 	  source-file-name
 
-	  environment-macro-eval
-	  environment-define!
+	  comp-env-macro-eval
+	  comp-env-define!
 
-	  extract-package-from-environment))	; temporary
+	  extract-package-from-comp-env))	; temporary
 
 (define-interface syntactic-interface
   (export expand
@@ -1098,6 +1128,24 @@
 	  static-value
 	  make-compiler-env
 	  bind-source-file-name))
+
+(define-interface syntax-rules-data-interface
+  (export make-pattern-variable
+          pattern-variable?
+          pattern-variable-name
+          pattern-variable-rank
+
+          make-ellipsis-form
+          ellipsis-form?
+          ellipsis-form-body
+          ellipsis-form-vars
+
+          make-vector-marker
+          vector-marker?
+          vector-marker-contents))
+
+(define-interface syntax-rules-apply-interface
+  (export apply-rules))
 
 (define-interface nodes-interface
   (export make-node
@@ -1144,6 +1192,7 @@
 	  operator/begin
 	  operator/name
 	  operator/letrec
+	  operator/letrec*
 	  operator/pure-letrec
 	  operator/literal
 	  operator/quote
@@ -1168,12 +1217,13 @@
 	  using-optional-label
 	  jump-instruction
 	  computed-goto-instruction
+	  stack-shuffle-instruction
 	  continuation-data
           lambda-protocol nary-lambda-protocol
           nary-primitive-protocol continuation-protocol
           cwv-continuation-protocol
           make-dispatch-protocol
-	  make-label
+	  make-label label?
 	  label-reference
 	  note-environment
 	  note-source-code
@@ -1313,6 +1363,7 @@
 	  package-accesses
 	  package-clauses
 	  package-file-name
+	  package-reader set-package-reader!
 	  package-opens
 	  set-package-integrate?!
 	  structure-name
@@ -1386,7 +1437,8 @@
 	  set-interaction-environment!
 	  set-scheme-report-environment!
 	  with-interaction-environment
-	  set-reflective-tower-maker!))
+	  set-reflective-tower-maker!
+	  set-reader!))
 
 (define-interface defpackage-interface
   (export ((def			        ;Formerly define-structure
@@ -1395,6 +1447,7 @@
 	    define-structure
 	    define-module
 	    define-syntax
+	    define-reader
 	    define-reflective-tower-maker
 	    export-reflective-tower-maker
 	    compound-interface

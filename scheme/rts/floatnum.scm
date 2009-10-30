@@ -103,8 +103,7 @@
       (let ((d (fixnum->float definitely-a-fixnum)))
 	(+ (* definitely-a-fixnum
 	      (float->exact-integer (float-quotient x d)))
-	   (float->fixnum (loophole :double		; outsmarted ourselves
-				    (float-remainder x d)))))))
+	   (float->fixnum (float-remainder x d))))))
 
 (define definitely-a-fixnum (expt 2 23))    ;Be conservative
 
@@ -172,6 +171,9 @@
 
 (define infinity (delay (expt (exact->inexact 2) (exact->inexact 1500))))
 
+(define (nan? x)
+  (not (= x x)))
+
 (define (float->exact x)
   (define (lose)
     (implementation-restriction-violation 'inexact->exact
@@ -181,9 +183,7 @@
   (cond
    ((integral-floatnum? x)
     (float->exact-integer x))		;+++
-   ((or (not (= x x))			; NaN
-	(= x (force infinity))
-	(= (- x) (force infinity)))
+   ((not (rational? x))
     (lose))
    (else
     (let ((deliver
@@ -209,35 +209,70 @@
 
 ; Methods on floatnums
 
-(define-method &integer? ((x :double))
+(define-method &integer? ((x <double>))
   (integral-floatnum? x))
 
-(define-method &rational? ((n :double)) #t)
+(define-method &rational? ((n <double>))
+  (and (not (nan? n))
+       (not (= (force infinity) n))
+       (not (= (- (force infinity)) n))))
 
-(define-method &exact? ((x :double)) #f)
+(define-method &exact? ((x <double>)) #f)
 
-(define-method &inexact->exact ((x :double))
+(define-method &inexact->exact ((x <double>))
   (float->exact x))
 
-(define-method &exact->inexact ((x :rational))
+(define-method &exact->inexact ((x <rational>))
   (x->float x))		;Should do this only if the number is within range.
 
-(define-method &floor ((x :double)) (float-floor x))
+(define-method &floor ((x <double>)) (float-floor x))
 
 ; beware infinite regress
-(define-method &numerator ((x :double)) (float-numerator x))
-(define-method &denominator ((x :double)) (float-denominator x))
+(define-method &numerator ((x <double>)) (float-numerator x))
+(define-method &denominator ((x <double>)) (float-denominator x))
 
 (define (define-floatnum-method mtable proc)
-  (define-method mtable ((m :rational) (n :rational)) (proc m n)))
+  (define-method mtable ((m <rational>) (n <rational>)) (proc m n))
+  ;; the horror
+  (define-method mtable ((m <double>) (n <rational>)) (proc m n))
+  (define-method mtable ((m <rational>) (n <double>)) (proc m n))
+  (define-method mtable ((m <double>) (n <double>)) (proc m n)))
 
 ;; the numerical tower sucks
 (define (define-floatnum-comparison mtable proc float-proc)
-  (define-method mtable ((m :double) (n :double)) (float-proc m n))
-  (define-method mtable ((m :double) (n :rational))
+  (define-method mtable ((m <double>) (n <double>)) (float-proc m n))
+  (define-method mtable ((m <double>) (n <rational>))
+    (cond
+     ((nan? m) #f) ; #### not always correct, when < is used to implement >
+     ((= m (force infinity)) #f)
+     ((= m (- (force infinity))) #t)
+      
     (proc (float->exact m) n))
-  (define-method mtable ((m :rational) (n :double))
-    (proc m (float->exact n))))
+  (define-method mtable ((m <rational>) (n <double>))
+    (proc m (float->exact n)))))
+
+; the numerical tower sucks big-time
+(define-method &= ((m <double>) (n <double>)) (float= m n))
+(define-method &= ((m <double>) (n <rational>))
+  (and (rational? m)
+       (float= (float->exact m) n)))
+(define-method &= ((m <rational>) (n <double>))
+  (and (rational? n)
+       (float= m (float->exact n))))
+
+(define-method &< ((m <double>) (n <double>)) (float< m n))
+(define-method &< ((m <double>) (n <rational>))
+  (cond ((nan? m) #f)
+	((= (force infinity) m) #f)
+	((= (- (force infinity))  m) #t)
+	(else
+	 (float< (float->exact m) n))))
+(define-method &< ((m <rational>) (n <double>))
+  (cond ((nan? n) #f) ; #### not correct when < is used to implement >
+	((= (force infinity) n) #t)
+	((= (- (force infinity))  n) #f)
+	(else
+	 (float< m (float->exact n)))))
 
 (define-floatnum-method &+ float+)
 (define-floatnum-method &- float-)
@@ -245,12 +280,10 @@
 (define-floatnum-method &/ float/)
 (define-floatnum-method &quotient float-quotient)
 (define-floatnum-method &remainder float-remainder)
-(define-floatnum-comparison &= = float=)
-(define-floatnum-comparison &< < float<)
 (define-floatnum-method &atan2 float-atan2)
 
-(define-method &exp   ((x :rational)) (float-exp   x))
-(define-method &log   ((x :rational))
+(define-method &exp   ((x <rational>)) (float-exp   x))
+(define-method &log   ((x <rational>))
   (cond 
    ((> x (exact->inexact 0)) ; avoid calling inexact->exact on X
     (float-log x))
@@ -260,18 +293,18 @@
 	(float-log x)))
    (else
     (next-method))))
-(define-method &sqrt  ((x :rational))
+(define-method &sqrt  ((x <rational>))
   (if (>= x (exact->inexact 0))
       (float-sqrt x)
       (next-method)))
-(define-method &sin   ((x :rational)) (float-sin   x))
-(define-method &cos   ((x :rational)) (float-cos   x))
-(define-method &tan   ((x :rational)) (float-tan   x))
-(define-method &acos  ((x :rational)) (float-acos  x))
-(define-method &asin  ((x :rational)) (float-asin  x))
-(define-method &atan1 ((x :rational)) (float-atan1 x))
+(define-method &sin   ((x <rational>)) (float-sin   x))
+(define-method &cos   ((x <rational>)) (float-cos   x))
+(define-method &tan   ((x <rational>)) (float-tan   x))
+(define-method &acos  ((x <rational>)) (float-acos  x))
+(define-method &asin  ((x <rational>)) (float-asin  x))
+(define-method &atan1 ((x <rational>)) (float-atan1 x))
 
-(define-method &number->string ((n :double) radix)
+(define-method &number->string ((n <double>) radix)
   (cond
    ((= radix 10)
     (float->string n))
@@ -348,9 +381,9 @@
 		   (else #f))))))
     (start)))
 
-(define-simple-type :float-string (:string) float-string?)
+(define-simple-type <float-string> (<string>) float-string?)
 
-(define-method &really-string->number ((s :float-string) radix exact?)
+(define-method &really-string->number ((s <float-string>) radix exact?)
   (if (and (= radix 10)
 	   (not exact?))
       (string->float s)

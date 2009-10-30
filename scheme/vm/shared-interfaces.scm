@@ -91,19 +91,19 @@
 	  (imm :syntax)
 	  immediate-type-field-width
 	  undefined?
-	  true false eof-object null unspecific-value unreleased-value quiescent
+	  true false vm-eof-object null unspecific-value unreleased-value quiescent
 	  unbound-marker unassigned-marker
 	  vm-boolean? false? enter-boolean extract-boolean
 	  bytes-per-scalar-value-unit scalar-value-units->bytes
 	  scalar-value-units->bytes bytes->scalar-value-units
 	  vm-char? vm-char=? vm-char<?
-	  enter-char extract-char scalar-value->char char->scalar-value
+	  enter-char extract-char scalar-value->vm-char vm-char->scalar-value
 
 	  make-header header-type
 	  header-type-field-width
 	  header-immutable-bit-mask
 	  header-length-in-bytes header-length-in-cells header-length-in-a-units
-	  immutable-header? make-header-immutable make-header-mutable
+	  immutable-header? make-header-immutable
 	  d-vector-header? b-vector-header?
 	  max-stob-contents-size-in-cells
 

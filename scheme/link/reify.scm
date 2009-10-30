@@ -248,9 +248,11 @@
 	       (reify-object env))))
       (process-one-object
        transform
-       (let ((source (transform-source transform)))
+       (let ((source (transform-source transform))
+	     (kind (transform-kind transform)))
 	 (lambda ()
-	   `(transform ,source		;transformer
+	   `(transform ',kind
+		       ,source		;transformer
 		       ,env-form
 		       ',(type->sexp (transform-type transform) #t) ;type
 		       #f		;',source  -- omitted to save space...

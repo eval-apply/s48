@@ -322,5 +322,7 @@
 ; A version of MAKE-SIMILAR-NODE that actually makes a new node.
 ; I wish this could keep the old node's list of properties.
 
+; The version from nodes loops.
+
 (define (make-similar-node node form)
   (make-node (node-operator node) form))

@@ -30,11 +30,13 @@
 		    (signal-conditions signal-conditions-interface)
 		    (debug-messages (export debug-message))
 		    (silly (export reverse-list->string))
-		    (code-quote (export (code-quote :syntax)))
+		    (code-quotation (export (code-quote :syntax)))
+		    (syntax-transformers syntax-transformers-interface)
 		    (structure-refs (export (structure-ref :syntax))))
   (define-all-operators)		; Primitive Scheme, in the LSC paper
   (usual-transforms and cond do let let* or)
   (files (rts low)
-	 (rts low-exception))
+	 (rts low-exception)
+	 (rts low-syntax))
   (optimize auto-integrate))
 

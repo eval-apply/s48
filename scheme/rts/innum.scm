@@ -3,24 +3,24 @@
 
 ; Inexact numbers as mere shells surrounding exact numbers.
 
-(define-extended-number-type :innum (:inexact)
+(define-extended-number-type <innum> (<inexact>)
   (make-innum exact)
   innum?
   (exact innum-exact))
 
-(define-method &exact?  ((n :innum)) #f)
+(define-method &exact?  ((n <innum>)) #f)
 
-(define-method &complex?  ((n :innum)) (complex?  (innum-exact n)))
-(define-method &real?     ((n :innum)) (real?	  (innum-exact n)))
-(define-method &rational? ((n :innum)) (rational? (innum-exact n)))
-(define-method &integer?  ((n :innum)) (integer?  (innum-exact n)))
+(define-method &complex?  ((n <innum>)) (complex?  (innum-exact n)))
+(define-method &real?     ((n <innum>)) (real?	  (innum-exact n)))
+(define-method &rational? ((n <innum>)) (rational? (innum-exact n)))
+(define-method &integer?  ((n <innum>)) (integer?  (innum-exact n)))
 
-(define-method &exact->inexact ((n :number))
+(define-method &exact->inexact ((n <number>))
   (if (innum? n)
       (next-method)
       (make-innum n)))
 
-(define-method &inexact->exact ((n :innum)) (innum-exact n))
+(define-method &inexact->exact ((n <innum>)) (innum-exact n))
 
 (define (inexactify n)
   (if (exact? n)
@@ -28,9 +28,9 @@
       n))
 
 (define (define-innum-method mtable proc)
-  (define-method mtable ((m :innum) (n :number))
+  (define-method mtable ((m <innum>) (n <number>))
     (inexactify (proc (innum-exact m) n)))
-  (define-method mtable ((m :number) (n :innum))
+  (define-method mtable ((m <number>) (n <innum>))
     (inexactify (proc m (innum-exact n)))))
 
 (define-innum-method &+ +)
@@ -41,24 +41,24 @@
 (define-innum-method &remainder remainder)
 
 (define (define-innum-comparison mtable proc)
-  (define-method mtable ((m :innum) (n :number))
+  (define-method mtable ((m <innum>) (n <number>))
     (proc (innum-exact m) n))
-  (define-method mtable ((m :number) (n :innum))
+  (define-method mtable ((m <number>) (n <innum>))
     (proc m (innum-exact n))))
 
 (define-innum-comparison &= =)
 (define-innum-comparison &< <)
 
-(define-method &numerator   ((n :innum))
+(define-method &numerator   ((n <innum>))
   (inexactify (numerator (innum-exact n))))
 
-(define-method &denominator ((n :innum))
+(define-method &denominator ((n <innum>))
   (inexactify (denominator (innum-exact n))))
 
-(define-method &floor ((n :innum))
+(define-method &floor ((n <innum>))
   (inexactify (floor (innum-exact n))))
 
-(define-method &number->string ((i :innum) radix)
+(define-method &number->string ((i <innum>) radix)
   (let ((n (innum-exact i)))
     (cond ((integer? n)
 	   (string-append (number->string n radix) "."))

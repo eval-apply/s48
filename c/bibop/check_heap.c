@@ -20,9 +20,7 @@ char s48_stob_in_heapP(s48_value stob) {
 }
 
 static void error_found(char* message) {
-  fprintf(stderr, "check heap: ");
-  fprintf(stderr, message);
-  fprintf(stderr, "\n");
+  fprintf(stderr, "check heap: %s\n", message);
   if (errors_left == 0) {
     s48_gc_error("check heap: too many errors!");
   } else {

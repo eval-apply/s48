@@ -91,7 +91,7 @@
 ; the S-expression representation of the expression.  E.g. for
 ; literals, the form is the literal value; for variables the form is
 ; the variable name; for IF expressions the form is a 4-element list
-; (ignored test con alt).  Nodes also have a tag identifying what kind
+; (<if> test con alt).  Nodes also have a tag identifying what kind
 ; of node it is (literal, variable, if, etc.) and a property list.
 
 (define-record-type node :node
@@ -111,6 +111,7 @@
   (let ((probe (assq key (node-plist node))))
     (if probe (cdr probe) #f)))
 
+; removes property if value is #f
 (define (node-set! node key value) ;gross
   (if value
       (let ((probe (assq key (node-plist node))))
@@ -163,6 +164,7 @@
 (define operator/begin       (get-operator 'begin syntax-type))
 (define operator/name        (get-operator 'name 'leaf))
 (define operator/letrec      (get-operator 'letrec))
+(define operator/letrec*     (get-operator 'letrec*))
 (define operator/pure-letrec (get-operator 'pure-letrec))
 (define operator/literal     (get-operator 'literal))
 (define operator/quote       (get-operator 'quote syntax-type))

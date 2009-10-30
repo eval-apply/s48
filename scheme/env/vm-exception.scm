@@ -133,10 +133,9 @@
 	      (signal-condition
 	       (condition
 		(construct-vm-exception opcode reason)
+		(make-os-error status)
 		(make-i/o-error)
-		(make-who-condition (if reason
-				     (enumerand->name reason exception)
-				     #f))
+		(make-who-condition (enumerand->name opcode op))
 		(make-message-condition
 		 (os-string->string (byte-vector->os-string (os-error-message status))))
 		(make-irritants-condition (cons channel rest)))))
@@ -150,6 +149,7 @@
 		(signal-condition
 		 (condition
 		  (construct-vm-exception opcode reason)
+		  (make-os-error status)
 		  (make-i/o-error)
 		  (make-who-condition 'write-image)
 		  (make-message-condition
@@ -159,6 +159,51 @@
 			 rest)))))
 	       (else
 		(apply signal-vm-exception opcode reason status rest)))))
+
+; REST has who, status or message last
+(define (signal-call-external-error opcode reason . rest)
+  (enum-case exception reason
+	     ((external-error external-assertion-violation)
+	      (let* ((rev-rest (reverse rest))
+		     (who (cadr rev-rest))
+		     (message
+		      (os-string->string
+		       (byte-vector->os-string (car rev-rest)))))
+		(signal-condition
+		 (condition
+		  (if (= reason (enum exception external-assertion-violation))
+		      (make-assertion-violation)
+		      (make-error))
+		  (construct-vm-exception opcode reason)
+		  (make-who-condition who)
+		  (make-message-condition message)
+		  (make-irritants-condition (reverse (cddr rev-rest)))))))
+	     ((external-os-error)
+	      (let* ((rev-rest (reverse rest))
+		     (who (cadr rev-rest))
+		     (status (car rev-rest))
+		     (message
+		      (os-string->string
+		       (byte-vector->os-string
+			(os-error-message status)))))
+		(signal-condition
+		 (condition
+		  (if (= reason (enum exception external-assertion-violation))
+		      (make-assertion-violation)
+		      (make-error))
+		  (construct-vm-exception opcode reason)
+		  (make-os-error status)
+		  (make-who-condition who)
+		  (make-message-condition message)
+		  (make-irritants-condition (reverse (cddr rev-rest)))))))
+	     (else
+	      (apply signal-vm-exception opcode reason rest))))
+
+(define-vm-exception-handler (enum op call-external-value)
+  signal-call-external-error)
+
+(define-vm-exception-handler (enum op call-external-value-2)
+  signal-call-external-error)
 
 ; Utilities
 

@@ -46,8 +46,8 @@
 		  (arithmetic-shift (cadr rest) 8)
 		  (caddr rest))))))
 
-(import-lambda-definition external-get-inaddr-any () "s48_get_inaddr_any")
-(import-lambda-definition external-get-inaddr-broadcast () "s48_get_inaddr_broadcast")
+(import-lambda-definition-2 external-get-inaddr-any () "s48_get_inaddr_any")
+(import-lambda-definition-2 external-get-inaddr-broadcast () "s48_get_inaddr_broadcast")
 
 (define *ipv4-address-any*
   (make-ipv4-address (external-get-inaddr-any)))
@@ -74,8 +74,8 @@
   (lambda (r)
     (list 'ipv6-address (ipv6-address-elements r))))
 
-(import-lambda-definition external-get-in6addr-any () "s48_get_in6addr_any")
-(import-lambda-definition external-get-in6addr-loopback () "s48_get_in6addr_loopback")
+(import-lambda-definition-2 external-get-in6addr-any () "s48_get_in6addr_any")
+(import-lambda-definition-2 external-get-in6addr-loopback () "s48_get_in6addr_loopback")
 
 (define *ipv6-address-any*
   (make-ipv6-address (external-get-in6addr-any)))
@@ -163,7 +163,7 @@
    (ipv4-address-ip (socket-address-data/ipv4-address data))
    (socket-address-data/ipv4-port data)))
 
-(import-lambda-definition external-make-sockaddr-in-raw (addr port)
+(import-lambda-definition-2 external-make-sockaddr-in-raw (addr port)
 			  "s48_make_sockaddr_in_raw")
 
 
@@ -200,11 +200,11 @@
 
 (define (socket-address-data/ipv6->raw data)
   (external-make-sockaddr-in6-raw
-   (socket-address-data/ipv6-port data)
    (ipv6-address-elements (socket-address-data/ipv6-address data))
+   (socket-address-data/ipv6-port data)
    (socket-address-data/ipv6-scope-id data)))
 
-(import-lambda-definition external-make-sockaddr-in6-raw (addr port scope-id)
+(import-lambda-definition-2 external-make-sockaddr-in6-raw (addr port scope-id)
 			  "s48_make_sockaddr_in6_raw")
 
 (define (socket-address-ipv6-address sa)
@@ -241,7 +241,7 @@
   (external-make-sockaddr-un-raw
    (os-string->byte-vector (socket-address-data/unix-path data))))
 
-(import-lambda-definition external-make-sockaddr-un-raw (path)
+(import-lambda-definition-2 external-make-sockaddr-un-raw (path)
 			  "s48_make_sockaddr_un_raw")
 
 (define (socket-address-unix-path sa)
@@ -259,8 +259,8 @@
 	      (vector-ref raw 2)))
 	    ((inet6)
 	     (make-socket-address-data/ipv6
-	      (vector-ref raw 2)
 	      (make-ipv6-address (vector-ref raw 3))
+	      (vector-ref raw 2)
 	      (vector-ref raw 4)))
 	    ((unix)
 	     (make-socket-address-data/unix
@@ -305,11 +305,11 @@
 				      (vector-ref v (* i 2)))
 		      rev))))))
       
-(import-lambda-definition external-interface-name->index (name)
+(import-lambda-definition-2 external-interface-name->index (name)
 			  "s48_if_nametoindex")
-(import-lambda-definition external-interface-index->name (index)
+(import-lambda-definition-2 external-interface-index->name (index)
 			  "s48_if_indextoname")
-(import-lambda-definition external-interface-index-table ()
+(import-lambda-definition-2 external-interface-index-table ()
 			  "s48_if_nameindex")
 
 ; Nodename translation
@@ -380,7 +380,7 @@
 	       (hint-flags (address-info-flags))
 	       (hint-family (address-family unspec))
 	       (hint-socket-type #f)
-	       (hint-protocol 'f))
+	       (hint-protocol #f))
     (cond
      ((get-xxx-info
        (external-getaddrinfo
@@ -397,12 +397,12 @@
 		(vector->list result))))
      (else #f))))
 
-(import-lambda-definition external-getaddrinfo (nodename
+(import-lambda-definition-2 external-getaddrinfo (nodename
 						servname
 						hint-flags hint-family
 						hint-socktype hint-protocol)
 			  "s48_getaddrinfo")
-(import-lambda-definition external-getaddrinfo-result (handshake)
+(import-lambda-definition-2 external-getaddrinfo-result (handshake)
 			  "s48_getaddrinfo_result")
 
 (define-enumeration name-info-flag
@@ -418,9 +418,9 @@
 	      external-getnameinfo-result)))
       (values (vector-ref p 0) (vector-ref p 1)))))
 
-(import-lambda-definition external-getnameinfo (sock-address flags)
+(import-lambda-definition-2 external-getnameinfo (sock-address flags)
 			  "s48_getnameinfo")
-(import-lambda-definition external-getnameinfo-result (handshake)
+(import-lambda-definition-2 external-getnameinfo-result (handshake)
 			  "s48_getnameinfo_result")
 
 ;; Address conversion
@@ -448,9 +448,9 @@
      ((external-inet-pton (address-family->raw family) rep) => make)
      (else #f))))
 
-(import-lambda-definition external-inet-pton (family rep)
+(import-lambda-definition-2 external-inet-pton (family rep)
 			  "s48_inet_pton")
-(import-lambda-definition external-inet-ntop (family address)
+(import-lambda-definition-2 external-inet-ntop (family address)
 			  "s48_inet_ntop")
 
 ;; Address testing
@@ -459,7 +459,7 @@
   (syntax-rules ()
     ((define-address-predicate ?name ?external-name)
      (begin
-       (import-lambda-definition external? (address) ?external-name)
+       (import-lambda-definition-2 external? (address) ?external-name)
        (define (?name addr)
 	 (external? (ipv6-address-elements addr)))))))
 

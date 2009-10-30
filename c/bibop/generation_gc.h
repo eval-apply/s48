@@ -38,7 +38,7 @@ extern void s48_integrate_area(Area* area);
 
 /* only used "internally" */
 
-void s48_internal_trace_locationsB(Area* maybe_area, s48_address start,
+void s48_internal_trace_locationsB(Area* maybe_area, char area_looked_up, s48_address start,
 				   s48_address end, char* called_from);
 extern void s48_walk_heap(void (*do_part)(s48_address, s48_address));
 

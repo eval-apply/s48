@@ -9,7 +9,7 @@ AC_MSG_CHECKING([native-code compiler support])
 AC_ARG_ENABLE([native-code],
 [AC_HELP_STRING([--enable-native code],
 		[Include support for native-code compiler])],
-	[dnl 
+     [if test "$enable_native_code" != no; then
          case $GC_OBJS in
 	   '${GC_TWOSPACE_OBJS}' )
 		 case `uname -m` in
@@ -36,10 +36,17 @@ AC_ARG_ENABLE([native-code],
 	   * )
 	     AC_MSG_RESULT([no (picked GC not compatible)])
 	     ASM_OBJECTS='${FAKE_ASM_OBJECTS}'
-	 esac],
+	 esac
+      else
+	 AC_MSG_RESULT([no])
+	 ASM_OBJECTS='${FAKE_ASM_OBJECTS}'
+      fi],
    	[dnl
 	 AC_MSG_RESULT([no])
 	 ASM_OBJECTS='${FAKE_ASM_OBJECTS}'
         ]
-)])dnl
+)
+AC_SUBST(ASM_OBJECTS)
+AC_SUBST(ASM_STYLE)
+])dnl
 ### s48_native_code.m4 ends here

@@ -137,7 +137,7 @@
 				   one-minute-of-milliseconds)
 			 one-year-of-minutes)	; stick with fixnums
 		    #t))))
-   primitive-wait))
+   wait))
 
 (define one-minute-of-milliseconds (* 1000 60))
 
