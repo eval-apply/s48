@@ -527,6 +527,7 @@
 
 	    ; R6RS packages
 
+	    r6rs-base-comparisons
 	    r6rs-conditions
 	    r6rs-records-procedural
 	    r6rs-records-inspection
