@@ -69,7 +69,7 @@
 		  after)))
 
 ; Definitions must be treated differently from assignments: we must
-; use SET-CONTENTS! instead of SET-GLOBAL! because the SET-GLOBAL!
+; use STORED-OBJECT-SET! instead of SET-GLOBAL! because the SET-GLOBAL!
 ; instruction traps if an attempt is made to store into an undefined
 ; location.
 ;

@@ -8,10 +8,10 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 CC = @CC@
 LD = @LD@
-DEFS = @DEFS@ -D__COMPILING_SCHEME48_ITSELF__ -DS48_HOST_ARCHITECTURE=\"$(HOST_ARCHITECTURE)\"
+DEFS = @DEFS@
 LIBS = @LIBS@
 CFLAGS = @CFLAGS@
-CPPFLAGS =
+CPPFLAGS = @CPPFLAGS@
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
@@ -21,6 +21,9 @@ LDFLAGS_VM = @LDFLAGS_VM@
 LIBOBJS = @LIBOBJS@
 
 GC_OBJS = @GC_OBJS@
+
+ADDITIONAL_EXTERNALS = @ADDITIONAL_EXTERNALS@
+ADDITIONAL_EXTERNAL_OBJS = @ADDITIONAL_EXTERNAL_OBJS@
 
 ASM_OBJECTS = @ASM_OBJECTS@
 ASM_STYLE = @ASM_STYLE@
@@ -52,8 +55,10 @@ DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE=@DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE@
 # Ultrix
 #   LDFLAGS = -N
 
+COMPILING_ITSELF_DEFS = $(DEFS) -D__COMPILING_SCHEME48_ITSELF__ -DS48_HOST_ARCHITECTURE=\"$(HOST_ARCHITECTURE)\"
+
 .c.o:
-	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/net -I$(srcdir)/c/bibop $(CFLAGS) -o $@ $<
+	$(CC) -c $(CPPFLAGS) $(COMPILING_ITSELF_DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/net -I$(srcdir)/c/bibop $(CFLAGS) -o $@ $<
 
 # You might want to change RUNNABLE to "s48"
 VERSION = 1.`cat $(srcdir)/build/minor-version-number`
@@ -105,7 +110,7 @@ LINKER_RUNNABLE = $(LINKER_VM)
 LINKER_WRITEBYTE = ,open (subset i/o (write-byte)) (subset ports (set-port-crlf?!))
 START_LINKER-32 = echo ',batch';				\
 	       echo ',bench on';				\
-	       echo ',open signals handle features';		\
+	       echo ',open signals handle features code-quote';	\
 	       echo ',open bitwise ascii code-vectors';		\
 	       echo '$(LINKER_WRITEBYTE)';			\
 	       echo ',config ,load scheme/platform-interfaces.scm'; \
@@ -118,7 +123,7 @@ START_LINKER-32 = echo ',batch';				\
 
 START_LINKER-64 = echo ',batch';				\
 	       echo ',bench on';				\
-	       echo ',open signals handle features';		\
+	       echo ',open signals handle features code-quote';	\
 	       echo ',open bitwise ascii code-vectors';		\
 	       echo '$(LINKER_WRITEBYTE)';			\
 	       echo ',config ,load scheme/platform-interfaces.scm'; \
@@ -140,9 +145,11 @@ VM = scheme48vm
 LIBSCHEME48 = c/libscheme48.a
 POSIX_EXTERNAL = c/posix.so
 SRFI_27_EXTERNAL = c/srfi-27.so
+FFI_TEST_EXTERNAL = c/ffi-test.so
+EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(FFI_TEST_EXTERNAL) $(ADDITIONAL_EXTERNALS)
 UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o
 OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
-	c/extension.o c/free.o c/double_to_string.o c/bignum.o \
+	c/extension.o c/free.o c/double_to_string.o c/bignum.o c/ffi.o \
 	c/external.o c/external-lib.o c/external-init.o c/init.o
 
 FAKEHS	= c/fake/dlfcn.h c/fake/sigact.h c/fake/strerror.h \
@@ -161,7 +168,8 @@ CONFIG_FILES = scheme/interfaces.scm scheme/packages.scm \
 
 # The following is the first rule and therefore the "make" command's
 # default target.
-enough: Makefile vm $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(LIBSCHEME48) $(IMAGE) script-interpreter go
+enough: Makefile vm $(LIBSCHEME48) $(IMAGE) script-interpreter go
+enough: $(EXTERNALS)
 
 Makefile: ${srcdir}/Makefile.in config.status
 	./config.status
@@ -174,7 +182,8 @@ Makefile: ${srcdir}/Makefile.in config.status
 
 EXTERNAL_OBJECTS = c/net/socket.o c/net/address.o c/net/net.o c/unix/socket.o \
 		   c/unix/dynlink.o \
-		   c/unix/sysexits.o $(ASM_OBJECTS)
+		   c/unix/sysexits.o $(ASM_OBJECTS) \
+		   $(ADDITIONAL_EXTERNAL_OBJS)
 
 # POSIX rules; this could have its own Makefile, but I don't want to bother.
 
@@ -203,6 +212,15 @@ $(posix_dir)/proc.o: c/posix/proc.c \
 	c/event.h $(posix_dir)/posix.h $(posix_dir)/s48_signals.h
 	$(CC_POSIX)
 
+$(posix_dir)/errno.o: c/posix/errno.c \
+	$(SCHEME48HS) c/c-mods.h \
+	c/event.h $(posix_dir)/posix.h $(posix_dir)/s48_errno.h
+	$(CC_POSIX)
+
+$(posix_dir)/syslog.o: c/posix/syslog.c \
+	$(SCHEME48HS)
+	$(CC_POSIX)
+
 $(posix_dir)/posix.o: c/posix/posix.c
 	$(CC_POSIX)
 
@@ -211,10 +229,15 @@ $(posix_dir)/dir.o: c/posix/dir.c \
   c/event.h c/fd-io.h $(posix_dir)/posix.h
 	$(CC_POSIX)
 
+$(posix_dir)/time.o: c/posix/time.c \
+	$(SCHEME48HS) c/c-mods.h $(posix_dir)/posix.h
+	$(CC_POSIX)
+
 POSIX_OBJECTS = $(posix_dir)/user.o     $(posix_dir)/regexp.o	\
                 $(posix_dir)/proc-env.o $(posix_dir)/proc.o	\
                 $(posix_dir)/io.o	$(posix_dir)/dir.o	\
-		$(posix_dir)/posix.o
+		$(posix_dir)/posix.o	$(posix_dir)/time.o	\
+		$(posix_dir)/errno.o	$(posix_dir)/syslog.o
 
 $(POSIX_EXTERNAL) : $(POSIX_OBJECTS)
 	$(LD) -o $@ $(POSIX_OBJECTS) $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) 
@@ -226,7 +249,15 @@ c/srfi-27.o: c/srfi-27.c $(SCHEME48HS)
 	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
 
 $(SRFI_27_EXTERNAL) : c/srfi-27.o
-	$(LD) -o $@ $^ $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
+	$(LD) -o $@  c/srfi-27.o $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
+
+
+c/ffi-test/ffi-test.o: c/ffi-test/ffi-test.c c/ffi-test/ffi-test.h $(SCHEME48HS)
+	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
+
+$(FFI_TEST_EXTERNAL) : c/ffi-test/ffi-test.o
+	$(LD) -o $@ c/ffi-test/ffi-test.o $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
+
 
 # Native-code glue rules
 
@@ -303,12 +334,8 @@ c/bibop/remset.o: c/bibop/remset.h c/bibop/memory.h c/scheme48.h	       \
 
 # End of BIBOP GC rules
 
-$(VM): c/main.o $(OBJS) $(GC_OBJS) $(UNIX_OBJS) $(LIBOBJS) $(EXTERNAL_OBJECTS) \
-	c/scheme48.exp c/scheme48.def
-	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) -o $@ c/main.o		\
-		$(OBJS) $(GC_OBJS) $(UNIX_OBJS)				\
-		$(LIBOBJS) $(LIBS)					\
-		$(EXTERNAL_OBJECTS)
+$(VM): c/main.o $(LIBSCHEME48) c/scheme48.exp c/scheme48.def
+	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) -o $@ c/main.o	$(LIBSCHEME48) $(LIBS)
 	# Cygwin
 	if test -x /usr/bin/dlltool; then \
 		dlltool --dllname $(VM).exe --output-lib $(VM).a --def $(srcdir)/c/scheme48.def; \
@@ -325,7 +352,7 @@ script-interpreter: c/script-interpreter.o
 c/main.o: c/main.c c/scheme48vm.h c/scheme48heap.h
 	$(CC) -c $(CFLAGS) -o $@ \
 		-DDEFAULT_IMAGE_NAME=\"$(LIB)/$(IMAGE)\" \
-		$(CPPFLAGS) $(DEFS) $(srcdir)/c/main.c
+		$(CPPFLAGS) $(COMPILING_ITSELF_DEFS) $(srcdir)/c/main.c
 
 c/scheme48vm-$(BIT_SUFFIX).o: c/prescheme.h c/scheme48vm.h \
 		c/scheme48heap.h \
@@ -337,7 +364,8 @@ c/scheme48vm-$(BIT_SUFFIX).o: c/prescheme.h c/scheme48vm.h \
 c/bignum.o: c/bignum.h c/bignumint.h $(SCHEME48HS)
 c/extension.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/scheme48vm.h
 c/free.o: c/sysdep.h
-c/external.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/c-mods.h
+c/ffi.o: c/ffi.h $(SCHEME48HS)
+c/external.o: c/sysdep.h $(FAKEHS) $(SCHEME48HS) c/c-mods.h c/ffi.h
 c/external-lib.o: $(SCHEME48HS)
 c/unix/event.o: c/sysdep.h $(FAKEHS) c/c-mods.h \
 			c/scheme48vm.h c/scheme48heap.h \
@@ -411,7 +439,7 @@ install: enough dirs \
 	$(INSTALL_DATA) $(srcdir)/c/scheme48.def $(DESTDIR)$(incdir)
 	$(INSTALL_DATA) $(srcdir)/c/scheme48-external.exp $(DESTDIR)$(incdir)
 # install Scheme source files
-	for stub in env big sort opt misc link posix cml srfi; do	\
+	for stub in env big sort opt misc link posix net cml srfi r6rs; do	\
 		for f in $(srcdir)/scheme/$$stub/*.scm; do		\
 			$(INSTALL_DATA) $$f $(DESTDIR)$(SHARE)/$$stub || exit 1;	\
 		done;							\
@@ -445,7 +473,7 @@ install: enough dirs \
 	< $(srcdir)/build/$(CONFIG_SCRIPT).in > $$config_script &&	\
 	chmod +x $$config_script
 # install the external modules
-	$(INSTALL_PROGRAM) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(DESTDIR)$(LIB)/
+	$(INSTALL_PROGRAM) $(EXTERNALS) $(DESTDIR)$(LIB)/
 
 # Script to run scheme48 in this directory.
 go:
@@ -458,7 +486,7 @@ go:
 
 # Exports file for AIX and Cygwin
 
-CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_]*\).*$$,\1,'
+CAT_EXPORTS = cat $(srcdir)/c/scheme48.h $(srcdir)/c/fd-io.h $(srcdir)/c/event.h $(srcdir)/c/bibop/*.h | egrep '^S48_EXTERN' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_ ]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(ps_[a-zA-Z0-9_ ]*\)(.*$$,\1,' | sed 's,^S48_EXTERN.*\(s48_[a-zA-Z0-9_ ]*\).*$$,\1,'
 
 c/scheme48.exp: c/scheme48.h c/fd-io.h c/event.h
 	echo '#!..' > $(srcdir)/c/scheme48.exp &&			\
@@ -469,11 +497,11 @@ c/scheme48.def: c/scheme48.h c/fd-io.h c/event.h
 	$(CAT_EXPORTS) >> $(srcdir)/c/scheme48.def
 
 dirs:
-	for dir in $(libdir) $(bindir) $(incdir) $(datadir); do			 \
+	for dir in $(libdir) $(bindir) $(incdir) $(datadir); do		 \
 		$(srcdir)/mkinstalldirs $(DESTDIR)$$dir || exit 1;	 \
 	done
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(LIB)
-	for dir in rts env big sort opt misc link posix cml srfi; do	  \
+	for dir in rts env big sort opt misc link posix net cml srfi r6rs; do   \
 		$(srcdir)/mkinstalldirs $(DESTDIR)$(SHARE)/$$dir || exit 1; \
 	done
 
@@ -483,7 +511,7 @@ configure: configure.in
 clean:
 	-rm -f $(VM) script-interpreter					\
 		*.o c/unix/*.o c/posix/*.o c/net/*.o c/*.o 		\
-		$(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL)			\
+		$(EXTERNALS)						\
 		c/fake/*.o c/bibop/*.o					\
 		c/*.a c/glue_gnu.s c/glue_darwin.s c/scheme48.exp 	\
 		TAGS $(IMAGE)						\
@@ -498,7 +526,8 @@ distclean: clean
 	rm -f Makefile config.log config.status config-cache \
 		c/sysdep.h c/scheme48arch.h
 
-check:	$(VM) $(IMAGE) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) scheme/debug/check.scm
+check: $(EXTERNALS)
+check: $(VM) $(IMAGE) scheme/debug/check.scm
 	(								\
 		echo ',batch';						\
 		echo ',exec ,load =scheme48/debug/check.scm';		\
@@ -506,6 +535,9 @@ check:	$(VM) $(IMAGE) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) scheme/debug/check.s
 		echo ',open base-test';					\
 		echo ',open big-test';					\
 		echo ',open sockets-test';				\
+		echo ',open tconc-queue-test';				\
+		echo ',open transport-link-cell-test';			\
+		echo ',open tlc-table-test';				\
 		echo ',open env-test';					\
 		echo ',config ,load =scheme48/sort/test-packages.scm';	\
 		echo ',open sort-test';					\
@@ -520,10 +552,12 @@ check:	$(VM) $(IMAGE) $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) scheme/debug/check.s
 		echo ',open srfi-test';					\
 		echo ',config ,load =scheme48/posix/test-packages.scm';	\
 		echo ',open posix-test';				\
+		echo ',config ,load =scheme48/ffi-test/test-packages.scm';	\
+		echo ',open ffi-test';					\
 		echo ',open test-suites';				\
-		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests))'; \
+		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests tlc-table-weak-tests tlc-table-string-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
 		echo '(run-test-suite all-tests)'			\
-	) | ./$(VM) -i $(IMAGE) -h 8000000
+	) | ./$(VM) -i $(IMAGE) $(BIG_HEAP)
 
 # --------------------
 # Rules from here on down are not essential for the basic installation
@@ -558,10 +592,13 @@ DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		build/initial.debug 					\
 		build/initial.image-32 build/initial.image-64		\
 		build/*.bat build/*.sh build/*.rc			\
+		build/UnicodeData.txt build/PropList.txt		\
+		build/SpecialCasing.txt build/CaseFolding.txt		\
+		build/CompositionExclusions.txt				\
 		build/dummy build/*.wxs 				\
 		build/*.bmp build/*.ico					\
 		build/scheme48-config.in				\
-		c/*.[ch] c/*/*.[ch] c/*/*.ci c/*.exp			\
+		c/*.[ch] c/*/*.[ch] c/*/*.ci c/*.exp c/*.def		\
 		c/scheme48.h.in						\
 		c/scheme48write-barrier.h c/scheme48arch.h.in		\
 		emacs/*.el gdbinit					\
@@ -633,7 +670,7 @@ PACKAGES=scheme/packages.scm scheme/rts-packages.scm scheme/alt-packages.scm \
 	 scheme/link-packages.scm \
 	 scheme/pre-env-packages.scm scheme/env-packages.scm \
 	 scheme/sort/packages.scm scheme/more-packages.scm \
-	 scheme/cml/packages.scm \
+	 scheme/cml/packages.scm scheme/r6rs/packages.scm \
 	 build/filenames.scm
 
 $(srcdir)/build/filenames.make: $(PACKAGES)
@@ -670,7 +707,11 @@ link/linker-in-lucid: build/lucid-script.lisp $(linker-files) \
 # Scheme, the byte-code compiler, and a minimal command processor, but
 # no debugging environment to speak of.
 
-$(INITIAL)-32: $(CONFIG_FILES) build/initial.scm scheme/rts-packages-32.scm $(initial-files) $(linker-files)
+$(INITIAL)-32: $(CONFIG_FILES) build/initial.scm \
+	scheme/platform-interfaces.scm scheme/rts-packages-32.scm \
+	scheme/alt/low-exception.scm \
+	scheme/alt/init-defpackage.scm \
+	$(initial-files) $(linker-files)
 	cd $(srcdir) &&							\
 	($(START_LINKER-32);						\
 		echo '(load-configuration "scheme/platform-interfaces.scm")'; \
@@ -684,7 +725,11 @@ $(INITIAL)-32: $(CONFIG_FILES) build/initial.scm scheme/rts-packages-32.scm $(in
 	) | $(LINKER_RUNNABLE)
 	mv $(INITIAL) $@
 
-$(INITIAL)-64: $(CONFIG_FILES) build/initial.scm scheme/rts-packages-64.scm $(initial-files) $(linker-files)
+$(INITIAL)-64: $(CONFIG_FILES) build/initial.scm \
+	scheme/platform-interfaces.scm scheme/rts-packages-64.scm \
+	scheme/alt/low-exception.scm \
+	scheme/alt/init-defpackage.scm \
+	$(initial-files) $(linker-files)
 	cd $(srcdir) &&							\
 	($(START_LINKER-64);						\
 		echo '(load-configuration "scheme/platform-interfaces.scm")'; \

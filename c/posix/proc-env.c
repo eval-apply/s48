@@ -20,18 +20,18 @@
 #include "sysdep.h"
 
 extern void		s48_init_posix_proc_env(void);
-static s48_value	posix_get_pid(s48_value parent_p),
-			posix_get_id(s48_value user_p, s48_value real_p),
-			posix_set_id(s48_value user_p, s48_value id),
-			posix_get_groups(void),
-			posix_get_login(void),
-			posix_set_sid(void),
-			posix_sys_name(s48_value which),
-			posix_get_env(s48_value name),
-			posix_get_env_alist(void),
-  			posix_get_terminal_pathname(void),
-			posix_tty_name(s48_value channel),
-			posix_is_a_tty(s48_value channel);
+static s48_ref_t	posix_get_pid(s48_call_t call, s48_ref_t parent_p),
+			posix_get_id(s48_call_t call, s48_ref_t user_p, s48_ref_t real_p),
+			posix_set_id(s48_call_t call, s48_ref_t user_p, s48_ref_t id),
+			posix_get_groups(s48_call_t call),
+			posix_get_login(s48_call_t call),
+			posix_set_sid(s48_call_t call),
+			posix_sys_name(s48_call_t call, s48_ref_t which),
+			posix_get_env(s48_call_t call, s48_ref_t name),
+			posix_get_env_alist(s48_call_t call),
+  			posix_get_terminal_pathname(s48_call_t call),
+			posix_tty_name(s48_call_t call, s48_ref_t channel),
+			posix_is_a_tty(s48_call_t call, s48_ref_t channel);
 
 /*
  * Install all exported functions in Scheme48.
@@ -57,64 +57,65 @@ s48_init_posix_proc_env(void)
  * Lots of simple little functions.
  */
 
-static s48_value
-posix_get_pid(s48_value parent_p)
+static s48_ref_t
+posix_get_pid(s48_call_t call, s48_ref_t parent_p)
 {
   extern char going;
   going = 1 == 0;
-  return s48_enter_pid(S48_EXTRACT_BOOLEAN(parent_p) ?
+  return s48_enter_pid(call,
+		       s48_extract_boolean_2(call, parent_p) ?
 		       getppid() :
 		       getpid());
 }
 
-static s48_value
-posix_set_sid()
+static s48_ref_t
+posix_set_sid(s48_call_t call)
 {
   pid_t pid;
 
   RETRY_OR_RAISE_NEG(pid, setsid());
 
-  return s48_enter_pid(pid);
+  return s48_enter_pid(call, pid);
 }
 
-static s48_value
-posix_get_id(s48_value user_p, s48_value real_p)
+static s48_ref_t
+posix_get_id(s48_call_t call, s48_ref_t user_p, s48_ref_t real_p)
 {
-  if (S48_EXTRACT_BOOLEAN(user_p))
-    return s48_enter_uid(S48_EXTRACT_BOOLEAN(real_p) ? getuid() : geteuid());
+  if (s48_extract_boolean_2(call, user_p))
+    return s48_enter_uid(call, s48_extract_boolean_2(call, real_p) ? getuid() : geteuid());
   else
-    return s48_enter_gid(S48_EXTRACT_BOOLEAN(real_p) ? getgid() : getegid());
+    return s48_enter_gid(call, s48_extract_boolean_2(call, real_p) ? getgid() : getegid());
 }
 
-static s48_value
-posix_set_id(s48_value user_p, s48_value id)
+static s48_ref_t
+posix_set_id(s48_call_t call, s48_ref_t user_p, s48_ref_t id)
 {
   int status;
 
-  if (S48_EXTRACT_BOOLEAN(user_p))
-    RETRY_OR_RAISE_NEG(status, setuid(s48_extract_uid(id)));
+  if (s48_extract_boolean_2(call, user_p))
+    RETRY_OR_RAISE_NEG(status, setuid(s48_extract_uid(call, id)));
   else
-    RETRY_OR_RAISE_NEG(status, setgid(s48_extract_gid(id)));
+    RETRY_OR_RAISE_NEG(status, setgid(s48_extract_gid(call, id)));
 
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
-static s48_value
-posix_get_login(void)
+static s48_ref_t
+posix_get_login(s48_call_t call)
 {
   char *login = getlogin();
 
-  return (login == NULL) ? S48_FALSE : s48_enter_byte_string(login);
+  return (login == NULL) ? s48_false_2(call) : s48_enter_byte_string_2(call, login);
 }
 
-static s48_value
-posix_get_env(s48_value name)
+static s48_ref_t
+posix_get_env(s48_call_t call, s48_ref_t name)
 {
   char *value;
 
-  value = getenv(s48_extract_byte_vector(name));
+  value = getenv(s48_extract_byte_vector_2(call, name));
 
-  return (value == NULL) ? S48_FALSE : s48_enter_byte_string(value);
+  return (value == NULL) ? s48_false_2(call) : s48_enter_byte_string_2(call, value);
 }
 
 /*
@@ -122,28 +123,23 @@ posix_get_env(s48_value name)
  * of pairs ("name" . "value").
  */
 
-static s48_value
-posix_get_env_alist(void)
+static s48_ref_t
+posix_get_env_alist(s48_call_t call)
 {
   extern char **ENVIRON_NAME;
   char **c_env = ENVIRON_NAME;
-  s48_value sch_env = S48_NULL;
-  s48_value name = S48_FALSE;
-  S48_DECLARE_GC_PROTECT(2);
-  
-  S48_GC_PROTECT_2(sch_env, name);
+  s48_ref_t sch_env = s48_null_2(call);
+  s48_ref_t name;
 
   for(; *c_env != NULL; c_env++) {
     char *entry = *c_env;
-    s48_value value;
+    s48_ref_t value;
     char *name_end = strchr(entry, '=');
 
-    name = s48_enter_byte_substring(entry, name_end - entry);
-    value = s48_enter_byte_substring(name_end + 1, strlen(name_end + 1));
-    sch_env = s48_cons(s48_cons(name, value), sch_env); }
+    name = s48_enter_byte_substring_2(call, entry, name_end - entry);
+    value = s48_enter_byte_substring_2(call, name_end + 1, strlen(name_end + 1));
+    sch_env = s48_cons_2(call, s48_cons_2(call, name, value), sch_env); }
    
-  S48_GC_UNPROTECT();
-
   return sch_env;
 }
 
@@ -151,36 +147,31 @@ posix_get_env_alist(void)
  * Again we turn an array into a list.
  */
 
-static s48_value
-posix_get_groups(void) 
+static s48_ref_t
+posix_get_groups(s48_call_t call) 
 {
   int status, count, i;
   gid_t *grouplist;
-  s48_value groups = S48_NULL;
-  s48_value temp = S48_UNSPECIFIC;
-  S48_DECLARE_GC_PROTECT(2);
-  
-  S48_GC_PROTECT_2(groups, temp);
+  s48_ref_t groups = s48_null_2(call);
+  s48_ref_t temp;
   
   count = getgroups(0, (gid_t *)NULL);
 
   grouplist = (gid_t *) malloc(count * sizeof(gid_t));
 
   if (grouplist == NULL)
-    s48_out_of_memory_error();
+    s48_out_of_memory_error_2(call);
 
   RETRY_NEG(status, getgroups(count, grouplist));
 
   if (status == -1) {
     free(grouplist);
-    s48_os_error("posix_get_groups", errno, 0); }
+    s48_os_error_2(call, "posix_get_groups", errno, 0); }
 
   for(i = count - 1; i > -1; i--) {
-    temp = s48_enter_gid(grouplist[i]);
-    groups = s48_cons(temp, groups);
+    temp = s48_enter_gid(call, grouplist[i]);
+    groups = s48_cons_2(call, temp, groups);
   }
-    
-  S48_GC_UNPROTECT();
 
   free(grouplist);
 
@@ -192,8 +183,8 @@ posix_get_groups(void)
  * uname() - we could define a record for this, but it seems like overkill.
  */
 
-static s48_value
-posix_sys_name(s48_value which)
+static s48_ref_t
+posix_sys_name(s48_call_t call, s48_ref_t which)
 {
   struct utsname names;
   char *value;
@@ -201,7 +192,7 @@ posix_sys_name(s48_value which)
 
   RETRY_OR_RAISE_NEG(status, uname(&names));
 
-  switch (s48_extract_fixnum(which)) {
+  switch (s48_extract_long_2(call, which)) {
   case 0: value = names.sysname; break;
   case 1: value = names.nodename; break;
   case 2: value = names.release; break;
@@ -209,37 +200,37 @@ posix_sys_name(s48_value which)
   default: value = names.machine;
   }
 
-  return s48_enter_string_latin_1(value);
+  return s48_enter_string_latin_1_2(call, value);
 }
 
 /*
  * Terminals
  */
 
-static s48_value
-posix_get_terminal_pathname(void)
+static s48_ref_t
+posix_get_terminal_pathname(s48_call_t call)
 {
   char termid[L_ctermid];
   char *status =  ctermid(termid);
   
-  return (*status == '\0') ? S48_FALSE : s48_enter_byte_string(termid);
+  return (*status == '\0') ? s48_false_2(call) : s48_enter_byte_string_2(call, termid);
 }
 
-static s48_value
-posix_tty_name(s48_value channel)
+static s48_ref_t
+posix_tty_name(s48_call_t call, s48_ref_t channel)
 {
   char *name;
 
-  name = ttyname(S48_UNSAFE_EXTRACT_FIXNUM(S48_CHANNEL_OS_INDEX(channel)));
+  name = ttyname(s48_unsafe_extract_long_2(call, s48_channel_os_index_2(call, channel)));
 
-  return (name == NULL) ? S48_FALSE : s48_enter_byte_string(name);
+  return (name == NULL) ? s48_false_2(call) : s48_enter_byte_string_2(call, name);
 }
 
-static s48_value
-posix_is_a_tty(s48_value channel)
+static s48_ref_t
+posix_is_a_tty(s48_call_t call, s48_ref_t channel)
 {
-  return S48_ENTER_BOOLEAN(isatty(
-			    S48_UNSAFE_EXTRACT_FIXNUM(
-				  S48_CHANNEL_OS_INDEX(channel))));
+  return s48_enter_boolean_2(call, 
+			     isatty(s48_unsafe_extract_long_2(call,
+							      s48_channel_os_index_2(call, channel))));
 }
 

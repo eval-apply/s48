@@ -83,8 +83,8 @@ extern char *	s48_shorten_bignum(char*, long);
 
 #define BIGNUM_DIGIT_LENGTH (((sizeof (bignum_digit_type)) * CHAR_BIT) - 2)
 #define BIGNUM_HALF_DIGIT_LENGTH (BIGNUM_DIGIT_LENGTH / 2)
-#define BIGNUM_RADIX (((unsigned long) 1) << BIGNUM_DIGIT_LENGTH)
-#define BIGNUM_RADIX_ROOT (((unsigned long) 1) << BIGNUM_HALF_DIGIT_LENGTH)
+#define BIGNUM_RADIX (1L << BIGNUM_DIGIT_LENGTH)
+#define BIGNUM_RADIX_ROOT (1L << BIGNUM_HALF_DIGIT_LENGTH)
 #define BIGNUM_DIGIT_MASK	 (BIGNUM_RADIX - 1)
 #define BIGNUM_HALF_DIGIT_MASK	 (BIGNUM_RADIX_ROOT - 1)
 
@@ -115,10 +115,10 @@ extern char *	s48_shorten_bignum(char*, long);
 
 /* These definitions are here to facilitate caching of the constants
    0, 1, and -1. */
-#define BIGNUM_ZERO() S48_ADDRESS_AFTER_HEADER(s48_bignum_zero, long)
+#define BIGNUM_ZERO() S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_zero), long)
 #define BIGNUM_ONE(neg_p)                                               \
-   (neg_p ? S48_ADDRESS_AFTER_HEADER(s48_bignum_neg_one, long) : \
-            S48_ADDRESS_AFTER_HEADER(s48_bignum_pos_one, long))
+  (neg_p ? S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_neg_one), long) : \
+   S48_ADDRESS_AFTER_HEADER(s48_deref(s48_bignum_pos_one), long))
 
 #define HD_LOW(digit) ((digit) & BIGNUM_HALF_DIGIT_MASK)
 #define HD_HIGH(digit) ((digit) >> BIGNUM_HALF_DIGIT_LENGTH)

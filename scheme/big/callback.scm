@@ -114,7 +114,7 @@
 ; CLEAR-STACK-TOP! is an empty C procedure.  When it returns, s48_external_call
 ; will automatically clear any free frames off of the stack.
 
-(import-lambda-definition clear-stack-top! () "s48_clear_stack_top")
+(import-lambda-definition-2 clear-stack-top! () "s48_clear_stack_top_2")
 
 ; Dealing with threads.
 ;
@@ -245,6 +245,20 @@
 	    (apply assertion-violation 'call-imported-binding "bad procedure"
 		   proc args)))
       (apply assertion-violation 'call-imported-binding "bad procedure"
+	     proc args)))
+
+(define (call-imported-binding-2 proc . args)
+  (if (and (shared-binding? proc)
+	   (shared-binding-is-import? proc))
+      (let ((value (shared-binding-ref proc)))
+	(if (byte-vector? value)
+	    (apply call-external-value-2
+		   value
+		   (shared-binding-name proc)
+		   args)
+	    (apply assertion-violation 'call-imported-binding-2 "bad procedure"
+		   proc args)))
+      (apply assertion-violation 'call-imported-binding-2 "procedure not defined"
 	     proc args)))
 
 ;----------------

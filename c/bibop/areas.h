@@ -21,20 +21,9 @@
 */
 
 typedef struct {
-  int length;
-#if S48_DIRTY_VECTOR_METHOD==S48_OFFSET_DIRTY_VECTORS
-  char* items;
-#endif
 #if S48_DIRTY_VECTOR_METHOD==S48_ADDRESS_DIRTY_VECTORS
+  int length;
   s48_address* items;
-#endif
-#if S48_DIRTY_VECTOR_METHOD==S48_CROSSINGMAP_DIRTY_VECTORS
-  char* dirty_bits;
-  char* traceable_bits;
-  s48_address last_frontier;
-#endif
-#if S48_USE_CARD_GENERATION_INDEXING==TRUE
-  unsigned char* minimum_index;
 #endif
 } Dirty_vector;
 
@@ -42,6 +31,11 @@ typedef struct {
 typedef enum { AREA_TYPE_SIZE_SMALL, AREA_TYPE_SIZE_LARGE, AREA_TYPE_SIZE_WEAKS,
                AREA_TYPE_SIZE_ILLEGAL }
   area_type_size_t;
+
+typedef enum {GC_ACTION_IGNORE = 0, GC_ACTION_ERROR, GC_ACTION_COPY_MIXED,
+	      GC_ACTION_COPY_SMALL, GC_ACTION_MARK_LARGE,
+	      GC_ACTION_COPY_WEAK}
+  gc_action_t;
 
 typedef struct Area {
   s48_address start;
@@ -53,14 +47,10 @@ typedef struct Area {
   area_type_size_t area_type_size;
 
   /* only used during collection: */
-  unsigned int action;
+  gc_action_t action;
   s48_address trace;
   Dirty_vector dirty_vector;
   struct Space* target_space;
-#if S48_USE_GENERATION_INDEXING==TRUE
-  unsigned char minimum_index;
-  unsigned char maximum_index;
-#endif
 #if S48_USE_REMEMBERED_SETS==TRUE
   RemSet* remset;
 #endif
@@ -76,10 +66,6 @@ typedef struct Space {
 #define AREA_REMAINING(area) ((area) == NULL ? 0 :\
                      (area)->end - (area)->frontier)
 
-
-enum Gc_Action {GC_ACTION_IGNORE = 0, GC_ACTION_ERROR, GC_ACTION_COPY_MIXED,
-		GC_ACTION_COPY_SMALL, GC_ACTION_MARK_LARGE,
-		GC_ACTION_COPY_WEAK};
 
 /* Allocate an area of between MINIMUM and MAXIMUM pages, inclusive. */
 extern Area* s48_allocate_area(unsigned int minimum, unsigned int maximum,

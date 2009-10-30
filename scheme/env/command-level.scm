@@ -429,7 +429,7 @@
 (define (command-level-wait level terminating?)
   (lambda ()
     (cond ((positive? (counter-value (command-level-thread-counter level)))
-	   (wait)
+	   (wait-for-event)
 	   #t)
 	  (terminating?
 	   #f)

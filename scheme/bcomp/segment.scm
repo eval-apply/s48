@@ -307,7 +307,13 @@
 ; The car of a forward label is #F, the car of a backward label is the
 ; label's PC.
 
-(define (make-label) (list #f))
+(define-record-type label :label
+  (really-make-label pc mappings)
+  label?
+  (pc label-pc set-label-pc!)
+  (mappings label-mappings set-label-mappings!))
+
+(define (make-label) (really-make-label #f '()))
 
 (define (label-reference before label after)
   (let ((segment (sequentially before
@@ -319,7 +325,7 @@
 			   (location (+ origin (segment-size before))))
 		      (emit-segment! astate segment)
 		      (cond 
-		       ((car label)
+		       ((label-pc label)
 			;; backward label
 			=> (lambda (label-pc)
 			     (insert-backward-label! astate
@@ -328,9 +334,9 @@
 						     (- label-pc origin))))
 		       (else
 			;; forward label
-			(set-cdr! label
-				  (cons (cons location origin)
-					(cdr label))))))))))
+			(set-label-mappings! label
+					     (cons (cons location origin)
+						   (label-mappings label))))))))))
 
 (define (jump-instruction label)
   (make-segment 3
@@ -338,23 +344,23 @@
 		  (let* ((origin (astate-pc astate))
 			 (label-location (+ origin 1)))
 		    (cond
-		     ((car label)
+		     ((label-pc label)
 		      => (lambda (label-pc)
 			   ;; backward label
 			   (emit-byte! astate (enum op jump-back))
 			   (set-astate-pc! astate (+ (astate-pc astate) 2))
 			   (insert-backward-label! astate
-						    label-location
-						    label-pc
-						    (- origin label-pc))))
+						   label-location
+						   label-pc
+						   (- origin label-pc))))
 		     (else
 		      ;; forward label
 		      (begin
 			(emit-byte! astate (enum op jump))
 			(set-astate-pc! astate (+ (astate-pc astate) 2))
-			(set-cdr! label
-				  (cons (cons label-location origin)
-					(cdr label))))))))))
+			(set-label-mappings! label
+					     (cons (cons label-location origin)
+						   (label-mappings label))))))))))
 
 (define (instruction-using-label opcode label . rest)
   (label-reference (instruction opcode)
@@ -404,11 +410,49 @@
 			   (labels labels (cdr labels)))
 			  ((null? labels))
 			(let ((label (car labels)))
-			  (if (car label)
+			  (if (label-pc label)
 			      (warning 'computed-goto-instruction "backward jumps not supported")
-			      (set-cdr! label
-					(cons (cons location base-address)
-					      (cdr label)))))))))))
+			      (set-label-mappings! label
+						   (cons (cons location base-address)
+							 (label-mappings label)))))))))))
+
+; stack-shuffle! <count> <from> <to> ...
+; where <from> and <to> are stack indexes
+; pushes, copies <from> to <to>, pops
+; A simple swap between offsets 6 and 9 is one instruction taking up eight bytes:
+;   stack-shuffle! 3 7 0 10 7 0 10
+; Takes list of (<from> . <to>) pairs.
+
+(define (stack-shuffle-instruction moves)
+  (let ((n-moves (length moves))
+	(flattened (flatten-moves moves)))
+    (if (or (>= n-moves byte-limit)
+	    (any (lambda (index)
+		   (>= index byte-limit))
+		 flattened))
+	(apply instruction
+	       (enum op big-stack-shuffle!)
+	       (high-byte n-moves)
+	       (low-byte n-moves)
+	       (apply append
+		      (map (lambda (arg)
+			     (list (high-byte arg) (low-byte arg)))
+			   flattened)))
+	(apply instruction
+	       (enum op stack-shuffle!)
+	       n-moves
+	       flattened))))
+
+(define (flatten-moves moves)
+  (let loop ((moves moves)
+	     (args '()))
+    (if (null? moves)
+	(reverse args)
+	(loop (cdr moves)
+	      (cons (cdar moves)
+		    (cons (caar moves)
+			  args))))))
+
 
 ; LABEL is the label for SEGMENT.  The current PC is used as the value of LABEL.
 
@@ -422,8 +466,8 @@
 		     (insert-label! cv
 				    (car instr+origin)
 				    (- pc (cdr instr+origin))))
-		   (cdr label))
-	 (set-car! label pc)
+		   (label-mappings label))
+	 (set-label-pc! label pc)
 	 (emit-segment! astate segment)))))
 
 (define (insert-label! cv location offset)

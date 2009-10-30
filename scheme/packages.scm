@@ -228,8 +228,7 @@
 	    bitwise
 	    code-vectors
 	    features
-	    records
-	    low-exceptions)
+	    records)
 	   :structure)))
 
 (define-interface low-structures-interface
@@ -241,11 +240,10 @@
 	    code-vectors
 	    features
 	    records
-	    low-exceptions
 	    cells
 	    channels
 	    closures
-	    code-quote
+	    code-quotation
 	    escapes
 	    locations
 	    loopholes
@@ -260,6 +258,7 @@
 	    source-file-names
 	    structure-refs
 	    debug-messages
+	    syntax-transformers
 	    unicode
 	    vm-exposure
 	    write-images)
@@ -313,6 +312,7 @@
 	    records-internal
 	    root-scheduler
 	    session-data
+	    syntax-rules-apply
 	    threads-internal
 	    vm-exceptions
 	    usual-resumer
@@ -416,6 +416,7 @@
 	    bignums ratnums recnums floatnums
 	    build
 	    callback
+	    code-quote ; compatibility to earlier versions
 	    command-levels
 	    command-processor
 	    command-state
@@ -466,7 +467,9 @@
 	    profiler-internals
 	    queues
 	    shared-objects
+	    tconc-queues
 	    time
+	    tlc-tables
 	    random
 	    receiving
 	    reduce
@@ -523,12 +526,27 @@
 	    make-rendezvous
 	    trans-ids
 
+	    r5rs
+
 	    ; R6RS packages
 
+	    r6rs-base-comparisons
+	    r6rs-conditions
+	    r6rs-records-procedural
+	    r6rs-records-inspection
+	    r6rs-records-internal
+	    r6rs-records-commands
+	    r6rs-records-syntactic
+	    r6rs-records-syntactic-internal
 	    r6rs-unicode
 	    r6rs-lists
 	    r6rs-enums
 	    r6rs-sorting
+	    r6rs-reader
+	    r6rs-reader-command
+	    r6rs-reader-internals
+            r6rs-equal
+            r6rs-control
 
 	    ; POSIX packages (see scheme/posix/packages.scm)
 	    posix-files
@@ -538,6 +556,8 @@
 	    posix-processes
 	    posix-regexps
 	    posix-i/o
+	    posix-errnos
+	    posix-syslog
 	    regexps regexps-internal
 	    posix
 
@@ -548,7 +568,7 @@
 	    srfi-31 srfi-34 srfi-37
 	    srfi-39 srfi-40 srfi-42 srfi-43 srfi-45
             srfi-60 srfi-61 srfi-62 srfi-63 srfi-66 srfi-67
-	    srfi-71 srfi-74 srfi-78
+	    srfi-71 srfi-74 srfi-78 srfi-95
 
             libscheme48
 	    test-suites

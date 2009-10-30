@@ -7,7 +7,7 @@
 ; end of the pipe and COMMAND gets the output end.
 
 (define (call-with-mumble-pipe input?)
-  (lambda (command proc)
+  (lambda (command proc . may-be-port)
     (call-with-values open-pipe
       (lambda (input-pipe output-pipe)
 	(let ((pid (fork)))
@@ -27,14 +27,25 @@
 	       (lambda ()
 		 #f)
 	       (lambda ()
+		 (define port
+		   (and (not (null? may-be-port))
+			(car may-be-port)))
 		 (if input?
-		     (remap-file-descriptors! (current-input-port)
+		     (remap-file-descriptors! (or
+					       port
+					       (current-input-port))
 					      output-pipe
 					      (current-error-port))
 		     (remap-file-descriptors! input-pipe
-					      (current-output-port)
+					      (or
+					       port
+					       (current-output-port))
 					      (current-error-port)))
-		 (exec-file "/bin/sh" "-c" command))
+		 (cond ((list? command)
+			(apply exec command))
+		       (else
+			;; FIXME: consider using "$SHELL" here
+			(exec-file "/bin/sh" "-c" command))))
 	       (lambda ()
 		 (exit 1)))))))))
 

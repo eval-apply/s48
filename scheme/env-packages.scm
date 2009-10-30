@@ -30,7 +30,10 @@
 	exceptions signal-conditions
 	debug-messages		; for debugging
 
+        (subset silly (reverse-list->string))
+
 	(subset evaluation (load-script-into))
+	(subset packages-internal (package-reader))
 	(subset environments (environment-ref))
 	(subset shared-bindings (shared-binding-ref lookup-imported-binding))
 
@@ -80,7 +83,7 @@
 	command-state
         undefined               ; noting-undefined-variables
 	environments		; with-interaction-environment
-	evaluation		; eval, load-into
+	(modify evaluation (hide load)) ; eval, load-into
         ;; packages		; package?
 	root-scheduler		; scheme-exit-now
 	i/o			; silently
@@ -167,6 +170,7 @@
 	segments                ; get-debug-data
         enumerated              ; enumerand->name
         weak                    ; weak-pointer?
+	cells
 	(subset i/o-internal (disclose-port))
 	low-level		; cell-unassigned?
         templates continuations channels
@@ -282,7 +286,12 @@
         low-level               ; vector-unassigned?
         locations
 	cells
-        weak)
+        weak
+	(subset primitives      (transport-link-cell? 
+				 transport-link-cell-key
+				 transport-link-cell-value
+				 transport-link-cell-tconc
+				 transport-link-cell-next)))
   (files (env menu)))
 
 ; Inspector
@@ -427,7 +436,7 @@
 	escapes
 	interrupts
 	locks
-	low-exceptions
+	exceptions
 	(modify primitives (prefix primitives:)
 		(expose collect time memory-status
 			continuation-length continuation-ref
@@ -444,7 +453,7 @@
 	compiler-envs
 	environments
 	features
-	low-exceptions
+	exceptions
 	nodes
 	optimizer
 	package-commands-internal

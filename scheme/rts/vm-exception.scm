@@ -52,11 +52,14 @@
 	((callback-return-uncovered) "uncovered callback return")
 	((extension-exception) "exception in VM extension")
 	((extension-return-error) "return error in VM extension")
-	((os-error) "OS error")
+	((os-error external-os-error) "OS error")
 	((gc-protection-mismatch) "GC protection mismatch in external code")
 	((no-current-proposal) "no current proposal")
 	((native-code-not-supported) "native code not supported")
 	((illegal-exception-return) "illegal return from exception")
+	((external-error) "error in external code")
+	((external-assertion-violation) "assertion violation in external code")
+	((external-os-error) "OS error in external code")
 	(else "unknown VM exception"))))
 
 (define vm-exception-handlers

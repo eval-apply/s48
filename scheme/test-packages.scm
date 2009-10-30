@@ -64,6 +64,33 @@
 	sockets udp-sockets)
   (files (net socket-check)))
 
+(define-structure tconc-queue-test
+  (export tconc-queue-tests)
+  (open scheme test-suites matchers tconc-queues
+	srfi-34 srfi-42 conditions)
+  (files (big tconc-queue-check)))
+
+(define-structure transport-link-cell-test
+  (export transport-link-cell-tests)
+  (open scheme test-suites matchers primitives
+	tconc-queues srfi-42)
+  (files (big transport-link-cell-check)))
+
+(define-structure tlc-table-test
+  (export tlc-table-tests tlc-table-weak-tests tlc-table-string-tests)
+  (open scheme test-suites matchers tlc-tables
+	weak 
+	define-record-types
+        (subset srfi-1 (find))
+	(subset srfi-13 (string=))
+        srfi-27         ; sources of random bits
+        srfi-28         ; basic format strings
+        srfi-34         ; exception handling for programs
+        srfi-42         ; eager comprehensions
+        conditions
+        (subset primitives (collect string-hash)))
+  (files (big tlc-table-check)))
+
 (define-structure package-mutation-test (export package-mutation-tests)
   (open scheme test-suites
 	packages compiler built-in-structures handle conditions

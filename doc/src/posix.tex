@@ -24,6 +24,8 @@ The POSIX bindings are available in several structures:
  \code{posix-time} & time functions \\
  \code{posix-users} & users and groups \\
  \code{posix-regexps} & regular expression matching \\
+ \code{posix-syslog} & POSIX logging facility \\
+ \code{posix-errnos} & POSIX error codes\\
  \code{posix} & all of the above
 \end{tabular}
 \end{center}
@@ -759,11 +761,29 @@ Permission name & Bit mask \\
 \end{tabular}
 \end{center}
 
+\subsection{Symbolic links}
+
+\begin{protos}
+\protonoresult{create-symbolic-link}{ path1 path2}
+\end{protos}
+%
+This creates a symbolic link at \var{path2} that contains \var{path1}.
+\var{Path1} and \var{path2} must be \var{os-string-thing} arguments.
+
+\begin{protos}
+\proto{read-symbolic-link}{ path}{ os-string}
+\end{protos}
+%
+This returns contents of the symbolic link at \var{path}.
+\var{Path} must be an \var{os-string-thing} argument.
+
 %----------------
 % Time - seconds since the epoch.
-\section{Time}
+\section{Time and Date}
 
 These procedures are in structures \code{posix-time} and \code{posix}.
+
+\subsection{Time}
 
 \begin{protos}
 \proto{make-time}{ integer}{time}
@@ -795,16 +815,136 @@ These perform various comparison operations on the \code{time}\/s.
 \end{protos}
 \noindent
 \code{Time->string} returns a string representation of \cvar{time} in the
- following form.
+locale's version of the following form.
 \begin{example}
 "Wed Jun 30 21:49:08 1993
 "
 \end{example}
 
-%----------------
-% Dates - what a mess.
+\subsection{Date}
+
+A date is a time specification relative to a specific but implicit
+time zone, broken out into the familar
+year-month-day-hour-minute-second format.
+
+\begin{protos}
+\proto{make-date}{ second minute hour month-day month year week-day year-day dst}{date}
+\proto{date?}{ x}{boolean}
+\proto{date-second}{ date}{second}
+\proto{date-minute}{ date}{minute}
+\proto{date-hour}{ date}{hour}
+\proto{date-month-day}{ date}{month-day}
+\proto{date-month}{ date}{month}
+\proto{date-year}{ date}{year}
+\proto{date-week-day}{ date}{week-day}
+\proto{date-year-day}{ date}{year-day}
+\proto{date-date-dst}{ date}{dst}
+\end{protos}
 %
-% This is not yet working.
+These are the constructor, predicate and corresponding accessors for
+date objects.  The meaning of the various field types are as follows:
+
+\begin{center}
+  \begin{tabular}{lll}
+    \cvar{seconds} & seconds & (0--60) \\
+    \cvar{minutes} & minutes & (0--59) \\
+    \cvar{hour} & hours & (0--23) \\
+    \cvar{month-day} & day of month & (1--31) \\
+    \cvar{mon}     & month of year & (0--11) \\
+    \cvar{year}    & year & since 1900\\
+    \cvar{week-day}    & day of week & (Sunday = 0) \\
+    \cvar{year-day}    & day of year & (0--365) \\
+    \cvar{dst}   & is summer time in effect? & \code{\#t}, \code{\#f} or unspecific
+  \end{tabular}
+\end{center}
+
+\begin{protos}
+\proto{date->string}{ date}{string}
+\end{protos}
+%
+returns a string representation of \cvar{date} in the
+locale's version of the following form:
+\begin{example}
+"Wed Jun 30 21:49:08 1993
+"
+\end{example}
+
+\begin{protos}
+\proto{time->utc-date}{ time}{date}
+\proto{time->local-date}{ time}{date}
+\end{protos}
+%
+These convert a time object into a date object; the first does this
+relative to the UTC time zone, the second relative to the current
+timezone setting.
+
+\begin{protos}
+\proto{date->time}{ date}{time}
+\end{protos}
+%
+This converts a date object into a time object relative to the current
+timezone setting.
+
+\begin{protos}
+\proto{format-date}{ string date}{string}
+\end{protos}
+%
+This formats a date into a string, according to the format
+specification in the first argument.  The format specification is
+according to the specification of the C \code{strftime} function:
+
+\noindent
+\begin{longtable}{lp{0.9\textwidth}}
+\code{\%a} & is replaced by the locale's abbreviated weekday name.\\
+\code{\%A} & is replaced by the locale's full weekday name.\\
+\code{\%b} & is replaced by the locale's abbreviated month name.\\
+\code{\%B} & is replaced by the locale's full month name.\\
+\code{\%c} & is replaced by the locale's appropriate date and time representation.\\
+\code{\%C} & is replaced by the year divided by 100 and truncated to an integer, as a decimal
+number (00--99).\\
+\code{\%d} & is replaced by the day of the month as a decimal number (01--31).\\
+\code{\%D} & is equivalent to ``\verb|%m/%d/%y|''.\\
+\code{\%e} & is replaced by the day of the month as a decimal number (1--31); a single digit
+is preceded by a space.\\
+\code{\%F} & is equivalent to ``\verb|%Y-%m-%d|'' (the ISO 8601 date format).\\
+\code{\%g} & is replaced by the last 2 digits of the week-based year (see below) as a decimal
+number (00--99).\\
+\code{\%G} & is replaced by the week-based year (see below) as a decimal number (e.g.,
+1997).\\
+\code{\%h} & is equivalent to ``\verb|%b|''.\\
+\code{\%H} & is replaced by the hour (24-hour clock) as a decimal number (00--23).\\
+\code{\%I} & is replaced by the hour (12-hour clock) as a decimal number (01--12).\\
+\code{\%j} & is replaced by the day of the year as a decimal number (001--366).\\
+\code{\%m} & is replaced by the month as a decimal number (01--12).\\
+\code{\%M} & is replaced by the minute as a decimal number (00--59).\\
+\code{\%n} & is replaced by a new-line character.\\
+\code{\%p} & is replaced by the locale's equivalent of the AM/PM designations associated
+with a 12-hour clock.\\
+\code{\%r} & is replaced by the locale's 12-hour clock time.\\
+\code{\%R} & is equivalent to ``\verb|%H:%M|''.\\
+\code{\%S} & is replaced by the second as a decimal number (00--60).\\
+\code{\%t} & is replaced by a horizontal-tab character.\\
+\code{\%T} & is equivalent to ``\verb|%H:%M:%S|'' (the ISO 8601 time format).\\
+\code{\%u} & is replaced by the ISO 8601 weekday as a decimal number (1--7), where
+Monday is 1.\\
+\code{\%U} & is replaced by the week number of the year (the first Sunday as the first day of
+week 1) as a decimal number (00--53).\\
+\code{\%V} & is replaced by the ISO 8601 week number (see below) as a decimal number
+(01--53).\\
+\code{\%w} & is replaced by the weekday as a decimal number (0--6), where Sunday is 0.\\
+\code{\%W} & is replaced by the week number of the year (the first Monday as the first day of
+week 1) as a decimal number (00--53).\\
+\code{\%x} & is replaced by the locale's appropriate date representation.\\
+\code{\%X} & is replaced by the locale's appropriate time representation.\\
+\code{\%y} & is replaced by the last 2 digits of the year as a decimal number (00--99).\\
+\code{\%Y} & is replaced by the year as a decimal number (e.g., 1997).\\
+\code{\%z} & is replaced by the offset from UTC in the ISO 8601 format ``\verb|-0430|'' (meaning
+4 hours 30 minutes behind UTC, west of Greenwich), or by no characters if no
+time zone is determinable.\\
+\code{\%Z} & is replaced by the locale's time zone name or abbreviation, or by no characters if
+no time zone is determinable.\\
+\code{\%\%} & is replaced by \verb|%|.
+\end{longtable}
 
 \section{I/O}
 
@@ -1037,6 +1177,384 @@ If the pattern in \cvar{regexp} contained submatches, then the results
 \cvar{Starts-line?} should be true if \cvar{string} starts at the beginning
  of a line and \cvar{ends-line?} should be true if it ends one.
 
+\section{Syslog facility}
+\label{syslog-facility}
+
+The procedures in this section provide access to the POSIX syslog
+facility.  The functionality is in a structure called
+\code{posix-syslog}.  The Scheme~48 interface to the
+syslog facility differs significantly from that of the Unix library
+functionality in order to support multiple simultaneous connections to
+the syslog facility.
+
+Log messages carry a variety of parameters beside the text of the
+message itself, namely a set of options controlling the output format
+and destination, the facility identifying the class of programs the
+message is coming from, an identifier specifying the concrete program,
+and the level identifying the importance of the message.  Moreover, a
+log mask can prevent messages at certain levels to be actually sent to
+the syslog daemon.
+
+\subsection*{Log options}
+
+A log option specifies details of the I/O behavior of the syslog
+facility.  A syslog option is an element of a finite type (see
+Section~\ref{sec:finite-types}) constructed by the
+\code{syslog-option} macro.  The syslog facility works with sets of
+options which are represented as enum sets (see
+Section~\ref{sets-finite-types}).
+
+\begin{protos}
+\syntaxproto{syslog-option}{ \cvar{option-name}}{option}
+\proto{syslog-option?}{ x}{boolean}
+\proto{make-syslog-options}{ list}{options}
+\syntaxproto{syslog-options}{ \cvar{option-name} \ldots}{options}
+\proto{syslog-options?}{ x}{boolean}
+\end{protos}
+\noindent
+\code{Syslog-option} constructs a log option from the name of an
+option.  (The possible names are listed below.)  \code{Syslog-option?}
+is a predicate for log options.  Options are comparable using
+\code{eq?}.  \code{Make-syslog-options} constructs a set of options
+from a list of options.  \code{Syslog-options} is a macro which
+expands into an expression returning a set of options from names.
+\code{Syslog-options?} is a predicate for sets of options.
+
+Here is a list of possible names of syslog options:
+
+\begin{description}
+\item[\code{console}]
+  If syslog cannot pass the message to syslogd it will attempt to
+  write the message to the console.
+
+\item[\code{delay}]
+  Delay opening the connection to syslogd immediately until the first
+  message is logged.
+
+\item[\code{no-delay}]
+  Open the connection to syslogd immediately.  Normally
+  the open is delayed until the first message is logged.
+  Useful for programs that need to manage the order in which
+  file descriptors are allocated.
+
+  \noindent\textbf{NOTA BENE:}
+  The \code{delay} and \code{no-delay} options are included for
+  completeness, but do not have the expected effect in the present
+  Scheme interface: Because the Scheme interface has to multiplex
+  multiple simultaneous connections to the syslog facility over a
+  single one, open and close operations on that facility happen at
+  unpredictable times.
+  
+\item[\code{log-pid}]
+  Log the process id with each message: useful for identifying
+  instantiations of daemons.
+
+\item[\code{no-wait}]
+  Do not wait for child processes.
+\end{description}
+
+\subsection*{Log facilities}
+
+A log facility identifies the originator of a log message from a
+finite set known to the system.  Each originator is identified by a
+name:
+
+\begin{protos}
+\syntaxproto{syslog-facility}{ \cvar{facility-name}}{facility}
+\proto{syslog-facility?}{ x}{boolean}
+\end{protos}
+\noindent
+\code{Syslog-facility} is macro that expands into an expression
+returning a facility for a given name.  \code{Syslog-facility?} is a
+predicate for facilities.  Facilities are comparable via \code{eq?}.
+
+Here is a list of possible names of syslog facilities:
+
+\begin{description}
+\item[\code{authorization}]
+  The authorization system: login, su, getty, etc.
+
+\item[\code{cron}]
+  The cron daemon.
+
+\item[\code{daemon}]
+  System daemons, such as routed, that are not provided for explicitly
+  by other facilities.
+
+\item[\code{kernel}]
+  Messages generated by the kernel.
+
+\item[\code{lpr}]
+  The line printer spooling system: lpr, lpc, lpd, etc.
+
+\item[\code{mail}]
+  The mail system.
+
+\item[\code{news}]
+  The network news system.
+
+\item[\code{user}]
+  Messages generated by random user processes.
+
+\item[\code{uucp}]
+  The uucp system.
+
+\item[\code{local0} \code{local1} \code{local2} \code{local3} \code{local4} \code{local5} \code{local6} \code{local7}]
+  Reserved for local use.
+\end{description}
+                                
+\subsection*{Log levels}
+
+A log level identifies the importance of a message from a fixed set
+of possible levels.
+
+\begin{protos}
+\syntaxproto{syslog-level}{ \cvar{level-name}}{level}
+\proto{syslog-level?}{ x}{boolean}
+\end{protos}
+\noindent
+\code{Syslog-level} is macro that expands into an expression returning
+a facility for a given name.  \code{Syslog-level?} is a predicate for
+facilities.  Levels are comparable via \code{eq?}.
+
+Here is a list of possible names of syslog levels:
+
+\begin{description}
+\item[\code{emergency}]
+  A panic condition.  This is normally broadcast to all users.
+
+\item[\code{alert}]
+  A condition that should be corrected immediately, such as a
+  corrupted system database.
+
+\item[\code{critical}]
+  Critical conditions, e.g., hard device errors.
+
+\item[\code{error}]
+  Errors.
+
+\item[\code{warning}]
+  Warning messages.
+
+\item[\code{notice}]
+  Conditions that are not error conditions, but should possibly be
+  handled specially.
+
+\item[\code{info}]
+  Informational messages.
+
+\item[\code{debug}]
+  Messages that contain information normally of use only when
+  debugging a program.
+\end{description}
+
+\subsection*{Log masks}
+
+A log masks can mask out log messages at a set of levels.  A log
+mask is an enum set of log levels.
+
+\begin{protos}
+\proto{make-syslog-mask}{ list}{mask}
+\syntaxproto{syslog-mask}{ \cvar{level-name} \ldots}{mask}
+\constproto{syslog-mask-all}{ mask}
+\proto{syslog-mask-upto}{ level}{mask}
+\proto{syslog-mask?}{ x}{boolean}
+\end{protos}
+\noindent
+\code{Make-syslog-mask} constructs a mask from a list of levels.
+\code{Syslog-mask} is a macro which constructs a mask from names of
+levels.  \code{Syslog-mask-all} is a predefined log mask containing
+all levels.  \code{Syslog-mask-upto} returns a mask consisting of all
+levels up to and including a certain level, starting with
+\code{emergency}.
+
+\subsection*{Logging}
+
+Scheme~48 dynamically maintains implicit connections to the syslog
+facility specifying a current identifier, current options, a current
+facility and a current log mask.  Every thread
+maintains it own implicit connection to syslog.  Note that the
+connection is not implicitly preserved across a \code{spawn}.
+
+\begin{protos}
+\proto{with-syslog-destination}{ string options facility mask thunk}{value}
+\end{protos}
+\noindent
+\code{With-syslog-destination} dynamically binds parameters of the
+implicit connection to the syslog facility and runs \var{thunk}
+within those parameter bindings, returning what \var{thunk}
+returns.  Each of the parameters may be \code{\#f} in which case the
+previous values will be used.
+
+\begin{protos}
+\protonoresult{syslog}{ level message}
+\protonoresult{syslog}{ level message string}
+\protonoresult{syslog}{ level message string options}
+\protonoresult{syslog}{ level message string options syslog-facility}
+\protonoresult{syslog}{ level message channel}
+\end{protos}
+\noindent
+\code{Syslog} actually logs a message.  Each of the parameters of the
+implicit connection (except for the log mask) can be explicitly
+specified as well for the current call to \code{syslog}, overriding
+the parameters of the channel.  The parameters revert to their
+original values after the call.
+
+The final form specifies the destination of the log message as a
+channel; see the next section.
+
+\subsection*{Syslog channels}
+%
+These procedures allow direct manipulation of syslog channels, the
+objects that represent connections to the syslog facility.  Note that
+it is not necessary to explicitly open a syslog channel to do logging.
+
+\begin{protos}
+\proto{open-syslog-channel}{string options facility mask}{channel}
+\protonoresult{close-syslog-channel}{channel}
+\proto{with-syslog-destination}{ channel thunk}{value}
+\end{protos}
+\noindent
+\code{Open-syslog-channel} and \code{close-syslog-channel} create and
+destroy a connection to the syslog facility, respectively.  The
+specified form of calling \code{syslog} logs to the specified channel.
+
+\code{With-syslog-channel} dynamically binds parameters of the
+implicit connection to the syslog facility to those specified in 
+\cvar{channel} and runs \var{thunk} within those parameter bindings,
+returning what \var{thunk} returns.
+
+\section{Error codes}
+
+POSIX functions report the nature of an error via \textit{system error
+  numbers}---OS-specific integers that encode a variety of different
+error situations.  At the Scheme level, error numbers are represented
+as \textit{errnos}, objects that specify a name for the error
+sitation.  Errnos are definted in the structures \code{posix-errnos}
+and \code{posix}.
+
+Currently, the system reports such error situations by raising
+exceptions with condition type \code{\&os-error}.  The
+\code{\&os-error} condition type has a field \code{code} that contains
+the system error number.
+
+There are two varieties of errnos available, {\em named} and {\em anonymous}.
+A named errno is one for which we have a symbolic name, such as \code{fault}
+ or \code{intr}.  
+Anonymous errnos, for which we only have the current operating system's
+ errno number, have no meaning in other operating systems.
+Named errnos preserve their meaning in image files.
+Not all named errnos are available from all OS's and
+ there may be multiple names for a single OS errno number.
+
+\begin{protos}
+\syntaxproto{errno}{ \cvar{errno-name}}{errno}
+\proto{name->errno}{ symbol}{errno or {\tt \#f}}
+\proto{integer->errno}{ integer}{errno}
+\proto{errno?}{ x}{boolean}
+\proto{errno-name}{ errno}{symbol or {\tt \#f}}
+\proto{errno-os-number}{ errno}{integer}
+\proto{errno=?}{ errno0 errno1}{boolean}
+\end{protos}
+\noindent
+The syntax \code{errno} returns a (named) errno associated with
+\cvar{errno-name}.
+\code{Name->errno} returns a (named) errno or \code{\#f} if the
+ the errno \cvar{name} is not supported by the operating system.
+The errno returned by \code{integer->errno} is a named errno if
+ \cvar{integer} corresponds to a named errno in the current operating
+ system; otherwise it returns an anonymous errno.
+\code{Errno-name} returns a symbol if \cvar{errno} is named and
+ \code{\#f} if it is anonymous. 
+\code{Errno=?} returns \code{\#t} if \cvar{errno0} and \cvar{errno1}
+ have the same operating system number and \code{\#f} if they do not.
+
+\subsection{POSIX errnos}
+The following lists the names of the POSIX errnos.
+\begin{center}
+\begin{longtable}{@{\ttfamily}lp{0.6\textwidth}}
+   toobig			     & Argument list too long.\\
+   acces				& Permission denied.\\
+   addrinuse				& Address in use.\\
+   addrnotavail			& Address not available.\\
+   afnosupport		       & Address family not supported.\\
+   again & Resource unavailable, try again.\\
+   already			     & Connection already in progress.\\
+   badf				& Bad file descriptor.\\
+   badmsg				& Bad message.\\
+   busy				& Device or resource busy.\\
+   canceled				& Operation canceled.\\
+   child				& No child processes.\\
+   connaborted			& Connection aborted.\\
+   connrefused			& Connection refused.\\
+   connreset				& Connection reset.\\
+   deadlk			      & Resource deadlock would occur.\\
+   destaddrreq		       & Destination address required.\\
+   dom	     & Mathematics argument out of domain of function.\\
+   dquot				& Reserved.\\
+   exist				& File exists.\\
+   fault				& Bad address.\\
+   fbig				& File too large.\\
+   hostunreach			& Host is unreachable.\\
+   idrm				& Identifier removed.\\
+   ilseq				& Illegal byte sequence.\\
+   inprogress				& Operation in progress.\\
+   intr				& Interrupted function.\\
+   inval				& Invalid argument.\\
+   io					& I/O error.\\
+   isconn				& Socket is connected.\\
+   isdir				& Is a directory.\\
+   loop			  & Too many levels of symbolic links.\\
+   mfile				& Too many open files.\\
+   mlink				& Too many links.\\
+   msgsize				& Message too large.\\
+   multihop				& Reserved.\\
+   nametoolong			& Filename too long.\\
+   netdown				& Network is down.\\
+   netreset			      & Connection aborted by network.\\
+   netunreach				& Network unreachable.\\
+   nfile			      & Too many files open in system.\\
+   nobufs				& No buffer space available.\\
+   nodata & No message is available on the STREAM head read queue. \\
+   nodev				& No such device.\\
+   noent				& No such file or directory.\\
+   noexec			       & Executable file format error.\\
+   nolck				& No locks available.\\
+   nolink				& Reserved.\\
+   nomem				& Not enough space.\\
+   nomsg			     & No message of the desired type.\\
+   noprotoopt				& Protocol not available.\\
+   nospc				& No space left on device.\\
+   nosr				& No STREAM resources. \\
+   nostr				&  Not a STREAM. \\
+   nosys				& Function not supported.\\
+   notconn				& The socket is not connected.\\
+   notdir				& Not a directory.\\
+   notempty				& Directory not empty.\\
+   notsock				& Not a socket.\\
+   notsup				& Not supported.\\
+   notty			& Inappropriate I/O control operation.\\
+   nxio				& No such device or address.\\
+   opnotsupp			  & Operation not supported on socket.\\
+   overflow		  & Value too large to be stored in data type.\\
+   perm				& Operation not permitted.\\
+   pipe				& Broken pipe.\\
+   proto				& Protocol error.\\
+   protonosupport			& Protocol not supported.\\
+   prototype			     & Protocol wrong type for socket.\\
+   range				& Result too large.\\
+   rofs				& Read-only file system.\\
+   spipe				& Invalid seek.\\
+   srch				& No such process.\\
+   stale				& Reserved.\\
+   time			     & Stream ioctl() timeout. \\
+   timedout				& Connection timed out.\\
+   txtbsy				& Text file busy.\\
+   wouldblock	& Operation would block.\\
+   xdev				& Cross-device link.\\
+\end{longtable}
+\end{center}
+
 \section{C to Scheme correspondence}
 \label{function-correspondence}
 
@@ -1052,6 +1570,7 @@ C procedure & Scheme procedure(s) \\
  C procedure & Scheme procedure(s) \\
 \endhead
 \code{access}&\code{accessible?}\\
+\code{asctime}&\code{date->string}\\
 \code{chdir}&\code{set-working-directory!}\\
 \code{close}&\code{close-input-port, close-output-port,}\\
  &\code{\ \ close-channel, close-socket}\\
@@ -1080,21 +1599,28 @@ C procedure & Scheme procedure(s) \\
 \code{getpid}&\code{get-process-id}\\
 \code{getppid}&\code{get-parent-process-id}\\
 \code{getuid}&\code{get-user-id}\\
+\code{gmtime}&\code{time->local-date}\\
 \code{isatty}&\code{port-is-a-terminal?}\\
 \code{link}&\code{link}\\
+\code{localtime}&\code{time->utc-date}\\
 \code{lstat}&\code{get-file/link-info}\\
 \code{mkdir}&\code{make-directory}\\
 \code{mkfifo}&\code{make-fifo}\\
+\code{mktime}&\code{date->time}\\
 \code{open}&\code{open-file}\\
 \code{opendir}&\code{open-directory-stream}\\
 \code{pipe}&\code{open-pipe}\\
 \code{read}&\code{read-char, read-block}\\
 \code{readdir}&\code{read-directory-stream}\\
+\code{readlink}&\code{read-symbolic-link}\\
 \code{rename}&\code{rename}\\
 \code{rmdir}&\code{remove-directory}\\
 \code{setgid}&\code{set-group-id!}\\
 \code{setuid}&\code{set-user-id!}\\
 \code{stat}&\code{get-file-info}\\
+\code{strftime}&\code{format-date}\\
+\code{symlink}&\code{create-symbolic-link}\\
+\code{syslog}&\code{syslog}\\
 \code{time}&\code{current-time}\\
 \code{ttyname}&\code{port-terminal-name}\\
 \code{umask}&\code{set-file-creation-mask!}\\

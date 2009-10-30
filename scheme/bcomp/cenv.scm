@@ -6,7 +6,7 @@
 ;          binding              ; package variable, any syntax
 ;          #f			; free
 ;
-; Special names are used to retrieve various values from environments.
+; Special names are used to retrieve various values from compiler environments.
 
 (define (lookup cenv name)
   (cenv name))
@@ -30,12 +30,12 @@
 		   cenv))
   cenv)
 
-; Making the initial environment.
+; Making the initial compiler environment.
 ;
 ;  lookup : name -> binding or (binding . path) or #f
-;  define : name type [static] -> void
-;  macro-eval : form -> delay that returns (<eval> . <env>) for evaluating
-;   macro expanders
+;  define! : name type [static] -> void
+;  macro-eval : reflective tower, i.e. promise that returns
+;               (<eval> . <env>) for evaluating macro expanders
 
 (define (make-compiler-env lookup define! macro-eval package)
   (lambda (name)
@@ -54,22 +54,22 @@
 
 (define funny-name/macro-eval (string->symbol "Eval function for macros"))
 
-(define (environment-macro-eval cenv)
+(define (comp-env-macro-eval cenv)
   (cenv funny-name/macro-eval))
 
 ; Function for adding definitions to the outer package.
 
 (define funny-name/define! (string->symbol "Definition function"))
 
-(define (environment-define! cenv name type . maybe-value)
+(define (comp-env-define! cenv name type . maybe-value)
   (apply (cenv funny-name/define!) name type maybe-value))
 
-; The package on which the environment is based.  This is a temporary hack
-; to keep the package-editing code working.
+; The package on which the compiler environment is based.  This is a
+; temporary hack to keep the package-editing code working.
 
 (define funny-name/package (string->symbol "Base package"))
 
-(define (extract-package-from-environment cenv)
+(define (extract-package-from-comp-env cenv)
   (cenv funny-name/package))
 
 ; The name of the source file.

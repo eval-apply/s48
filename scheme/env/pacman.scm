@@ -30,22 +30,33 @@
        (eq? (car command) 'run)
        (symbol? (cadr command))))
 
-(define-command-syntax 'new-package "" "make and enter a new package"
-  '())
+(define-command-syntax 'new-package "[<struct> ...]" "make and enter a new package"
+  '(&rest expression))
 
-(define (new-package)
-  (let ((p (make-simple-package (list (get-structure 'scheme))
-				#t    ;unstable?
-				(get-reflective-tower (user-environment))
-				#f)))
+(define (new-package . maybe-opens)
+  (let* ((opens-thunk
+          (if (pair? maybe-opens)
+	      (let ((structs (map get-structure maybe-opens)))
+		(for-each quietly-ensure-loaded structs)
+		(lambda () structs))
+              (lambda ()
+                (list (get-structure 'scheme)))))
+         (p (make-package opens-thunk
+                          (lambda () '())
+                          #t    ;unstable?
+                          (get-reflective-tower (user-environment))
+                          ""    ;file containing DEFINE-STRUCTURE form
+                          '()   ;clauses
+                          #f    ;uid
+                          #f))) ;name
     (set-package-integrate?! p
 			     (package-integrate? (environment-for-commands)))
     (set-environment-for-commands! p)))
 
 (define (get-reflective-tower env)    ;Returns promise of (eval . env)
-  (environment-macro-eval (if (package? env)
-			      (package->environment env)
-			      env)))	;Mumble
+  (comp-env-macro-eval (if (package? env)
+			   (package->environment env)
+			   env)))	;Mumble
 
 
 ; load-package
@@ -194,6 +205,16 @@
 (define (undefine name)
   (package-undefine! (interaction-environment) name))
 
+; ,set-reader changes the reader of the current package.
+
+(define-command-syntax 'set-reader "<reader>" "sets the current reader"
+  '(expression))
+
+(define (set-reader reader-expression)
+  (let* ((p (environment-for-commands))
+	 (r (eval reader-expression p)))
+    (set-reader! p r)
+    (set-package-reader! p r)))
 
 ; --------------------
 ; Auxiliaries for package commands
@@ -238,7 +259,6 @@
   (let ((thing (environment-ref (config-package) name)))
     (cond ((structure? thing) thing)
 	  (else (assertion-violation 'get-structure "not a structure" name thing)))))
-
 
 ; Main entry point, with package setup.
 
@@ -310,12 +330,16 @@
 						  (make-simple-interface #f '()))
 						'for-syntax))
 			(cons eval p))))))
+    (set-reader! config read)
     config))
 
 ; Exec package
 
 (define (make-exec-package commands tower built-in)
-  (make-simple-package (list commands (*structure-ref built-in 'scheme))
+  (make-simple-package (list commands
+			     ;; we want the `load' from `usual-commands'
+			     (make-modified-structure (*structure-ref built-in 'scheme)
+						      '((hide load))))
 		       #t		;unstable?
 		       tower
 		       'exec))

@@ -88,15 +88,6 @@
           (else
 	   #f))))
 
-(define (filter pred l)
-  (let loop ((l l) (r '()))
-    (cond ((null? l)
-	   (reverse r))
-          ((pred (car l))
-	   (loop (cdr l) (cons (car l) r)))
-          (else
-	   (loop (cdr l) r)))))
-
 (define (filter! pred list)
   (let filter! ((list list))
     (cond ((null-list? list)

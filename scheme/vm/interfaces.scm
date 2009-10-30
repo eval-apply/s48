@@ -71,7 +71,7 @@
 	  header+contents->stob
 	  valid-index?
 	  	
-	  immutable? make-immutable! make-mutable!
+	  immutable? make-immutable!
 	  make-weak-pointer
 	  ))
 
@@ -85,6 +85,7 @@
 	  s48-gc-can-allocate-untraced-unmovable? ;; is a function due to a limitation (bug?) of pre-scheme
 	  s48-allocate-untraced-unmovable+gc
 	  s48-allocate-stob
+	  s48-allocate-weak-stob
 	  
 	  s48-forbid-gc!
 	  s48-allow-gc!
@@ -211,10 +212,15 @@
 	  vm-symbol? vm-symbol-size vm-make-symbol vm-symbol->string
 	  vm-symbol-next vm-set-symbol-next!
 	  closure? closure-size make-closure closure-template closure-env
-	  set-closure-template! set-closure-env!
 	  location? location-size make-location contents set-contents! location-id
 	  cell? cell-size make-cell cell-ref cell-set!
 	  weak-pointer? weak-pointer-size make-weak-pointer weak-pointer-ref
+
+	  transport-link-cell? make-transport-link-cell
+	  transport-link-cell-key
+	  transport-link-cell-value set-transport-link-cell-value!
+	  transport-link-cell-tconc set-transport-link-cell-tconc!
+	  transport-link-cell-next set-transport-link-cell-next!
 
 	  shared-binding? shared-binding-size make-shared-binding
 	  shared-binding-name shared-binding-is-import?
@@ -287,6 +293,13 @@
 
 	  ensure-space
 	  ))
+
+(define-interface vm-records-interface
+  (export typed-record?
+	  record-has-type?
+	  possibly-record-type?
+	  record-type-name
+	  record-type<=?))
 
 (define-interface vmio-interface
   (export initialize-i/o-system+gc
@@ -381,6 +394,7 @@
   (export extended-vm
 
 	  external-call
+	  external-call-2
 
 	  real-time
 	  run-time
@@ -427,6 +441,8 @@
 
 	  argument-type-violation
 	  range-violation
+
+	  trace-external-calls
 	  ))
 
 (define-interface event-interface
@@ -547,7 +563,7 @@
 	  push-exception-setup!
 
 	  any-> string-> boolean-> fixnum-> vm-integer-> char-> char-scalar-value->
-	  vector-> code-vector-> 
+	  vector-> record-type-> code-vector-> 
 	  input-type no-coercion
 	  
 	  no-result

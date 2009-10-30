@@ -23,12 +23,12 @@ echo ,load =scheme48/sort/packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/pre-env-packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/env-packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/more-packages.scm >> %srcdir%\build\build-usual-image.input
+echo ,load =scheme48/posix/packages.scm >> %srcdir%\build\build-usual-image.input
+echo ,load =scheme48/srfi/packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/r6rs/packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/net/packages.scm >> %srcdir%\build\build-usual-image.input
-echo ,load =scheme48/posix/packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/cml/interfaces.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/cml/packages.scm >> %srcdir%\build\build-usual-image.input
-echo ,load =scheme48/srfi/packages.scm >> %srcdir%\build\build-usual-image.input
 echo (ensure-loaded command-processor) >> %srcdir%\build\build-usual-image.input
 echo (ensure-loaded usual-commands) >> %srcdir%\build\build-usual-image.input
 echo ,go ((*structure-ref command 'command-processor) >> %srcdir%\build\build-usual-image.input

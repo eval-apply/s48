@@ -88,14 +88,14 @@
 (define (free-compiled-regexp regexp)
   (let ((compiled (real-regexp-compiled regexp)))
     (if compiled
-	(call-imported-binding posix-free-regexp compiled))))
+	(call-imported-binding-2 posix-free-regexp compiled))))
 
 ; We compile the pattern if that hasn't already been done, raising an error
 ; if anything goes wrong.
 
 (define (regexp-compiled regexp)
   (or (real-regexp-compiled regexp)
-      (let ((compiled (call-imported-binding posix-compile-regexp
+      (let ((compiled (call-imported-binding-2 posix-compile-regexp
 					     (regexp-pattern-byte-string regexp)
 					     (regexp-extended? regexp)
 					     (regexp-ignore-case? regexp)
@@ -105,7 +105,7 @@
 	    (begin
 	      (set-regexp-compiled! regexp compiled)
 	      compiled)
-	    (let ((message (call-imported-binding posix-regexp-error-message
+	    (let ((message (call-imported-binding-2 posix-regexp-error-message
 						  (regexp-pattern-byte-string regexp)
 						  (regexp-extended? regexp)
 						  (regexp-ignore-case? regexp)
@@ -134,7 +134,7 @@
 			 "regexp not compiled for submatches"
 			 regexp string start starts-line? ends-line?))
    (else
-    (call-imported-binding posix-regexp-match
+    (call-imported-binding-2 posix-regexp-match
 			   (regexp-compiled regexp)
 			   (string->byte-vector string)
 			   start

@@ -1,6 +1,8 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+#define NO_OLD_FFI 1
+
 /*
  * Unix-specific sockets stuff.
  */
@@ -10,7 +12,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
-
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
 
 #include <scheme48.h>
 
@@ -24,57 +28,54 @@
 #include "socket.h"
 #include "address.h"
 
-static s48_value
-s48_socket(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
+static s48_ref_t
+s48_socket(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_type, s48_ref_t sch_protocol)
 {
   socket_t fd;
   int mode, status;
-  s48_value sch_channel;
-  int af = s48_extract_af(sch_af);
-  int socktype = s48_extract_socket_type(sch_type);
-  int protocol = s48_extract_fixnum(sch_protocol);
+  s48_ref_t sch_channel;
+  int af = s48_extract_af(call, sch_af);
+  int socktype = s48_extract_socket_type(call, sch_type);
+  int protocol = s48_extract_long_2(call, sch_protocol);
 
   RETRY_OR_RAISE_NEG(fd, socket(af, socktype, protocol));
   RETRY_OR_RAISE_NEG(status, fcntl(fd, F_SETFL, O_NONBLOCK));
 
-  sch_channel = s48_add_channel(S48_CHANNEL_STATUS_SPECIAL_INPUT,
-				s48_enter_string_latin_1("socket"), fd);
+  sch_channel = s48_add_channel_2(call, s48_channel_status_special_input_2(call),
+				  s48_enter_string_latin_1_2(call, "socket"), fd);
 
-  if (!S48_CHANNEL_P(sch_channel))
+  if (!s48_channel_p_2(call, sch_channel))
     {
       ps_close_fd(fd);		/* retries if interrupted */
-      s48_raise_scheme_exception(s48_extract_fixnum(sch_channel), 0);
+      s48_raise_scheme_exception_2(call, s48_extract_long_2(call, sch_channel), 0);
     }
   
   return sch_channel;
 }
 
-static s48_value
-s48_socketpair(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
+static s48_ref_t
+s48_socketpair(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_type, s48_ref_t sch_protocol)
 {
   int status;
-  s48_value sch_channel0 = S48_UNSPECIFIC, sch_channel1 = S48_UNSPECIFIC;
-  s48_value sch_result;
-  int af = s48_extract_af(sch_af);
-  int socktype = s48_extract_socket_type(sch_type);
-  int protocol = s48_extract_fixnum(sch_protocol);
+  s48_ref_t sch_channel0, sch_channel1;
+  s48_ref_t sch_result;
+  int af = s48_extract_af(call, sch_af);
+  int socktype = s48_extract_socket_type(call, sch_type);
+  int protocol = s48_extract_long_2(call, sch_protocol);
   socket_t fds[2];
-  S48_DECLARE_GC_PROTECT(2);
 
   RETRY_OR_RAISE_NEG(status, socketpair(af, socktype, protocol, fds));
 
   RETRY_OR_RAISE_NEG(status, fcntl(fds[0], F_SETFL, O_NONBLOCK));
   RETRY_OR_RAISE_NEG(status, fcntl(fds[1], F_SETFL, O_NONBLOCK));
 
-  S48_GC_PROTECT_2(sch_channel0, sch_channel1);
-  sch_channel0 = s48_add_channel(S48_CHANNEL_STATUS_INPUT,
-				 s48_enter_string_latin_1("socket"), fds[0]);
-  sch_channel1 = s48_add_channel(S48_CHANNEL_STATUS_INPUT,
-				 s48_enter_string_latin_1("socket"), fds[1]);
+  sch_channel0 = s48_add_channel_2(call, s48_channel_status_input_2(call),
+				   s48_enter_string_latin_1_2(call, "socket"), fds[0]);
+  sch_channel1 = s48_add_channel_2(call, s48_channel_status_input_2(call),
+				   s48_enter_string_latin_1_2(call, "socket"), fds[1]);
 
   
-  sch_result = s48_cons(sch_channel0, sch_channel1);
-  S48_GC_UNPROTECT();
+  sch_result = s48_cons_2(call, sch_channel0, sch_channel1);
   return sch_result;
 }
 
@@ -84,43 +85,48 @@ s48_socketpair(s48_value sch_af, s48_value sch_type, s48_value sch_protocol)
  * We have to versions, one for calling from C and one for calling from Scheme.
  */
 
-static s48_value
-dup_socket_channel(socket_t socket_fd)
+static s48_ref_t
+dup_socket_channel(s48_call_t call, socket_t socket_fd)
 {
   socket_t output_fd;
-  s48_value output_channel;
+  s48_ref_t output_channel;
+  int flags;
 
   RETRY_OR_RAISE_NEG(output_fd, dup(socket_fd));
 
-  output_channel = s48_add_channel(S48_CHANNEL_STATUS_OUTPUT,
-				   s48_enter_string_latin_1("socket connection"),
-				   output_fd);
+  RETRY_OR_RAISE_NEG(flags, fcntl(output_fd, F_GETFL));
+  flags |= O_NONBLOCK;
+  RETRY_OR_RAISE_NEG(flags, fcntl(output_fd, F_SETFL, flags));
   
-  if (!S48_CHANNEL_P(output_channel))
+  output_channel = s48_add_channel_2(call, s48_channel_status_output_2(call),
+				     s48_enter_string_latin_1_2(call, "socket connection"),
+				     output_fd);
+  
+  if (!s48_channel_p_2(call, output_channel))
     {
       ps_close_fd(output_fd);		/* retries if interrupted */
-      s48_raise_scheme_exception(s48_extract_fixnum(output_channel), 0);
+      s48_raise_scheme_exception_2(call, s48_extract_long_2(call, output_channel), 0);
     };
   
   return output_channel;
 }
 
 socket_t
-s48_extract_socket_fd(s48_value sch_channel)
+s48_extract_socket_fd(s48_call_t call, s48_ref_t sch_channel)
 {
-  S48_CHECK_CHANNEL(sch_channel);
-  return S48_UNSAFE_EXTRACT_FIXNUM(S48_UNSAFE_CHANNEL_OS_INDEX(sch_channel));
+  s48_check_channel_2(call, sch_channel);
+  return s48_extract_long_2(call, s48_unsafe_channel_os_index_2(call, sch_channel));
 }
 
-static s48_value
-s48_dup_socket_channel(s48_value sch_channel)
+static s48_ref_t
+s48_dup_socket_channel(s48_call_t call, s48_ref_t sch_channel)
 {
-  return dup_socket_channel(s48_extract_socket_fd(sch_channel));
+  return dup_socket_channel(call, s48_extract_socket_fd(call, sch_channel));
 }
 
 /*
- * Given a bound socket, accept a connection and return the resulting
- * socket as a pair of channels (after marking it non-blocking).
+ * Given a bound socket, accept a connection and return a pair of the
+ * input channel and the raw socket address.
  *
  * If the accept fails because the client hasn't connected yet, then we
  * return #f.
@@ -128,41 +134,37 @@ s48_dup_socket_channel(s48_value sch_channel)
  * If it fails for any other reason, then an exception is raised.
  */
 
-static s48_value
-s48_accept(s48_value sch_channel, s48_value sch_retry_p)
+static s48_ref_t
+s48_accept(s48_call_t call, s48_ref_t sch_channel, s48_ref_t sch_retry_p)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   socket_t connect_fd;
   int status;
   struct sockaddr_storage address;
   socklen_t len;
-  s48_value input_channel, output_channel;
+  s48_ref_t input_channel, output_channel;
 
   len = sizeof(address);
   
   connect_fd = accept(socket_fd, (struct sockaddr *)&address, &len);
   
-  /*
-   * Check for a connection.  If we have one we create two channels, one
-   * input and one, with a dup()'ed fd, output.  Lots of error checking
-   * makes this messy.
-   */
-
   if (connect_fd >= 0) {
     
     RETRY_OR_RAISE_NEG(status, fcntl(connect_fd, F_SETFL, O_NONBLOCK));
 
-    input_channel = s48_add_channel(S48_CHANNEL_STATUS_INPUT,
-				    s48_enter_string_latin_1("socket connection"),
-				    connect_fd);
+    input_channel = s48_add_channel_2(call, s48_channel_status_input_2(call),
+				      s48_enter_string_latin_1_2(call, "socket connection"),
+				      connect_fd);
 
-    if (!S48_CHANNEL_P(input_channel))
+    if (!s48_channel_p_2(call, input_channel))
       {
 	ps_close_fd(connect_fd);		/* retries if interrupted */
-	s48_raise_scheme_exception(s48_extract_fixnum(input_channel), 0);
-      };
+	s48_raise_scheme_exception_2(call, s48_extract_long_2(call, input_channel), 0);
+      }
     
-    return input_channel;
+    return s48_cons_2(call,
+		      input_channel,
+		      s48_enter_sockaddr(call, (const struct sockaddr*)&address, len));
   }
 
   /*
@@ -171,12 +173,12 @@ s48_accept(s48_value sch_channel, s48_value sch_retry_p)
    */
 
   if ((errno != EWOULDBLOCK) && (errno != EINTR) && (errno != EAGAIN))
-    s48_os_error("s48_accept", errno, 2, sch_channel, sch_retry_p);
+    s48_os_error_2(call, "s48_accept", errno, 2, sch_channel, sch_retry_p);
 
   if (! s48_add_pending_fd(socket_fd, PSTRUE))
-    s48_out_of_memory_error();
+    s48_out_of_memory_error_2(call);
 
-  return S48_FALSE;
+  return s48_false_2(call);
 }
 
 /*
@@ -188,11 +190,11 @@ s48_accept(s48_value sch_channel, s48_value sch_retry_p)
  * If it fails for any other reason, raise an exception.
  */
 
-static s48_value
-s48_connect(s48_value sch_channel, s48_value sch_address,
-	    s48_value sch_retry_p)
+static s48_ref_t
+s48_connect(s48_call_t call, s48_ref_t sch_channel,
+	    s48_ref_t sch_address, s48_ref_t sch_retry_p)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
 
   /*
    * Try the connection.  If it works we make an output channel and return it.
@@ -206,13 +208,13 @@ s48_connect(s48_value sch_channel, s48_value sch_address,
    */
 
   if (connect(socket_fd,
-	      S48_EXTRACT_VALUE_POINTER(sch_address, struct sockaddr),
-	      S48_VALUE_SIZE(sch_address)) >= 0
-      || ((errno == EISCONN) && (sch_retry_p == S48_TRUE)))
+	      s48_extract_value_pointer_2(call, sch_address, struct sockaddr),
+	      s48_value_size_2(call, sch_address)) >= 0
+      || ((errno == EISCONN) && (s48_true_p_2(call, sch_retry_p))))
     {
-      S48_STOB_SET(sch_channel,
-		   S48_CHANNEL_STATUS_OFFSET, S48_CHANNEL_STATUS_INPUT);
-      return dup_socket_channel(socket_fd);
+      s48_unsafe_stob_set_2(call, sch_channel,
+			    s48_channel_status_offset, s48_channel_status_input_2(call));
+      return dup_socket_channel(call, socket_fd);
     }
     
   /*
@@ -222,16 +224,16 @@ s48_connect(s48_value sch_channel, s48_value sch_address,
 
   /* already connected, will raise an error from Scheme */
   if (errno == EISCONN)
-    return S48_TRUE;
+    return s48_true_2(call);
 
   if (errno != EWOULDBLOCK && errno != EINTR && errno != EALREADY
       && errno != EINPROGRESS && errno != EAGAIN)
-    s48_os_error("s48_connect", errno, 3, sch_channel, sch_address, sch_retry_p);
+    s48_os_error_2(call, "s48_connect", errno, 3, sch_channel, sch_address, sch_retry_p);
 
   if (! (s48_add_pending_fd(socket_fd, PSFALSE)))
-    s48_out_of_memory_error();
+    s48_out_of_memory_error_2(call);
 
-  return S48_FALSE;
+  return s48_false_2(call);
 }
 
 /*
@@ -239,29 +241,29 @@ s48_connect(s48_value sch_channel, s48_value sch_address,
  * <byte-count> if want_sender_p is false.
  */
 
-static s48_value
-s48_recvfrom(s48_value sch_channel,
-	     s48_value sch_buffer, s48_value sch_start, s48_value sch_count,
-	     s48_value sch_flags,
-	     s48_value sch_want_sender_p,
-	     s48_value sch_retry_p)
+static s48_ref_t
+s48_recvfrom(s48_call_t call, s48_ref_t sch_channel,
+	     s48_ref_t sch_buffer, s48_ref_t sch_start, s48_ref_t sch_count,
+	     s48_ref_t sch_flags,
+	     s48_ref_t sch_want_sender_p,
+	     s48_ref_t sch_retry_p)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
-  int want_sender_p = !(S48_EQ_P(sch_want_sender_p, S48_FALSE));
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
+  int want_sender_p = !(s48_false_p_2(call, sch_want_sender_p));
   struct sockaddr_storage from;
   socklen_t from_len = (want_sender_p ? sizeof(struct sockaddr_storage) : 0);
-  int flags = s48_extract_msg_flags(sch_flags);
-  size_t buffer_size = S48_BYTE_VECTOR_LENGTH(sch_buffer);
-  size_t start = s48_extract_unsigned_integer(sch_start);
-  size_t count = s48_extract_unsigned_integer(sch_count);
+  int flags = s48_extract_msg_flags(call, sch_flags);
+  size_t buffer_size = s48_byte_vector_length_2(call, sch_buffer);
+  size_t start = s48_extract_unsigned_long_2(call, sch_start);
+  size_t count = s48_extract_unsigned_long_2(call, sch_count);
   ssize_t status;
 
   if ((start + count) > buffer_size)
-    s48_assertion_violation("s48_sendto", "buffer start or count is wrong", 3,
-			    sch_buffer, sch_start, sch_count);
+    s48_assertion_violation_2(call, "s48_sendto", "buffer start or count is wrong", 3,
+			      sch_buffer, sch_start, sch_count);
 
   status = recvfrom(socket_fd,
-		    s48_extract_byte_vector(sch_buffer) + start,
+		    s48_extract_byte_vector_2(call, sch_buffer) + start,
 		    count,
 		    flags,
 		    want_sender_p ? (struct sockaddr*)&from : NULL,
@@ -270,18 +272,15 @@ s48_recvfrom(s48_value sch_channel,
   if (0 <= status)
     if (want_sender_p)
       {
-	s48_value sch_count = S48_UNSPECIFIC, sch_saddr = S48_UNSPECIFIC;
-	s48_value sch_result;
-	S48_DECLARE_GC_PROTECT(2);
-	S48_GC_PROTECT_2(sch_count, sch_saddr);
-	sch_count = s48_enter_unsigned_integer(status);
-	sch_saddr = s48_enter_sockaddr((struct sockaddr *)&from, from_len);
-	sch_result = s48_cons(sch_count, sch_saddr);
-	S48_GC_UNPROTECT();
+	s48_ref_t sch_count, sch_saddr;
+	s48_ref_t sch_result;
+	sch_count = s48_enter_unsigned_long_2(call, status);
+	sch_saddr = s48_enter_sockaddr(call, (struct sockaddr *)&from, from_len);
+	sch_result = s48_cons_2(call, sch_count, sch_saddr);
 	return sch_result;
       }
     else
-      return s48_enter_unsigned_integer(status);
+      return s48_enter_unsigned_long_2(call, status);
   
   /*
    * Check for errors.  If we need to retry we mark the socket as pending
@@ -290,45 +289,45 @@ s48_recvfrom(s48_value sch_channel,
   
   if (errno != EWOULDBLOCK && errno != EINTR && errno != EALREADY
       && errno != EINPROGRESS && errno != EAGAIN)
-    s48_os_error("s48_recv", errno, 6,
-		 sch_channel, sch_buffer, sch_start, sch_count,
-		 sch_flags, sch_want_sender_p);
+    s48_os_error_2(call, "s48_recv", errno, 6,
+		   sch_channel, sch_buffer, sch_start, sch_count,
+		   sch_flags, sch_want_sender_p);
 
   if (! (s48_add_pending_fd(socket_fd, PSTRUE)))
-    s48_out_of_memory_error();
+    s48_out_of_memory_error_2(call);
 
-  return S48_FALSE;
+  return s48_false_2(call);
 }
 
-static s48_value
-s48_sendto(s48_value sch_channel,
-	   s48_value sch_buffer, s48_value sch_start, s48_value sch_count,
-	   s48_value sch_flags,
-	   s48_value sch_saddr,
-	   s48_value sch_retry_p) /* ignored on Unix */
+static s48_ref_t
+s48_sendto(s48_call_t call, s48_ref_t sch_channel,
+	   s48_ref_t sch_buffer, s48_ref_t sch_start, s48_ref_t sch_count,
+	   s48_ref_t sch_flags,
+	   s48_ref_t sch_saddr,
+	   s48_ref_t sch_retry_p) /* ignored on Unix */
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   ssize_t sent;
   const struct sockaddr *sa
-    = S48_EXTRACT_VALUE_POINTER(sch_saddr, const struct sockaddr);
-  socklen_t salen = S48_VALUE_SIZE(sch_saddr);
-  int flags = s48_extract_msg_flags(sch_flags);
-  size_t buffer_size = S48_BYTE_VECTOR_LENGTH(sch_buffer);
-  size_t start = s48_extract_unsigned_integer(sch_start);
-  size_t count = s48_extract_unsigned_integer(sch_count);
+    = s48_extract_value_pointer_2(call, sch_saddr, const struct sockaddr);
+  socklen_t salen = s48_value_size_2(call, sch_saddr);
+  int flags = s48_extract_msg_flags(call, sch_flags);
+  size_t buffer_size = s48_byte_vector_length_2(call, sch_buffer);
+  size_t start = s48_extract_unsigned_long_2(call, sch_start);
+  size_t count = s48_extract_unsigned_long_2(call, sch_count);
 
   if ((start + count) > buffer_size)
-    s48_assertion_violation("s48_sendto", "buffer start or count is wrong", 3,
-			    sch_buffer, sch_start, sch_count);
+    s48_assertion_violation_2(call, "s48_sendto", "buffer start or count is wrong", 3,
+			      sch_buffer, sch_start, sch_count);
   
   sent = sendto(socket_fd,
-		s48_extract_byte_vector(sch_buffer) + start,
+		s48_extract_byte_vector_2(call, sch_buffer) + start,
 		count,
 		flags,
 		(struct sockaddr *) sa, salen);
   
   if (0 <= sent)
-    return s48_enter_unsigned_integer(sent);
+    return s48_enter_unsigned_long_2(call, sent);
 
   /*
    * Check for errors.  If we need to retry we mark the socket as pending
@@ -337,13 +336,13 @@ s48_sendto(s48_value sch_channel,
   
   if (errno != EWOULDBLOCK && errno != EINTR && errno != EALREADY
       && errno != EINPROGRESS && errno != EAGAIN)
-    s48_os_error("s48_sendto", errno, 6,
+    s48_os_error_2(call, "s48_sendto", errno, 6,
 		 sch_channel, sch_saddr, sch_flags, sch_buffer, sch_start, sch_count);
 
   if (! (s48_add_pending_fd(socket_fd, PSFALSE)))
-    s48_out_of_memory_error();
+    s48_out_of_memory_error_2(call);
 
-  return S48_FALSE;
+  return s48_false_2(call);
 }
 
 void

@@ -112,6 +112,30 @@ s48_run_machine(long (*proc) (void))
   return s48_return_value;
 }
 
+/* Infinities and NaNs */
+
+/* Visual C++ barfs when trying to evaluate 1.0/0.0 statically. */
+
+static double double_zero = 0.0;
+
+double
+ps_pos_infinity(void)
+{
+  return 1.0 / double_zero;
+}
+
+double
+ps_neg_infinity(void)
+{
+  return -1.0 / double_zero;
+}
+
+double
+ps_not_a_number(void)
+{
+  return (-1.0 / double_zero) + (1.0 / double_zero);
+}
+
 unsigned char *
 ps_error_string(long the_errno)
 {

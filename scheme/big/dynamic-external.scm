@@ -77,10 +77,9 @@
       (set-dynamic-externals-shared-object! dynamic-externals shared-object)
       (cond
        ((not reload?)
-	(shared-object-address shared-object "s48_on_load"))
-       ((shared-object-address shared-object "s48_on_reload")
-	=> call-shared-object-address)
-       (else (shared-object-address shared-object "s48_on_load"))))))
+	(call-shared-object-address (shared-object-address shared-object "s48_on_load")))
+       ((shared-object-address-or-false shared-object "s48_on_reload")
+	=> call-shared-object-address)))))
 
 ;; for interactive usage
 (define (reload-dynamic-externals name)

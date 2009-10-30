@@ -1,6 +1,8 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+#define NO_OLD_FFI 1
+
 /*
  * More or less platform-unspecific socket stuff.
  */
@@ -18,12 +20,13 @@
 do {								\
     STATUS = (CALL);						\
     if (STATUS == SOCKET_ERROR)					\
-      s48_os_error(NULL, WSAGetLastError(), 0);			\
+      s48_os_error_2(call, NULL, WSAGetLastError(), 0);		\
  } while (0)
 
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <errno.h>
 #include <fcntl.h>
 
@@ -38,9 +41,9 @@ do {								\
 /* The C code knows about these constants. */
 
 static int
-extract_how(s48_value sch_how)
+extract_how(s48_call_t call, s48_ref_t sch_how)
 {
-  long how_val = s48_extract_fixnum(sch_how);
+  long how_val = s48_extract_long_2(call, sch_how);
   switch (how_val)
     {
 #ifdef _WIN32
@@ -62,9 +65,9 @@ extract_how(s48_value sch_how)
 }
 
 int
-s48_extract_msg_flags(s48_value sch_flags)
+s48_extract_msg_flags(s48_call_t call, s48_ref_t sch_flags)
 {
-  long flags = s48_extract_fixnum(sch_flags);
+  long flags = s48_extract_long_2(call, sch_flags);
   return (((flags & 0x01) ? MSG_OOB : 0)
 	  | ((flags & 0x02) ? MSG_PEEK : 0)
 	  | ((flags & 0x04) ? MSG_DONTROUTE : 0));
@@ -76,11 +79,11 @@ s48_extract_msg_flags(s48_value sch_flags)
  * Unix's use of bidirectional file descriptors.
  */
 
-static s48_value
-s48_shutdown(s48_value sch_channel, s48_value sch_how)
+static s48_ref_t
+s48_shutdown(s48_call_t call, s48_ref_t sch_channel, s48_ref_t sch_how)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
-  int how = extract_how(sch_how);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
+  int how = extract_how(call, sch_how);
   int status;
 
   /*
@@ -93,139 +96,139 @@ s48_shutdown(s48_value sch_channel, s48_value sch_how)
 #else
   if ((0 > status) && (errno != ENOTCONN))
 #endif
-    s48_os_error("s48_close_socket_half", errno, 1, sch_channel);
+    s48_os_error_2(call, "s48_close_socket_half", errno, 1, sch_channel);
   
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
-static s48_value
-s48_bind(s48_value sch_channel, s48_value sch_saddr)
+static s48_ref_t
+s48_bind(s48_call_t call, s48_ref_t sch_channel, s48_ref_t sch_saddr)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   int status;
   const struct sockaddr *sa
-    = S48_EXTRACT_VALUE_POINTER(sch_saddr, const struct sockaddr);
-  socklen_t salen = S48_VALUE_SIZE(sch_saddr);
+    = s48_extract_value_pointer_2(call, sch_saddr, const struct sockaddr);
+  socklen_t salen = s48_value_size_2(call, sch_saddr);
 
   RETRY_OR_RAISE_NEG(status, bind(socket_fd, sa, salen));
 
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
-static s48_value
-s48_listen(s48_value sch_channel, s48_value sch_queue_size)
+static s48_ref_t
+s48_listen(s48_call_t call, s48_ref_t sch_channel, s48_ref_t sch_queue_size)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
-  int queue_size = s48_extract_integer(sch_queue_size);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
+  int queue_size = s48_extract_long_2(call, sch_queue_size);
   int status;
 
   RETRY_OR_RAISE_NEG(status, listen(socket_fd, queue_size));
 
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
-static s48_value
-s48_max_connection_count(void)
+static s48_ref_t
+s48_max_connection_count(s48_call_t call)
 {
   /* not a fixnum on Windows! */
-  return s48_enter_integer(SOMAXCONN);
+  return s48_enter_long_2(call, SOMAXCONN);
 }
 
-static s48_value
-s48_getsockname(s48_value sch_channel)
+static s48_ref_t
+s48_getsockname(s48_call_t call, s48_ref_t sch_channel)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   int status;
   struct sockaddr_storage sa;
   socklen_t salen = sizeof(struct sockaddr_storage);
   
   RETRY_OR_RAISE_NEG(status,
 		     getsockname(socket_fd, (struct sockaddr*)&sa, &salen));
-  return s48_enter_sockaddr((struct sockaddr *)&sa, salen);
+  return s48_enter_sockaddr(call, (struct sockaddr *)&sa, salen);
 }
 
-static s48_value
-s48_getpeername(s48_value sch_channel)
+static s48_ref_t
+s48_getpeername(s48_call_t call, s48_ref_t sch_channel)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   int status;
   struct sockaddr_storage sa;
   socklen_t salen = sizeof(struct sockaddr_storage);
   
   RETRY_OR_RAISE_NEG(status,
 		     getpeername(socket_fd, (struct sockaddr*)&sa, &salen));
-  return s48_enter_sockaddr((struct sockaddr *)&sa, salen);
+  return s48_enter_sockaddr(call, (struct sockaddr *)&sa, salen);
 }
 
-static s48_value
-setsockopt_boolean(int level, int option,
-		   s48_value sch_channel, s48_value sch_val)
+static s48_ref_t
+setsockopt_boolean(s48_call_t call, int level, int option,
+		   s48_ref_t sch_channel, s48_ref_t sch_val)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   int status, on;
 
-  on = (S48_EQ_P(sch_val, S48_FALSE) ? 0 : 1);
+  on = (s48_false_p_2(call, sch_val) ? 0 : 1);
   RETRY_OR_RAISE_NEG(status, \
 		     setsockopt(socket_fd, level, option,
 				(void*)&on, sizeof(on)));
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
-static s48_value
-getsockopt_boolean(int level, int option,
-		   s48_value sch_channel)
+static s48_ref_t
+getsockopt_boolean(s48_call_t call, int level, int option,
+		   s48_ref_t sch_channel)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   int status, on;
   socklen_t onlen = sizeof(on);
 
   RETRY_OR_RAISE_NEG(status,
 		     getsockopt(socket_fd, level, option,
 				(void*)&on, &onlen));
-  return (on ? S48_TRUE : S48_FALSE);
+  return (on ? s48_true_2(call) : s48_false_2(call));
 }
 
-static s48_value
-setsockopt_int(int level, int option,
-	       s48_value sch_channel, s48_value sch_val)
+static s48_ref_t
+setsockopt_int(s48_call_t call, int level, int option,
+	       s48_ref_t sch_channel, s48_ref_t sch_val)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   int status, val;
 
-  val = s48_extract_integer(sch_val);
+  val = s48_extract_long_2(call, sch_val);
   RETRY_OR_RAISE_NEG(status,
 		     setsockopt(socket_fd, level, option,
 				(void*)&val, sizeof(val)));
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
-static s48_value
-getsockopt_int(int level, int option,
-	       s48_value sch_channel)
+static s48_ref_t
+getsockopt_int(s48_call_t call, int level, int option,
+	       s48_ref_t sch_channel)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   int status, val;
   socklen_t vallen = sizeof(val);
 
   RETRY_OR_RAISE_NEG(status,
 		     getsockopt(socket_fd, level, option,
 				(void*)&val, &vallen));
-  return s48_enter_integer(val);
+  return s48_enter_long_2(call, val);
 }
 
 #define DEFINE_SOCKET_OPTION_SETTER(name, level, option, type) \
-static s48_value \
-name(s48_value sch_channel, s48_value sch_val) \
+static s48_ref_t \
+name(s48_call_t call, s48_ref_t sch_channel, s48_ref_t sch_val) \
 { \
-  return setsockopt_##type(level, option, \
+  return setsockopt_##type(call, level, option,	  \
 			   sch_channel, sch_val); \
 }
 
 #define DEFINE_SOCKET_OPTION_GETTER(name, level, option, type) \
-static s48_value \
-name(s48_value sch_channel) \
+static s48_ref_t \
+name(s48_call_t call, s48_ref_t sch_channel) \
 { \
-  return getsockopt_##type(level, option, \
+  return getsockopt_##type(call, level, option,	\
 			   sch_channel); \
 }
 
@@ -259,6 +262,9 @@ DEFINE_SOCKET_OPTION_SETTER(s48_setsockopt_SO_SNDLOWAT, SOL_SOCKET, SO_SNDLOWAT,
 DEFINE_SOCKET_OPTION_GETTER(s48_getsockopt_SO_SNDLOWAT, SOL_SOCKET, SO_SNDLOWAT, int)
 /* SO_SNDTIMEO makes output functions block */
 
+DEFINE_SOCKET_OPTION_SETTER(s48_setsockopt_TCP_NODELAY, IPPROTO_TCP, TCP_NODELAY, boolean)
+DEFINE_SOCKET_OPTION_GETTER(s48_getsockopt_TCP_NODELAY, IPPROTO_TCP, TCP_NODELAY, boolean)
+
 /* RFC 3493 */
 
 DEFINE_SOCKET_OPTION_SETTER(s48_setsockopt_IPV6_UNICAST_HOPS, SOL_SOCKET, IPV6_UNICAST_HOPS, int)
@@ -271,39 +277,39 @@ DEFINE_SOCKET_OPTION_GETTER(s48_getsockopt_IPV6_MULTICAST_HOPS, SOL_SOCKET, IPV6
 DEFINE_SOCKET_OPTION_SETTER(s48_setsockopt_IPV6_MULTICAST_LOOP, SOL_SOCKET, IPV6_MULTICAST_LOOP, boolean)
 DEFINE_SOCKET_OPTION_GETTER(s48_getsockopt_IPV6_MULTICAST_LOOP, SOL_SOCKET, IPV6_MULTICAST_LOOP, boolean)
 
-static s48_value
-ipv6_socket_group_op(int group_op,
-		     s48_value sch_channel,
-		     s48_value sch_address,
-		     s48_value sch_if)
+static s48_ref_t
+ipv6_socket_group_op(s48_call_t call, int group_op,
+		     s48_ref_t sch_channel,
+		     s48_ref_t sch_address,
+		     s48_ref_t sch_if)
 {
-  socket_t socket_fd = s48_extract_socket_fd(sch_channel);
+  socket_t socket_fd = s48_extract_socket_fd(call, sch_channel);
   int status;
   struct ipv6_mreq mreq;
-  s48_extract_in6_addr(sch_address, &(mreq.ipv6mr_multiaddr));
-  mreq.ipv6mr_interface = s48_extract_unsigned_integer(sch_if);
+  s48_extract_in6_addr(call, sch_address, &(mreq.ipv6mr_multiaddr));
+  mreq.ipv6mr_interface = s48_extract_unsigned_long_2(call, sch_if);
 
   RETRY_OR_RAISE_NEG(status,
 		     setsockopt(socket_fd, IPPROTO_IPV6, group_op,
 				(void*)&mreq, sizeof(struct ipv6_mreq)));
-  return S48_UNSPECIFIC;
+  return s48_unspecific_2(call);
 }
 
-static s48_value
-s48_ipv6_socket_join_group(s48_value sch_channel,
-			   s48_value sch_address,
-			   s48_value sch_if)
+static s48_ref_t
+s48_ipv6_socket_join_group(s48_call_t call, s48_ref_t sch_channel,
+			   s48_ref_t sch_address,
+			   s48_ref_t sch_if)
 {
-  return ipv6_socket_group_op(IPV6_JOIN_GROUP,
+  return ipv6_socket_group_op(call, IPV6_JOIN_GROUP,
 			      sch_channel, sch_address, sch_if);
 }
 
-static s48_value
-s48_ipv6_socket_leave_group(s48_value sch_channel,
-			    s48_value sch_address,
-			    s48_value sch_if)
+static s48_ref_t
+s48_ipv6_socket_leave_group(s48_call_t call, s48_ref_t sch_channel,
+			    s48_ref_t sch_address,
+			    s48_ref_t sch_if)
 {
-  return ipv6_socket_group_op(IPV6_LEAVE_GROUP,
+  return ipv6_socket_group_op(call, IPV6_LEAVE_GROUP,
 			      sch_channel, sch_address, sch_if);
 }
 
@@ -339,6 +345,8 @@ s48_init_net_sockets(void)
   S48_EXPORT_FUNCTION(s48_getsockopt_SO_RCVLOWAT);
   S48_EXPORT_FUNCTION(s48_setsockopt_SO_SNDLOWAT);
   S48_EXPORT_FUNCTION(s48_getsockopt_SO_SNDLOWAT);
+  S48_EXPORT_FUNCTION(s48_setsockopt_TCP_NODELAY);
+  S48_EXPORT_FUNCTION(s48_getsockopt_TCP_NODELAY);
 
   S48_EXPORT_FUNCTION(s48_setsockopt_IPV6_UNICAST_HOPS);
   S48_EXPORT_FUNCTION(s48_getsockopt_IPV6_UNICAST_HOPS);

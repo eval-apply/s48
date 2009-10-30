@@ -18,6 +18,9 @@
     (define external-call
       (external "s48_external_call" (=> (integer integer integer address)
 					integer)))
+    (define external-call-2
+      (external "s48_external_call_2" (=> (integer integer integer address)
+					integer)))
     (define schedule-interrupt 
       (external "s48_schedule_alarm_interrupt" (=> (integer) integer)))
 
@@ -125,6 +128,10 @@
     (define external-bignum-fits-in-word?
       (external "s48_bignum_fits_in_word_p" (=> (address integer boolean) 
  						boolean)))
+
+    ;; external call interface
+    (define trace-external-calls
+      (external "s48_trace_external_calls" (=> () null)))
     ))
 
 (define-structures ((channel-io channel-interface)

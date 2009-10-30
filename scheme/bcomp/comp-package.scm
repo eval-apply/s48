@@ -56,14 +56,14 @@
 ; forth).  This adds the appropriate transform to ENV.
 
 (define (define-usual-transform env name)
-  (environment-define! env
-		       name
-		       syntax-type
-		       (make-transform (usual-transform name)
-				       (extract-package-from-environment env)
-				       syntax-type
-				       `(usual-transform ',name)
-				       name)))
+  (comp-env-define! env
+		    name
+		    syntax-type
+		    (make-transform/macro (usual-transform name)
+					  (extract-package-from-comp-env env)
+					  syntax-type
+					  `(usual-transform ',name)
+					  name)))
 
 ; This adds definitions of all operators to ENV and returns a list of forms
 ; that define the closed-compiled versions of those operators that have such.
@@ -75,10 +75,10 @@
   (table-walk (lambda (name op)
 		(let ((type (operator-type op)))
 		  (if (not (eq? (operator-type op) 'leaf))
-		      (environment-define! env name (operator-type op) op))))
+		      (comp-env-define! env name (operator-type op) op))))
 	      operators-table)
 
-  (environment-define! env 'all-operators vector-type)
+  (comp-env-define! env 'all-operators vector-type)
   
   (let ((all-operators-node (expand 'all-operators env))
 	(vector-set!-node (make-node operator/literal (get-primop 'vector-set!)))
@@ -99,7 +99,7 @@
 			     (expand name env)))))
 
     (walk-primops (lambda (name type primop)
-		    (environment-define! env name type primop)
+		    (comp-env-define! env name type primop)
 		    (set! procs
 			  (cons (make-define-primitive-node name env)
 				(cons

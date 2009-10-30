@@ -15,8 +15,7 @@
 	    (literal->index frame (primop-closed-template name)))
 	  (instruction (enum op push))
 	  (instruction (enum op false))		; no environment
-	  (instruction (enum op make-stored-object) 2 (enum stob closure))
-	  (instruction (enum op make-immutable!)))
+	  (instruction (enum op make-stored-object) 2 (enum stob closure)))
 	cont))))
 
 (define (primop-closed-template name)
@@ -110,10 +109,6 @@
     ((arithmetic-shift)
      ,(proc (exact-integer-type exact-integer-type)
 	    exact-integer-type))
-    ((char=? char<?)
-     ,(proc (char-type char-type) boolean-type))
-    (string=?
-     ,(proc (string-type string-type) boolean-type))
     (open-channel
      ;; Can return #f
      ,(proc (string-type value-type exact-integer-type boolean-type) value-type))
@@ -134,7 +129,7 @@
     ((= opcode op-count))
   (let ((arg-specs (vector-ref opcode-arg-specs opcode))
         (name (enumerand->name opcode op)))
-    (cond ((memq name '(call-external-value
+    (cond ((memq name '(call-external-value call-external-value-2
 			return-from-interrupt return
 			binary-comparison-reduce2)))
           ((null? arg-specs)
@@ -600,6 +595,13 @@
                   (instruction (enum op call-external-value))
                   (instruction (enum op return)))))
 
+(define-n-ary-compiler-primitive 'call-external-value-2 value-type 1
+  #f                                         ;Could be done
+  (lambda (frame)
+    (sequentially (nary-primitive-protocol 1)
+                  (instruction (enum op call-external-value-2))
+                  (instruction (enum op return)))))
+
 (let ((n-ary-constructor
         (lambda (name type type-byte)
 	  (define-n-ary-compiler-primitive name type 0
@@ -757,9 +759,9 @@
 ; = and < and so forth take two or more arguments.
 
 (let ((define=<
-	(lambda (id opcode)
+	(lambda (id opcode type)
 	  (define-compiler-primitive id
-	    (proc (real-type real-type &rest real-type) boolean-type)
+	    (proc (type type &rest type) boolean-type)
 	    (lambda (node depth frame cont)
 	      (if (node-ref node 'type-error)
 		  (compile-unknown-call node depth frame cont)
@@ -781,11 +783,14 @@
 			      (instruction opcode)
 			      (instruction (enum op binary-comparison-reduce2))
 			      (instruction (enum op return)))))))))
-  (define=< '= (enum op =))
-  (define=< '< (enum op <))
-  (define=< '> (enum op >))
-  (define=< '<= (enum op <=))
-  (define=< '>= (enum op >=)))
+  (define=< '= (enum op =) real-type)
+  (define=< '< (enum op <) real-type)
+  (define=< '> (enum op >) real-type)
+  (define=< '<= (enum op <=) real-type)
+  (define=< '>= (enum op >=) real-type)
+  (define=< 'char<? (enum op char<?) char-type)
+  (define=< 'char=? (enum op char=?) char-type)
+  (define=< 'string=? (enum op string=?) string-type))
 
 ; Returns code to apply OPCODE to IDENTITY and ARGUMENT.
 
@@ -959,16 +964,16 @@
 					 "unknown compiler continuation" (enumerand->name regular op) cont)))))
 	      (direct-closed-compilator regular))))))
 
-  (define-encode/decode 'encode-char 
+  (define-encode/decode 'char->utf
     (proc (exact-integer-type char-type value-type exact-integer-type exact-integer-type)
 	  (make-some-values-type (list boolean-type value-type)))
     5 2
-    (enum op encode-char) (enum op encode-char!))
+    (enum op char->utf) (enum op char->utf!))
 
-  (define-encode/decode 'decode-char 
+  (define-encode/decode 'utf->char
     (proc (exact-integer-type value-type exact-integer-type exact-integer-type)
 	  (make-some-values-type (list value-type value-type)))
     4 2
-    (enum op decode-char) (enum op decode-char!)))
+    (enum op utf->char) (enum op utf->char!)))
 
   

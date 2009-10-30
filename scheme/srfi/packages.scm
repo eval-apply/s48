@@ -237,10 +237,12 @@
 	  string string-append list->string))
 
 (define-structure srfi-13 srfi-13-interface
-  (open scheme-level-2
+  (open (modify scheme-level-2
+		(hide string-copy string-upcase string-downcase string-titlecase string-fill! string->list))
 	bitwise
 	srfi-8 srfi-14
-	unicode-char-maps
+	(modify unicode-char-maps
+		(hide string-upcase string-downcase string-titlecase))
 	(subset exceptions (assertion-violation)))
   (files srfi-13))
 
@@ -295,6 +297,7 @@
 	(subset primitives (copy-bytes! unspecific))
 	inversion-lists
 	srfi-9
+	(subset define-record-types (define-record-discloser))
 	variable-argument-lists
 	(subset big-util (partition-list))
 	(subset features (make-immutable!))
@@ -623,7 +626,7 @@
   (export (lazy :syntax) force (delay :syntax)))
 
 (define-structure srfi-45 srfi-45-interface
-  (open scheme
+  (open (modify scheme (hide delay force))
 	define-record-types)
   (files srfi-45))
 
@@ -839,6 +842,8 @@
   (export sorted? merge merge! sort sort!))
 
 (define-structure srfi-95 srfi-95-interface
-  (open scheme srfi-63
-	(subset exceptions (assertion-violation)))
+  (open (modify scheme (hide equal?)) srfi-63
+	(modify sorting (prefix olin:))
+	(modify list-merge-sort (prefix olin:))
+	(modify vector-merge-sort (prefix olin:)))
   (files srfi-95))

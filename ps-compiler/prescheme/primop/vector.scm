@@ -28,7 +28,7 @@
 
 (define-nonsimple-scheme-primop record-set! write)
 
-(define (simplify-test call)
+(define (simplify-type-case-test call)
   (simplify-args call 0))
 
 ; There should be no discovered calls to TYPE-CASE.
@@ -44,7 +44,7 @@
   #f)
 
 (define-scheme-cond-primop type-case
-  simplify-test
+  simplify-type-case-test
   expand-test
   simplify-type-case?)
 

@@ -193,7 +193,7 @@
 
 (define true          (make-immediate (enum imm true) 0))
 (define false         (make-immediate (enum imm false) 0))
-(define eof-object    (make-immediate (enum imm eof)  0))
+(define vm-eof-object (make-immediate (enum imm eof)  0)) ; distinguish from RTS's idea of this
 (define null          (make-immediate (enum imm null) 0))
 (define unspecific-value  (make-immediate (enum imm unspecific) 0))
 (define quiescent         (make-immediate (enum imm undefined) 0))
@@ -226,10 +226,10 @@
   (ascii->char (immediate-info d)))
 
 ; new:
-(define (scalar-value->char c)
+(define (scalar-value->vm-char c)
   (make-immediate (enum imm char) c))
 
-(define (char->scalar-value d)
+(define (vm-char->scalar-value d)
   (assert (vm-char? d))
   (immediate-info d))
 
@@ -259,10 +259,6 @@
 
 (define (make-header-immutable header)
   (bitwise-ior header header-immutable-bit-mask))
-
-;; assumes header is immutable
-(define (make-header-mutable header)
-  (bitwise-xor header header-immutable-bit-mask))
 
 (define (header-type h)
   (assert (header? h))

@@ -1,6 +1,9 @@
 /* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
    See file COPYING. */
 
+/* NB: sysdep.h must come first in order for LFS to be enabled
+   properly */
+#include "sysdep.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +14,6 @@
 #include <errno.h>              /* for errno, (POSIX?/ANSI) */
 #include <string.h>		/* FD_ZERO sometimes needs this */
 #include <locale.h>		/* ISO C99 */
-#include "sysdep.h"
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
@@ -332,4 +334,26 @@ s48_add_channel(s48_value mode, s48_value id, long fd)
         "Warning: output channel file descriptor %d is not non-blocking\n",
 	      (int) fd); }
   return s48_really_add_channel(mode, id, fd);
+}
+
+s48_ref_t
+s48_add_channel_2(s48_call_t call, s48_ref_t mode, s48_ref_t id, long fd)
+{
+  if (s48_eq_p_2(call, mode, s48_channel_status_output_2(call))
+      && fd != 1
+      && fd != 2) {
+    int flags;
+    RETRY_OR_RAISE_NEG(flags, fcntl(fd, F_GETFL));
+    if ((flags & O_NONBLOCK) == 0)
+      fprintf(stderr,
+        "Warning: output channel file descriptor %d is not non-blocking\n",
+	      (int) fd); }
+  return s48_make_local_ref(call, s48_really_add_channel(s48_deref(mode), s48_deref(id), fd));
+}
+
+s48_ref_t
+s48_set_channel_os_index_2(s48_call_t call, s48_ref_t channel, long fd)
+{
+  /* back to the VM */
+  return s48_make_local_ref(call, s48_set_channel_os_index(s48_deref(channel), fd));
 }

@@ -5,7 +5,15 @@
 #include "c-mods.h"
 #include "scheme48write-barrier.h"
 
-#define SMALL_MULTIPLY(x,y) ((x) * (y))
+/* 
+ * This is to tell the C compiler that the result may be negative even
+ * though the operands are unsigned.  It is still dubious: A cast from
+ * an unsigned to an int that involves an overflow pretty much has
+ * undefined result - the C standard does not give us two's complement
+ * arithmetic.
+ */
+
+#define SMALL_MULTIPLY(x,y) ((long)((unsigned long)(x) * (unsigned long)(y)))
 
 #define	NO_ERRORS	0		/* extension to errno.h */
 
@@ -21,7 +29,11 @@ extern s48_value	s48_extended_vm(long, s48_value),
 			s48_external_call(s48_value proc,
 					  s48_value proc_name,
 					  long nargs,
-					  char *argv);
+					  char *argv),
+			s48_external_call_2(s48_value proc,
+					    s48_value proc_name,
+					    long nargs,
+					    char *argv);
 
 /*
  * This comes from glue.{s,c}.

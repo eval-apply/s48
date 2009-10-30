@@ -11,7 +11,7 @@
   (force-channel-output-ports!)
   (posix-fork))
 
-(import-lambda-definition posix-fork ())
+(import-lambda-definition-2 posix-fork ())
 
 ; Fork off a process to execute THUNK, but don't return a pid.  This avoids
 ; any problem with zombies.
@@ -35,11 +35,11 @@
 ;            or a list of byte vectors, representing text of the form "name=value".
 ;   arguments: a list of byte vectors
 
-(import-lambda-definition external-exec-with-alias (program lookup? environment arguments)
+(import-lambda-definition-2 external-exec-with-alias (program lookup? environment arguments)
 			  "posix_exec")
 
 (define (thing->exec-arg-byte-string thing)
-  (os-string->byte-vector (x->os-string thing)))
+  (x->os-byte-vector thing))
 
 (define (exec-with-alias program lookup? environment arguments)
   (external-exec-with-alias (thing->exec-arg-byte-string program)
@@ -105,7 +105,7 @@
 ; We need to make these in the outside world.
 (define-exported-binding "posix-process-id-type" :process-id)
 
-(import-lambda-definition integer->process-id (int) "posix_enter_pid")
+(import-lambda-definition-2 integer->process-id (int) "posix_enter_pid")
 
 ;----------------
 ; 3.2 Process Termination
@@ -155,7 +155,7 @@
 	      (if (not (eq? pid next))
 		  (loop))))))))
 
-(import-lambda-definition posix-waitpid ())
+(import-lambda-definition-2 posix-waitpid ())
 
 (define (exit status)
   (force-channel-output-ports!)

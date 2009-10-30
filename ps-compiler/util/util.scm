@@ -43,6 +43,7 @@
 (define (table->list table)
   (select-from-table (lambda (x y) #t) table))
 
+; this is exported from `tables', but that's a fairly recent development
 (define (table->entry-list table)
   (let ((res '()))
     (table-walk (lambda  (key entry)
@@ -153,11 +154,6 @@
 		   (set-cdr! result next)
 		   (loop (cdr list) next)))))
 	copy)))
-
-(define (symbol-hash symbol)
-  (string-hash (symbol->string symbol)))
-
-(define string-hash (structure-ref features string-hash))
 
 (define (object-hash x)
   0)           ; wah!

@@ -6,7 +6,7 @@
 				   )
   (open scheme test-suites matchers
 	threads
-	srfi-1
+	(subset srfi-1 (identity iota lset= lset<=))
 	rendezvous rendezvous-channels
 	rendezvous-jars
 	rendezvous-placeholders)

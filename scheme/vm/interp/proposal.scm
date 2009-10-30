@@ -322,7 +322,7 @@
   (any-> any-> fixnum->)
   (lambda (record type index)
     (cond ((not (and (stob-of-type? record (enum stob record))
-		     (vm-eq? type (record-ref record 0))))
+		     (record-has-type? record type)))
 	   (raise-exception wrong-type-argument 1
 			    record type (enter-fixnum index)))
 	  ((valid-index? index (record-length record))
@@ -338,8 +338,8 @@
 
 (define-primitive checked-record-set! (any-> any-> fixnum-> any->)
   (lambda (record type index value)
-    (cond ((or (not (stob-of-type? record (enum stob record)))
-	       (not (vm-eq? type (record-ref record 0))))
+    (cond ((not (and (stob-of-type? record (enum stob record))
+		     (record-has-type? record type)))
 	   (raise-exception wrong-type-argument 1
 			    record type (enter-fixnum index) value))
 	  ((immutable? record)

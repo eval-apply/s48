@@ -32,8 +32,7 @@
 (define (open-shared-object name complete-name?)
   (let ((shared-object (make-shared-object name
 					   complete-name?
-					   (external-dlopen (os-string->byte-vector
-							     (x->os-string name))
+					   (external-dlopen (x->os-byte-vector name)
 							    complete-name?))))
     (add-finalizer! shared-object close-shared-object)
     shared-object))
@@ -85,11 +84,11 @@
 (define (call-shared-object-address s-o-address)
   (external-call-thunk (shared-object-address-value s-o-address)))
 
-(import-lambda-definition external-dlopen (name generate-name?)
+(import-lambda-definition-2 external-dlopen (name generate-name?)
 			  "shared_object_dlopen")
-(import-lambda-definition external-dlsym (handle name)
+(import-lambda-definition-2 external-dlsym (handle name)
 			  "shared_object_dlsym")
-(import-lambda-definition external-dlclose (shared-object)
+(import-lambda-definition-2 external-dlclose (shared-object)
 			  "shared_object_dlclose")
-(import-lambda-definition external-call-thunk (address)
+(import-lambda-definition-2 external-call-thunk (address)
 			  "shared_object_call_thunk")

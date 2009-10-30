@@ -24,6 +24,8 @@
 	  read-command			;take
 	  read-command-carefully	;inspect
 	  read-form
+	  with-sharp-sharp              ; ##
+	  current-sharp-sharp           ; ##
 	  run-sentinels
 	  set-command-results!
 	  start-command-processor
@@ -203,7 +205,8 @@
 	  user-package-is
 	  config
 	  config-package-is
-	  undefine))
+	  undefine
+	  set-reader))
 
 (define-interface debug-commands-interface
   (export translate
@@ -314,7 +317,7 @@
 (define-interface extended-numbers-interface
   (export (define-extended-number-type :syntax)
 	  (define-opcode-extension :syntax)
-	  :exact :inexact
+	  <exact> <inexact>
 	  string-position
 	  &+
 	  &-
@@ -343,6 +346,7 @@
 	  &sin &cos &tan &asin &acos &atan1 &atan2
 	  &sqrt
 	  &make-rectangular
+	  &make-polar
 	  &number->string
 	  &really-string->number))
 
@@ -359,6 +363,8 @@
 	  general-category-id
 	  general-category-symbol
 	  general-category-primary-category
+	  general-categories
+	  general-category-index
 
 	  char-general-category
 	  char-titlecase
@@ -393,6 +399,149 @@
 	  string-normalize-nfkd
 	  string-normalize-nfc
 	  string-normalize-nfkc))
+
+; --------------------
+; Transport Link Cell Tables
+
+(define-interface tconc-queues-interface
+  (export make-tconc-queue
+          tconc-queue?
+          tconc-queue-empty?
+          tconc-queue-enqueue!
+          tconc-queue-dequeue!
+          tconc-queue-peek
+          tconc-queue-clear!
+          tconc-queue-size))
+
+(define-interface tlc-tables-interface
+  (export make-tlc-table
+	  make-non-default-tlc-table
+          tlc-table?
+          tlc-table-size
+          tlc-table-ref
+          tlc-table-set!
+          tlc-table-delete!
+          tlc-table-contains?
+          tlc-table-update!
+          tlc-table-clear!
+          tlc-table-keys
+          tlc-table-entries
+          tlc-table-equivalence-function
+          tlc-table-hash-function
+          tlc-table-distribution))
+
+; --------------------
+; Standards 
+
+; As R5RS is fixed, we duplicate much of the scheme-level-X-interfaces
+; to decouple them from scheme, which will change.
+(define-interface r5rs-interface
+  (export 
+   ;; from scheme-level-0-interface
+   ((if begin lambda letrec quote set!
+	define define-syntax let-syntax letrec-syntax)
+    :syntax)
+	  
+   ;; The basic derived expression types.
+   ((and cond do let let* or) :syntax)
+
+   apply
+
+   ;; Scalar primitives
+   eq?
+   number? integer? rational? real? complex?
+   exact? exact->inexact inexact->exact
+   + - * / = < > <= >=
+   quotient remainder
+   floor numerator denominator
+   real-part imag-part
+   exp log sin cos tan asin acos atan sqrt
+   angle magnitude make-polar make-rectangular
+   char?
+   char=? char<?
+   eof-object?
+   input-port? output-port?
+
+   ;; Data manipulation
+   pair? cons car cdr set-car! set-cdr!
+   symbol? symbol->string
+   string? make-string string-length string-ref string-set!
+   vector? make-vector vector-length vector-ref vector-set!
+
+   ;; Unnecessarily primitive
+   string=?
+   vector
+   assq
+
+   ;; New in Revised^5 Scheme
+   values call-with-values
+
+   ;; Things aren't primitive at the VM level, but they have
+   ;; to be defined using VM primitives.
+   string-copy
+   string->symbol
+   procedure?
+   integer->char char->integer
+
+   ;; from scheme-level-1-interface
+   ((case delay quasiquote syntax-rules) :syntax)
+   abs
+   append  assoc assv	  
+   boolean?
+   caaaar caaadr caadar caaddr caaar caadr caar
+   cadaar cadadr caddar cadddr cadar caddr cadr
+   cdaaar cdaadr cdadar cdaddr cdaar cdadr cdar
+   cddaar cddadr cdddar cddddr cddar cdddr cddr
+   char-alphabetic?
+   ceiling
+   char-ci<=? char-ci<? char-ci=? char-ci>=? char-ci>?
+   char-downcase char-lower-case? char-numeric?
+   char-upcase
+   char-upper-case? char-whitespace? char<=?
+   char>=? char>?
+   equal? eqv? even? expt
+   for-each force
+   gcd
+   inexact?
+   lcm length list list->string list->vector
+   list?				;New in R4RS
+   list-ref list-tail
+   map max member memq memv min modulo
+   negative? not null?
+   odd?
+   positive?
+   rationalize
+   reverse
+   round 
+   string string->list
+   string-append
+   string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>?
+   string-fill!
+   string<=? string<? string=? string>=? string>?
+   substring
+   truncate
+   vector->list vector-fill!
+   zero?
+
+   ;; from scheme-level-2-interface
+   (char-ready? (proc (&opt :input-port) :boolean))
+   call-with-current-continuation
+   call-with-input-file call-with-output-file
+   current-input-port current-output-port
+   dynamic-wind				;New in R5RS
+   close-input-port close-output-port
+   open-input-file open-output-file
+   with-input-from-file with-output-to-file
+   number->string string->number
+   read-char peek-char write-char
+   newline display write
+   read
+
+   ;; from scheme-adds-interface
+   eval load
+   interaction-environment
+   scheme-report-environment
+   null-environment))
 
 ; --------------------
 ; Big Scheme
@@ -440,6 +589,7 @@
 	  make-byte-vector-input-port make-string-input-port
 	  make-byte-vector-output-port make-string-output-port
 	  byte-vector-output-port-output string-output-port-output
+	  write-byte-vector-output-port-output write-string-output-port-output
 	  limit-output
 	  current-row current-column fresh-line
 
@@ -636,12 +786,13 @@
 	  is-true is-false is-null
 	  is-within
 	  member-of
-	  all-of any-of list-where-all list-where-any))
+	  all-of any-of list-where-all list-where-any
+	  list-of vector-of pair-of))
 
 (define-interface test-suites-interface 
   (export ((define-test-suite define-test-case define-test-cases) :syntax)
-	  ((check check-exception check-that check-exception-that) :syntax)
-	  run-test-suite
+	  ((check check-terminates check-exception check-that check-exception-that) :syntax)
+	  run-test-suite run-test-cases
 	  =within
 	  zap-test-suite!))
 

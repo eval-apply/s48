@@ -94,14 +94,13 @@
 (define (maybe-make-d-vector+gc type len)
   (maybe-make-stob type (cells->bytes len) s48-allocate-traced+gc))
 
-(define (make-weak-pointer init weak-pointer-size)
-  (let* ((addr (s48-allocate-weak+gc (cells->bytes weak-pointer-size)))
-	 (weak-pointer (initialize-stob addr 
-					(enum stob weak-pointer) 
-					(cells->bytes (- weak-pointer-size 1)))))
-    (d-vector-init! weak-pointer 0 init)
-    weak-pointer))
-
+; we can't go through ensure-space, as weak pointers might live in
+; a separate area
+(define (make-weak-pointer weak-pointer-size)
+  (let ((addr (s48-allocate-weak+gc (cells->bytes weak-pointer-size))))
+    (initialize-stob addr 
+		     (enum stob weak-pointer) 
+		     (cells->bytes (- weak-pointer-size 1)))))
 
 ; Add the header to a stob and add the tag to the address.
 
@@ -140,10 +139,6 @@
 (define (make-immutable! thing)
   (if (not (immutable? thing))
       (stob-header-set! thing (make-header-immutable (stob-header thing)))))
-
-(define (make-mutable! thing)
-  (if (immutable? thing)
-      (stob-header-set! thing (make-header-mutable (stob-header thing)))))
 
 ;----------------
 ; D-vectors (vectors of descriptors)

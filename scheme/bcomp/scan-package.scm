@@ -47,36 +47,46 @@
 	 (dir (if config-file
 		  (file-name-directory config-file)
 		  #f)))
-    (fold->3 (lambda (clause stuff transforms primitives?)
-	       (case (car clause)
-		 ((files)
-		  (values (read-files (cdr clause) stuff dir package)
-			  transforms
-			  primitives?))
-		 ((begin)
-		  (values (cons (cons config-file (cdr clause))
-				stuff)
-			  transforms
-			  primitives?))
-		 ((integrate)
-		  (set-package-integrate?! package
-					   (or (null? (cdr clause))
-					       (cadr clause)))
-		  (values stuff transforms primitives?))
-		 ((optimize)
-		  (values stuff transforms primitives?))
-		 ((define-all-operators)
-		  (values stuff transforms #t))
-		 ((usual-transforms)
-		  (values stuff
-			  (append (cdr clause) transforms)
-			  primitives?))
-		 (else
-		  (assertion-violation 'package-source
-				       "unrecognized define-structure keyword"
-				       clause))))
-	     (reverse (package-clauses package))
-	     '() '() #f)))
+    (call-with-values
+	(lambda ()
+	  (fold->3 (lambda (clause stuff transforms primitives?)
+		     (case (car clause)
+		       ((files)
+			(values (read-files (cdr clause) stuff dir package)
+				transforms
+				primitives?))
+		       ((begin)
+			(values (cons (cons config-file (cdr clause))
+				      stuff)
+				transforms
+				primitives?))
+		       ((integrate)
+			(set-package-integrate?! package
+						 (or (null? (cdr clause))
+						     (cadr clause)))
+			(values stuff transforms primitives?))
+		       ((optimize)
+			(values stuff transforms primitives?))
+		       ((define-all-operators)
+			(values stuff transforms #t))
+		       ((usual-transforms)
+			(values stuff
+				(append (reverse (cdr clause)) transforms)
+				primitives?))
+		       ((reader)
+			(let ((r (force (comp-env-macro-eval (package->environment package)))))
+			  (set-package-reader! package ((car r) (cadr clause) (cdr r))))
+			(values stuff transforms primitives?))
+		       (else
+			(assertion-violation 'package-source
+					     "unrecognized define-structure keyword"
+					     clause))))
+		   (package-clauses package)
+		   '() '() #f))
+      (lambda (stuff transforms primitives?)
+	(values (reverse stuff)
+		(reverse transforms)
+		primitives?)))))
 
 ; Also prints out the filenames (courtesy of READ-FORMS).
 
@@ -89,7 +99,7 @@
 	    (display #\space (current-noise-port))
 	    (cons (cons file (read-forms file package #f))
 		  stuff)))
-	(reverse all-files)
+	all-files
 	stuff))
 
 (define (package-optimizer-names package)

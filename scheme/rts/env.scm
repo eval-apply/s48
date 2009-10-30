@@ -106,6 +106,20 @@
 ; where clauses is a list of DEFINE-STRUCTURE clauses
 
 (define set-reflective-tower-maker!
-  (let ((name (string->symbol ".make-reflective-tower.")))
+  (let ((name (string->symbol ".make-reflective-tower."))
+	(reader-name (string->symbol ".reader.")))
     (lambda (p proc)
-      (environment-define! p name proc))))
+      (environment-define! p name proc)
+      ;; total, utter kludge:
+      ;; The reader wasn't configurable in earlier versions of Scheme 48,
+      ;; so some software written for it doesn't initialize it properly.
+      ;; (Notably the PreScheme compiler.)
+      ;; However, that software does know about set-reflective-tower-maker!.
+      ;; So, make sure it's set here to avoid an undefined variable.
+      (if (not (package-lookup p reader-name))
+	  (environment-define! p reader-name read)))))
+
+(define set-reader!
+  (let ((name (string->symbol ".reader.")))
+    (lambda (p reader)
+      (environment-define! p name reader))))

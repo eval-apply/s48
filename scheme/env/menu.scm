@@ -121,6 +121,12 @@
 		((weak-pointer? thing)
 		 `((ref ,(weak-pointer-ref thing))))
 		
+		((transport-link-cell? thing)
+		 `((key ,(transport-link-cell-key thing))
+		   (value ,(transport-link-cell-value thing))
+		   (tconc ,(transport-link-cell-tconc thing))
+		   (next ,(transport-link-cell-next thing))))
+
 		(else '()))))))
 	
 (define (careful-length list)
@@ -196,15 +202,35 @@
 
 (define (prepare-record-menu thing)
   (let ((rt (record-type thing))
-        (z (record-length thing)))
+	(z (record-length thing))) 
     (if (record-type? rt)
-        (do ((i (- z 1) (- i 1))
-             (f (reverse (record-type-field-names rt)) (cdr f))
-             (l '() (cons (list (car f) (record-ref thing i)) l)))
-            ((< i 1) l))
-        (do ((i (- z 1) (- i 1))
-             (l '() (cons (list #f (record-ref thing i)) l)))
-            ((< i 0) l)))))
+	(let loop ((names (record-type-field-names rt))
+		   (rev '())
+		   (i 1))
+	  (if (< i z)
+	      (call-with-values
+		  (lambda ()
+		    (if (pair? names)
+			(values (car names) (cdr names))
+			;; the rest are all bases
+			(values 'base '())))
+		(lambda (name names)
+		  (loop names (cons (list name (record-ref thing i)) rev) (+ 1 i))))
+	      (reverse rev)))
+	(do ((i (- z 1) (- i 1))
+	     (l '() (cons (list #f (record-ref thing i)) l)))
+	    ((< i 0) l)))))
+
+; all field names, supertypes included
+(define (record-type-all-field-names rt)
+  (let loop ((rt rt)
+	     (rev '()))
+  (cond
+   ((record-type-parent rt)
+    => (lambda (prt)
+	 (loop prt (append (reverse (record-type-field-names rt)) rev))))
+   (else
+    (reverse (append (reverse (record-type-field-names rt)) rev))))))
 
 ; We may have the names (`shape') for environments, in which case they
 ; are used in the menus.

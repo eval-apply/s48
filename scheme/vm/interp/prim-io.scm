@@ -50,7 +50,7 @@
 	     (lose (enum exception wrong-type-argument)))
 	    ((fixnum? spec)
 	     (if (<= 0 (extract-fixnum spec))
-	 (win (extract-fixnum spec))
+		 (win (extract-fixnum spec))
 		 (lose (enum exception wrong-type-argument))))
 	    ((code-vector? spec)
 	     (receive (channel status)
@@ -125,7 +125,7 @@
 		       ;; possible on Windows
 		       (if pending?
 			   (set-channel-os-status! channel true))
-		       eof-object)
+		       vm-eof-object)
 		      (pending?
 		       (set-channel-os-status! channel true)
 		       false)
@@ -283,7 +283,7 @@
 				       (set-port-pending-cr?! port false)
 				       (set-port-index! port (enter-fixnum (+ i count)))))
 				 (goto continue-with-value
-				       (scalar-value->char value)
+				       (scalar-value->vm-char value)
 				       1))
 			       
 			       (cond
@@ -299,7 +299,7 @@
 				       (begin
 					 (set-port-pending-cr?! port true)
 					 (set-port-index! port (enter-fixnum (+ i count)))))
-				   (goto continue-with-value (scalar-value->char lf-code) 1))
+				   (goto continue-with-value (scalar-value->vm-char lf-code) 1))
 				  ((and (= value lf-code)
 					(not (false? (port-pending-cr? port))))
 				   (if read?
@@ -380,7 +380,7 @@
 		 ((= i l) (lose))
 		 ;; CR/LF handling is atrocious
 		 ((and (not (false? (port-crlf? port)))
-		       (= (char->scalar-value char) lf-code))
+		       (= (vm-char->scalar-value char) lf-code))
 		  (call-with-values
 		      (lambda ()
 			(encode-scalar-value (extract-fixnum codec) cr-code 
@@ -412,7 +412,7 @@
 		 (else
 		  (call-with-values
 		      (lambda ()
-			(encode-scalar-value (extract-fixnum codec) (char->scalar-value char) 
+			(encode-scalar-value (extract-fixnum codec) (vm-char->scalar-value char) 
 					     (address+ (address-after-header b) i)
 					     (- l i)))
 		    (lambda (codec-ok? encoding-ok? out-of-space? count)
@@ -481,7 +481,7 @@
 	 (write-integer (extract-fixnum thing) out))
 	((vm-char? thing)
 	 (write-string "#\\" out)
-	 (write-char (ascii->char (char->scalar-value thing)) out)) ; ####
+	 (write-char (ascii->char (vm-char->scalar-value thing)) out)) ; ####
 	((typed-record? thing)
 	 (write-string "#{" out)
 	 (write-vm-string (record-type-name thing) out)
@@ -512,17 +512,6 @@
 			     (else
 			      "???"))
 		       out))))
-
-(define (typed-record? thing)
-  (and (record? thing)
-       (< 0 (record-length thing))
-       (let ((type (record-ref thing 0)))
-	 (and (record? type)
-	      (< 2 (record-length type))
-	      (vm-symbol? (record-ref type 2))))))
-
-(define (record-type-name record)
-  (vm-symbol->string (record-ref (record-ref record 0) 2)))
 
 ;----------------------------------------------------------------
 ; RESUME-PROC is called when the image is resumed.

@@ -70,13 +70,13 @@
         methods exceptions
 	enumerated
 	loopholes
-	more-types		;:double
+	more-types		;<double>
         primitives)             ;vm-extension double?
   (files (rts floatnum))
   (optimize auto-integrate))
 
 (define-structure unicode-char-maps unicode-char-maps-interface
-  (open scheme
+  (open (modify scheme (hide string-ci=? string-ci<?))
 	set-text-procedures
 	unicode
 	finite-types
@@ -122,6 +122,40 @@
   (files (big unicode-normalization-info)
 	 (big unicode-normalization)))
 
+; --------------------
+; Transport Link Cell Tables
+
+(define-structure tconc-queues tconc-queues-interface
+  (open scheme-level-1 exceptions)
+  (files (big tconc-queue))
+  (optimize auto-integrate))
+
+(define-structure tlc-tables tlc-tables-interface
+  (open scheme-level-1 
+        exceptions
+        define-record-types
+        tconc-queues
+        (subset primitives   (make-transport-link-cell
+                              transport-link-cell?
+                              transport-link-cell-key
+                              transport-link-cell-value
+                              set-transport-link-cell-value!
+                              transport-link-cell-next
+                              set-transport-link-cell-next!
+                              transport-link-cell-tconc
+                              set-transport-link-cell-tconc!
+                              memory-status))
+        (subset architecture (memory-status-option))
+        enumerated)
+  (files (big tlc-table))
+  (optimize auto-integrate))
+
+; --------------------
+; Standards 
+
+(define-structure r5rs r5rs-interface
+  (open scheme))
+
 ;----------------
 ; Big Scheme
 
@@ -133,7 +167,7 @@
 (define-structure pp (export p pretty-print define-indentation)
   (open scheme-level-2
         tables
-        methods)               ;disclose
+        (subset methods (disclose)))
   (files (big pp)))
 
 (define-structure formats (export format)
@@ -148,7 +182,7 @@
 	proposals
 	util				; unspecific
 	exceptions
-	(subset primitives      (copy-bytes! write-byte encode-char decode-char))
+	(subset primitives      (copy-bytes! write-byte char->utf utf->char))
 	(subset architecture    (text-encoding-option))
 	enumerated
 	encodings
@@ -243,8 +277,9 @@
 		(rename (error rts-error))
 		(expose error assertion-violation))
 	(modify debugging	(rename (breakpoint rts-breakpoint))
-		(expose breakpoint))
-	(subset primitives	(copy-bytes!)))
+		                (expose breakpoint))
+	(subset primitives	(copy-bytes!))
+	(subset util (filter)))
   (files (big big-util)))
 
 (define-structure big-scheme big-scheme-interface
@@ -264,15 +299,18 @@
 ; Things needed for connecting with external code.
 
 (define-structure external-calls (export call-imported-binding
+					 call-imported-binding-2
 					 lookup-imported-binding
 					 define-exported-binding
 					 shared-binding-ref
 					 ((import-definition
-					   import-lambda-definition)
+					   import-lambda-definition
+					   import-lambda-definition-2)
 					  :syntax)
 					 add-finalizer!
 					 define-record-resumer
-					 call-external-value)
+					 call-external-value
+					 call-external-value-2)
   (open scheme-level-2 define-record-types
 	primitives
 	os-strings
@@ -309,15 +347,15 @@
 (define-structure c-system-function (export have-system? system)
   (open scheme-level-2 byte-vectors os-strings external-calls exceptions)
   (begin
-    (import-lambda-definition s48-system (string))
+    (import-lambda-definition-2 s48-system (string) "s48_system_2")
 
     (define (have-system?)
       (not (= 0 (s48-system #f))))
 
     ;; Kludge
     (define (system cmd-line)
-      (s48-system (os-string->byte-vector (x->os-string cmd-line))))))
-
+      (s48-system (x->os-byte-vector cmd-line)))))
+    
 ; Rudimentary object dump and restore
 
 (define-structure dump/restore dump/restore-interface
@@ -332,7 +370,7 @@
         fluids
         ascii
         bitwise
-        methods                 ;disclose
+        (subset methods (disclose))
         templates)              ;template-info
   (files (big dump)))
 
@@ -406,8 +444,8 @@
 ; record types with a fixed number of instances
 
 (define-structure finite-types (export ((define-finite-type
-					  define-enumerated-type) :syntax))
-  (open scheme-level-2 code-quote define-record-types
+					 define-enumerated-type) :syntax))
+  (open scheme-level-2 code-quotation define-record-types
 	enumerated
 	features)		; make-immutable
   (files (big finite-type)))
@@ -434,7 +472,7 @@
 (define-structure test-suites test-suites-interface
   (open scheme
 	cells
-	big-util
+	(subset big-util (any delete))
 	matchers
 	exceptions
 	define-record-types
@@ -481,4 +519,5 @@
   (syntax-rules () ((define-package . ?rest) (define-structures . ?rest))))
 (define table tables)
 (define record records)
-
+; It used to be called `code-quote', so this is the name the linker imports.
+(define code-quote code-quotation)

@@ -155,15 +155,19 @@
   
 ; Use LET & SET! for LETRECs that have non-LAMBDA values.
 
+(define-flattener 'letrec*
+  (lambda (node free)
+    (flatten-letrec node caddr free flatten-impure-letrec*)))
+
 (define-flattener 'letrec
   (lambda (node free)
-    (flatten-letrec node caddr free)))
+    (flatten-letrec node caddr free flatten-impure-letrec)))
 
 (define-flattener 'pure-letrec
   (lambda (node free)
-    (flatten-letrec node cadddr free)))
+    (flatten-letrec node cadddr free flatten-impure-letrec)))
 
-(define (flatten-letrec node get-body free)
+(define (flatten-letrec node get-body free flatten-impure)
   (let ((form (node-form node)))
     (let ((vars (map car (cadr form)))
 	  (vals (map cadr (cadr form)))
@@ -177,7 +181,7 @@
 		  (not (any assigned? vars)))
 	     (flatten-pure-letrec vars vals body free))	;+++
 	    (else
-	     (flatten-impure-letrec vars vals body free))))))
+	     (flatten-impure vars vals body free))))))
 
 (define (flatten-pure-letrec vars vals body free)
   (let* ((vals-free (install-new-set!))
@@ -218,6 +222,27 @@
 						      temps)
 					       ,body))))
 	     vals))))
+      (map (lambda (ignore)
+	     (make-unassigned-cell))
+	   vars)))))
+
+(define (flatten-impure-letrec* vars vals body free)
+  (for-each (lambda (var)
+	      (node-set! var 'assigned 'maybe))
+	    vars)
+  (let ((vals (flatten-list vals free))
+	(body (flatten-node body free)))
+    (set-difference! free vars)
+    (make-node
+     operator/call
+     (cons
+      (make-node operator/lambda
+		 `(lambda ,vars
+		    ,(make-node operator/begin
+				`(begin ,@(map make-cell-set!
+					       vars
+					       vals)
+					,body))))
       (map (lambda (ignore)
 	     (make-unassigned-cell))
 	   vars)))))
@@ -288,6 +313,10 @@
     (for-each mark-set-variables! (node-form node))))
 
 (define-set-marker 'letrec
+  (lambda (node)
+    (mark-letrec-sets node caddr)))
+
+(define-set-marker 'letrec*
   (lambda (node)
     (mark-letrec-sets node caddr)))
 

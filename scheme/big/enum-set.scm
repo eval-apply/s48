@@ -101,8 +101,8 @@
 
 (define-exported-binding "enum-set-type" :enum-set)
 
-(define (enum-set-has-type? enum-set enum-set-type)
-  (eq? (enum-set-type enum-set) enum-set-type))
+(define (enum-set-has-type? enum-set type)
+  (eq? (enum-set-type enum-set) type))
 
 (define enum-set->integer enum-set-mask)
 

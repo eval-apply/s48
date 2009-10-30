@@ -46,6 +46,38 @@
 			     (goto continue-with-value result 0)))))
 		  (raise-exception wrong-type-argument 0 proc name))))))))
 
+(define-primitive call-external-value-2 ()
+  (lambda ()
+    (let* ((nargs (extract-fixnum (pop)))
+	   (stack-nargs (extract-fixnum (pop)))
+	   (rest-list (pop)))
+      (if (< maximum-external-call-args
+	     (- nargs 2))			; procedure & name
+	  (raise-exception too-many-arguments-to-external-procedure
+			   0
+			   (stack-ref (- stack-nargs 1))
+			   nargs)
+	  (begin
+	    (do ((rest-list rest-list (vm-cdr rest-list)))
+		((vm-eq? rest-list null))
+	      (push (vm-car rest-list)))
+	    (let ((proc (stack-ref (- nargs 1)))
+		  (name (stack-ref (- nargs 2)))
+		  (args (pointer-to-stack-arguments)))
+	      (if (and (vm-string? name)
+		       (code-vector? proc)
+		       (= (code-vector-length proc)
+			  (cells->bytes 1)))
+		  (begin
+		    (remove-current-frame)
+		    (let ((result (external-call-2 proc name (- nargs 2) args)))
+		      (cond (*external-exception?*
+			     (set! *external-exception?* #f)
+			     (goto raise *external-exception-nargs*))
+			    (else
+			     (goto continue-with-value result 0)))))
+		  (raise-exception wrong-type-argument 0 proc name))))))))
+
 ;----------------
 ; Raising exceptions from C.
 

@@ -74,7 +74,8 @@
 	 (new-struct (make-structure (structure-package structure)
 				     (lambda ()
 				       (interface-maker
-				         (structure-interface structure))))))
+				         (structure-interface structure)))
+				    (structure-name structure))))
     (if (structure-unstable? structure)
 	(add-to-population! new-struct (structure-clients structure)))
     new-struct))
@@ -140,29 +141,42 @@
 		       clients
 		       unstable?
 		       integrate?
-		       file-name clauses loaded?)
+		       file-name reader clauses loaded?)
   package?
   (uid	           package-uid)
+  ;; #f if not initialized, then list of structures
   (opens           package-opens-really set-package-opens!)
+  ;; name-table name -> binding
   (definitions     package-definitions)
   (unstable?       package-unstable?)
+  ;; value of integrate clause; use integration in this packages
   (integrate?      package-integrate? set-package-integrate?!)
 
   ;; For EVAL and LOAD (which can only be done in unstable packages)
+  ;; package name -> location
   (get-location    package-get-location set-package-get-location!)
   (file-name       package-file-name)
+  (reader          package-reader set-package-reader!)
   (clauses         package-clauses)
   (loaded?         package-loaded? set-package-loaded?!)
+  ;; compiler environment
   (env             package->environment set-package->environment!)
 
   ;; For package mutation
   (opens-thunk     package-opens-thunk set-package-opens-thunk!)
+  ;; thunk -> (list (pair name struct))
   (accesses-thunk  package-accesses-thunk)
+  ;; locations introduced for missing values
+  ;; name-table name -> location
   (undefineds      package-real-undefineds set-package-undefineds!)
+  ;; locations introduced for missing cells
+  ;; name-table name -> location
   (undefined-but-assigneds
                    package-real-undefined-but-assigneds
 		   set-package-undefined-but-assigneds!)
   (clients         package-clients)
+  ;; locations used here that were supposed to have been provided by someone else
+  ;; name-table name -> place, see binding.scm
   (cached	   package-cached))
 
 (define-record-discloser :package
@@ -193,6 +207,7 @@
 	       unstable?		;unstable (suitable for EVAL)?
 	       #t			;integrate?
 	       file			;file containing DEFINE-STRUCTURE form
+	       read
 	       clauses			;misc. DEFINE-STRUCTURE clauses
 	       #f)))			;loaded?
     (note-package-name! new name)
@@ -206,6 +221,13 @@
   (make-compiler-env (lambda (name)
 		       (package-lookup package name))
 		     (lambda (name type . maybe-static)
+		       (cond
+			((and (symbol? name) ; generated names are hopefully of no interest here
+			      (opened-structure-for-name package name))
+			 => (lambda (struct)
+			      (warning 'package-define!
+				       "name from opened structure redefined"
+				       package name struct))))
 		       (package-define! package
 					name
 					type
@@ -215,6 +237,16 @@
 					    (car maybe-static))))
 		     tower
 		     package))	; interim hack
+
+(define (opened-structure-for-name package name)
+  (let loop ((opens (package-opens-really package)))
+    (cond
+     ((null? opens)
+      #f)
+     ((structure-lookup (car opens) name #t)
+      (car opens))
+     (else
+      (loop (cdr opens))))))
 
 ; Two tables that we add lazily.
 
@@ -394,6 +426,7 @@
 (define (initialize-package! package)
   (let ((opens ((package-opens-thunk package))))
     (set-package-opens! package opens)
+    (check-for-duplicates! package)
     (for-each (lambda (struct)
 		(if (structure-unstable? struct)
 		    (add-to-population! package (structure-clients struct))))
@@ -407,9 +440,35 @@
 			       (cdr name+struct)))
 	    (package-accesses package)))
 
+(define (check-for-duplicates! package)
+  (let ((imported-names (make-symbol-table)) ; maps names to pair of first binding, lists of structures
+	(duplicates '()))
+    (for-each (lambda (struct)
+		(for-each-export 
+		 (lambda (name type binding)
+		   (cond
+		    ((table-ref imported-names name)
+		     => (lambda (p)
+			  (if (not (same-denotation? (car p) binding))
+			      (begin
+				(set! duplicates (cons name duplicates))
+				(if (not (memq struct (cdr p)))
+				    (set-cdr! p (cons struct (cdr p))))))))
+		    (else
+		     (table-set! imported-names name (cons binding (list struct))))))
+		 struct))
+	      (package-opens package))
+    (for-each (lambda (duplicate)
+		(apply warning 'check-for-duplicates!
+		       "duplicate name in opened structure"
+		       duplicate
+		       package
+		       (cdr (table-ref imported-names duplicate))))
+	      duplicates)))
+
 ; (define (package->environment? env)
 ;   (eq? env (package->environment
-;	        (extract-package-from-environment env))))
+;	        (extract-package-from-comp-env env))))
 
 
 ; --------------------

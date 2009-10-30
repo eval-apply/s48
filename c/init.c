@@ -6,6 +6,7 @@
 #include "scheme48vm.h"
 #include "scheme48heap.h"
 #include "scheme48image.h"
+#include "ffi.h"
 
 extern long s48_get_file_size(unsigned char *);
 
@@ -37,14 +38,13 @@ extern long s48_get_file_size(unsigned char *);
 extern void	s48_sysdep_init(void);
 extern void	s48_initialize_external_modules(void);
 
-int
-s48_main(int argc, char *argv[])
+long
+s48_initialize(int *argcp, char ***argv)
 {
   char *image_name = DEFAULT_IMAGE_NAME;
   long heap_size = DEFAULT_HEAP_SIZE;    /* in numbers of cells */
   long stack_size = DEFAULT_STACK_SIZE;  /* in numbers of cells */
   int errors = 0;
-  long return_value;
   char *stack;
 
 #if defined(STATIC_AREAS)
@@ -55,8 +55,9 @@ s48_main(int argc, char *argv[])
   extern long i_count, *i_areas[], i_sizes[];
 #endif
 
-  long vm_argc = 0;
-  char *me = *argv;		/* Save program name. */
+  int argc = *argcp;
+  int vm_argc = 0;
+  char *me = *(*argv);		/* Save program name. */
 
   {
     /* initialize floating-point printer */
@@ -65,27 +66,27 @@ s48_main(int argc, char *argv[])
     s48_free_init();
   }
 
-  argv++; argc--;		/* Skip program name. */
+  (*argv)++; argc--;		/* Skip program name. */
 
-  for (; argc > 0; argc--, argv++)
-    if (argv[0][0] == '-')
-      switch (argv[0][1]) {
+  for (; argc > 0; argc--, (*argv)++)
+    if ((*argv)[0][0] == '-')
+      switch ((*argv)[0][1]) {
       case 'h':
-	argc--; argv++;
+	argc--; (*argv)++;
 	if (argc == 0) { errors++; break; }
-	heap_size = atol(*argv);
+	heap_size = atol(*(*argv));
 	if (heap_size < 0) errors++;  /* 0 means now no limit */
 	break;
       case 's':
-	argc--; argv++;
+	argc--; (*argv)++;
 	if (argc == 0) { errors++; break; }
-	stack_size = atoi(*argv);
+	stack_size = atoi(*(*argv));
 	if (stack_size <= 0) errors++;
 	break;
       case 'i':
-	argc--; argv++;
+	argc--; (*argv)++;
 	if (argc == 0) { errors++; break; }
-	image_name = *argv;
+	image_name = *(*argv);
 	break;
       case 'a':
 	argc--;
@@ -93,29 +94,29 @@ s48_main(int argc, char *argv[])
 	argc = 0;
 	break;
       default:
-	fprintf(stderr, "Invalid argument: %s\n", *argv);
+	fprintf(stderr, "Invalid argument: %s\n", *(*argv));
 	errors++;
       }
     else
-      if (argv[0][0] != '\0') {
-	fprintf(stderr, "Invalid argument: %s\n", *argv);
+      if ((*argv)[0][0] != '\0') {
+	fprintf(stderr, "Invalid argument: %s\n", *(*argv));
 	errors++; }
   if (errors != 0) {
     fprintf(stderr,
 "Usage: %s [options] [-a arguments]\n\
-Options: -h <heap-size>    %s heap size in words (default %d).%s\n\
+Options: -h <heap-size>    %s heap size in words (default %ld).%s\n\
 	 -s <stack-size>   Stack buffer size in words.\n\
          -i <file>         Load image from file (default \"%s\")\n",
 	    me,
 #if S48_GC_BIBOP
 	    "Maximum",
-	    DEFAULT_HEAP_SIZE,
+	    (long)DEFAULT_HEAP_SIZE,
 "\n                           A heap size of 0 means the heap can grow\n\
                            unboundedly. This is dangerous because it can\n\
                            cause your system to run out of memory.",
 #else
 	    "Total",
-	    DEFAULT_HEAP_SIZE,
+	    (long)DEFAULT_HEAP_SIZE,
 	    "",
 #endif
 	    DEFAULT_IMAGE_NAME
@@ -156,6 +157,8 @@ Options: -h <heap-size>    %s heap size in words (default %d).%s\n\
     fprintf(stderr, "system is out of memory\n");
     return 1; }
 
+  s48_initialize_ffi();
+
   s48_initialize_vm(stack, stack_size);
 
   s48_initialize_external_modules();
@@ -163,7 +166,7 @@ Options: -h <heap-size>    %s heap size in words (default %d).%s\n\
   /* Heap und stack are ok. Enable the GC. */
   s48_allow_gcB();
 
-  return_value = s48_call_startup_procedure(argv, vm_argc);
+  *argcp = vm_argc;
 
-  return(return_value);
+  return 0;
 }

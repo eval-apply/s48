@@ -112,35 +112,17 @@
 #endif
 
 
-/* Generation indexing is only usefull with a large number of generations */
-
-#ifndef S48_USE_GENERATION_INDEXING
-#define S48_USE_GENERATION_INDEXING FALSE
-#endif
-
-
-
 /* 5. Marking cards - Dirty vector */
 
 #ifndef S48_LOG_CARD_SIZE
 #define S48_LOG_CARD_SIZE 11
 #endif
 
-#define S48_OFFSET_DIRTY_VECTORS 0  /* For S48_LOG_CARD_SIZE till 9 */
+#define S48_NO_DIRTY_VECTORS 0      /* For tracing everything always */
 #define S48_ADDRESS_DIRTY_VECTORS 1
-#define S48_CROSSINGMAP_DIRTY_VECTORS 2
 
 #ifndef S48_DIRTY_VECTOR_METHOD
 #define S48_DIRTY_VECTOR_METHOD S48_ADDRESS_DIRTY_VECTORS
-#endif
-
-#if (S48_DIRTY_VECTOR_METHOD==S48_OFFSET_DIRTY_VECTORS && \
-     S48_LOG_CARD_SIZE > 9)
-#error "S48_LOG_CARD_SIZE cannot be larger than 9 with S48_OFFSET_DIRTY_VECTORS"
-#endif
-
-#ifndef S48_USE_CARD_GENERATION_INDEXING
-#define S48_USE_CARD_GENERATION_INDEXING FALSE
 #endif
 
 /* Write Barrier Complexity */
@@ -189,28 +171,6 @@
 #define S48_UNIQUE_REMEMBERED_SET TRUE
 #endif
 #endif /* if (S48_USE_REMEMBERED_SETS) */
-
-
-/* Radioactive Decay Model */
-
-#ifndef S48_USE_RDM
-#define S48_USE_RDM FALSE
-#endif
-
-#if (S48_USE_RDM)
-
-#ifndef S48_RDM_MAX_SIZE
-#define S48_RDM_MAX_SIZE (1024*1024)
-#endif
-
-#define S48_RDM_INITIAL_THRESHOLD (S48_RDM_MAX_SIZE/2)
-
-#ifndef S48_RDM_MIN_THRESHOLD
-#define S48_RDM_MIN_THRESHOLD (256*1024)
-#endif
-
-#endif /* #if (S48_USE_RDM) */
-
 
 /* 7. Policies */
 

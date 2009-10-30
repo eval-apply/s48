@@ -44,9 +44,9 @@
 (define (build-image no-warnings? start filename)
   (let ((filename (translate filename)))
     (write-line (string-append "Writing " filename) (command-output))
-    (write-image (os-string->byte-vector (x->os-string filename))
+    (write-image (x->os-byte-vector filename)
 		 (stand-alone-resumer no-warnings? start)
-		 (os-string->byte-vector (string->os-string "")))
+		 (string->os-byte-vector ""))
     #t))
 
 (define (stand-alone-resumer warnings? start)

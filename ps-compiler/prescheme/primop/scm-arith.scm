@@ -168,7 +168,7 @@
 
 (define-complex-primitive (un- nonnegative-integer? . nonnegative-integer?)
   (subtract-action '-)
-  (subtract-checker type/unsigned-integer 'fl-)
+  (subtract-checker type/unsigned-integer 'un-)
   (lambda (x y) (un- x y))
   (subtract-maker 'un- 0))
 
