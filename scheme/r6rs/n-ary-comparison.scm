@@ -14,3 +14,12 @@
     ((define-n-ary-comparison ?name ?binary-name)
      (define (?name a b . rest)
        (apply compare-n-ary ?binary-name a b rest)))))
+
+; avoid re-normalizing on each transitivity step
+(define-syntax define-n-ary-normalizing-comparison
+  (syntax-rules ()
+    ((define-n-ary-normalizing-comparison ?name ?normalize ?binary-name)
+     (define (?name a b . rest)
+       (apply compare-n-ary ?binary-name (?normalize a) (?normalize b)
+	      (map ?normalize rest))))))
+
