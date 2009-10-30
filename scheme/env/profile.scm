@@ -1420,7 +1420,7 @@
 		(if (and (= reccalls 0)
 			 (not (memq? template seen-templates)))
 		    (begin
-		      ;; record occurance
+		      ;; record occurrence
 		      (profinfo-set-occurs! called-pi
 					    (+ (profinfo-occurs called-pi) 1))))
 		
