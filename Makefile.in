@@ -400,7 +400,7 @@ c/fake/langinfo.o: c/fake/langinfo.h
 
 $(IMAGE): $(VM) scheme/env/init-defpackage.scm scheme/more-interfaces.scm \
 		scheme/link-packages.scm \
-		scheme/pre-env-packages.scm scheme/env-packages.scm \
+		scheme/env-packages.scm \
 		scheme/more-packages.scm \
 		scheme/sort/interfaces.scm scheme/sort/packages.scm \
 		scheme/r6rs/packages.scm \
@@ -668,7 +668,7 @@ inc:
 PACKAGES=scheme/packages.scm scheme/rts-packages.scm scheme/alt-packages.scm \
 	 scheme/comp-packages.scm scheme/initial-packages.scm \
 	 scheme/link-packages.scm \
-	 scheme/pre-env-packages.scm scheme/env-packages.scm \
+	 scheme/env-packages.scm \
 	 scheme/sort/packages.scm scheme/more-packages.scm \
 	 scheme/cml/packages.scm scheme/r6rs/packages.scm \
 	 build/filenames.scm

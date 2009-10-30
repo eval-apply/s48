@@ -20,7 +20,6 @@ echo ,load =scheme48/more-interfaces.scm >> %srcdir%\build\build-usual-image.inp
 echo ,load =scheme48/link-packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/sort/interfaces.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/sort/packages.scm >> %srcdir%\build\build-usual-image.input
-echo ,load =scheme48/pre-env-packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/env-packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/more-packages.scm >> %srcdir%\build\build-usual-image.input
 echo ,load =scheme48/posix/packages.scm >> %srcdir%\build\build-usual-image.input
