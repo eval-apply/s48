@@ -43,7 +43,7 @@
   (open scheme
 	(subset util (unspecific))
 	(subset features (make-immutable!))
-	(modify record-types (hide record-accessor))
+	(modify record-types (hide record-accessor record-constructor))
 	define-record-types
 	(modify records (prefix primitive:))
 	r6rs-lists
