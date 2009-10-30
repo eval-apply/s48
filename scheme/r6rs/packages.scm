@@ -299,7 +299,7 @@
 ; Utilities
 
 (define-interface r6rs-n-ary-comparisons-interface
-  (export compare-n-ary define-n-ary-comparison))
+  (export compare-n-ary define-n-ary-comparison define-n-ary-normalizing-comparison))
 
 (define-structure r6rs-n-ary-comparisons r6rs-n-ary-comparisons-interface
   (open scheme)
