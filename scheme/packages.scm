@@ -463,6 +463,7 @@
 	    pp
 	    previews
 	    profiler
+	    profile-commands
 	    profiler-instrumentation
 	    profiler-internals
 	    queues

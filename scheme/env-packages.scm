@@ -99,7 +99,6 @@
         debug-commands
         inspect-commands
         disassemble-commands
-	profile-commands
 	))
 
 ; Image builder.
@@ -420,13 +419,11 @@
 
 ; Profiler.
 
-(define-structures ((profiler         profiler-interface)
-		    (profile-commands profile-commands-interface))
+(define-structure profiler profiler-interface
   (open scheme
 	architecture
 	cells
 	closures
-	command-processor
 	continuations
 	debug-data
 	debugging
@@ -444,8 +441,18 @@
 	session-data
 	sort
 	tables
-	templates)
+	templates
+	command-processor
+	)
   (files (env profile)))
+
+(define-structure profile-commands (export)
+  (open scheme
+	command-processor
+	profiler
+	profiler-instrumentation ; make sure it gets loaded
+	(subset environments (environment-define!)))
+  (files (env profile-command)))
 
 (define-structure profiler-instrumentation (export instrument-form)
   (open scheme

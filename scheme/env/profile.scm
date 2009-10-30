@@ -2,9 +2,6 @@
 
 ;;; Taylor Campbell wrote parts of the original code; he has placed them in the public domain.
 
-(define-command-syntax 'profile "<command>" "profile execution"
-  '(command))
-
 ;; profiling information for each template
 (define-record-type profinfo :profinfo
   (really-make-profinfo template callers occurs hist memoryuse min-pc instrumented cycle)

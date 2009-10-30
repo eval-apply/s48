@@ -14,7 +14,6 @@
 	disclosers
         floatnums
 	more-vm-exceptions
-	profiler-instrumentation
 	;; pp
 	;; Choose either innums, floatnums, or neither
 	;; innums			;Silly inexact numbers
