@@ -197,7 +197,6 @@
   (files ;; more-interfaces, when not flatloading
 	 ;; (sort interfaces), when not flatloading
 	 (sort packages)
-         pre-env-packages
          env-packages
 	 more-packages))
 
