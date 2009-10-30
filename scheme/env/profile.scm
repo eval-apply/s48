@@ -1,3 +1,5 @@
+; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+
 ;;;;;; Rudimentary Scheme48 profiler                     -*- Scheme -*-
 
 ;;; Taylor Campbell wrote parts of the original code; he has placed them in the public domain.
