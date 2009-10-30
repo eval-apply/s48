@@ -153,7 +153,7 @@
 
 
 (define-interface profiler-interface
-  (export
+  (export profile
 	  profile-thunk
 	  profile-count
 	  make-empty-profile-data
@@ -244,7 +244,6 @@
    debug-commands-interface
    inspect-commands-interface
    disassemble-commands-interface
-   profile-commands-interface
    ))
 
 (define-interface package-commands-internal-interface

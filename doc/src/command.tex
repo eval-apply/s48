@@ -225,7 +225,13 @@ If no \cvar{command} is given, the \code{config} package becomes the
 \section{Profiling commands}
 \label{profiling-commands}
 
-Scheme~48 includes a basic profiler, with support for flat and call-graph profiles.
+After loading the \code{profile-commands} structure via
+%
+\begin{example}
+,load-package profile-commands  
+\end{example}
+%
+Scheme~48 provides a basic profiler, with support for flat and call-graph profiles.
 In addition to call- and runtimes the heap memory usage is estimated as well.
 By adding the byte-code optimizer \code{profiler-instrumentation} to the definition
 of a structure, code will by instrumented with calls to the profiler. The call-times to
