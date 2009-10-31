@@ -13,7 +13,7 @@
   (eq? a b))
 
 (define-n-ary-comparison symbol=? symbol? values symbol=?/2)
-(define-n-ary-comparison boolean=? symbol? values boolean=?/2)
+(define-n-ary-comparison boolean=? boolean? values boolean=?/2)
 
 (define-n-ary-comparison char=? char? values prim:char=?)
 (define-n-ary-comparison char<? char? values prim:char<?)
