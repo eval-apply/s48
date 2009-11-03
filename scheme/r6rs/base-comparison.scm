@@ -3,13 +3,13 @@
 (define (symbol=?/2 a b)
   (if (or (not (symbol? a))
 	  (not (symbol? b)))
-      (assertion-violation symbol=? "non-symbol argument" a b))
+      (assertion-violation 'symbol=? "non-symbol argument" a b))
   (eq? a b))
 
 (define (boolean=?/2 a b)
   (if (or (not (boolean? a))
 	  (not (boolean? b)))
-      (assertion-violation boolean=? "non-boolean argument" a b))
+      (assertion-violation 'boolean=? "non-boolean argument" a b))
   (eq? a b))
 
 (define-n-ary-comparison symbol=? symbol? values symbol=?/2)
