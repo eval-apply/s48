@@ -15,13 +15,13 @@
 
 (define (check-pred name pred lis)
   (cond
-   ((find (lambda (x)
+   ((memp (lambda (x)
 	    (not (pred x)))
 	  lis)
     => (lambda (wrong)
 	 (assertion-violation name
 			      "invalid argument"
-			      wrong)))
+			      (car wrong))))
    (else #f)))
 
 (define-syntax define-n-ary-comparison
