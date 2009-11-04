@@ -99,6 +99,7 @@
 
 (define-structure profiler-test (export profiler-tests)
   (open scheme test-suites
+	profile-commands
         profiler
         extended-ports
         )
