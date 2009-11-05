@@ -244,7 +244,7 @@
 		   args)
 	    (apply assertion-violation 'call-imported-binding "bad procedure"
 		   proc args)))
-      (apply assertion-violation 'call-imported-binding "bad procedure"
+      (apply assertion-violation 'call-imported-binding "procedure not defined"
 	     proc args)))
 
 (define (call-imported-binding-2 proc . args)
