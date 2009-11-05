@@ -311,16 +311,19 @@ See section~\ref{processes} for operations on process ids.
 \proto{get-user-id}{}{ user-id}
 \proto{get-effective-user-id}{}{ user-id}
 \protonoresultnoindex{set-user-id!}{ user-id}\mainschindex{set-user-id"!}
+\protonoresultnoindex{set-effective-user-id!}{ user-id}\mainschindex{set-effective-user-id"!}
 \end{protos}
 
 \begin{protos}
 \proto{get-group-id}{}{ group-id}
 \proto{get-effective-group-id}{}{ group-id}
 \protonoresultnoindex{set-group-id!}{ group-id}\mainschindex{set-group-id"!}
+\protonoresultnoindex{set-effective-group-id!}{ group-id}\mainschindex{set-effective-group-id"!}
 \end{protos}
 \noindent
 Every process has both the original and effective user id and group id.
-The effective values may be set, but not the original ones.
+The effective values may be set, but the original ones can only be set
+if the process has appropriate privelages.
 
 \begin{protos}
 \proto{get-groups}{}{ group-ids}
@@ -1616,7 +1619,9 @@ C procedure & Scheme procedure(s) \\
 \code{rename}&\code{rename}\\
 \code{rmdir}&\code{remove-directory}\\
 \code{setgid}&\code{set-group-id!}\\
+\code{setegid}&\code{set-effective-group-id!}\\
 \code{setuid}&\code{set-user-id!}\\
+\code{seteuid}&\code{set-effective-user-id!}\\
 \code{stat}&\code{get-file-info}\\
 \code{strftime}&\code{format-date}\\
 \code{symlink}&\code{create-symbolic-link}\\
