@@ -22,7 +22,8 @@
 extern void		s48_init_posix_proc_env(void);
 static s48_ref_t	posix_get_pid(s48_call_t call, s48_ref_t parent_p),
 			posix_get_id(s48_call_t call, s48_ref_t user_p, s48_ref_t real_p),
-			posix_set_id(s48_call_t call, s48_ref_t user_p, s48_ref_t id),
+			posix_set_id(s48_call_t call, s48_ref_t user_p,
+				     s48_ref_t real_p, s48_ref_t id),
 			posix_get_groups(s48_call_t call),
 			posix_get_login(s48_call_t call),
 			posix_set_sid(s48_call_t call),
@@ -88,14 +89,20 @@ posix_get_id(s48_call_t call, s48_ref_t user_p, s48_ref_t real_p)
 }
 
 static s48_ref_t
-posix_set_id(s48_call_t call, s48_ref_t user_p, s48_ref_t id)
+posix_set_id(s48_call_t call, s48_ref_t user_p, s48_ref_t real_p, s48_ref_t id)
 {
   int status;
 
   if (s48_extract_boolean_2(call, user_p))
-    RETRY_OR_RAISE_NEG(status, setuid(s48_extract_uid(call, id)));
+    RETRY_OR_RAISE_NEG(status,
+                       s48_extract_boolean_2(call, real_p) ?
+                       setuid(s48_extract_uid(call, id)) :
+                       seteuid(s48_extract_uid(call, id)));
   else
-    RETRY_OR_RAISE_NEG(status, setgid(s48_extract_gid(call, id)));
+    RETRY_OR_RAISE_NEG(status,
+                       s48_extract_boolean_2(call, real_p) ?
+                       setgid(s48_extract_gid(call, id)) :
+                       setegid(s48_extract_gid(call, id)));
 
   return s48_unspecific_2(call);
 }
@@ -139,7 +146,7 @@ posix_get_env_alist(s48_call_t call)
     name = s48_enter_byte_substring_2(call, entry, name_end - entry);
     value = s48_enter_byte_substring_2(call, name_end + 1, strlen(name_end + 1));
     sch_env = s48_cons_2(call, s48_cons_2(call, name, value), sch_env); }
-   
+
   return sch_env;
 }
 
@@ -148,13 +155,13 @@ posix_get_env_alist(s48_call_t call)
  */
 
 static s48_ref_t
-posix_get_groups(s48_call_t call) 
+posix_get_groups(s48_call_t call)
 {
   int status, count, i;
   gid_t *grouplist;
   s48_ref_t groups = s48_null_2(call);
   s48_ref_t temp;
-  
+
   count = getgroups(0, (gid_t *)NULL);
 
   grouplist = (gid_t *) malloc(count * sizeof(gid_t));
@@ -212,7 +219,7 @@ posix_get_terminal_pathname(s48_call_t call)
 {
   char termid[L_ctermid];
   char *status =  ctermid(termid);
-  
+
   return (*status == '\0') ? s48_false_2(call) : s48_enter_byte_string_2(call, termid);
 }
 
@@ -229,7 +236,7 @@ posix_tty_name(s48_call_t call, s48_ref_t channel)
 static s48_ref_t
 posix_is_a_tty(s48_call_t call, s48_ref_t channel)
 {
-  return s48_enter_boolean_2(call, 
+  return s48_enter_boolean_2(call,
 			     isatty(s48_unsafe_extract_long_2(call,
 							      s48_channel_os_index_2(call, channel))));
 }
