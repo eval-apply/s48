@@ -142,7 +142,7 @@ The first four procedures add their first argument, \cvar{program-name} or
 
 There are two varieties of signals available, {\em named} and {\em anonymous}.
 A named signal is one for which we have a symbolic name, such as \code{kill}
- or \code{pipe}.  
+ or \code{pipe}.
 Anonymous signals, for which we only have the current operating system's
  signal number, have no meaning in other operating systems.
 Named signals preserve their meaning in image files.
@@ -167,7 +167,7 @@ The signal returned by \code{integer->signal} is a named signal if
  \cvar{integer} corresponds to a named signal in the current operating
  system; otherwise it returns an anonymous signal.
 \code{Signal-name} returns a symbol if \cvar{signal} is named and
- \code{\#f} if it is anonymous. 
+ \code{\#f} if it is anonymous.
 \code{Signal=?} returns \code{\#t} if \cvar{signal0} and \cvar{signal1}
  have the same operating system number and \code{\#f} if they do not.
 
@@ -311,16 +311,19 @@ See section~\ref{processes} for operations on process ids.
 \proto{get-user-id}{}{ user-id}
 \proto{get-effective-user-id}{}{ user-id}
 \protonoresultnoindex{set-user-id!}{ user-id}\mainschindex{set-user-id"!}
+\protonoresultnoindex{set-effective-user-id!}{ user-id}\mainschindex{set-effective-user-id"!}
 \end{protos}
 
 \begin{protos}
 \proto{get-group-id}{}{ group-id}
 \proto{get-effective-group-id}{}{ group-id}
 \protonoresultnoindex{set-group-id!}{ group-id}\mainschindex{set-group-id"!}
+\protonoresultnoindex{set-effective-group-id!}{ group-id}\mainschindex{set-effective-group-id"!}
 \end{protos}
 \noindent
 Every process has both the original and effective user id and group id.
-The effective values may be set, but not the original ones.
+The effective values may be set, but the original ones can only be set
+if the process has appropriate privelages.
 
 \begin{protos}
 \proto{get-groups}{}{ group-ids}
@@ -474,7 +477,7 @@ These return and set the working directory.
 \noindent
 \code{Open-file} opens a port to the file named by \cvar{path}, which
 must be a \var{os-string-thing} argument.
-The \cvar{file-options} argument determines various aspects of the 
+The \cvar{file-options} argument determines various aspects of the
  returned port.
 The optional \cvar{file-mode} argument is used only if the file to be opened
  does not already exist.
@@ -991,7 +994,7 @@ Fd-ports are returned by \code{open-input-file}, \code{open-output-file},
 \end{protos}
 \noindent
 \code{Fd-port?} returns true if its argument is an fd-port.
-\code{Port->fd} returns the file descriptor associated with 
+\code{Port->fd} returns the file descriptor associated with
  or \code{\#f} if \cvar{port} is not an fd-port.
 
 \begin{protos}
@@ -1117,7 +1120,7 @@ are guaranteed to work here---on some platforms, only ASCII may
 function correctly.
 Moreover, because the C interface uses zero bytes for marking the ends of strings,
  patterns and strings that contain zero bytes will not work
- correctly. 
+ correctly.
 
 These procedures are in structures \code{posix-regexps} and \code{posix}.
 
@@ -1138,7 +1141,7 @@ The possible option names are:
 \code{extended} & use the extended patterns \\
 \code{ignore-case} & ignore case when matching \\
 \code{submatches} & report submatches \\
-\code{newline} & treat newlines specially 
+\code{newline} & treat newlines specially
 \end{tabular}
 \end{center}
 
@@ -1244,7 +1247,7 @@ Here is a list of possible names of syslog options:
   multiple simultaneous connections to the syslog facility over a
   single one, open and close operations on that facility happen at
   unpredictable times.
-  
+
 \item[\code{log-pid}]
   Log the process id with each message: useful for identifying
   instantiations of daemons.
@@ -1302,7 +1305,7 @@ Here is a list of possible names of syslog facilities:
 \item[\code{local0} \code{local1} \code{local2} \code{local3} \code{local4} \code{local5} \code{local6} \code{local7}]
   Reserved for local use.
 \end{description}
-                                
+
 \subsection*{Log levels}
 
 A log level identifies the importance of a message from a fixed set
@@ -1420,7 +1423,7 @@ destroy a connection to the syslog facility, respectively.  The
 specified form of calling \code{syslog} logs to the specified channel.
 
 \code{With-syslog-channel} dynamically binds parameters of the
-implicit connection to the syslog facility to those specified in 
+implicit connection to the syslog facility to those specified in
 \cvar{channel} and runs \var{thunk} within those parameter bindings,
 returning what \var{thunk} returns.
 
@@ -1440,7 +1443,7 @@ the system error number.
 
 There are two varieties of errnos available, {\em named} and {\em anonymous}.
 A named errno is one for which we have a symbolic name, such as \code{fault}
- or \code{intr}.  
+ or \code{intr}.
 Anonymous errnos, for which we only have the current operating system's
  errno number, have no meaning in other operating systems.
 Named errnos preserve their meaning in image files.
@@ -1465,7 +1468,7 @@ The errno returned by \code{integer->errno} is a named errno if
  \cvar{integer} corresponds to a named errno in the current operating
  system; otherwise it returns an anonymous errno.
 \code{Errno-name} returns a symbol if \cvar{errno} is named and
- \code{\#f} if it is anonymous. 
+ \code{\#f} if it is anonymous.
 \code{Errno=?} returns \code{\#t} if \cvar{errno0} and \cvar{errno1}
  have the same operating system number and \code{\#f} if they do not.
 
@@ -1616,7 +1619,9 @@ C procedure & Scheme procedure(s) \\
 \code{rename}&\code{rename}\\
 \code{rmdir}&\code{remove-directory}\\
 \code{setgid}&\code{set-group-id!}\\
+\code{setegid}&\code{set-effective-group-id!}\\
 \code{setuid}&\code{set-user-id!}\\
+\code{seteuid}&\code{set-effective-user-id!}\\
 \code{stat}&\code{get-file-info}\\
 \code{strftime}&\code{format-date}\\
 \code{symlink}&\code{create-symbolic-link}\\
@@ -1655,7 +1660,7 @@ C procedure & Scheme procedure(s) \\
 \texonly\end{longtable}\endtexonly
 \htmlonly\end{tabular}\endhtmlonly
 
-%%% Local Variables: 
+%%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "manual"
-%%% End: 
+%%% End:

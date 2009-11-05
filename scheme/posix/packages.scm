@@ -39,7 +39,7 @@
 	  file-info-last-access
 	  file-info-last-modification
 	  file-info-last-status-change
-	  
+
 	  file-type? file-type-name
 	  (file-type :syntax)
 
@@ -168,10 +168,12 @@
 
 (define-interface posix-process-data-interface
   (export get-process-id get-parent-process-id
-	  
+
 	  ; I am not happy with these names.  They don't mention the process.
-	  get-user-id get-effective-user-id set-user-id!
-	  get-group-id get-effective-group-id set-group-id!
+	  get-user-id get-effective-user-id
+	  set-user-id! set-effective-user-id!
+	  get-group-id get-effective-group-id
+	  set-group-id! set-effective-group-id!
 
 	  get-groups
 	  get-login-name
@@ -205,7 +207,7 @@
 
 	  fork
 	  fork-and-forget
-	  
+
 	  exec
 	  exec-with-environment
 	  exec-file
@@ -217,7 +219,7 @@
 	  wait-for-child-process
 
 	  signal-process
-	  
+
 	  (signal :syntax)
 	  signal-name
 	  signal-os-number
@@ -227,6 +229,8 @@
           signal?
 
 	  make-signal-queue
+	  signal-queue?
+	  signal-queue-monitored-signals
 	  dequeue-signal!
 	  maybe-dequeue-signal!
 	  signal-queue-signals
@@ -262,7 +266,7 @@
 	  dup2
 	  remap-file-descriptors!
 	  close-all-but
-	  
+
 	  close-on-exec?
 	  set-close-on-exec?!
 
@@ -338,7 +342,7 @@
 	  submatch no-submatches
 
 	  any-match? exact-match?
-	  match 
+	  match
 
 	  match?
 	  match-start match-end match-submatches))
