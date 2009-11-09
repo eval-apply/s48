@@ -9,7 +9,7 @@
 (define-structures ((rendezvous rendezvous-interface)
 		    (make-rendezvous make-rendezvous-interface))
   (open scheme
-	exceptions
+	(modify exceptions (hide guard))
 	define-record-types
 	trans-ids
 	threads
