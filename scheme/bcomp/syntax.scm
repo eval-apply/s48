@@ -64,7 +64,7 @@
 					  name
 					  package))
 	'())
-      `(,(syntax-violation 'define-syntax "ill-formed syntax definition" form))))
+      (syntax-violation 'define-syntax "ill-formed syntax definition" form)))
 
 ; This is used by the ,expand command.
 
@@ -144,7 +144,8 @@
       (let ((pat (cadr form))
 	    (operator (car form)))
 	(cond ((pair? pat)
-	       (if (and (names? (cdr pat))
+	       (if (and (name? (car pat))
+			(names? (cdr pat))
 			(not (null? (cddr form))))
 		   `(,operator ,(car pat)
 			       (,operator/lambda ,(cdr pat)
@@ -230,11 +231,8 @@
 					(cons (cons node
 						    (caddr new-form))
 					      defs)))
-		     (values defs
-			     (cons (syntax-violation 'scan-body-forms
-						     "ill-formed definition" form)
-				   more-forms)
-			     env))))
+		     (syntax-violation 'scan-body-forms
+				       "ill-formed definition" form))))
 	      ((begin? form)
 	       (call-with-values
 		(lambda ()
@@ -290,7 +288,7 @@
 	 (expand-literal form))
 	;; ((qualified? form) ...)
 	(else
-	 (expand (syntax-violation 'expand "invalid expression" form) env))))
+	 (syntax-violation 'expand "invalid expression" form))))
 
 (define (expand-list exps env)
   (map (lambda (exp)
@@ -304,7 +302,7 @@
   (if (list? exp)
       (make-node operator/call
 		 (cons proc-node (expand-list (cdr exp) env)))
-      (expand (syntax-violation 'expand-call "invalid expression" exp) env)))
+      (syntax-violation 'expand-call "invalid expression" exp)))
 
 ; An environment is a procedure that takes a name and returns one of
 ; the following:
@@ -337,11 +335,10 @@
 				  env-of-use))
    (lambda (new-form new-env)
      (if (eq? new-form form)
-	 (expand (syntax-violation (schemify (car form) env-of-use)
-				   "use of macro doesn't match definition"
-				   (cons (schemify (car form) env-of-use)
-					 (desyntaxify (cdr form))))
-		 env-of-use)
+	 (syntax-violation (schemify (car form) env-of-use)
+			   "use of macro doesn't match definition"
+			   (cons (schemify (car form) env-of-use)
+				 (desyntaxify (cdr form))))
 	 (expand new-form new-env)))))
 
 ;--------------------
@@ -369,12 +366,11 @@
 
 (define-expander 'define
   (lambda (op op-node exp env)
-    (expand (syntax-violation 'define
-			      (if (define? exp)
-				  "definition in expression context"
-				  "ill-formed definition")
-			      exp)
-	    env)))
+    (syntax-violation 'define
+		      (if (define? exp)
+			  "definition in expression context"
+			  "ill-formed definition")
+		      exp)))
 
 ; Remove generated names from quotations.
 
@@ -382,7 +378,7 @@
   (lambda (op op-node exp env)
     (if (this-long? exp 2)
 	(make-node op (list op (desyntaxify (cadr exp))))
-	(expand (syntax-violation 'quote "invalid expression" exp) env))))
+	(syntax-violation 'quote "invalid expression" exp))))
 
 ; Don't evaluate, but don't remove generated names either.  This is
 ; used when writing macro-defining macros.  Once we have avoided the
@@ -392,7 +388,7 @@
   (lambda (op op-node exp env)
     (if (this-long? exp 2)
 	(make-node operator/quote (list op (cadr exp)))
-	(expand (syntax-violation 'code-quote "invalid expression" exp) env))))
+	(syntax-violation 'code-quote "invalid expression" exp))))
 
 ; Convert one-armed IF to two-armed IF.
 
@@ -408,7 +404,7 @@
 	   (make-node op
 		      (cons op (expand-list (cdr exp) env))))
 	  (else
-	   (expand (syntax-violation 'if "invalid expression" exp) env)))))
+	   (syntax-violation 'if "invalid expression" exp)))))
 
 (define (unspecific-node)
   (make-node operator/unspecific '(unspecific)))
@@ -424,8 +420,7 @@
 (define (expand-structure-ref form env expander)
   (let ((struct-node (expand (cadr form) env))
 	(lose (lambda ()
-		(expand (syntax-violation 'structure-ref "invalid structure reference" form)
-			env))))
+		(syntax-violation 'structure-ref "invalid structure reference" form))))
     (if (and (this-long? form 3)
 	     (name? (caddr form))
 	     (name-node? struct-node))
@@ -453,7 +448,7 @@
     (if (and (at-least-this-long? exp 3)
 	     (names? (cadr exp)))
 	(expand-lambda (cadr exp) (cddr exp) env)
-	(expand (syntax-violation 'lambda "invalid expression" exp) env))))
+	(syntax-violation 'lambda "invalid expression" exp))))
 
 (define (expand-lambda names body env)
   (call-with-values
@@ -488,7 +483,7 @@
     (if (and (this-long? exp 3)
 	     (name? (cadr exp)))
 	(make-node op (cons op (expand-list (cdr exp) env)))
-	(expand (syntax-violation 'set! "invalid expression" exp) env))))
+	(syntax-violation 'set! "invalid expression" exp))))
 
 (define (letrec-expander op/letrec)
   (lambda (op op-node exp env)
@@ -501,7 +496,7 @@
 			     specs))
 		 (env (bind (map car specs) names env)))
 	    (expand-letrec op/letrec names (map cadr specs) body env)))
-	(expand (syntax-violation 'letrec "invalid expression" exp) env))))
+	(syntax-violation 'letrec "invalid expression" exp))))
 
 (define-expander 'letrec
   (letrec-expander operator/letrec))
@@ -524,7 +519,7 @@
 	(make-node op (list op
 			    (sexp->type (desyntaxify (cadr exp)) #t)
 			    (expand (caddr exp) env)))
-	(expand (syntax-violation 'loophole "invalid expression" exp) env))))
+	(syntax-violation 'loophole "invalid expression" exp))))
 
 (define-expander 'let-syntax
   (lambda (op op-node exp env)
@@ -542,7 +537,7 @@
 								  env)))
 				  specs)
 			     env)))
-	(expand (syntax-violation 'let-syntax "invalid expression" exp) env))))
+	(syntax-violation 'let-syntax "invalid expression" exp))))
 
 (define-expander 'letrec-syntax
   (lambda (op op-node exp env)
@@ -562,7 +557,7 @@
 							    new-env)))
 			    specs))
 		     env)))
-	(expand (syntax-violation 'letrec-syntax "invalid expression" exp) env))))
+	(syntax-violation 'letrec-syntax "invalid expression" exp))))
     
 (define (process-syntax form env name env-or-package)
   (let ((eval+env (force (comp-env-macro-eval env))))
@@ -588,7 +583,7 @@
 				(expand-name (cadr exp) env))
 			      (caddr exp))
 			. ,(cdddr exp)))
-	(expand (syntax-violation 'lap "invalid expression" exp) env))))
+	(syntax-violation 'lap "invalid expression" exp))))
 
 ; --------------------
 ; Syntax checking utilities

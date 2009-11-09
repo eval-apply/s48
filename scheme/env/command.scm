@@ -609,13 +609,14 @@
 (define *y-or-n-eof-count* 100)
 
 (define (read-line port)
-  (let loop ((l '()))
+  (let loop ((l '())
+             (llen 0))
     (let ((c (read-char port)))
       (if (eof-object? c)
           c
           (if (char=? c #\newline)
-              (list->string (reverse l))
-              (loop (cons c l)))))))
+              (reverse-list->string l llen)
+              (loop (cons c l) (+ 1 llen)))))))
 
 (define (greet-user info)
   (let ((port (command-output)))

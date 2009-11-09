@@ -184,6 +184,7 @@
 	  ;; not support this feature.
 	  make-unmovable-byte-vector
 
+          byte-vector=?
 	  byte-vector))
 
 ; Same again, but with old names for compatibility.
@@ -1511,3 +1512,4 @@
 	  ))
 
 ;(define-interface command-interface ...)  -- moved to more-interfaces.scm
+

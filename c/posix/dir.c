@@ -36,7 +36,7 @@ static s48_ref_t	posix_opendir(s48_call_t call, s48_ref_t svname),
 			posix_closedir(s48_call_t call, s48_ref_t svdir),
 			posix_readdir(s48_call_t call, s48_ref_t svdir),
 			posix_working_directory(s48_call_t call, s48_ref_t new_wd),
-			posix_open(s48_call_t call, s48_ref_t path, s48_ref_t options,
+			posix_open(s48_call_t call, s48_ref_t path, s48_ref_t id, s48_ref_t options,
 				   s48_ref_t mode, s48_ref_t input_p),
 			posix_file_stuff(s48_call_t call, s48_ref_t op, s48_ref_t arg1,
 					 s48_ref_t arg2),
@@ -219,7 +219,7 @@ posix_working_directory(s48_call_t call, s48_ref_t new_wd)
  */
 
 static s48_ref_t
-posix_open(s48_call_t call, s48_ref_t path, s48_ref_t options, s48_ref_t mode, s48_ref_t input_p)
+posix_open(s48_call_t call, s48_ref_t path, s48_ref_t id, s48_ref_t options, s48_ref_t mode, s48_ref_t input_p)
 {
   int		fd,
     		c_options;
@@ -243,7 +243,7 @@ posix_open(s48_call_t call, s48_ref_t path, s48_ref_t options, s48_ref_t mode, s
 			      s48_extract_boolean_2(call, input_p)
 			      ? s48_channel_status_input_2(call)
 			      : s48_channel_status_output_2(call),
-			      path,
+			      id,
 			      fd);
 
   if (!s48_channel_p_2(call, channel)) {

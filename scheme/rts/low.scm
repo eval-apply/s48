@@ -155,7 +155,18 @@
 (define (undefine-exported-binding name)
   (undefine-shared-binding name #f))
 
-; This really shouldn't be here, but I don't know where else to put it.
+; These really shouldn't be here, but we don't know where else to put them.
+
+(define (byte-vector=? b1 b2)
+  (let ((size-1 (byte-vector-length b1))
+	(size-2 (byte-vector-length b2)))
+    (and (= size-1 size-2)
+	 (let loop ((i 0))
+	   (cond
+	    ((>= i size-1) #t)
+	    ((= (byte-vector-ref b1 i) (byte-vector-ref b2 i))
+	     (loop (+ 1 i)))
+	    (else #f))))))
 
 (define (byte-vector . l)
   (let ((v (make-byte-vector (secret-length l 0) 0)))

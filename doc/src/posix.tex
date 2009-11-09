@@ -24,6 +24,7 @@ The POSIX bindings are available in several structures:
  \code{posix-time} & time functions \\
  \code{posix-users} & users and groups \\
  \code{posix-regexps} & regular expression matching \\
+ \code{posix-syslog} & POSIX logging facility \\
  \code{posix-errnos} & POSIX error codes\\
  \code{posix} & all of the above
 \end{tabular}
@@ -141,7 +142,7 @@ The first four procedures add their first argument, \cvar{program-name} or
 
 There are two varieties of signals available, {\em named} and {\em anonymous}.
 A named signal is one for which we have a symbolic name, such as \code{kill}
- or \code{pipe}.  
+ or \code{pipe}.
 Anonymous signals, for which we only have the current operating system's
  signal number, have no meaning in other operating systems.
 Named signals preserve their meaning in image files.
@@ -166,7 +167,7 @@ The signal returned by \code{integer->signal} is a named signal if
  \cvar{integer} corresponds to a named signal in the current operating
  system; otherwise it returns an anonymous signal.
 \code{Signal-name} returns a symbol if \cvar{signal} is named and
- \code{\#f} if it is anonymous. 
+ \code{\#f} if it is anonymous.
 \code{Signal=?} returns \code{\#t} if \cvar{signal0} and \cvar{signal1}
  have the same operating system number and \code{\#f} if they do not.
 
@@ -310,16 +311,19 @@ See section~\ref{processes} for operations on process ids.
 \proto{get-user-id}{}{ user-id}
 \proto{get-effective-user-id}{}{ user-id}
 \protonoresultnoindex{set-user-id!}{ user-id}\mainschindex{set-user-id"!}
+\protonoresultnoindex{set-effective-user-id!}{ user-id}\mainschindex{set-effective-user-id"!}
 \end{protos}
 
 \begin{protos}
 \proto{get-group-id}{}{ group-id}
 \proto{get-effective-group-id}{}{ group-id}
 \protonoresultnoindex{set-group-id!}{ group-id}\mainschindex{set-group-id"!}
+\protonoresultnoindex{set-effective-group-id!}{ group-id}\mainschindex{set-effective-group-id"!}
 \end{protos}
 \noindent
 Every process has both the original and effective user id and group id.
-The effective values may be set, but not the original ones.
+The effective values may be set, but the original ones can only be set
+if the process has appropriate privelages.
 
 \begin{protos}
 \proto{get-groups}{}{ group-ids}
@@ -473,7 +477,7 @@ These return and set the working directory.
 \noindent
 \code{Open-file} opens a port to the file named by \cvar{path}, which
 must be a \var{os-string-thing} argument.
-The \cvar{file-options} argument determines various aspects of the 
+The \cvar{file-options} argument determines various aspects of the
  returned port.
 The optional \cvar{file-mode} argument is used only if the file to be opened
  does not already exist.
@@ -990,7 +994,7 @@ Fd-ports are returned by \code{open-input-file}, \code{open-output-file},
 \end{protos}
 \noindent
 \code{Fd-port?} returns true if its argument is an fd-port.
-\code{Port->fd} returns the file descriptor associated with 
+\code{Port->fd} returns the file descriptor associated with
  or \code{\#f} if \cvar{port} is not an fd-port.
 
 \begin{protos}
@@ -1116,7 +1120,7 @@ are guaranteed to work here---on some platforms, only ASCII may
 function correctly.
 Moreover, because the C interface uses zero bytes for marking the ends of strings,
  patterns and strings that contain zero bytes will not work
- correctly. 
+ correctly.
 
 These procedures are in structures \code{posix-regexps} and \code{posix}.
 
@@ -1137,7 +1141,7 @@ The possible option names are:
 \code{extended} & use the extended patterns \\
 \code{ignore-case} & ignore case when matching \\
 \code{submatches} & report submatches \\
-\code{newline} & treat newlines specially 
+\code{newline} & treat newlines specially
 \end{tabular}
 \end{center}
 
@@ -1176,6 +1180,253 @@ If the pattern in \cvar{regexp} contained submatches, then the results
 \cvar{Starts-line?} should be true if \cvar{string} starts at the beginning
  of a line and \cvar{ends-line?} should be true if it ends one.
 
+\section{Syslog facility}
+\label{syslog-facility}
+
+The procedures in this section provide access to the POSIX syslog
+facility.  The functionality is in a structure called
+\code{posix-syslog}.  The Scheme~48 interface to the
+syslog facility differs significantly from that of the Unix library
+functionality in order to support multiple simultaneous connections to
+the syslog facility.
+
+Log messages carry a variety of parameters beside the text of the
+message itself, namely a set of options controlling the output format
+and destination, the facility identifying the class of programs the
+message is coming from, an identifier specifying the concrete program,
+and the level identifying the importance of the message.  Moreover, a
+log mask can prevent messages at certain levels to be actually sent to
+the syslog daemon.
+
+\subsection*{Log options}
+
+A log option specifies details of the I/O behavior of the syslog
+facility.  A syslog option is an element of a finite type (see
+Section~\ref{sec:finite-types}) constructed by the
+\code{syslog-option} macro.  The syslog facility works with sets of
+options which are represented as enum sets (see
+Section~\ref{sets-finite-types}).
+
+\begin{protos}
+\syntaxproto{syslog-option}{ \cvar{option-name}}{option}
+\proto{syslog-option?}{ x}{boolean}
+\proto{make-syslog-options}{ list}{options}
+\syntaxproto{syslog-options}{ \cvar{option-name} \ldots}{options}
+\proto{syslog-options?}{ x}{boolean}
+\end{protos}
+\noindent
+\code{Syslog-option} constructs a log option from the name of an
+option.  (The possible names are listed below.)  \code{Syslog-option?}
+is a predicate for log options.  Options are comparable using
+\code{eq?}.  \code{Make-syslog-options} constructs a set of options
+from a list of options.  \code{Syslog-options} is a macro which
+expands into an expression returning a set of options from names.
+\code{Syslog-options?} is a predicate for sets of options.
+
+Here is a list of possible names of syslog options:
+
+\begin{description}
+\item[\code{console}]
+  If syslog cannot pass the message to syslogd it will attempt to
+  write the message to the console.
+
+\item[\code{delay}]
+  Delay opening the connection to syslogd immediately until the first
+  message is logged.
+
+\item[\code{no-delay}]
+  Open the connection to syslogd immediately.  Normally
+  the open is delayed until the first message is logged.
+  Useful for programs that need to manage the order in which
+  file descriptors are allocated.
+
+  \noindent\textbf{NOTA BENE:}
+  The \code{delay} and \code{no-delay} options are included for
+  completeness, but do not have the expected effect in the present
+  Scheme interface: Because the Scheme interface has to multiplex
+  multiple simultaneous connections to the syslog facility over a
+  single one, open and close operations on that facility happen at
+  unpredictable times.
+
+\item[\code{log-pid}]
+  Log the process id with each message: useful for identifying
+  instantiations of daemons.
+
+\item[\code{no-wait}]
+  Do not wait for child processes.
+\end{description}
+
+\subsection*{Log facilities}
+
+A log facility identifies the originator of a log message from a
+finite set known to the system.  Each originator is identified by a
+name:
+
+\begin{protos}
+\syntaxproto{syslog-facility}{ \cvar{facility-name}}{facility}
+\proto{syslog-facility?}{ x}{boolean}
+\end{protos}
+\noindent
+\code{Syslog-facility} is macro that expands into an expression
+returning a facility for a given name.  \code{Syslog-facility?} is a
+predicate for facilities.  Facilities are comparable via \code{eq?}.
+
+Here is a list of possible names of syslog facilities:
+
+\begin{description}
+\item[\code{authorization}]
+  The authorization system: login, su, getty, etc.
+
+\item[\code{cron}]
+  The cron daemon.
+
+\item[\code{daemon}]
+  System daemons, such as routed, that are not provided for explicitly
+  by other facilities.
+
+\item[\code{kernel}]
+  Messages generated by the kernel.
+
+\item[\code{lpr}]
+  The line printer spooling system: lpr, lpc, lpd, etc.
+
+\item[\code{mail}]
+  The mail system.
+
+\item[\code{news}]
+  The network news system.
+
+\item[\code{user}]
+  Messages generated by random user processes.
+
+\item[\code{uucp}]
+  The uucp system.
+
+\item[\code{local0} \code{local1} \code{local2} \code{local3} \code{local4} \code{local5} \code{local6} \code{local7}]
+  Reserved for local use.
+\end{description}
+
+\subsection*{Log levels}
+
+A log level identifies the importance of a message from a fixed set
+of possible levels.
+
+\begin{protos}
+\syntaxproto{syslog-level}{ \cvar{level-name}}{level}
+\proto{syslog-level?}{ x}{boolean}
+\end{protos}
+\noindent
+\code{Syslog-level} is macro that expands into an expression returning
+a facility for a given name.  \code{Syslog-level?} is a predicate for
+facilities.  Levels are comparable via \code{eq?}.
+
+Here is a list of possible names of syslog levels:
+
+\begin{description}
+\item[\code{emergency}]
+  A panic condition.  This is normally broadcast to all users.
+
+\item[\code{alert}]
+  A condition that should be corrected immediately, such as a
+  corrupted system database.
+
+\item[\code{critical}]
+  Critical conditions, e.g., hard device errors.
+
+\item[\code{error}]
+  Errors.
+
+\item[\code{warning}]
+  Warning messages.
+
+\item[\code{notice}]
+  Conditions that are not error conditions, but should possibly be
+  handled specially.
+
+\item[\code{info}]
+  Informational messages.
+
+\item[\code{debug}]
+  Messages that contain information normally of use only when
+  debugging a program.
+\end{description}
+
+\subsection*{Log masks}
+
+A log masks can mask out log messages at a set of levels.  A log
+mask is an enum set of log levels.
+
+\begin{protos}
+\proto{make-syslog-mask}{ list}{mask}
+\syntaxproto{syslog-mask}{ \cvar{level-name} \ldots}{mask}
+\constproto{syslog-mask-all}{ mask}
+\proto{syslog-mask-upto}{ level}{mask}
+\proto{syslog-mask?}{ x}{boolean}
+\end{protos}
+\noindent
+\code{Make-syslog-mask} constructs a mask from a list of levels.
+\code{Syslog-mask} is a macro which constructs a mask from names of
+levels.  \code{Syslog-mask-all} is a predefined log mask containing
+all levels.  \code{Syslog-mask-upto} returns a mask consisting of all
+levels up to and including a certain level, starting with
+\code{emergency}.
+
+\subsection*{Logging}
+
+Scheme~48 dynamically maintains implicit connections to the syslog
+facility specifying a current identifier, current options, a current
+facility and a current log mask.  Every thread
+maintains it own implicit connection to syslog.  Note that the
+connection is not implicitly preserved across a \code{spawn}.
+
+\begin{protos}
+\proto{with-syslog-destination}{ string options facility mask thunk}{value}
+\end{protos}
+\noindent
+\code{With-syslog-destination} dynamically binds parameters of the
+implicit connection to the syslog facility and runs \var{thunk}
+within those parameter bindings, returning what \var{thunk}
+returns.  Each of the parameters may be \code{\#f} in which case the
+previous values will be used.
+
+\begin{protos}
+\protonoresult{syslog}{ level message}
+\protonoresult{syslog}{ level message string}
+\protonoresult{syslog}{ level message string options}
+\protonoresult{syslog}{ level message string options syslog-facility}
+\protonoresult{syslog}{ level message channel}
+\end{protos}
+\noindent
+\code{Syslog} actually logs a message.  Each of the parameters of the
+implicit connection (except for the log mask) can be explicitly
+specified as well for the current call to \code{syslog}, overriding
+the parameters of the channel.  The parameters revert to their
+original values after the call.
+
+The final form specifies the destination of the log message as a
+channel; see the next section.
+
+\subsection*{Syslog channels}
+%
+These procedures allow direct manipulation of syslog channels, the
+objects that represent connections to the syslog facility.  Note that
+it is not necessary to explicitly open a syslog channel to do logging.
+
+\begin{protos}
+\proto{open-syslog-channel}{string options facility mask}{channel}
+\protonoresult{close-syslog-channel}{channel}
+\proto{with-syslog-destination}{ channel thunk}{value}
+\end{protos}
+\noindent
+\code{Open-syslog-channel} and \code{close-syslog-channel} create and
+destroy a connection to the syslog facility, respectively.  The
+specified form of calling \code{syslog} logs to the specified channel.
+
+\code{With-syslog-channel} dynamically binds parameters of the
+implicit connection to the syslog facility to those specified in
+\cvar{channel} and runs \var{thunk} within those parameter bindings,
+returning what \var{thunk} returns.
+
 \section{Error codes}
 
 POSIX functions report the nature of an error via \textit{system error
@@ -1192,7 +1443,7 @@ the system error number.
 
 There are two varieties of errnos available, {\em named} and {\em anonymous}.
 A named errno is one for which we have a symbolic name, such as \code{fault}
- or \code{intr}.  
+ or \code{intr}.
 Anonymous errnos, for which we only have the current operating system's
  errno number, have no meaning in other operating systems.
 Named errnos preserve their meaning in image files.
@@ -1217,7 +1468,7 @@ The errno returned by \code{integer->errno} is a named errno if
  \cvar{integer} corresponds to a named errno in the current operating
  system; otherwise it returns an anonymous errno.
 \code{Errno-name} returns a symbol if \cvar{errno} is named and
- \code{\#f} if it is anonymous. 
+ \code{\#f} if it is anonymous.
 \code{Errno=?} returns \code{\#t} if \cvar{errno0} and \cvar{errno1}
  have the same operating system number and \code{\#f} if they do not.
 
@@ -1368,10 +1619,13 @@ C procedure & Scheme procedure(s) \\
 \code{rename}&\code{rename}\\
 \code{rmdir}&\code{remove-directory}\\
 \code{setgid}&\code{set-group-id!}\\
+\code{setegid}&\code{set-effective-group-id!}\\
 \code{setuid}&\code{set-user-id!}\\
+\code{seteuid}&\code{set-effective-user-id!}\\
 \code{stat}&\code{get-file-info}\\
 \code{strftime}&\code{format-date}\\
 \code{symlink}&\code{create-symbolic-link}\\
+\code{syslog}&\code{syslog}\\
 \code{time}&\code{current-time}\\
 \code{ttyname}&\code{port-terminal-name}\\
 \code{umask}&\code{set-file-creation-mask!}\\
@@ -1406,7 +1660,7 @@ C procedure & Scheme procedure(s) \\
 \texonly\end{longtable}\endtexonly
 \htmlonly\end{tabular}\endhtmlonly
 
-%%% Local Variables: 
+%%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "manual"
-%%% End: 
+%%% End:

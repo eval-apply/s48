@@ -32,10 +32,16 @@
   (call-imported-binding-2 posix-get-id #f #f))
 
 (define (set-user-id! user-id)
-  (call-imported-binding-2 posix-set-id! #t user-id))
+  (call-imported-binding-2 posix-set-id! #t #t user-id))
+
+(define (set-effective-user-id! user-id)
+  (call-imported-binding-2 posix-set-id! #t #f user-id))
 
 (define (set-group-id! group-id)
-  (call-imported-binding-2 posix-set-id! #f group-id))
+  (call-imported-binding-2 posix-set-id! #f #t group-id))
+
+(define (set-effective-group-id! group-id)
+  (call-imported-binding-2 posix-set-id! #f #f group-id))
 
 (import-definition posix-get-pid)
 (import-definition posix-get-id)
@@ -45,7 +51,10 @@
   (call-imported-binding-2 posix-get-groups))
 
 (define (get-login-name)
-  (call-imported-binding-2 posix-get-login))
+  (let ((name (call-imported-binding-2 posix-get-login)))
+    (if name
+        (byte-vector->os-string name)
+        name)))
 
 (import-definition posix-get-groups)
 (import-definition posix-get-login)
@@ -85,7 +94,7 @@
    ((lookup-environment-variable name)
     => os-string->string)
    (else #f)))
-   
+
 (define (environment-alist)
   (map (lambda (pair)
 	 (cons (x->os-string (car pair))

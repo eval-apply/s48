@@ -39,10 +39,26 @@
 	r6rs-reader)
   (files reader-check))
 
+(define-structure r6rs-comparison-test (export r6rs-comparison-tests)
+  (open test-suites
+        (subset scheme-level-1 (integer? exact? negative? not zero? + - cons
+                                vector-length vector-ref append map length
+                                define cond let let* if lambda and list quote
+                                apply vector string-append string integer->char))
+        (with-prefix scheme-level-1 prim:)
+        (with-prefix srfi-1 srfi-1:)
+        exceptions
+        r6rs-lists
+        r6rs-base-comparisons
+        r6rs-unicode)
+  (files comparison-check))
+
 (define-structure r6rs-test (export r6rs-tests)
   (open scheme test-suites
-	r6rs-records-test r6rs-lists-test r6rs-enums-test r6rs-reader-test)
+	r6rs-records-test r6rs-lists-test r6rs-enums-test r6rs-reader-test
+        r6rs-comparison-test)
   (begin
     (define-test-suite r6rs-tests
-      (r6rs-records-tests r6rs-lists-tests r6rs-enums-tests r6rs-reader-tests))))
+      (r6rs-records-tests r6rs-lists-tests r6rs-enums-tests r6rs-reader-tests
+       r6rs-comparison-tests))))
 

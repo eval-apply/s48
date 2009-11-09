@@ -109,10 +109,6 @@
     ((arithmetic-shift)
      ,(proc (exact-integer-type exact-integer-type)
 	    exact-integer-type))
-    ((char=? char<?)
-     ,(proc (char-type char-type) boolean-type))
-    (string=?
-     ,(proc (string-type string-type) boolean-type))
     (open-channel
      ;; Can return #f
      ,(proc (string-type value-type exact-integer-type boolean-type) value-type))
@@ -763,9 +759,9 @@
 ; = and < and so forth take two or more arguments.
 
 (let ((define=<
-	(lambda (id opcode)
+	(lambda (id opcode type)
 	  (define-compiler-primitive id
-	    (proc (real-type real-type &rest real-type) boolean-type)
+	    (proc (type type &rest type) boolean-type)
 	    (lambda (node depth frame cont)
 	      (if (node-ref node 'type-error)
 		  (compile-unknown-call node depth frame cont)
@@ -787,11 +783,14 @@
 			      (instruction opcode)
 			      (instruction (enum op binary-comparison-reduce2))
 			      (instruction (enum op return)))))))))
-  (define=< '= (enum op =))
-  (define=< '< (enum op <))
-  (define=< '> (enum op >))
-  (define=< '<= (enum op <=))
-  (define=< '>= (enum op >=)))
+  (define=< '= (enum op =) real-type)
+  (define=< '< (enum op <) real-type)
+  (define=< '> (enum op >) real-type)
+  (define=< '<= (enum op <=) real-type)
+  (define=< '>= (enum op >=) real-type)
+  (define=< 'char<? (enum op char<?) char-type)
+  (define=< 'char=? (enum op char=?) char-type)
+  (define=< 'string=? (enum op string=?) string-type))
 
 ; Returns code to apply OPCODE to IDENTITY and ARGUMENT.
 

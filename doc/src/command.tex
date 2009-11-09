@@ -221,7 +221,361 @@ If no \cvar{command} is given, the \code{config} package becomes the
     Display name of file containing \cvar{procedure}'s source code.
 \end{description}
 
+
+\section{Profiling commands}
+\label{profiling-commands}
+
+After loading the \code{profile-commands} structure via
+%
+\begin{example}
+,load-package profile-commands  
+\end{example}
+%
+Scheme~48 provides a basic profiler, with support for flat and call-graph profiles.
+In addition to call- and runtimes the heap memory usage is estimated as well.
+By adding the byte-code optimizer \code{profiler-instrumentation} to the definition
+of a structure via a clause
+%
+\begin{example}
+  (optimize profiler-instrumentation)
+\end{example}
+%
+in the structure definition, code will by instrumented with calls to the profiler. The call-times to
+instrumented code can then be measured exactly.
+Without instrumentation, the profiler is solely based on sampling and therefore has only
+limited accuracy.
+Any evaluation can be profiled with the following command:
+
+\begin{description}
+
+\item \code{,profile \cvar{command}}\\
+    Evaluate \cvar{command} under the profiler, printing the profiling result and making the
+    return value(s) of \cvar{command} the new focus object.
+
+\end{description}
+
+The output of the profiler is explained on the basis of the following piece of senseless code:
+
+\begin{example}
+(define (c x)
+  (if (= x 0)
+      0
+      (+ 1 (c (- x 1)))))
+
+(define (b x)
+  (let ((y (- x 1)))
+    (if (> y 0)
+        (begin
+          (c y)
+          (a y)
+          (+ 1 (a y)))
+        0)))
+
+(define (a x)
+  (let ((y (- x 1)))
+    (if (> y 0)
+        (begin
+          (c y)
+          (b y)
+          (+ 1 (b y)))
+        0)))
+
+(define (main x)
+  (+ 1 (a x)))
+\end{example}
+
+The profiler produces the following output:
+
+\begin{example}
+> ,profile (main 21)
+
+** Samples:        60 (approx. one per 40ms)
+** Interrupt time: 50ms
+** Real run time:  2430ms
+** Total memory:   22k
+** GC runs:        0
+
+** Flat result (times in ms): 
+
+   time  cumu  self   mem  calls  ms/call  name
+ 61.66%  1498  1498    2k  37+51       17  c in "x.scm"
+  25.0%  2430   608   10k    436        6  b in "x.scm"
+ 13.33%  2430   324   10k    442        5  a in "x.scm"
+   0.0%  2430     0    0k      1     2430  main in "x.scm"
+
+** Tree result (times in ms): 
+
+i    time self child  mem    calls  name
+0  100.0%    0  2430   0k        0  <profiler> [0]
+             0  2430   0k      1/1     main in "x.scm" [1]
+=========================================================
+                           441/442     b in "x.scm" <cycle 0> [3]
+           324   891  10k    1/442     main in "x.scm" [1]
+1  100.0%  324   891  10k      442  a in "x.scm" <cycle 0> [2]
+           891     0   1k    22/37     c in "x.scm" [4]
+                           436/436     b in "x.scm" <cycle 0> [3]
+=========================================================
+                           436/436     a in "x.scm" <cycle 0> [2]
+2  100.0%  608   608  10k      436  b in "x.scm" <cycle 0> [3]
+           608     0   1k    15/37     c in "x.scm" [4]
+                           441/442     a in "x.scm" <cycle 0> [2]
+=========================================================
+             0  2430   0k      1/1     <profiler> [0]
+3  100.0%    0  2430   0k        1  main in "x.scm" [1]
+           324   891  10k    1/442     a in "x.scm" <cycle 0> [2]
+=========================================================
+           608     0   1k    15/37     b in "x.scm" <cycle 0> [3]
+           891     0   1k    22/37     a in "x.scm" <cycle 0> [2]
+4  61.66% 1498     0   2k    37+51  c in "x.scm" [4]
+=========================================================
+           932  1498  20k      1/1     main in "x.scm" [1]
+0  100.0%  932  1498  20k    1+877  <cycle 0 as a whole>
+           324   891  10k      441     a in "x.scm" <cycle 0> [2]
+           608   608  10k      436     b in "x.scm" <cycle 0> [3]
+             0     0   2k    37/37     c in "x.scm" [4]
+
+\end{example}
+
+The formatting of the output is based on the output of
+GNU gprof \footnote{part of the GNU Binary Utilities: http://www.gnu.org/software/binutils/}.
+
+First, general information about the profiling is shown:
+\begin{itemize}
+	\item \code{samples}: total number of samples taken and the
+		average time between two samples
+	\item \code{interrupt time}: theoretical interrupt time, the time between
+		two samples
+	\item \code{real run time}: the total run time of the evaluation, simple measurement
+		from the beginning to the end of the evaluation
+	\item \code{total memory}: the total amount of memory used by the program, here in kilobytes
+	\item \code{GC runs}: the number of times the garbage collector was running while evaluating
+\end{itemize}
+
+The flat profile gives overall statistics for each procedure in the program:
+\begin{itemize}
+\item \code{time}:
+	percentage of time the procedure has in the program (based on ``\code{self}'')
+\item \code{cumu}:
+	total cumulative time the procedure was running
+\item \code{self}:
+	total time the procedure was running itself (without children)
+\item \code{mem}:
+	approximated memory usage of the procedure
+\item \code{calls}:
+	the number of non-recursive calls to the procedure. Recursive calls are displayed after an
+	optionally appended "+" to former number (see procedure \code{c} in example output above).
+\item \code{ms/call}:
+	estimate of the time per call (with children), based on non-recursive calls and ``\code{cumu}''.
+\item \code{name}:
+	the name of the procedure and the file it is defined in
+\end{itemize}
+
+The tree result displays profiling information depending on the caller of a particular procedure.
+As in gprof output, for each procedure there is an \textit{entry}. Entries are separated by lines of \code{=}s.
+Each entry displays the callers (indented), the procedure itself and the procedure called (indented).
+The meaning of the fields depends on the type of the entry, for example:
+
+\begin{example}
+ i    time self  child  mem    calls   name
+            324    891  10k    1/442      main [1]
+ 1  100.0%  324    891  10k      442   a <cycle 0> [2]
+            891      0   1k    22/37      c [4]
+\end{example}
+
+Every procedure has a unique index number \code{i} (here ``1''), based on the position in the
+call-graph. It is used to quickly find the corresponding entry. The number is appended to
+the procedure name (in brackets).
+The meaning of the ``cycle'' suffix is explained below.
+
+Callers (here \code{main}):
+\begin{itemize}
+	\item \code{self}:
+		time spent directly in \code{a} when called by \code{main}
+	\item \code{child}:
+		time spent in children of \code{a} when called by \code{main}
+	\item \code{mem}:
+		memory usage of \code{a} when called by \code{main}
+	\item \code{calls}:
+		two numbers:
+		number of calls to \code{a} from \code{main}
+		and
+		total number of non-recursive calls to \code{a}
+\end{itemize}
+
+Primary line (here \code{a}):
+\begin{itemize}
+	\item \code{time}:
+		total percentage of time \code{a} was running
+	\item \code{self}:
+		total time spent directly in \code{a}
+	\item \code{child}:
+		total time spent in children of \code{a}
+	\item \code{mem}:
+		total memory usage of \code{a}
+	\item \code{calls}:
+		the total number of non-recursive calls to \code{a}. Recursive calls are
+		displayed after an optional \code{+}.
+\end{itemize}
+
+Called (here \code{c}):
+\begin{itemize}
+	\item \code{self}:
+		time spent directly in \code{c} when called by \code{a}
+	\item \code{child}:
+		time spent in children of \code{c} when called by \code{a}
+	\item \code{mem}:
+		memory usage of \code{c} when called by \code{a}
+	\item \code{calls}:
+		two numbers:
+		number of calls to \code{c} from \code{a}
+		and
+		total number of non-recursive calls to \code{c}
+\end{itemize}
+
+A special treatment is needed for mutual-recursive procedures. In the example,
+\code{a} calls \code{b} and \code{b} calls \code{a}. This is called a \textit{cycle}.
+If \code{a} would call another procedure \code{d} and \code{d} would call \code{a}, all three
+procedures form a cycle.
+
+Cycles have a separate entry in the call graph.
+This entry consists of the callers into the cycle, the primary line of the cycle,
+the member procedures of the cycle and the external procedures called by the cycle:
+
+\begin{example}
+            932   1498  20k      1/1      main [1]
+ 0  100.0%  932   1498  20k    1+877   <cycle 0 as a whole>
+            324    891  10k      441      a <cycle 0> [2]
+            608    608  10k      436      b <cycle 0> [3]
+              0      0   2k    37/37      c [4]
+\end{example}
+
+Callers (here \code{main}):
+\begin{itemize}
+	\item the meaning of the fields are the same
+	as above. The member procedures of the cycle are seen as a whole.
+\end{itemize}
+
+Primary line:
+\begin{itemize}
+	\item \code{time}:
+		total percentage of time any procedure of the cycle was running
+	\item \code{self}:
+		total time spent directly in a procedure of the cycle
+	\item \code{child}:
+		total time spent in external children of \code{a}
+	\item \code{mem}:
+		sum of memory usage of all cycle member procedures
+	\item \code{calls}:
+		the total number of external calls to the \code{cycle} and the total number
+		of calls in the cycle internally
+\end{itemize}
+
+Member procedures:
+\begin{itemize}
+	\item the meaning of the fields are the same as above, except\ldots
+	\item \code{calls}: the number of calls to the member procedure from within the cycle
+\end{itemize}
+
+External procedures (here \code{c}):
+\begin{itemize}
+	\item the meaning of the fields are the same as with the member procedures, except\ldots
+	\item \code{calls}: the number of calls to the external procedure from the cycle
+		and
+		the total number of non-recursive calls to the external procedure
+\end{itemize}
+
+
+In the current implementation, there are some issues that need to be considered:
+in the default configuration, samples are taken every 50 milliseconds. Procedures with a by-call
+run time shorter than the interrupt time are likely to be profiled inaccurately or may not be seen
+at all, if they have not been instrumented.
+
+The default interrupt time can be set with the \code{profiler-interrupt-time} command processor setting,
+see \ref{settings}. For example,
+%
+\begin{example}
+,set profiler-interrupt-time 200
+\end{example}
+%
+sets the
+default profiler sampling interrupt time to 200ms.
+
+Because the interrupt is shared with the thread system, profiling may cause performance issues
+with multi-threaded programs. Also, programs with deep recursion (resulting in large
+continuations) can cause the profiler to use a significant percentage of the total run time.
+
+By default, call times are measured by the sampling process. When code had been instrumented,
+call times of those procedures will be measured exactly. When only instrumented code should be
+considered in the output of the profiler, the command processor setting
+\code{profiler-measure-noninstr} can be set to \code{off}.
+
+Scheme~48 optimizes tail calls. Thus, the profiler can not ``see''
+tail calls and in some situations,
+the output of the profiler may show that procedures directly call their ``grandchildren''.
+
+
+\subsection{How the profiler works}
+
+The profiler is based on taking samples of the current stack of continuations, the {\it call-stack}.
+Therefore it schedules the alarm interrupt at a regular interval specified by the
+\code{profiler-interrupt-time} command processor setting. Because the thread system uses the
+alarm interrupt as well, the profiler interrupt handler
+calls the handler of the thread system after processing the sample.
+
+The profiler interrupt handler first captures the current continuation and follows the continuation-stack
+down to the continuation of the \code{profile-thunk} procedure, which called the thunk to be profiled.
+Each continuation with the corresponding code template is stored in a stack of \code{stackentry} records.
+
+This \code{*cur-stack*} is compared from bottom to top with the \code{*last-stack*},
+the stack captured while the prior sampling interrupt.
+The statistics gathered are stored in \code{profinfo} records.
+
+For each stack-entry in the \code{*cur-stack*}, several possibilities exist in
+conjunction to the entry at the same depth in the \code{*last-stack*}:
+\begin{itemize}
+	\item there is no such entry: the continuation must be the result of a new call
+	\item both entries are the same continuation: nothing changed, the procedure is still running
+	\item entries are not the same continuation:
+		the following entries up in the stack must have changed. If the templates of the current
+		entries are the same, the continuation counts as the still same call to the procedure (but at another
+		expression in the procedure). A such situation only counts as a new call if the continuation
+		object has changed, but the continuation program-counter, arguments and the template stayed the same.
+\end{itemize}
+As we ascend in the call-stack, changes in the lower levels indicate that all entries above have to be new calls.
+This way, the profiler gathers information about how often a template is called by another template.
+
+Additionally, every time a procedure is seen, we record this ``occurrence''. If the procedure is a the top of
+the stack, it is currently running. Based on these numbers, the average interrupt time and the number of calls,
+we can estimate the self and child times.
+
+While running, the profiler collects information about the heap memory usage as well.
+After comparing the current with the last stack, the profiler knows which procedures finished, which procedures are new
+and who which procedure called the new procedures. These informations are used to distribute the difference in
+heap memory usage between the prior and the current sample.
+The profiler uses the \code{memory-status} primitive for retrieving available heap space and the number of
+garbage collector runs (\code{gc-count}).
+Difference in used memory between two samples is distributed by the following principles:
+\begin{itemize}
+	\item if \code{gc-count} increased, distribution cannot be done
+	\item if the same continuation is still at top, credit its template with all used memory between the two samplings
+	\item if there are stackentry-templates gone or new, distribute the used memory {\it equally} between them:
+		\begin{itemize}
+			\item gone templates could have used some memory before ``returning''
+			\item new  templates could have used some memory while running
+			\item the caller of new templates could have used some memory between the calling of gone and new procedures
+		\end{itemize}
+\end{itemize}
+
+The byte-code optimizer \code{profiler-instrumentation} adds a call to the ``profile-count'' procedure of the
+profiler structure. This procedure is responsible for the exact call-times measurement.
+
+After collection of the data, procedures are numbered and cycles are detected by ascending in the
+call tree. Time is being propagated from top to bottom, remembering self and child times. Most
+of the time, cycles are being considered as one procedure.
+
+
 \section{Settings}
+\label{settings}
 
 There are a number of settings that control the behavior of the
  command processor; most of them are booleans.
@@ -328,6 +682,15 @@ are printed.
 \item \code{condition-writing-length} (positive integer)\\
 This controls the maximum length to which conditions
 are printed.
+
+\item \code{profiler-interrupt-time} (positive integer)\\
+This controls the time between two profiler sampling interrupts
+(in milliseconds, see section \ref{profiling-commands}).
+
+\item \code{profiler-measure-noninstr} (boolean)\\
+When this flag is enabled, call-times will be measured by the sampling process.
+When it is disabled, call-times will only be measured, when the procedure has been
+instrumented (see section \ref{profiling-commands}).
 
 \item \code{trace-writing-length} (positive integer)\\
 This controls the maximum length to which tracing

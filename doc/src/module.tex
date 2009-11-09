@@ -588,10 +588,12 @@ foo> a
     for syntax,'' which is the package in which the forms $f$ in
     {\tt (define-syntax \cvar{name} \cvar{f})} are evaluated.
 
-\item \code{,new-package} \\
-    The {\tt,new-package} command creates a new package, in which only
-    the standard Scheme bindings are visible, and moves the command
-    processor to it.
+  \item \code{,new-package [\cvar{struct-name} \ldots]} \\
+    The {\tt,new-package} command creates a new package and moves the
+    command processor to it.  With no arguments, only the standard
+    Scheme bindings are visible in the new package.  Otherwise, the
+    structures specified as command arguments (and not the
+    \texttt{scheme} structure) are opened in the new package.
 
 \item \code{,structure \cvar{name} \cvar{interface}} \\
     The {\tt ,structure} command defines \cvar{name} in the
