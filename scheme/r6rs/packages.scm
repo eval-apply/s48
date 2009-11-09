@@ -1,5 +1,18 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
+(define-interface r6rs-base-comparisons-interface
+  (export symbol=? boolean=?
+	  char=? char<? char>? char<=? char>=?
+	  string=? string<? string>? string<=? string>=?))
+
+(define-structure r6rs-base-comparisons r6rs-base-comparisons-interface
+  (open (modify scheme (hide char=? char<? char>? char<=? char>=?
+			     string=? string<? string>? string<=? string>=?))
+	(modify scheme (prefix prim:))
+	exceptions
+	r6rs-n-ary-comparisons)
+  (files base-comparison))
+			     
 (define-interface r6rs-records-procedural-interface
   (export make-record-type-descriptor
 	  record-type-descriptor?
@@ -30,7 +43,7 @@
   (open scheme
 	(subset util (unspecific))
 	(subset features (make-immutable!))
-	(modify record-types (hide record-accessor))
+	(modify record-types (hide record-accessor record-constructor))
 	define-record-types
 	(modify records (prefix primitive:))
 	r6rs-lists
@@ -168,10 +181,14 @@
 			      string-upcase string-downcase
 			      string-foldcase
 			      string-titlecase)
+		      (export char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=?
+			      string-ci=? string-ci<? string-ci>? string-ci<=? string-ci>=?)
 		      (export char-general-category)))
 
 (define-structure r6rs-unicode r6rs-unicode-interface
-  (open scheme
+  (open (modify scheme (hide char-ci<=? char-ci<? char-ci=? char-ci>=? char-ci>?
+			     string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>?))
+	(modify scheme (prefix prim:))
 	unicode-normalizations
 	(subset unicode-char-maps (char-titlecase
 				   char-title-case?
@@ -183,7 +200,9 @@
 				   general-category-symbol))
 	(modify unicode-char-maps
 		(rename (char-general-category s48:char-general-category))
-		(expose char-general-category)))
+		(expose char-general-category))
+	r6rs-n-ary-comparisons)
+  (files unicode-comparison)
   (begin
     ;; R6RS uses a symbol instead of an enumeration
     (define (char-general-category c)
@@ -265,3 +284,25 @@
 	nodes command-state)
   (files reader-command)
   (optimize auto-integrate))
+
+(define-structure r6rs-equal (export equal?)
+  (open (modify scheme-level-1 (hide equal?))
+        byte-vectors)
+  (files equal)
+  (optimize auto-integrate))
+
+(define-structure r6rs-control (export when unless case-lambda)
+  (open scheme-level-2
+        srfi-16)
+  (files control))
+
+; Utilities
+
+(define-interface r6rs-n-ary-comparisons-interface
+  (export compare-n-ary define-n-ary-comparison))
+
+(define-structure r6rs-n-ary-comparisons r6rs-n-ary-comparisons-interface
+  (open scheme
+	r6rs-lists
+	exceptions)
+  (files n-ary-comparison))

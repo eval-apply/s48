@@ -9,17 +9,17 @@
 
 (define-structure usual-features (export )  ;No exports
   (open analysis		;auto-integration
-	disclosers
-	more-vm-exceptions
         command-processor
         debuginfo
-        ;; Choose any combination of bignums, ratnums, recnums
-	;; bignums		; now in the VM
-	ratnums recnums
+	disclosers
+        floatnums
+	more-vm-exceptions
+	;; pp
 	;; Choose either innums, floatnums, or neither
 	;; innums			;Silly inexact numbers
-        floatnums
-	;; pp
+	;; bignums		; now in the VM
+	;; Choose any combination of bignums, ratnums, recnums
+	ratnums recnums
 	;; The following is listed because this structure is used to
 	;; generate a dependency list used by the Makefile...
 	usual-commands
@@ -62,7 +62,7 @@
   (files (rts recnum)))
 
 (define-structure floatnums
-		  (export floatnum? exp log sin cos tan asin acos atan sqrt)
+  (export floatnum? exp log sin cos tan asin acos atan sqrt)
   (open scheme-level-2
         extended-numbers
         code-vectors
@@ -219,12 +219,12 @@
 (define-structure reduce (export ((reduce iterate)
 				  :syntax)
 				 ((list* list%
-				   vector* vector%
-				   string* string%
-				   count* count%
-				   bits* bits%
-				   input* input%
-				   stream* stream%)
+					 vector* vector%
+					 string* string%
+					 count* count%
+					 bits* bits%
+					 input* input%
+					 stream* stream%)
 				  :syntax))
   (open scheme-level-2
 	bitwise
@@ -338,7 +338,7 @@
 	placeholders
 	shared-bindings
 	byte-vectors
-	;bitwise		;for {enter|extract}_integer() helpers
+					;bitwise		;for {enter|extract}_integer() helpers
 	(subset record-types		(define-record-resumer))
 	(subset records-internal	(:record-type)))
   (files (big import-def)
@@ -405,8 +405,8 @@
 ; Heap traverser
 
 (define-structure traverse
-                  (export traverse-depth-first traverse-breadth-first trail
-                          set-leaf-predicate! usual-leaf-predicate)
+  (export traverse-depth-first traverse-breadth-first trail
+	  set-leaf-predicate! usual-leaf-predicate)
   (open scheme-level-2
 	primitives
         queues tables
@@ -423,6 +423,60 @@
 	define-record-types
 	(subset record-types (define-record-resumer)))
   (files (big reinitializer)))
+
+; Profiler.
+
+(define-structure profiler profiler-interface
+  (open scheme
+	architecture
+	cells
+	closures
+	continuations
+	debug-data
+	debugging
+	define-record-types
+	disclosers
+	environments
+	escapes
+	interrupts
+	locks
+	exceptions
+	(modify primitives (prefix primitives:)
+		(expose collect time memory-status
+			continuation-length continuation-ref
+			unspecific))
+	session-data
+	sort
+	tables
+	templates
+	command-processor
+	)
+  (files (env profile)))
+
+(define-structure profile-commands (export)
+  (open scheme
+	command-processor
+	profiler
+	profiler-instrumentation ; make sure it gets loaded
+	(subset environments (environment-define!)))
+  (files (env profile-command)))
+
+(define-structure profiler-instrumentation (export instrument-form)
+  (open scheme
+	bindings
+	compiler-envs
+	environments
+	features
+	exceptions
+	nodes
+	optimizer
+	package-commands-internal
+	packages
+	packages-internal
+	primops
+	profiler
+	util)
+  (files (env profile-instr)))
 
 ; Space analyzer
 

@@ -30,14 +30,25 @@
        (eq? (car command) 'run)
        (symbol? (cadr command))))
 
-(define-command-syntax 'new-package "" "make and enter a new package"
-  '())
+(define-command-syntax 'new-package "[<struct> ...]" "make and enter a new package"
+  '(&rest expression))
 
-(define (new-package)
-  (let ((p (make-simple-package (list (get-structure 'scheme))
-				#t    ;unstable?
-				(get-reflective-tower (user-environment))
-				#f)))
+(define (new-package . maybe-opens)
+  (let* ((opens-thunk
+          (if (pair? maybe-opens)
+	      (let ((structs (map get-structure maybe-opens)))
+		(for-each quietly-ensure-loaded structs)
+		(lambda () structs))
+              (lambda ()
+                (list (get-structure 'scheme)))))
+         (p (make-package opens-thunk
+                          (lambda () '())
+                          #t    ;unstable?
+                          (get-reflective-tower (user-environment))
+                          ""    ;file containing DEFINE-STRUCTURE form
+                          '()   ;clauses
+                          #f    ;uid
+                          #f))) ;name
     (set-package-integrate?! p
 			     (package-integrate? (environment-for-commands)))
     (set-environment-for-commands! p)))
@@ -248,7 +259,6 @@
   (let ((thing (environment-ref (config-package) name)))
     (cond ((structure? thing) thing)
 	  (else (assertion-violation 'get-structure "not a structure" name thing)))))
-
 
 ; Main entry point, with package setup.
 

@@ -543,6 +543,7 @@ Ignoring the declarations, which will have to wait for another edition of
  record and access or modify it using a single VM instruction.
 
 \section{Finite record types}
+\label{sec:finite-types}
 
 The structure \code{finite-types} has
  two macros for defining `finite' record types.
@@ -1111,6 +1112,139 @@ The following simple example shows a server and client for a centralized UID
         (close-output-port out)
         id))))
 \end{example}
+
+
+\section{Profiling}
+
+The profiler can be used programmatically from within the code and
+its results can be processed dynamically.
+
+The structure \code{profiler} offers basic data structures and functions.
+All functions need a \code{profile-data} record argument that can be created with
+\code{make-empty-profile-data}.
+
+\begin{protos}
+	\proto{make-empty-profile-data}{}{profile-data}
+	\proto{profile-thunk}{ profile-data thunk [interrupt-time [with-non-instr?]]}{value}
+\end{protos}
+
+\code{profile-thunk} executes a thunk under the profiler. The data is stored in
+the \cvar{profile-data} record passed as argument. Optionally the timeout for the profiler interrupt
+can be passed (in milliseconds). The return value of \code{profile-thunk} is the return value
+of \code{thunk}. By default, non-instrumented code will be profiled by the sampling process.
+By passing \code{with-non-instr? = \#f} only instrumented functions will be profiled.
+
+After profiling data, can be retrieved with the following accessors:
+
+\begin{protos}
+	\proto{profile-data-starttime}{ profile-data}{number}
+	\proto{profile-data-endtime}{ profile-data}{number}
+	\proto{profile-data-runtime}{ profile-data}{number}
+	\proto{profile-data-memoryuse}{ profile-data}{number}
+	\proto{profile-data-gcruns}{ profile-data}{number}
+	\proto{profile-data-samples}{ profile-data}{number}
+	\proto{profile-data-interrupttime}{ profile-data}{number}
+%
+%	\proto{profile-data-templates}{ profile-data}{table of templates}
+%	\proto{profile-data-cycles}{ profile-data}{table of cycleinfo}
+%	\proto{profile-data-root}{ profile-data}{profinfo}
+\end{protos}
+
+Times are in milliseconds, memory usage in bytes.
+
+The following functions produce the same output as the \code{,profile} command
+(see section \ref{profiling-commands}).
+They all take an optional \cvar{port} argument. Default is the \code{current-output-port}.
+
+\begin{protos}
+	\protonoresult{profile-display}{ profile-data [port]}
+	\protonoresult{profile-display-overview}{ profile-data [port]}
+	\protonoresult{profile-display-flat}{ profile-data [port]}
+	\protonoresult{profile-display-tree}{ profile-data [port]}
+\end{protos}
+
+\code{profile-display} prints the full output of the profiler.
+The other \code{profile-display-\ldots} functions only display the respective part of the output.
+
+The single fields in the flat profile can be retrieved with the following accessors:
+
+\begin{protos}
+	\protonoresult{profile-function-calls}{ profile-data names}
+	\protonoresult{profile-function-reccalls}{ profile-data names}
+	\protonoresult{profile-function-nonreccalls}{ profile-data names}
+	\protonoresult{profile-function-occurs}{ profile-data names}
+	\protonoresult{profile-function-hist}{ profile-data names}
+	\protonoresult{profile-function-memoryuse}{ profile-data names}
+	\protonoresult{profile-function-timeshare}{ profile-data names}
+	\protonoresult{profile-function-time-cumulative}{ profile-data names}
+	\protonoresult{profile-function-time-self}{ profile-data names}
+\end{protos}
+
+Here \cvar{names} is the list of names specifying the function, optionally
+with it's module. For example, \code{names = ("dynamic-wind", "wind")}
+would specify the \code{dynamic-wind} function in the module \code{wind}, if
+it was seen while profiling. If two or more functions match, the first one
+is used. If no function matches, the functions return \code{\#\{Unspecific\}}.
+
+The argument \cvar{names} can also be a plain string, as in
+\code{(profile-display-function-flat prof-data "module")}. This will display
+all flat function profiles that have ``module'' either as name or module.
+
+The meanings of the fields that the functions return are as follows:
+\begin{itemize}
+	\item \code{calls}:
+		total number of calls (recursive and non-recursive) to the function
+	\item \code{reccalls}: 
+		total number of recursive calls to the function
+	\item \code{nonreccalls}: 
+		total number of non-recursive calls to the function
+	\item \code{occurs}: 
+		number of times the function was seen on stack while profiling
+	\item \code{hist}: 
+		number of times the function was seen running while profiling
+	\item \code{memoryuse}: 
+		bytes of memory used by the function
+	\item \code{timeshare}: 
+		percentage of time used by the function itself (number from 0 to 1)
+	\item \code{time-cumulative}: 
+		total time in ms the function was on call-stack
+	\item \code{time-self}: 
+		total time in ms the function actively running
+\end{itemize}
+
+
+The following shows a short example of the usage of the profiler interface, where \code{main}
+is the function to be profiled:
+\begin{example}
+(define prof-data (make-empty-profile-data))
+
+(profile-thunk prof-data (lambda () (main 22)))
+(display "Samples: ")
+(display (profile-data-samples prof-data))
+(newline)
+
+(profile-display-overview prof-data)
+(profile-display-flat prof-data (current-output-port))
+(profile-display-tree prof-data)
+
+; print only function "a"
+(profile-display-function-flat prof-data '("a"))
+
+; print only function "a" in file "x.scm"
+(profile-display-function-flat prof-data '("a" "x.scm"))
+
+; print all profiled functions in file "x.scm"
+(profile-display-function-flat prof-data "x.scm")
+
+; print percentage of time "a" was running
+(display (* (profile-function-timeshare prof-data '("a")) 100))
+\end{example}
+
+% (table-walk (lambda (template profinfo)
+%               (display (profinfo-total-calls profinfo))
+%               (newline))
+%             (profile-data-templates prof-data))
+
 
 \section{Macros for writing loops}
 % JAR says: origin? history?

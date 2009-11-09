@@ -71,7 +71,7 @@
   (display s port))
 
 (define (write-string-tail s start port)
-  (display (substring s start (port))
+  (display (substring s start (port))))
 
 (define (schedule-interrupt interval)
   (if (not (= interval 0))

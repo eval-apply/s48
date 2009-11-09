@@ -38,6 +38,7 @@
   (include "../scheme/bcomp/comp-lambda.scm")
   (include "../scheme/bcomp/comp-prim.scm")
   (include "../scheme/bcomp/comp.scm")
+  (include "../scheme/bcomp/profile.scm")
   (include "../scheme/alt/closure.scm")
   (include "../scheme/link/data.scm")
   (include "../scheme/link/transport.scm")

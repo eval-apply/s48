@@ -163,7 +163,7 @@
 ; REST has who, status or message last
 (define (signal-call-external-error opcode reason . rest)
   (enum-case exception reason
-	     ((external-error external-assertion-violation external-os-error)
+	     ((external-error external-assertion-violation)
 	      (let* ((rev-rest (reverse rest))
 		     (who (cadr rev-rest))
 		     (message

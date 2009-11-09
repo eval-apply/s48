@@ -207,12 +207,13 @@
 
 ; This doesn't remove the delimiter from the port.
 (define (decode-hex-digits port delimiter? desc)
-  (let loop ((rev-digits '()))
+  (let loop ((rev-digits '())
+             (n-digits 0))
     (let ((c (peek-char port)))
       (cond
        ((delimiter? c)
 	(integer->char
-	 (string->number (list->string (reverse rev-digits)) 16)))
+	 (string->number (reverse-list->string rev-digits n-digits) 16)))
        ((eof-object? c)
 	(reading-error
 	 port
@@ -223,7 +224,8 @@
 		       c))
        (else
 	(read-char port)
-	(loop (cons c rev-digits)))))))
+	(loop (cons c rev-digits)
+              (+ 1 n-digits)))))))
 
 (define (char-hex-digit? c)
   (let ((scalar-value (char->integer c)))
@@ -517,6 +519,21 @@
        (else
 	(reading-error "invalid symbol syntax" (reverse-list->string l n)))))))
 
+; We know it's a symbol, and it starts with an escape
+(define (sub-read-symbol-with-initial-escape c port)
+  ;(assert (char=? c #\\))
+  (let ((c (peek-char port)))
+    (cond
+     ((or (eof-object? c)
+          (not (char=? #\x c)))
+      (reading-error port "invalid escape sequence in a symbol"
+                     c))
+     (else
+      (read-char port)
+      (let ((d (decode-hex-digits port char-semicolon? "symbol")))
+        (read-char port)		; remove semicolon
+        (sub-read-symbol d port))))))
+
 ; something starting with a +
 (define (sub-read/+ c port)
   (let ((next (peek-char port)))
@@ -569,6 +586,10 @@
 	    (set-standard-syntax! c #t sub-read-symbol))
 	  (string->list
 	   "!$%&*/:<=>?^_~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"))
+
+; #\\ must not be marked as a subsequent because sub-read-symbol handles it
+;    separately
+(set-standard-syntax! #\\ #f sub-read-symbol-with-initial-escape)
 
 (set-standard-syntax! #\+ #t sub-read/+)
 (set-standard-syntax! #\- #t sub-read/-)

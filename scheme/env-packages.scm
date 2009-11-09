@@ -30,6 +30,8 @@
 	exceptions signal-conditions
 	debug-messages		; for debugging
 
+        (subset silly (reverse-list->string))
+
 	(subset evaluation (load-script-into))
 	(subset packages-internal (package-reader))
 	(subset environments (environment-ref))
@@ -97,7 +99,6 @@
         debug-commands
         inspect-commands
         disassemble-commands
-	;profile-commands
 	))
 
 ; Image builder.
@@ -416,22 +417,4 @@
       (lambda (e r c)
         (make-node (get-operator 'lap syntax-type) e)))))
 
-; Execution profiler.
-; This no longer works because the thread system uses the timer interrupts
-; it needs.
 
-;(define-structures ((profile (export run-with-profiling))
-;                    (profile-commands profile-commands-interface))
-;  (open scheme
-;        command-processor
-;        continuations
-;        architecture
-;        interrupts
-;        tables
-;        primitives     ; schedule-interrupt
-;        wind
-;        disclosers
-;        time
-;        sort
-;        escapes)       ; primitive-cwcc
-;  (files (env profile)))

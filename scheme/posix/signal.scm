@@ -371,7 +371,7 @@
 	(begin
 	  (set-signal-queues! signal (delq (signal-queue-weak queue)
 					   (signal-queues signal)))
-	  (set-signal-queue-signals! signal
+	  (set-signal-queue-signals! queue
 				     (delq signal
 					   (signal-queue-signals queue)))))
     (set-enabled-interrupts! ints)))
