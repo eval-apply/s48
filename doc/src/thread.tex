@@ -471,12 +471,12 @@ succeeds.
 \code{Maybe-commit-and-make-ready} accepts either a thread object or a
 thread queue as an argument.  In either case,
 \code{maybe-commit-and-make-ready} tries to commit the current
-proposal.  If that succeeds, it \code{maybe-commit-and-make-ready}
+proposal.  If that succeeds, \code{maybe-commit-and-make-ready}
 makes its argument runnable: if \cvar{thread-or-queue} is a thread,
 that thread is made runnable, if it is a thread queue, all threads on
 the queue are made runnable.  (In the latter case, none of the threads
 actually runs until all have been made runnable.)
-\code{Marybe-commit-and-make-ready} returns \code{\#t} if it succeeded,
+\code{Maybe-commit-and-make-ready} returns \code{\#t} if it succeeded,
 and \code{\#f} otherwise.
 
 % \section{Writing your own schedulers}

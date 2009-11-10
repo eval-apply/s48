@@ -50,7 +50,7 @@
 				  (car frob2))))))
 
 ; Note that, if ALIVE? or WAKEUP! isn't a thunk or doesn't run without
-; problems, there'll be hell to pay upn wakeup.
+; problems, there'll be hell to pay upon wakeup.
 
 (define (register-dozer! user-wakeup-time alive? wakeup!)
   (let ((wakeup-time (coerce-to-nonnegative-integer user-wakeup-time)))
