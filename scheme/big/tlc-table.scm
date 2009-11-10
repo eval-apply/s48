@@ -66,6 +66,42 @@
 (define (tlc-table-default-eq-hash-function object)
   (memory-status (enum memory-status-option pointer-hash) object))
 
+(define fixnum-limit (expt 2 27)) ; leave some room for intermediate calculations
+
+(define (assimilate-hash hash adjustment)
+  (modulo (+ (* 2 hash) adjustment) fixnum-limit))
+
+(define (tlc-table-default-eqv-hash-function x)
+  (let recur ((x x)
+              (budget 16))
+    (cond
+     ((number? x)
+      (if (exact? x)
+          (cond ((integer? x)
+                 (assimilate-hash (modulo (abs x) fixnum-limit) 6789012))
+                ((rational? x)
+                 (assimilate-hash (recur (numerator x) (- budget 1))
+                                  (assimilate-hash (recur (denominator x) (- budget 1))
+                                                   9012345)))
+                ((real? x) 21212121)	; would be strange
+                ((complex? x)
+                 (assimilate-hash (recur (real-part x) (- budget 1))
+                                  (assimilate-hash (recur (imag-part x) (- budget 1))
+                                                   123456)))
+                (else 21212121))
+          (cond ((rational? x)
+                 (assimilate-hash (recur (inexact->exact (numerator x)) (- budget 1))
+                                  (assimilate-hash (recur (inexact->exact (denominator x)) (- budget 1))
+                                                   2345601)))
+                ((real? x) 21212121)	; NaN, infinity
+                ((complex? x)
+                 (assimilate-hash (recur (real-part x) (- budget 1))
+                                  (assimilate-hash (recur (imag-part x) (- budget 1))
+                                                   3456012)))
+                (else 21212121))))
+     (else
+      (memory-status (enum memory-status-option pointer-hash) x)))))
+
 ;; adjust results of hash function to table size
 
 (define (tlc-table-hash-value size value)
@@ -187,21 +223,21 @@
 ;; There are rare occasions where a link is enqueued to the tconc
 ;; queue during garbage collection that is hashed into the same bucket
 ;; as before.  So, strictly speaking, there is no need for the link to
-;; go into the tconc queue because a direct lookup finds it anyways.
+;; go into the tconc queue because a direct lookup finds it anyway.
 ;; But if the user really wants to delete a link, we have to make sure
 ;; that it is removed from the tconc queue so that a later lookup will
 ;; not resurrect the link.  Thus, if the tlc's tconc field is #f, the
 ;; tlc is in the tconc queue and we first walk the tconc queue and 
-;; rehash all the links until we finde the link we want to delete.
+;; rehash all the links until we find the link we want to delete.
 ;;
 ;; This may make the removal of an tlc-table entry very expensive,
 ;; because worst case all links in the tconc queue are rehashed
 ;; whenever the user deletes an element from the tlc table.
 ;;
-;; In even more rare circumstances, a deleted link may ressurect this
+;; In even more rare circumstances, a deleted link may resurrect this
 ;; way: If a garbage collection happens during the deletion of a link
 ;; (i.e. while traversing a bucket's link list), the collector may
-;; enqueued the link to the tconc queue just before the link is
+;; enqueue the link to the tconc queue just before the link is
 ;; deleted from the link list.  To prevent this from happening, we set
 ;; the link's tconc field to #f, so that the collector will not try to
 ;; enqueue it.
@@ -228,8 +264,10 @@
 
 (define (make-eq-tlc-table size)
   (make-non-default-tlc-table tlc-table-default-eq-hash-function eq? size #t))
-
 (define make-tlc-table make-eq-tlc-table)
+
+(define (make-eqv-tlc-table size)
+  (make-non-default-tlc-table tlc-table-default-eqv-hash-function eqv? size #t))
 
 ;; size
 
@@ -314,6 +352,13 @@
 	     (tlc-value-next-tlc (transport-link-cell-value tlc))
 	     (+ count 1))))
       (values keys vals))))
+
+;; utility function to detect eq? and eqv? tables (so their hash
+;; functions can be hidden from R6RS code)
+
+(define (tlc-table-has-tconc-queue? table)
+  (and (tlc-table-tconc table)
+       #t))
 
 ;; debugging
 

@@ -414,6 +414,8 @@
 
 (define-interface tlc-tables-interface
   (export make-tlc-table
+          make-eq-tlc-table
+          make-eqv-tlc-table
 	  make-non-default-tlc-table
           tlc-table?
           tlc-table-size
@@ -427,6 +429,7 @@
           tlc-table-entries
           tlc-table-equivalence-function
           tlc-table-hash-function
+          tlc-table-has-tconc-queue?
           tlc-table-distribution))
 
 ; --------------------

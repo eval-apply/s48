@@ -721,3 +721,65 @@
     (check (tlc-table-ref t "Key" #f) => "Value")
     (check-that (tlc-table-ref t "Value" #f) (is-false))))
 
+
+; eqv? table with various objects as keys
+(define-test-case eqv-table tlc-table-tests
+  (let ((t (make-eqv-tlc-table 23))
+        (ns '(1 10 100 1000 10000 100000)) ; must not contain 0
+        (ms '(1 10 100 1000)))             ; (exp 1000) is infinite
+    ; initialize table
+    (let-syntax ((stuff-table
+                  (syntax-rules ()
+                    ((stuff-table xs var expr)
+                     (for-each (lambda (x)
+                                 (tlc-table-set! t (let ((var x)) expr) x))
+                               xs)))))
+      (stuff-table ns n (expt 2 n))
+      (stuff-table ns n (/ (expt 3 n) (expt 2 n)))
+      (stuff-table ns n (+ (expt 2 n) (* 0+1i (expt 3 n))))
+      (stuff-table ms n (exp n))
+      (stuff-table ns n (exp (* n 0+1i)))
+      (stuff-table ns n (make-string n #\x)))
+    ; check its contents
+    (let-syntax ((check-stuffed
+                  (syntax-rules ()
+                    ((check-stuffed xs var expr)
+                     (for-each (lambda (x)
+                                 (check
+                                  (tlc-table-ref t (let ((var x)) expr) #f)
+                                  => x))
+                               xs))))
+                 (check-not-stuffed
+                  (syntax-rules ()
+                    ((check-not-stuffed xs var expr)
+                     (for-each (lambda (x)
+                                 (check
+                                  (tlc-table-ref t (let ((var x)) expr) #f)
+                                  => #f))
+                               xs)))))
+      (check-stuffed ns n (expt 2 n))
+      (check-stuffed ns n (/ (expt 3 n) (expt 2 n)))
+      (check-stuffed ns n (+ (expt 2 n) (* 0+1i (expt 3 n))))
+      (check-stuffed ms n (exp n))
+      (check-stuffed ns n (exp (* n 0+1i)))
+      (check-not-stuffed ns n (expt 3 n))
+      (check-not-stuffed ns n (/ (expt 2 n) (expt 3 n)))
+      (check-not-stuffed ns n (+ (expt 3 n) (* 0+1i (expt 2 n))))
+      (check-not-stuffed ms n (exp (- n)))
+      (check-not-stuffed ns n (exp (* n 0-1i)))
+      (check-not-stuffed ns n (make-string n #\x))))) ; not eqv? to the strings above
+
+
+(define-test-case has-tconc-queue? tlc-table-tests
+  (check
+   (tlc-table-has-tconc-queue? (make-eq-tlc-table 23))
+   => #t)
+  (check
+   (tlc-table-has-tconc-queue? (make-eqv-tlc-table 23))
+   => #t)
+  (check
+   (tlc-table-has-tconc-queue?
+    (make-non-default-tlc-table string-hash string=? 23 #f))
+   => #f))
+
+
