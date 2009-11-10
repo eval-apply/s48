@@ -618,7 +618,8 @@
 ; Utilities
 
 (define (literal? exp)
-  (or (number? exp) (char? exp) (string? exp) (boolean? exp)))
+  (or (number? exp) (char? exp) (string? exp) (boolean? exp)
+      (code-vector? exp)))
 
 (define (syntax? d)
   (cond ((operator? d)
