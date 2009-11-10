@@ -156,9 +156,9 @@ There is no limit to the number of bits in an integer.
 They are in the structures \code{bitwise} and \code{big-scheme}.
 
 \begin{protos}
-\proto{bitwise-and}{ integer integer}{integer}
-\proto{bitwise-ior}{ integer integer}{integer}
-\proto{bitwise-xor}{ integer integer}{integer}
+\proto{bitwise-and}{ integer integer \ldots}{integer}
+\proto{bitwise-ior}{ integer integer \ldots}{integer}
+\proto{bitwise-xor}{ integer integer \ldots}{integer}
 \proto{bitwise-not}{ integer} {integer}
 \end{protos}
 \noindent
@@ -192,6 +192,7 @@ They are in the structure \code{byte-vectors}.
 \proto{byte-vector-length}{ byte-vector}{integer}
 \proto{byte-vector-ref}{ byte-vector k}{integer}
 \protonoresultnoindex{byte-vector-set!}{ byte-vector k b}\mainschindex{byte-vector-set"!}
+\proto{byte-vector=?}{ byte-vector byte-vector}{boolean}
 \end{protos}
 
 \section{Sparse vectors}
@@ -370,7 +371,7 @@ New types can be constructed using the \code{define-record-type} macro
  from the \code{define-record-types} structure
 The general syntax is:
 \begin{example}
-(define-record-type \cvar{tag} \cvar{type-name}
+(define-record-type [\cvar{tag}] \cvar{type-name}
   (\cvar{constructor-name} \cvar{field-tag} \ldots)
   \cvar{predicate-name}
   (\cvar{field-tag} \cvar{accessor-name} [\cvar{modifier-name}])
@@ -395,7 +396,8 @@ The \cvar{accessor-name}s retrieve the values of fields,
  and the \cvar{modifier-name}'s update them.
 \cvar{Tag} is used in printing instances of the record type and
  the \cvar{field-tag}s are used in the inspector and to match
- constructor arguments with fields.
+ constructor arguments with fields. If \cvar{tag} is not specified,
+ \cvar{type-name} is used instead.
 
 \begin{protos}
 \protonoresult{define-record-discloser}{ type discloser}

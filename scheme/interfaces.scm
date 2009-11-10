@@ -42,7 +42,7 @@
 	  ;; New in Revised^5 Scheme
 	  values call-with-values
 
-	  ;; Things aren't primitive at the VM level, but they have
+	  ;; Things that aren't primitive at the VM level, but have
 	  ;; to be defined using VM primitives.
 	  string-copy
 	  string->symbol

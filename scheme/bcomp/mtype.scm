@@ -329,7 +329,7 @@
 ;
 ; (+ (f 1) (car (f 'a)))    [reconstructing type of f by computing meet of all contexts]
 ;   => meet (proc (:integer) :number nonr) (proc (:symbol) :pair nonr)
-;   => (proc ((join :integer :symbol) (join :number :pair)) nonr), yes?
+;   => (proc ((join :integer :symbol)) (join :number :pair) nonr), yes?
 ;
 ; 2. If both types are restrictive, we need to MEET both domains and
 ; codomains.
