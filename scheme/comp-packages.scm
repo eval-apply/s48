@@ -82,6 +82,7 @@
 	low-exceptions tables fluids
 	var-utilities
 	transforms
+        code-vectors
 	features)		;make-immutable!
   (files (bcomp syntax))
   (optimize auto-integrate))
