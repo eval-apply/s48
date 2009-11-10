@@ -552,6 +552,7 @@
 	display-conditions
 	escapes continuations previews
 	(subset i/o (current-error-port))
+        (subset i/o-internal (output-port-forcers))
 	fluids)
   (files (big test-suite)))
 

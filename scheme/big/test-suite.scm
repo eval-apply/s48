@@ -313,9 +313,17 @@
 	      (display (test-case-name case) p)
 	      (let-fluid $test-case case
 			 (test-case-thunk case))
+              (force-all-output-ports!)
 	      (display ")" p)
 	      (newline p))
 	    cases))
+
+; TODO - move into a utility package
+(define (force-all-output-ports!)
+  (do ((thunks (output-port-forcers #f) ; #f gets forcers for all ports
+               (cdr thunks)))
+      ((null? thunks))
+    ((car thunks))))
 
 (define (report-failures p failures)
   (if (null? failures)
