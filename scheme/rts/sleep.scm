@@ -1,12 +1,6 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Sleeping for N milliseconds.
-;
-; The current thread is the only one every on QUEUE, but we cannot block without
-; being on some queue.
-;
-; CALL-ERROR has to be called from us, not COERCE-TO-... because it is supposed
-; to have our continuation.
 
 (define (sleep user-n)
   (let ((n (coerce-to-nonnegative-integer user-n)))
