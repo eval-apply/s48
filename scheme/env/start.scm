@@ -61,7 +61,7 @@
     p))
 
 (define (make-tower built-in-structures id)
-  (make-reflective-tower eval
-			 (list (*structure-ref built-in-structures
-					       'scheme))
-			 id))
+  (make-syntactic-tower eval
+			(list (*structure-ref built-in-structures
+					      'scheme))
+			id))

@@ -104,7 +104,7 @@
          (not (package-unstable? env)))
         ((structure? env)
          (not (structure-unstable? env)))
-        ((procedure? env)
+        ((compiler-env? env)
          #f)                    ; conservative
         (else
          (assertion-violation 'environment-stable? "invalid environment" env))))
@@ -415,7 +415,7 @@
 			       name
 			       (package-integrate? (structure-package env)))
 	     (assertion-violation 'generic-lookup "not exported" env name)))
-	((procedure? env)
+	((compiler-env? env)
 	 (lookup env name))
 	(else
 	 (assertion-violation 'generic-lookup "invalid environment" env name))))

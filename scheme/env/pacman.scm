@@ -44,7 +44,7 @@
          (p (make-package opens-thunk
                           (lambda () '())
                           #t    ;unstable?
-                          (get-reflective-tower (user-environment))
+                          (get-syntactic-tower (user-environment))
                           ""    ;file containing DEFINE-STRUCTURE form
                           '()   ;clauses
                           #f    ;uid
@@ -53,7 +53,7 @@
 			     (package-integrate? (environment-for-commands)))
     (set-environment-for-commands! p)))
 
-(define (get-reflective-tower env)    ;Returns promise of (eval . env)
+(define (get-syntactic-tower env)    ;Returns promise of (eval . env)
   (comp-env-macro-eval (if (package? env)
 			   (package->environment env)
 			   env)))	;Mumble
@@ -147,7 +147,7 @@
   '(&opt command))
 
 (define (for-syntax . maybe-command)
-  (in-package (cdr (force (get-reflective-tower (environment-for-commands))))
+  (in-package (cdr (force (get-syntactic-tower (environment-for-commands))))
     maybe-command))
 
 
@@ -277,7 +277,7 @@
 				    init-thunk)))))))
 
 (define (make-user-envs commands built-in meta-structs)
-  (let* ((tower (make-reflective-tower
+  (let* ((tower (make-syntactic-tower
 		      eval
 		      (list (*structure-ref built-in 'scheme))
 		      'user))
@@ -317,7 +317,7 @@
 			       #t  ;unstable?
 			       tower
 			       name)))
-    (set-reflective-tower-maker!
+    (set-syntactic-tower-maker!
          config
 	 (lambda (clauses id)
 	   (if (null? clauses)

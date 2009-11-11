@@ -28,7 +28,7 @@
 	  exp)      
       (eval exp env)))
 
-(define-reflective-tower-maker
+(define-syntactic-tower-maker
   (lambda (clauses names)
     (let ((env (interaction-environment)))
       (delay

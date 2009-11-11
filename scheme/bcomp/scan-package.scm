@@ -13,7 +13,10 @@
 	(structure-seen '())
 	(packages '()))
     (letrec ((recur
-	      (lambda (structure)
+	      (lambda (structure visited)
+		(if (memq (structure-package structure) visited)
+		    (warning 'collect-packages "cycle in structures dependencies"
+			     structure visited))
 		(if (not (memq structure structure-seen))
 		    (begin
 		      (set! structure-seen (cons structure structure-seen))
@@ -22,13 +25,17 @@
 			    (begin
 			      (set! package-seen (cons package package-seen))
 			      (if (include-this-package? package)
-				  (begin
-				    (for-each recur (package-opens package))
+				  (let ((visited (cons package visited)))
+				    (for-each (lambda (struct)
+						(recur struct visited))
+					      (package-opens package))
 				    (for-each (lambda (name+struct)
-						(recur (cdr name+struct)))
+						(recur (cdr name+struct) visited))
 					      (package-accesses package))
 				    (set! packages (cons package packages))))))))))))
-      (for-each recur structs)
+      (for-each (lambda (struct)
+		  (recur struct '()))
+		structs)
       (reverse packages))))
 
 ; Walk through PACKAGE's clauses to find the source code.  The relevant

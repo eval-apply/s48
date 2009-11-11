@@ -69,7 +69,7 @@
   (optimize auto-integrate))
 
 (define-structure wind wind-interface
-  (open scheme-level-1 exceptions define-record-types
+  (open scheme-level-1 low-exceptions define-record-types
 	fluids fluids-internal
 	low-proposals
 	escapes)
@@ -98,7 +98,7 @@
   (optimize auto-integrate))
 
 (define-structure encodings encodings-interface
-  (open scheme-level-2
+  (open scheme-level-1
 	unicode
 	byte-vectors
 	(subset primitives (char->utf utf->char))
@@ -268,11 +268,11 @@
 		 (shared-binding-name obj)))))
 
 (define-structure enumerated enumerated-interface
-  (open scheme-level-1 exceptions)
+  (open scheme-level-1 low-exceptions)
   (files (rts defenum scm)))
 
 (define-structure architecture vm-architecture-interface
-  (open scheme-level-1 exceptions enumerated platform)
+  (open scheme-level-1 low-exceptions enumerated platform)
   (files (vm/interp arch)))
 
 (define-structure vm-data vm-data-interface
