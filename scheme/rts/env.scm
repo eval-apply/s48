@@ -94,7 +94,7 @@
 ; structs should be a non-null list of structures that should be
 ; opened at EVERY level of the tower.
 
-(define (make-reflective-tower eval structs id)
+(define (make-syntactic-tower eval structs id)
   (let recur ((level 1))
     (delay (cons eval
 		 (make-simple-package structs
@@ -102,20 +102,28 @@
 				      (recur (+ level 1))
 				      `(for-syntax ,level ,id))))))
 
-; (set-reflective-tower-maker! p (lambda (clauses id) ...))
+; backwards compatibility for PreScheme compiler
+(define make-reflective-tower make-syntactic-tower)
+
+; (set-syntactic-tower-maker! p (lambda (clauses id) ...))
 ; where clauses is a list of DEFINE-STRUCTURE clauses
 
-(define set-reflective-tower-maker!
-  (let ((name (string->symbol ".make-reflective-tower."))
-	(reader-name (string->symbol ".reader.")))
+(define set-syntactic-tower-maker!
+  (let ((name (string->symbol ".make-syntactic-tower."))
+	(name2 (string->symbol ".make-reflective-tower.")))
     (lambda (p proc)
       (environment-define! p name proc)
+      ;; backwards compatibility for PreScheme compiler
+      (environment-define! p name2 proc))))
+
+; backwards compatibility for PreScheme compiler
+(define set-reflective-tower-maker!
+  (let ((reader-name (string->symbol ".reader.")))
+    (lambda (p proc)
+      (set-syntactic-tower-maker! p proc)
       ;; total, utter kludge:
       ;; The reader wasn't configurable in earlier versions of Scheme 48,
-      ;; so some software written for it doesn't initialize it properly.
-      ;; (Notably the PreScheme compiler.)
-      ;; However, that software does know about set-reflective-tower-maker!.
-      ;; So, make sure it's set here to avoid an undefined variable.
+      ;; so PreScheme doesn't how to initialize it.
       (if (not (package-lookup p reader-name))
 	  (environment-define! p reader-name read)))))
 

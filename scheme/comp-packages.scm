@@ -32,7 +32,8 @@
 	meta-types	;sexp->type
 	bindings	;same-denotation?
 	features	;make-immutable! string-hash
-	syntax-transformers)
+	syntax-transformers
+	compiler-envs)
   (files (bcomp name)
 	 (bcomp transform))
   (optimize auto-integrate))
@@ -57,8 +58,8 @@
 ; Nodes
 
 (define-structure compiler-envs compiler-envs-interface
-  (open scheme-level-2
-	meta-types names bindings)
+  (open scheme-level-2 define-record-types
+	meta-types bindings)
   (files (bcomp cenv))
   (optimize auto-integrate))
 
