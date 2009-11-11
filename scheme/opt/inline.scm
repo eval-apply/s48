@@ -1,7 +1,7 @@
 ; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
 
 ; Once we know that we want something to be inlined, the following things
-; actually makes use of the fact.  For procedures for which all
+; actually make use of the fact.  For procedures for which all
 ; arguments can be substituted unconditionally, we make a transform
 ; (a macro, really) that performs the substitution.
 

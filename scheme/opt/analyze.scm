@@ -73,7 +73,7 @@
 	 #f)))
 
 ; We elect to integrate a procedure definition when
-;  1. The procedure in not n-ary,
+;  1. The procedure is not n-ary,
 ;  2. Every parameter is used exactly once and not assigned, and
 ;  3. The analysis phase says that the body is acceptable (see below). 
 

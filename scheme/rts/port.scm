@@ -99,7 +99,7 @@
 	;; note this must be an assertion violation---these only look at the buffer
 	(signal-vm-exception opcode reason port))))
 
-; This could combined with on-arg-... if the port were the first argument.
+; This could be combined with one-arg-... if the port were the first argument.
 
 (define (two-arg-proc->handler proc)
   (lambda (opcode reason arg port)
@@ -120,7 +120,7 @@
     (assertion-violation 'char-ready? "invalid argument" port))))
 
 ; See if there is a character available.  BYTE-READY? itself is defined
-; in current-ports.scm as it needs CURRENT-INPUT-PORT when called with
+; in current-port.scm as it needs CURRENT-INPUT-PORT when called with
 ; no arguments.
 
 (define (real-byte-ready? port)

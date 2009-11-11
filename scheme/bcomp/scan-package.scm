@@ -38,12 +38,12 @@
 		structs)
       (reverse packages))))
 
-; Walk through PACKAGE's clauses to find the source code.  The relevent
+; Walk through PACKAGE's clauses to find the source code.  The relevant
 ; clauses are:
-;   (file name ...)
+;   (files name ...)
 ;   (begin form ...)
 ;   (define-all-operators)
-;   (usual-transforms)
+;   (usual-transforms name ...)
 ;
 ; Returns a list of pairs (file . (node1 node2 ...)), a list of names
 ; of standard transforms, and a boolean value which is true if the package
