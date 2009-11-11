@@ -113,7 +113,7 @@
 (define (make-remote-package in out opens id)
   (let ((p (make-simple-package opens
  				#t
- 				(reflective-tower
+ 				(syntactic-tower
  				 (package->environment (interaction-environment)))
  				id)))
     (set-package-evaluator! p (make-remote-eval in out))

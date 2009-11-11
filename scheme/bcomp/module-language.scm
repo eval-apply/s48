@@ -192,21 +192,21 @@
 			   (,%list ,@(map (lambda (a)
 					    `(,%cons (,%quote ,a) ,a))
 					  accesses)))
-		       (,(string->symbol ".make-reflective-tower.")
+		       (,(string->symbol ".make-syntactic-tower.")
 			(,%quote ,for-syntaxes)
 			(,%quote ,names))		; for discloser
 		       ,(string->symbol ".reader.")
 		       (,%file-name)
 		       (,%quote ,others)
 		       (,%quote ,names))))))))
-  (cons lambda list make-a-package quote make-reflective-tower %file-name%))
+  (cons lambda list make-a-package quote make-syntactic-tower %file-name%))
 
 (define-syntax define-reader
   (lambda (e r c)
     `(,(r 'define) ,(string->symbol ".reader.") ,(cadr e)))
   (define))
 
-; (DEFINE-REFLECTIVE-TOWER-MAKER <proc>)
+; (DEFINE-SYNTACTIC-TOWER-MAKER <proc>)
 ;   <proc> should be an expression that evaluates to a procedure of
 ;   two arguments.  The first argument is a list of DEFINE-STRUCTURE
 ;   clauses, and the second is some identifying information (no
@@ -216,11 +216,20 @@
 ;   form, <eval-proc> is called on the right-hand side and <env>.
 ; Got that?
 
-(define-syntax define-reflective-tower-maker
+(define-syntax define-syntactic-tower-maker
   (lambda (e r c)
-    `(,(r 'define) ,(string->symbol ".make-reflective-tower.") ,(cadr e)))
+    `(,(r 'begin)
+      (,(r 'define) ,(string->symbol ".make-syntactic-tower.") ,(cadr e))
+      ;; backwards compatibility for PreScheme compiler
+      (,(r 'define) ,(string->symbol ".make-reflective-tower.") ,(string->symbol ".make-syntactic-tower."))))
   (define))
 
+(define-syntax export-syntactic-tower-maker
+  (lambda (e r c)
+    `(,(r 'export) ,(string->symbol ".make-syntactic-tower.")))
+  (export))
+
+;; backwards compatibility for PreScheme compiler
 (define-syntax export-reflective-tower-maker
   (lambda (e r c)
     `(,(r 'export) ,(string->symbol ".make-reflective-tower.")))

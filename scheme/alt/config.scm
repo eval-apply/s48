@@ -208,6 +208,6 @@
 
 (define interface-of structure-interface)
 
-(define-reflective-tower-maker list)
+(define-syntactic-tower-maker list)
 (define-reader read)
 

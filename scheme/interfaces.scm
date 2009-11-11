@@ -1433,13 +1433,15 @@
 	  environment-ref
 	  environment-set!
 	  interaction-environment
-	  make-reflective-tower
+	  make-syntactic-tower
+	  make-reflective-tower ; backwards compatibility for PreScheme compiler
 	  scheme-report-environment
 	  null-environment
 	  set-interaction-environment!
 	  set-scheme-report-environment!
 	  with-interaction-environment
-	  set-reflective-tower-maker!
+	  set-syntactic-tower-maker!
+	  set-reflective-tower-maker! ; backwards compatibility for PreScheme compiler
 	  set-reader!))
 
 (define-interface defpackage-interface
@@ -1450,8 +1452,9 @@
 	    define-module
 	    define-syntax
 	    define-reader
-	    define-reflective-tower-maker
-	    export-reflective-tower-maker
+	    define-syntactic-tower-maker
+	    export-syntactic-tower-maker
+	    export-reflective-tower-maker ; backwards compatibility for PreScheme compiler
 	    compound-interface
 	    modify subset with-prefix
 	    export

@@ -138,7 +138,7 @@
         packages-internal       ; set-package-integrate?!, etc.
         package-mutation        ; package-system-sentinel
         environments            ; *structure-ref, etc.
-	compiler-envs		; reflective-tower
+	compiler-envs		; syntactic-tower
         ensures-loaded          ; ensure-loaded
 	debug-messages
 	interfaces
