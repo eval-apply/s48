@@ -39,14 +39,7 @@
     (u8vector-copy! u8vector 0 copy 0 size)
     copy))
 
-(define (u8vector=? u8vector-1 u8vector-2)
-  (let ((size (byte-vector-length u8vector-1)))
-    (and (= size (byte-vector-length u8vector-2))
-	 (let loop ((i 0))
-	   (or (>= i size)
-	       (and (= (byte-vector-ref u8vector-1 i)
-		       (byte-vector-ref u8vector-2 i))
-		    (loop (+ 1 i))))))))
+(define u8vector=? byte-vector=?)
 
 (define (u8vector-compare u8vector-1 u8vector-2)
   (let ((length-1 (u8vector-length u8vector-1))
