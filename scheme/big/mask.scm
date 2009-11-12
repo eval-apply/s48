@@ -134,7 +134,7 @@
 		 (apply bitwise-op
 			(mask->integer mask)
 			(map mask->integer more-masks)))
-      (apply assertion-violation 'mask-op "argument is not a mask" mask more-masks)))
+      (apply assertion-violation mask-op "argument is not a mask" mask more-masks)))
 			
 ; Subtraction
 
