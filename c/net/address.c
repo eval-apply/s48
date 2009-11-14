@@ -162,6 +162,7 @@ static s48_ref_t
 s48_make_sockaddr_in_raw(s48_call_t call, s48_ref_t sch_in_addr, s48_ref_t sch_port)
 {
   struct sockaddr_in saddr;
+  memset(&saddr, 0, sizeof(struct sockaddr_in));
 #ifdef SIN6_LEN
   /* sockaddr addresses either all have the length, or none has */
   saddr.sin_len = sizeof(struct sockaddr_in);
@@ -245,6 +246,7 @@ s48_make_sockaddr_in6_raw(s48_call_t call, s48_ref_t sch_addr, s48_ref_t sch_por
 			  s48_ref_t sch_scope_id)
 {
   struct sockaddr_in6 saddr;
+  memset(&saddr, 0, sizeof(struct sockaddr_in6));
 #ifdef SIN6_LEN
   saddr.sin6_len = sizeof(struct sockaddr_in6);
 #endif
@@ -294,6 +296,8 @@ s48_make_sockaddr_un_raw(s48_call_t call, s48_ref_t sch_path)
   struct sockaddr_un saddr;
   size_t max_path_len = sizeof(saddr) + ((char*)&(saddr.sun_path) - (char*)&saddr);
   s48_ref_t sch_native;
+
+  memset(&saddr, 0, sizeof(struct sockaddr_un));
 
   if (s48_byte_vector_length_2(call, sch_path) > max_path_len)
     s48_assertion_violation_2(call, "s48_make_sockaddr_un_raw", "path too long", 1,
