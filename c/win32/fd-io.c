@@ -1616,7 +1616,7 @@ s48_accept(s48_call_t call, s48_ref_t channel, s48_ref_t retry_p)
 	}
     
       return s48_cons_2(call, 
-			input_channel
+			input_channel,
 			s48_enter_sockaddr(call,
 					   (const struct sockaddr*)(callback_data->buffer + SOCKADDR_BUFFER_SIZE),
 					   SOCKADDR_BUFFER_SIZE));

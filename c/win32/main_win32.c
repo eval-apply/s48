@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <windows.h>
 
-extern int s48_main (int argc, char ** argv);
+extern long s48_initialize(int *argc, char ***argv);
 
 extern int s48_utf_16_to_utf_8of16(LPWSTR utf_16, 
 				   unsigned char* utf_8of16);
@@ -14,6 +14,7 @@ wmain(int argc, wchar_t *argv_utf16[])
 {
   char** argv = malloc(sizeof(char*) * argc);
   int i = 0;
+  long return_value;
 
   if (argv == NULL)
     return -1;
@@ -27,5 +28,11 @@ wmain(int argc, wchar_t *argv_utf16[])
       s48_utf_16_to_utf_8of16(argv_utf16[i], argv[i]);
       ++i;
     }
-  return s48_main(argc, argv);
+
+  return_value = s48_initialize(&argc, &argv);
+
+  if (return_value != 0)
+    return return_value;
+  else
+    return s48_call_startup_procedure(argv, argc);
 }
