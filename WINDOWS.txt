@@ -31,8 +31,8 @@ In order to build Scheme 48 from scratch, the following steps are
 needed:
 
 - install a recent regular release of Scheme 48
-- generate the initial image via build\build-initial-image.bat (see below)
 - generate the various Unicode tables via build\generate-unicode-info.bat (see below)
+- generate the initial image via build\build-initial-image.bat (see below)
 - generate the C headers via build\generate-c-header.bat (see below)
 - generate the C code for the VM and the BIBOP GC (see below)
 - build the VM itself (see below)
@@ -49,6 +49,11 @@ scheme48vm -i scheme48.image
 (The installer creates a suitable front-end batch file for this
 incantation.)
 
+build\generate-unicode-info.bat
+  This builds the Unicode tables from source.
+
+  build\generate-unicode-info.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
+
 build\build-initial-image.bat
   This builds build\initial.image-32 from source.
 
@@ -62,11 +67,6 @@ build\build-initial-image.bat
   "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48" -a batch < build\filenames.scm
 
   build\build-initial-image.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
-
-build\generate-unicode-info.bat
-  This builds the Unicode tables from source.
-
-  build\generate-unicode-info.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
 
 build\generate-c-header.bat
   This generates the c\scheme48.h header file needed for compiling
