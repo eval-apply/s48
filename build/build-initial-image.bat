@@ -6,7 +6,7 @@ call build\filenames.bat
 
 echo ,batch > build\build-initial-image.input
 echo ,bench on >> build\build-initial-image.input
-echo ,open signals handle features >> build\build-initial-image.input
+echo ,open signals handle features code-quote >> build\build-initial-image.input
 echo ,open bitwise ascii code-vectors >> build\build-initial-image.input
 echo ,open (subset i/o (write-byte)) (subset ports (set-port-crlf?!)) >> build\build-initial-image.input
 echo ,config ,load scheme/platform-interfaces.scm >> build\build-initial-image.input
