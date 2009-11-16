@@ -1614,12 +1614,28 @@ s48_accept(s48_call_t call, s48_ref_t channel, s48_ref_t retry_p)
 	  ps_close_fd(accept_socket_fd);
 	  s48_raise_scheme_exception_2(call, s48_extract_long_2(call, input_channel), 0);
 	}
-    
-      return s48_cons_2(call, 
-			input_channel,
-			s48_enter_sockaddr(call,
-					   (const struct sockaddr*)(callback_data->buffer + SOCKADDR_BUFFER_SIZE),
-					   SOCKADDR_BUFFER_SIZE));
+
+      {
+	LPSOCKADDR localSockaddr = NULL;
+	int localSockaddrLength = 0;
+	LPSOCKADDR remoteSockaddr = NULL;
+	int remoteSockaddrLength = 0;
+
+	GetAcceptExSockaddrs(callback_data->buffer,
+			     0,
+			     SOCKADDR_BUFFER_SIZE,
+			     SOCKADDR_BUFFER_SIZE,
+			     &localSockaddr,
+			     &localSockaddrLength,
+			     &remoteSockaddr,
+			     &remoteSockaddrLength);
+
+	return s48_cons_2(call,
+			  input_channel,
+			  s48_enter_sockaddr(call,
+					     (const struct sockaddr*)(remoteSockaddr),
+					     remoteSockaddrLength));
+      }
     }
 
   if (WSAGetLastError() == ERROR_IO_PENDING)
