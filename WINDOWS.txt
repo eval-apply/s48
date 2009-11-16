@@ -37,17 +37,17 @@ needed:
 - generate the C code for the VM and the BIBOP GC (see below)
 - build the VM itself (see below)
 - build scheme48.image via build\build-usual-image.bat (see below)
+- generate a batch file to run Scheme 48
 - run the test suite via build\check.bat
 
 To run the various batch files, you should be sitting in a shell in
 the root of the Scheme 48 source-code hierarchy.
 
-You can then start Scheme 48 by saying
+You can then start Scheme 48 by saying:
 
-scheme48vm -i scheme48.image
+scheme48
 
-(The installer creates a suitable front-end batch file for this
-incantation.)
+
 
 build\generate-unicode-info.bat
   This builds the Unicode tables from source.
@@ -108,12 +108,25 @@ build\build-usual-image.bat
   - the name of the VM executable
   - the filename of the initial image
 
-  Example (supposing the Scheme 48 root directory sits at c:\scheme48)
+  Example (supposing the Scheme 48 root directory sits at c:\src\s48):
 
   build\build-usual-image.bat ".\" "C:\src\s48\scheme" "C:\src\s48" scheme48.image scheme48vm.exe build\initial.image-32
 
+build\generate-go.bat
+  This generates a batch file to start Scheme 48.
+
+  It requires three command-line arguments:
+
+  - the name of the batch file to produce
+  - the full path of the VM executable
+  - the full path of the image file
+
+  Example (supposing the Scheme 48 root directory sits at c:\src\s48):
+
+  build\generate-go.bat scheme48.bat "c:\src\s48\scheme48vm.exe" "c:\src\s48\scheme48.image"
+
 build\check.bat
-  This runs the test cases.
+  This runs the test cases that should succeed on Windows.
 
   It requires a command-line argument specifying the Scheme 48
   executable to check.
