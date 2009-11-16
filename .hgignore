@@ -57,3 +57,5 @@ ffi-test.dll
 ^scheme48-files\.input$
 ^scheme48\.(msi|wixobj)$
 ^desktop.ini$
+^BuildS48.(exe|pdb)$
+^Boo.Lang.dll$
