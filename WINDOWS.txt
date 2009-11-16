@@ -43,6 +43,10 @@ needed:
 To run the various batch files, you should be sitting in a shell in
 the root of the Scheme 48 source-code hierarchy.
 
+If you have Boo (or are willing to download it), you can use
+build\BuildS48.boo to perform the above steps with far less typing.
+Read the comments at the beginning of BuildS48.boo for instructions.
+
 You can then start Scheme 48 by saying:
 
 scheme48
