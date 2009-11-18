@@ -1375,6 +1375,7 @@ The predefined sequence types are:
 \syntaxprotonoresultnoindex{string*}{ \cvar{elt-var} \cvar{string}}
 \syntaxprotonoresultnoindex{count*}
  { \cvar{elt-var} \cvar{start} [\cvar{end} [\cvar{step}]]}
+\syntaxprotonoresultnoindex{bits*}{ \cvar{elt-var} \cvar{i} [\cvar{size}]}
 \syntaxprotonoresultnoindex{input*}
  { \cvar{elt-var} \cvar{input-port} \cvar{read-procedure}}
 \syntaxprotonoresultnoindex{stream*}
@@ -1397,6 +1398,15 @@ The sequence does not terminate if no \cvar{end} is given or if there
 For example, \code{(count* i 0 -1)} doesn't terminate
  because it begins past the \cvar{end} value and \code{(count* i 0 1 2)} doesn't
  terminate because it skips over the \cvar{end} value.
+
+For \code{bits*}, the element variable is bound to a sequence of
+ representations of successive bit-fields of \cvar{i}, from least to most
+ significant.
+If \cvar{size} is present, it must be a positive exact integer, and the
+ element variable is bound to a sequence of \cvar{size}-bit integers.
+If \cvar{size} is omitted, \code{bits*} iterates through single bits, and the
+ element variable is bound to a sequence of booleans. \code{\#t} represents 1,
+ and \code{\#f} represents 0.
 
 For \code{input*} the elements are the results of successive applications
  of \cvar{read-procedure} to \cvar{input-port}.
@@ -1451,7 +1461,7 @@ The synchronous sequences are:
 \end{protos}
 
 Note that the synchronous \code{count\%} must have an \cvar{end}, unlike the
- nonsynchronous \code{count\%}.
+ nonsynchronous \code{count*}.
 
 \subsection{Examples}
 
@@ -1519,7 +1529,7 @@ A non-synchronous sequence macro needs to supply three values:
 The first
  two methods are CPS'ed: they take another macro and argument to
  which to pass their result.
-The \code{synchronized?} method gets no additional arguments.
+The \code{sync} method gets no additional arguments.
 The \code{state-vars} method is passed a list of names which
  will be bound to the arguments to the sequence.
 The final method, for the step, is passed the list of names bound to
@@ -1532,8 +1542,8 @@ In addition there is
 The definition of \code{list*} is
 \begin{example}
 (define-syntax list*
-  (syntax-rules (synchronized? state-vars step)
-    ((list* synchronized? (next more))
+  (syntax-rules (sync state-vars step)
+    ((list* sync (next more))
      (next \#f more))
     ((list* state-vars (start-list) (next more))
      (next ((list-var start-list)) more))
