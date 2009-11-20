@@ -55,7 +55,7 @@
   (lambda (node)
     (list 'node (node-key node))))
 
-; Lookup up KEY and return its value.
+; Look up KEY and return its value.
 
 (define (search-tree-ref tree key)
   (call-with-values
@@ -129,7 +129,7 @@
 	   (proc (node-key node) (node-value node))
 	   (recur (node-right node))))))
 
-; Lookup up an entry.  Easy.
+; Look up an entry.  Easy.
 ;
 ; Hack of checking common case reduced lookup time in a 1000 element search
 ; tree by a third.

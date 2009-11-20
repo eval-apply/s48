@@ -368,7 +368,7 @@ total number of bytes needed for the encoding.
 A \cvar{decode-proc} consumes a byte vector \var{buffer}, an index
 \var{start} into the buffer, and a block size \var{count}.  It is
 supposed to decode the bytes at indices $\left[\var{start}, \var{start
-    + count}\right)$.  If the decoding is successul, it must return
+    + count}\right)$.  If the decoding is successful, it must return
 the decoded character at the beginning of the block, and the number of
 bytes consumed.  If the block cannot begin with or be a prefix of a
 valid encoding, the procedure must return \texttt{\#f} and

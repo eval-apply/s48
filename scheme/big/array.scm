@@ -9,7 +9,7 @@
 ; (array->vector <array>)
 ; (array <bounds> . <elements>)
 ;
-; All arrays are zero based.
+; All arrays are zero-based.
 ;
 ; The <linear-map> argument to MAKE-SHARED-ARRAY is a linear function
 ; that maps indices into the shared array into a list of indices into
@@ -132,7 +132,7 @@
 ; check that the shared array does not extend past the original.  The
 ; full check does a complete check, but, because it must check every corner
 ; of the shared array, it gets very slow as the number of dimensions
-; goes up.  The simple check just verifies that the all elements of
+; goes up.  The simple check just verifies that all elements of
 ; the shared array map to elements in the vector of the original.
 
 (define (make-shared-array array linear-map . bounds)
@@ -235,7 +235,7 @@
   (let ((l (reverse list)))
     (cons (car l) (reverse (cdr l)))))
 
-; Copy an array, shrinking the vector if this is subarray that does not
+; Copy an array, shrinking the vector if this is a subarray that does not
 ; use all of the original array's elements.
 
 (define (copy-array array)

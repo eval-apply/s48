@@ -493,7 +493,7 @@ These procedures construct the usual record-manipulating procedures.
 \code{Record-predicate} returns a predicate that return true when passed
  a record of type \cvar{record-type} and false otherwise.
 \code{Record-accessor} and \code{record-modifier} return procedures that
- reference and set the given field in records of the approriate type.
+ reference and set the given field in records of the appropriate type.
 
 \begin{protos}
 \protonoresult{define-record-discloser}{ record-type discloser}
@@ -517,7 +517,7 @@ The procedures described in this section can be used to define new
   (x kar set-kar!)
   (y kdr))
 \end{example}
-is (sematically) equivalent to
+is (semantically) equivalent to
 \begin{example}
 (define :pare (make-record-type 'pare '(x y)))
 (define kons (record-constructor :pare '(x y)))
@@ -1729,7 +1729,7 @@ reliably places the 4 of the first list before the equal-comparing -4
     (0 -1 -2 4 -4 7 8 -10)
 \end{verbatim}
 %
-  Some sort algorithms will \emph{not work correctly} if given a $\leq$
+  Some sort algorithms \emph{will not work correctly} if given a $\leq$
   when they expect a $<$ comparison (or vice-versa).
 
 %% For example,
@@ -2038,7 +2038,7 @@ Examples:
 \subsubsection{Algorithm-specific sorting packages}
 
 These packages provide more specific sorting functionality, that is,
-specific committment to particular algorithms that have particular
+specific commitment to particular algorithms that have particular
 pragmatic consequences (such as memory locality, asymptotic running time)
 beyond their semantic behaviour (sorting, stable sorting, merging, etc.).
 Programmers that need a particular algorithm can use one of these packages.
@@ -2383,7 +2383,7 @@ Choose the algorithm that matches your needs:
     exploits existing order in the input data, providing $O(n)$ best case.
 \item[Destructive list merge sort]
     Stable, fast and in-place (i.e., allocates no new cons cells). ``Fast''
-    means $O(n\log(n))$ worse-case, and substantially better if the data
+    means $O(n\log(n))$ worst-case, and substantially better if the data
     is already mostly ordered, all the way down to linear time for
     a completely-ordered input list (i.e., it is a ``natural'' sort).
 
@@ -2533,7 +2533,7 @@ any one of its arguments.
 \end{protos}
 \noindent
 \code{Repeat} returns a regular expression that matches zero or more
-occurences of its \cvar{reg-exp} argument.  With no count the result
+occurrences of its \cvar{reg-exp} argument.  With no count the result
 will match any number of times (\cvar{reg-exp}*).  With a single
 count the returned expression will match
  \cvar{reg-exp} exactly that number of times.
@@ -2733,7 +2733,7 @@ SRFI bindings can be accessed
 either by opening the appropriate structure
  (the structure \code{srfi-}\cvar{n} contains SRFI \cvar{n})
  or by loading structure \code{srfi-7} and then using
- the \code{,load-srfi-7-program} command to load an SRFI 7-style program.
+ the \code{,load-srfi-7-program} command to load an SRFI~7-style program.
 The syntax for the command is
 \begin{example}
 \code{,load-srfi-7-program \cvar{name} \cvar{filename}}

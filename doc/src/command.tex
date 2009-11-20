@@ -46,7 +46,7 @@ The reader used by the command processor reads \code{\#\#} as a special
 If an error, keyboard interrupt, or other breakpoint occurs, or the
  \code{,push} command is used, the command
  processor invokes a recursive copy of itself, preserving the dynamic state of
- the program when the breakpoint occured.
+ the program when the breakpoint occurred.
 The recursive invocation creates a new {\em command level}.
 The command levels form a stack with the current level at the top.
 The command prompt indicates the number of stopped levels below the
@@ -112,7 +112,7 @@ Whenever moving to an existing level, either by sending
     containing whitespace.)
     Also, it works in
     any package, unlike \code{(load "\cvar{filename}")}, which will work only
-    work in packages in which the variable \code{load} is defined appropriately.
+    in packages in which the variable \code{load} is defined appropriately.
 
 \item \code{,exit [\cvar{exp}]}
     Exits back out to shell (or executive or whatever invoked Scheme~48
@@ -509,7 +509,7 @@ call times of those procedures will be measured exactly. When only instrumented 
 considered in the output of the profiler, the command processor setting
 \code{profiler-measure-noninstr} can be set to \code{off}.
 
-Scheme~48 optimizes tail calls. Thus, the profiler can not ``see''
+Scheme~48 optimizes tail calls. Thus, the profiler cannot ``see''
 tail calls and in some situations,
 the output of the profiler may show that procedures directly call their ``grandchildren''.
 
@@ -548,9 +548,9 @@ Additionally, every time a procedure is seen, we record this ``occurrence''. If 
 the stack, it is currently running. Based on these numbers, the average interrupt time and the number of calls,
 we can estimate the self and child times.
 
-While running, the profiler collects information about the heap memory usage as well.
+While running, the profiler collects information about heap memory usage as well.
 After comparing the current with the last stack, the profiler knows which procedures finished, which procedures are new
-and who which procedure called the new procedures. These informations are used to distribute the difference in
+and which procedure called the new procedures. This information is used to distribute the difference in
 heap memory usage between the prior and the current sample.
 The profiler uses the \code{memory-status} primitive for retrieving available heap space and the number of
 garbage collector runs (\code{gc-count}).
@@ -586,7 +586,7 @@ They can be set using the \code{,set} and \code{,unset} commands.
     This sets the value of setting \cvar{setting}.
     For a boolean setting, the second argument must be \code{on} or
     \code{off}; it then defaults to \code{on}.
-    Otherwise, the value must be a literal, typically a posititive number.
+    Otherwise, the value must be a literal, typically a positive number.
     If the second argument is \code{?} the value of \cvar{setting} is
     is displayed and not changed.
     Doing \code{,set ?} will display a list of the setting and
@@ -616,7 +616,7 @@ The settings are as follows:
     pushed command levels include:
 \begin{itemize}
 \item a longer prompt
-\item retention of the continuation in effect at the point of errors
+\item retention of the continuation in effect at the point of error
 \item confusion among some newcomers
 \end{itemize}
     With \code{levels} disabled one must issue a
@@ -689,7 +689,7 @@ This controls the time between two profiler sampling interrupts
 
 \item \code{profiler-measure-noninstr} (boolean)\\
 When this flag is enabled, call-times will be measured by the sampling process.
-When it is disabled, call-times will only be measured, when the procedure has been
+When it is disabled, call-times will only be measured when the procedure has been
 instrumented (see section \ref{profiling-commands}).
 
 \item \code{trace-writing-length} (positive integer)\\
@@ -854,7 +854,7 @@ The file \code{scheme/vm/load-vm.scm} in the source directory contains an
     \cvar{filename} is resumed, that procedure will be invoked on the VM's
     \code{-a} arguments, which are passed as a list of OS strings (see
     section~\ref{os-strings}.  The
-    procedure should return an integer which is
+    procedure should return an integer, which is
     returned to the program that invoked the VM.  The command
     processor and debugging system are not included in the image
     (unless you go to some effort to preserve them, such as retaining

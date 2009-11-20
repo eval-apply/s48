@@ -38,7 +38,7 @@
 ; every time it gets called.  BLOCK-SIZE is the size of the blocks in
 ; the algorithm.
 
-; The procedure returns two valuesthe indices vector and a vector of
+; The procedure returns two values: the indices vector and a vector of
 ; the actual values.
 
 (define (compute-compact-table get-value block-size)

@@ -321,11 +321,11 @@ ps_open_fd(char *filename, psbool is_input, long *status)
 
 /*
  * This is for I/O streams that do not support overlapped I/O or a
- * select-like operations.  (Stdin/out/error don't support overlapped
+ * select-like operation.  (Stdin/out/err don't support overlapped
  * I/O; pipes don't support select.)  The ideas are stolen from
  * MzScheme; the help of Matthew Flatt is gratefully acknowledged.
  *
- * Each such stream has an associated threads which carries out I/O
+ * Each such stream has an associated thread which carries out I/O
  * actions on behalf of some other thread.  Upon completion, an
  * asynchronous procedure call to a procedure specified by the caller
  * is registered.
@@ -1199,7 +1199,7 @@ ps_abort_fd_op(long fd_as_long)
     }
 
   return 0;      /* because we do not actually do any I/O in parallel the
-		    status is always zero: no characters transfered. */
+		    status is always zero: no characters transferred. */
 }
 
 /*
@@ -1394,7 +1394,8 @@ s48_socketpair(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_type, s48_ref_t 
 /*
  * dup() `socket_fd' and return an output channel holding the result.
  *
- * We have to versions, one for calling from C and one for calling from Scheme.
+ * We have two versions, one to be called from C and one to be called
+ * from Scheme.
  */
 
 static s48_ref_t

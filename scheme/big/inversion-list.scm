@@ -4,7 +4,7 @@
 ; Inversion lists are representations for sets of integers,
 ; represented as sorted sets of ranges.
 
-; This was taken from Chapter 13 of Richard Gillam: Unicode Demystified
+; This was taken from Chapter 13 of Richard Gillam: Unicode Demystified.
 ; Mike doesn't know what the original source is.
 
 ; This was written as support code for the implementation of SRFI 14,

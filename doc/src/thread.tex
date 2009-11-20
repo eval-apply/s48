@@ -118,7 +118,7 @@ A \cvar{proposal} is a record of reads from and and writes to locations in
 The \cvar{logging} operations listed below record any values read or
  written in the current proposal.
 A reading operation, such as \code{provisional-vector-ref}, first checks to
- see if the current proposal contains a value for the relevent location.
+ see if the current proposal contains a value for the relevant location.
 If so, that value is returned as the result of the read.
 If not, the current contents of the location are stored in the proposal and
  then returned as the result of the read.
@@ -131,7 +131,7 @@ A logging write to a location stores the new value as the current contents of
  the proposal contains.
 A logged read is valid if, at the time of the commit, the location contains
  the same value it had at the time of the original read (note that this does
- not mean that no change occured, simply that the value now is the same as
+ not mean that no change occurred, simply that the value now is the same as
  the value then).
 If a proposal has an invalid read then the effort to commit fails; no change
  is made to the value of any location.
@@ -253,7 +253,7 @@ If the optional list of field tags is present then only those fields will
  to \code{call-ensuring-atomicity} and \code{call-ensuring-atomicity!} except that they
  always install a new proposal before calling \code{thunk}.
 The current proposal is saved and then restored after \code{thunk} returns.
-\code{Call-atomically} and \code{Call-atomically!} are useful if \code{thunk} contains
+\code{Call-atomically} and \code{call-atomically!} are useful if \code{thunk} contains
  code that is not to be combined with any other operation.
 
 \code{Atomically} and \code{atomically!} are macro versions of
@@ -288,7 +288,7 @@ mechanism.  They are defined in the \code{low-proposals} structure.
  still valid and, if so, performs any writes that it contains.
 A logged read is valid if, at the time of the commit, the location read contains
  the same value it had at the time of the original read (note that this does
- not mean that no change occured, simply that the value now is the same as
+ not mean that no change occurred, simply that the value now is the same as
  the value then).
 \code{Maybe-commit} returns \code{\#t} if the commit succeeds and \code{\#f}
  if it fails.
@@ -505,7 +505,7 @@ structure.
 %
 \code{Never-rv} is a rendezvous that is never enabled for
 synchronization.  (It is the same as the \code{never} event in CML.)
-\code{Always-rv} returns a rendezvous that is elways enabled for
+\code{Always-rv} returns a rendezvous that is always enabled for
 synchronization, and always yields the same value \cvar{value}.  (This
 is the same as the \code{alwaysEvt} function in CML.)
 %
@@ -621,7 +621,7 @@ functionality to the placeholders implemented by the
 \code{placeholders} structure (see Section~\ref{placeholders}), but
 additionally allow converting a placeholder into a rendezvous.  Note,
 however, that placeholders from \code{placeholders} are different from
-and not interchangable with placeholders from
+and not interchangeable with placeholders from
 \code{rendezvous-placeholders}.
 %
 \begin{protos}
@@ -653,7 +653,7 @@ more than once signals an error.  (This is the same as the CML
 returns it.  If the placeholder is empty, it blocks the current thread
 until it becomes full.  (This is the same as the CML \code{iGet}
 function.)  \code{Placeholder-value-rv} creates a rendezvous that
-will, upon synchronization, extrasct the value from the placeholder
+will, upon synchronization, extract the value from the placeholder
 and yield it as a result.  (This is the same as the CML \code{iGetEvt}
 function.)
 

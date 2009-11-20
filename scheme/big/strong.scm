@@ -38,7 +38,7 @@
                                             ; reached in the traversal
   (parent vertex-parent set-vertex-parent!) ; a vertex pointing to this one
   (lowpoint vertex-lowpoint set-vertex-lowpoint!)) ; lowest index in this
-                                     ; vertices strongly connected component
+                                     ; vertex's strongly connected component
 
 (define (make-vertex data)
   (really-make-vertex data '() #f 0 #f #f))

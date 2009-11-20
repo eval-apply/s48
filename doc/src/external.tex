@@ -105,7 +105,7 @@ This is necessary because C initialization code may be run before or after
 \end{protos}
 
 \noindent\code{Define-exported-binding} makes \cvar{value} available to C code
- under as \cvar{name} which must be a \cvar{string}, creating a new shared
+ under \cvar{name}, which must be a \cvar{string}, creating a new shared
  binding if necessary.
 The C function \code{s48\_get\_imported\_binding} returns the shared binding
  defined for \code{name}, again creating it if necessary.
@@ -136,7 +136,7 @@ s48\_define\_exported\_binding("\cvar{name}",
                                s48\_enter\_pointer(\cvar{name}))
 \end{example}
 
-\noindent which boxes the function into a Scheme byte vector and then
+\noindent which boxes the function pointer into a Scheme byte vector and then
  exports it.
 Note that \code{s48\_enter\_pointer} allocates space in the Scheme heap
  and might trigger a 
@@ -804,7 +804,7 @@ s48_value make_thing(s48_value a, s48_value b)
 \}
 \end{example}
 Note that the variables \code{a} and \code{b} must be protected
- against the possibility of a garbage collection occuring during
+ against the possibility of a garbage collection occurring during
  the call to \code{s48\_make\_record()}.
 
 \section{Raising exceptions from external code}
@@ -842,7 +842,7 @@ indicates their number, and the arguments (which must be of type
 
 The \code{s48\_os\_error} function is like \code{s48\_error}, except
 that the error message is inferred from an OS error code (as in
-\code{strerro}).  The \code{s48\_out\_of\_memory\_error} function
+\code{strerror}).  The \code{s48\_out\_of\_memory\_error} function
 signals that the system has run out of memory.
 
 The following macros raise assertion violations if their argument does
