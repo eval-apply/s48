@@ -91,7 +91,7 @@ static char states[3][32] =
 
 /*
  * - NUL-terminates
- * - if utf_6 is NULL, we just compute the size
+ * - if utf_16 is NULL, we just compute the size
  * - returns size (sans NUL) needed for UTF-16
  */
 

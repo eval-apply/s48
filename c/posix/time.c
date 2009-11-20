@@ -51,7 +51,7 @@ s48_posix_enter_time(s48_call_t call, time_t time)
 
   sch_time = s48_make_record_2(call, posix_time_type_binding);
 
-  /* Stashing the time value into temp before handing tit off to
+  /* Stashing the time value into temp before handing it off to
      S48_UNSAFE_RECORD_SET is necessary because its evaluation may
      cause GC; that GC could destroy the temporary holding the value
      of sch_time. */

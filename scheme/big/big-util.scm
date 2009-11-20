@@ -68,7 +68,7 @@
           (else
 	   (loop (cdr list))))))
 
-(define any first)  ; ANY? need not search in order, but it does anyway
+(define any first)  ; ANY need not search in order, but it does anyway
 
 (define (any? proc list)
   (let loop ((list list))

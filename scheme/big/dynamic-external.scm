@@ -2,17 +2,17 @@
 
 ;; More high-level interface to dynamic loading:
 
-;; This automatically initializes an externals shared object, keeps
+;; This automatically initializes an external shared object, keeps
 ;; track of which shared objects are loaded, and prevents them from
 ;; being removed automatically by the GC.
 
 ;; The shared object must define a function
 ;; void s48_on_load(void);
-;; It can also define functiosn:
+;; It can also define functions:
 ;; void s48_on_unload(void);
 ;;   which is called just before unloading, and
 ;; void s48_on_reload(void);
-;;   which is called after reloading.
+;;   which is called after reloading,
 ;; (which typically do the same thing) that LOAD-DYNAMIC-EXTERNALS
 ;; calls, depending on whether the object is being loaded for the
 ;; first time or not.

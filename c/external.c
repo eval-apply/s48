@@ -291,7 +291,7 @@ s48_external_call(s48_value sch_proc, s48_value proc_name,
 	      CLEANUP_THROW);
     }
   }
-  else {	/* throwing an exception or uwinding the stack */
+  else {	/* throwing an exception or unwinding the stack */
 #ifdef DEBUG_FFI
     fprintf(stderr, "[external_call throw; was %d and now %d]\n",
 	    depth,
@@ -510,7 +510,7 @@ s48_external_ecall(s48_call_t call,
 	      CLEANUP_THROW);
     }
   }
-  else {	/* throwing an exception or uwinding the stack */
+  else {	/* throwing an exception or unwinding the stack */
 #ifdef DEBUG_FFI
     fprintf(stderr, "[external_call_2 throw; was %d and now %d]\n",
 	    depth,
@@ -666,7 +666,7 @@ s48_call_scheme(s48_value proc, long nargs, ...)
 
       /* Someone has returned (because of threads) to the wrong section of the
 	 C stack.  We call back to a Scheme procedure that will suspend until
-	 out block is at the top of the stack. */
+	 our block is at the top of the stack. */
 
       s48_push(s48_Scallback_return_stack_blockS);
       s48_push(S48_UNSAFE_SHARED_BINDING_REF(s48_deref(delay_callback_return_binding)));
@@ -782,7 +782,7 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
 
       /* Someone has returned (because of threads) to the wrong section of the
 	 C stack.  We call back to a Scheme procedure that will suspend until
-	 out block is at the top of the stack. */
+	 our block is at the top of the stack. */
 
       s48_push(s48_Scallback_return_stack_blockS);
       s48_push_2(call, s48_unsafe_shared_binding_ref_2(call, delay_callback_return_binding));

@@ -44,9 +44,9 @@
 
 (define-exported-binding "s48-stack-block-type" :stack-block)
 
-; There is no need to keep track of the VM frames.  These are all interchangable
+; There is no need to keep track of the VM frames.  These are all interchangeable
 ; because 1) the VM's state is kept in top-level variables and 2) we have
-; arranged it so that the relevent VM opcodes, call-external-value and
+; arranged it so that the relevant VM opcodes, call-external-value and
 ; return-from-callback, are all the same length and are always immediately
 ; followed by a return instruction.  s48_call_scheme can safely overwrite the
 ; template and code-pointer registers in the VM as they always point to a
@@ -119,17 +119,17 @@
 ; Dealing with threads.
 ;
 ; The difficulty here is that each stack-block belongs to some thread.  Thread A
-; can call a C procedures which calls back into Scheme.  At that point a context
+; can call a C procedure which calls back into Scheme.  At that point a context
 ; switch occurs and we start running thread B, which promptly does the same
-; calls.  THe process stack then looks like this:
+; calls.  The process stack then looks like this:
 ; 
 ;  <C frame for VM running B1>
 ;  <C frame for s48_call_scheme>
-;  <C frame for B's c code>
+;  <C frame for B's C code>
 ;  <C frame for s48_external_call>
 ;  <C frame for VM running A1 and then B0>
 ;  <C frame for s48_call_scheme>
-;  <C frame for A's c code>
+;  <C frame for A's C code>
 ;  <C frame for s48_external_call>
 ;  <C frame for VM running A0>
 ;  <base>
@@ -172,7 +172,7 @@
   (lambda (opcode reason . args)
 
     (define (blow-up con extract-message)
-      ;; look at external.c why this is all so strangely reversed
+      ;; look at external.c for why this is all so strangely reversed
       (let ((rev (reverse args)))
 	(raise
 	 (condition

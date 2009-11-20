@@ -41,7 +41,7 @@
   (check (matches? (all-of (is-true) (is 5)) 5))
   (check (not (matches? (all-of (is-true) (is-false)) #t))))
 
-(define-test-case any-of-of matchers-tests
+(define-test-case any-of matchers-tests
   (check (matches? (any-of (is-false) (is 5)) 5))
   (check (matches? (any-of (is 5) (is-false)) 5))
   (check (not (matches? (any-of (is 5) (is-false)) #t))))

@@ -3,8 +3,8 @@
 
 ; Utilities for setting and constructing text codecs
 
-; This follows Richard Gillam: Unicode Demystified, Chapter 6
-; The BOM is U+FEFF---we look for at the beginning of the stream.
+; This follows Richard Gillam: Unicode Demystified, Chapter 6.
+; The BOM is U+FEFF---we look for one at the beginning of the stream.
 ; Note if this fails, you better re-open the port from the start
 
 ; Note that the UTF-32 detection suggested in Gillam's book is not

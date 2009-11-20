@@ -22,9 +22,9 @@
 ; 
 ; If a read occurs when all buffers are empty we swap a zero-length buffer in
 ; for the output-buffer and block on a condition variable.  The zero-length
-; buffer guarantees that the reading thread will be woken when the next write
-; occurs.  When a write occurs with a zero-length buffer we swap in the real
-; buffer, do the write, and then set the input condition variable.
+; buffer guarantees that the reading thread will be awakened when the next
+; write occurs.  When a write occurs with a zero-length buffer we swap in the
+; real buffer, do the write, and then set the input condition variable.
 ;
 ; When a write occurs with the write buffer full for a pipe without a fixed
 ; set of buffers the full buffer is added to a queue.

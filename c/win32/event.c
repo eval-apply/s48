@@ -102,7 +102,7 @@ s48_schedule_alarm_interrupt(long delta)
 }
 
 /* The next two procedures return times in seconds and ticks
-   (also from Lars Bergstrom's version */
+   (also from Lars Bergstrom's version) */
 
 static DWORD startup_real_time_ticks;
 
