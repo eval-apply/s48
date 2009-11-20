@@ -219,6 +219,9 @@
 (define-structure reduce (export ((reduce iterate)
 				  :syntax)
 				 ((list* list%
+					 list-spine* list-spine%
+					 list-spine-cycle-safe*
+					 list-spine-cycle-safe%
 					 vector* vector%
 					 string* string%
 					 count* count%
