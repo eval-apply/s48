@@ -251,6 +251,8 @@
 ; Iterators
 
 ; (list* var list)
+; (list-spine* var list)
+; (list-spine-cycle-safe* var list on-cycle-thunk)
 ; (vector* var vector)
 ; (string* var string)
 ; (count* var start [end [step]])
@@ -280,6 +282,67 @@
      (null? list-var))
     ((list% stuff ...)
      (list* stuff ...))))
+
+(define-syntax list-spine*
+  (syntax-rules (sync state-vars step)
+    ((list-spine* sync (next more))
+     (next #f more))
+    ((list-spine* state-vars (start-list) (next more))
+     (next ((list-var start-list)) more))
+    ((list-spine* step (start-list) (list-var)
+		  value-var loop-body final-exp)
+     (if (null? list-var)
+	 final-exp
+	 (let ((value-var list-var)
+	       (list-var (cdr list-var)))
+	   loop-body)))))
+
+(define-syntax list-spine%
+  (syntax-rules (sync done)
+    ((list-spine% sync (next more))
+     (next #t more))
+    ((list-spine% done (start-list) (list-var))
+     (null? list-var))
+    ((list-spine% stuff ...)
+     (list-spine* stuff ...))))
+
+(define-syntax list-spine-cycle-safe*
+  (syntax-rules (sync state-vars step)
+    ((list-spine-cycle-safe* sync (next more))
+     (next #f more))
+    ((list-spine-cycle-safe* state-vars
+                             (start-list on-cycle-thunk)
+                             (next more))
+     (next ((list-var start-list)
+            (lag-var start-list)
+            (move-lag? #f))
+           more))
+    ((list-spine-cycle-safe* step
+                             (start-list on-cycle-thunk)
+                             (list-var lag-var move-lag?)
+                             spine-var loop-body final-exp)
+     (if (null? list-var)
+         final-exp
+         (let ((spine-var list-var)
+               (list-var (cdr list-var))
+               (lag-var (if move-lag?
+                            (cdr lag-var)
+                            lag-var))
+               (move-lag? (not move-lag?)))
+           (if (eq? list-var lag-var)
+               (on-cycle-thunk)
+               loop-body))))))
+
+(define-syntax list-spine-cycle-safe%
+  (syntax-rules (sync done)
+    ((list-spine-cycle-safe% sync (next more))
+     (next #t more))
+    ((list-spine-cycle-safe% done
+			     (start-list on-cycle-thunk)
+			     (list-var lag-var move-lag?))
+     (null? list-var))
+    ((list-spine-cycle-safe% stuff ...)
+     (list-spine-cycle-safe* stuff ...))))
 
 (define-syntax vector*
   (syntax-rules (sync state-vars step)

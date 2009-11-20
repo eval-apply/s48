@@ -1371,6 +1371,9 @@ A \code{reduce} expression can be rewritten as an equivalent \code{iterate}
 The predefined sequence types are:
 \begin{protos}
 \syntaxprotonoresultnoindex{list*}{ \cvar{elt-var} \cvar{list}}
+\syntaxprotonoresultnoindex{list-spine*}{ \cvar{elt-var} \cvar{list}}
+\syntaxprotonoresultnoindex{list-spine-cycle-safe*}
+ { \cvar{elt-var} \cvar{list} \cvar{on-cycle-thunk}}
 \syntaxprotonoresultnoindex{vector*}{ \cvar{elt-var} \cvar{vector}}
 \syntaxprotonoresultnoindex{string*}{ \cvar{elt-var} \cvar{string}}
 \syntaxprotonoresultnoindex{count*}
@@ -1385,6 +1388,12 @@ The predefined sequence types are:
 For lists, vectors, and strings the element variable is bound to the
  successive elements of the list or vector, or the characters in the
  string.
+
+For \code{list-spine*} the element variable is bound to the successive
+ pairs in the spine of the list.
+\code{List-spine-cycle-safe*} is similar, but calls \cvar{on-cycle-thunk}
+ with no arguments and with the continuation of the loop macro at an
+ unspecified time if \cvar{list} contains a cycle.
 
 For \code{count*} the element variable is bound to the elements of the sequence
 \begin{example}
@@ -1450,6 +1459,9 @@ The synchronous sequences are:
 
 \begin{protos}
 \syntaxprotonoresultnoindex{list\%}{ \cvar{elt-var} \cvar{list}}
+\syntaxprotonoresultnoindex{list-spine\%}{ \cvar{elt-var} \cvar{list}}
+\syntaxprotonoresultnoindex{list-spine-cycle-safe\%}
+ { \cvar{elt-var} \cvar{list} \cvar{on-cycle-thunk}}
 \syntaxprotonoresultnoindex{vector\%}{ \cvar{elt-var} \cvar{vector}}
 \syntaxprotonoresultnoindex{string\%}{ \cvar{elt-var} \cvar{string}}
 \syntaxprotonoresultnoindex{count\%}
