@@ -178,8 +178,11 @@
 	  get-groups
 	  get-login-name
 
-	  lookup-environment-variable  lookup-environment-variable->string
-	  environment-alist environment-alist-as-strings
+	  lookup-environment-variable
+	  lookup-environment-variable->string
+	  set-environment-variable!
+	  environment-alist
+	  environment-alist-as-strings
 	  ))
 
 (define-interface posix-platform-names-interface

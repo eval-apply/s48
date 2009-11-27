@@ -342,12 +342,18 @@ if the process has appropriate privelages.
 
 \begin{protos}
 \proto{lookup-environment-variable}{ os-string-thing}{os-string or {\tt \#f}}
+\protonoresultnoindex{set-environment-variable!}{ name value}
+\mainschindex{set-environment-variable"!}
 \proto{environment-alist}{}{alist}
 \end{protos}
 \noindent
 \code{Lookup-environment-variable} looks up its argument in the
  environment list and returns the corresponding value or \code{\#f}
  if there is none.
+\code{Set-environment-variable!} sets the value of \code{name} in the
+environment list to \code{value}. If \code{name} is not already an environment
+variable, it's created. If it already exists, its value is overwritten with
+\code{value}. Both arguments must be os-string-things.
 \code{Environment-alist} returns the entire environment as a list of
  \code{(\cvar{name-os-string} . \cvar{value-os-string})} pairs.
 

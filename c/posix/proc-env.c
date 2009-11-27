@@ -29,6 +29,7 @@ static s48_ref_t	posix_get_pid(s48_call_t call, s48_ref_t parent_p),
 			posix_set_sid(s48_call_t call),
 			posix_sys_name(s48_call_t call, s48_ref_t which),
 			posix_get_env(s48_call_t call, s48_ref_t name),
+			posix_set_env(s48_call_t call, s48_ref_t name, s48_ref_t value),
 			posix_get_env_alist(s48_call_t call),
   			posix_get_terminal_pathname(s48_call_t call),
 			posix_tty_name(s48_call_t call, s48_ref_t channel),
@@ -48,6 +49,7 @@ s48_init_posix_proc_env(void)
   S48_EXPORT_FUNCTION(posix_set_sid);
   S48_EXPORT_FUNCTION(posix_sys_name);
   S48_EXPORT_FUNCTION(posix_get_env);
+  S48_EXPORT_FUNCTION(posix_set_env);
   S48_EXPORT_FUNCTION(posix_get_env_alist);
   S48_EXPORT_FUNCTION(posix_get_terminal_pathname);
   S48_EXPORT_FUNCTION(posix_tty_name);
@@ -124,6 +126,19 @@ posix_get_env(s48_call_t call, s48_ref_t name)
 
   return (value == NULL) ? s48_false_2(call) : s48_enter_byte_string_2(call, value);
 }
+
+static s48_ref_t
+posix_set_env(s48_call_t call, s48_ref_t name, s48_ref_t value)
+{
+  int status;
+
+  RETRY_OR_RAISE_NEG(status,
+                     setenv(s48_extract_byte_vector_2(call, name),
+                            s48_extract_byte_vector_2(call, value), 1));
+
+  return s48_unspecific_2(call);
+}
+
 
 /*
  * Here we turn an array of strings of the form "name=value" into a list

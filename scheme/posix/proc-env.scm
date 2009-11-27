@@ -95,6 +95,10 @@
     => os-string->string)
    (else #f)))
 
+(define (set-environment-variable! name value)
+  (external-set-environment-variable! (x->os-byte-vector name)
+                                      (x->os-byte-vector value)))
+
 (define (environment-alist)
   (map (lambda (pair)
 	 (cons (x->os-string (car pair))
@@ -108,6 +112,7 @@
        (environment-alist)))
 
 (import-lambda-definition-2 external-lookup-environment-variable (name) "posix_get_env")
+(import-lambda-definition-2 external-set-environment-variable! (name value) "posix_set_env")
 (import-lambda-definition-2 external-environment-alist () "posix_get_env_alist")
 
 ;----------------
