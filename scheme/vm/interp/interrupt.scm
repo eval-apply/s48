@@ -171,11 +171,12 @@
           *os-signal-ring-start*)))
 
 (define (os-signal-ring-add! sig)
-  (os-signal-ring-inc! *os-signal-ring-end*)
-  (if (= *os-signal-ring-start*
-         *os-signal-ring-end*)
-      (error "OS signal ring too small, report to Scheme 48 maintainers"))
-  (vector-set! *os-signal-ring* *os-signal-ring-end* sig))
+  (let ((sig-pos *os-signal-ring-end*))
+    (os-signal-ring-inc! *os-signal-ring-end*)
+    (if (= *os-signal-ring-start*
+           *os-signal-ring-end*)
+        (error "OS signal ring too small, report to Scheme 48 maintainers"))
+    (vector-set! *os-signal-ring* sig-pos sig)))
 
 (define (os-signal-ring-empty?)
   (= *os-signal-ring-start*
@@ -185,11 +186,7 @@
   (if (os-signal-ring-empty?)
       (error "This cannot happen: OS signal ring empty"))
   (let ((sig (vector-ref *os-signal-ring* *os-signal-ring-start*)))
-    (set! *os-signal-ring-start* 
-          (if (= *os-signal-ring-start*
-                 (- *os-signal-ring-length* 1))
-              0
-              (+ *os-signal-ring-start* 1)))
+    (os-signal-ring-inc! *os-signal-ring-start*)
     sig))
 
 
