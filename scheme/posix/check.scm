@@ -3,6 +3,7 @@
 ; A test suite for the POSIX interface.
 
 (define-test-suite posix-core-tests)
+(define-test-suite disabled-posix-core-tests) ; signals
 
 ; 1. get the process ID
 ; 2. make a /tmp/s48-posix-test-<pid> directory
@@ -283,7 +284,7 @@
     ((spawn-named thunk-name)
      (spawn thunk-name 'thunk-name))))
 
-(define-test-case signals posix-core-tests
+(define-test-case signals disabled-posix-core-tests
   (let* ((sigusr1 (signal usr1))
          (sigusr2 (signal usr2))
          (sigq (make-signal-queue (list sigusr1 sigusr2)))
@@ -292,6 +293,7 @@
          (sigs-caught-lists-ph (make-placeholder)))
     (define (send-signal! sig)
       (signal-process me sig)
+      ; FIXME - make the VM check for and handle all interrupts here
       (sleep 100)
       (let loop ((sigs-caught-rev '()))
         (if-let maybe-sig (maybe-dequeue! sigs-caught-queue)
@@ -323,7 +325,7 @@
                                                (list sigusr1)
                                                (list sigusr2)
                                                (list sigusr1))))
-      (terminate-thread! send-thread))))
+      (terminate-thread! catch-thread))))
 
 ; This should be last, because it removes the directory.
 
