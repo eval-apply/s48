@@ -268,6 +268,63 @@
     (check (os-string->string (read-symbolic-link name)) => "foo")
     (unlink name)))
 
+; This assumes that no other process will send us SIGUSR1 or SIGUSR2.
+
+; TODO - move to utility package
+(define-syntax if-let
+  (syntax-rules ()
+    ((if-let var test true-expr false-expr)
+     (let ((var test)) (if var true-expr false-expr)))
+    ((if-let var test true-expr)
+     (let ((var test)) (if var true-expr)))))
+
+(define-syntax spawn-named
+  (syntax-rules ()
+    ((spawn-named thunk-name)
+     (spawn thunk-name 'thunk-name))))
+
+(define-test-case signals posix-core-tests
+  (let* ((sigusr1 (signal usr1))
+         (sigusr2 (signal usr2))
+         (sigq (make-signal-queue (list sigusr1 sigusr2)))
+         (me (get-process-id))
+         (sigs-caught-queue (make-queue))
+         (sigs-caught-lists-ph (make-placeholder)))
+    (define (send-signal! sig)
+      (signal-process me sig)
+      (sleep 100)
+      (let loop ((sigs-caught-rev '()))
+        (if-let maybe-sig (maybe-dequeue! sigs-caught-queue)
+                (loop (cons maybe-sig sigs-caught-rev))
+                (reverse sigs-caught-rev))))
+    (define (send-signals!)
+      (placeholder-set! sigs-caught-lists-ph
+                        (map send-signal!
+                             (list sigusr1
+                                   sigusr2
+                                   sigusr1
+                                   sigusr2
+                                   sigusr1))))
+    (define (catch-signals!)
+      (let loop ()
+        (let ((sig (dequeue-signal! sigq)))
+          (enqueue! sigs-caught-queue sig))
+        (loop)))
+    (define (signal-list=? l1 l2)
+      (srfi-1:list= signal=? l1 l2))
+    (define (signal-list-list=? l1 l2)
+      (srfi-1:list= signal-list=? l1 l2))
+    (let* ((catch-thread (spawn-named catch-signals!))
+           (send-thread (spawn-named send-signals!))
+           (signals-received (placeholder-value sigs-caught-lists-ph))) ;blocks
+      (check-that signals-received
+                  (is signal-list-list=? (list (list sigusr1)
+                                               (list sigusr2)
+                                               (list sigusr1)
+                                               (list sigusr2)
+                                               (list sigusr1))))
+      (terminate-thread! send-thread))))
+
 ; This should be last, because it removes the directory.
 
 (define-test-case rmdir posix-core-tests
