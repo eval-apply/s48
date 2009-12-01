@@ -72,6 +72,9 @@
   (string->symbol (apply string-append
                          (map symbol->string syms))))
 
+(define (x->boolean x)
+  (if x #t #f))
+
 ;----------------
 ; Variations on a theme.
 ;
