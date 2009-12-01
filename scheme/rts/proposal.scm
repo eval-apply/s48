@@ -96,6 +96,11 @@
 (define (remove-current-proposal!)
   (set-current-proposal! #f))
 
+; Useful for detecting that a proposal should be got rid of.
+
+(define (proposal-active?)
+  (x->boolean (current-proposal)))
+
 ; For use when an inconsistency has been detected.  The SET-CAR! ensures that
 ; the earlier PROVISIONAL-CAR will fail.
 
