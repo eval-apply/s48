@@ -408,6 +408,7 @@
 	  insert
 	  unspecific
 	  symbol-append
+          x->boolean
 
 	  (receive :syntax)))
 
