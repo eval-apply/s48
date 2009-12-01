@@ -157,7 +157,7 @@ This process repeats, with a new proposal on each iteration, until
  on its final invocation, while \code{ensure-atomicity!} discards any such
  values and returns nothing.
 
-\code{Ensure-Atomicity} and \code{ensure-atomicity!} are macro versions of
+\code{Ensure-atomicity} and \code{ensure-atomicity!} are macro versions of
 \code{call-ensuring-atomicity} and \code{call-ensuring-atomicity!}:
 \code{(ensure-atomicity \cvar{exp} \ldots)} expands into
 \code{(call-ensuring-atomicity (lambda () \cvar{exp} \ldots))}; likewise for
@@ -264,26 +264,27 @@ The current proposal is saved and then restored after \code{thunk} returns.
 
 % example?
 
+The following procedures and macro are intended primarily for use in
+ implementing new synchronization primitives or complex thread-safe data
+ structures.
 \begin{protos}
 \syntaxproto{with-new-proposal}{ (\cvar{lose}) \cvar{exp} \ldots}{value \ldots}
-\end{protos}
-
-\code{With-new-proposal} saves the current proposal, installs a new
-one, executes the forms in the body, and returns whatever they
-returns.  It also binds \cvar{lose} to a thunk repeating the
-procedure of installing a new procedure and running the body.
-Typically, the body will call \code{maybe-commit} and, if that fails,
-call \cvar{lose} to try again.
-
-The following procedures give access to the low-level proposal
-mechanism.  They are defined in the \code{low-proposals} structure.
-\begin{protos}
 \proto{maybe-commit}{}{boolean}
-\proto{make-proposal}{}{proposal}
-\proto{current-proposal}{}{proposal}
-\protonoresultnoindex{set-current-proposal!}{ proposal}\mainschindex{set-current-proposal"!}
+\proto{proposal-active?}{}{boolean}
+\protonoresultnoindex{remove-current-proposal!}{}\mainschindex{remove-current-proposal"!}
+\protonoresultnoindex{invalidate-current-proposal!}{}\mainschindex{invalidate-current-proposal"!}
 \end{protos}
 \noindent
+\code{With-new-proposal} saves the current proposal, installs a new one,
+ executes the forms in the body, reinstalls the formerly current proposal,
+ and returns whatever the last body form returned.
+It also binds \cvar{lose} to a thunk repeating the procedure of installing
+ a new procedure and running the body.
+Typically, the body will call \code{maybe-commit} and, if that fails,
+ tail-call \cvar{lose} to try again.
+If \cvar{lose} is called from a non-tail position of the body, the results
+ are unspecified (and probably harmful).
+
 \code{Maybe-commit} verifies that any reads logged in the current proposal are
  still valid and, if so, performs any writes that it contains.
 A logged read is valid if, at the time of the commit, the location read contains
@@ -292,6 +293,26 @@ A logged read is valid if, at the time of the commit, the location read contains
  the value then).
 \code{Maybe-commit} returns \code{\#t} if the commit succeeds and \code{\#f}
  if it fails.
+
+\code{Proposal-active?} returns \code{\#t} if a proposal is active, and
+ \code{\#f} otherwise.
+\code{Remove-current-proposal!} removes and discards the current proposal;
+ this can be used to clean up before raising an error.
+\code{Invalidate-current-proposal!} ensures that any attempt to commit the
+ current proposal will fail; this can be used if an operation on a
+ thread-safe data structure detects that it has seen the data structure in an
+ inconsistent state.
+
+
+
+The following procedures give access to the low-level proposal
+mechanism.  They are defined in the \code{low-proposals} structure.
+\begin{protos}
+\proto{make-proposal}{}{proposal}
+\proto{current-proposal}{}{proposal}
+\protonoresultnoindex{set-current-proposal!}{ proposal}\mainschindex{set-current-proposal"!}
+\end{protos}
+\noindent
 
 \code{Make-proposal} creates a new proposal.
 \code{Current-proposal} and \code{set-current-proposal} access and set

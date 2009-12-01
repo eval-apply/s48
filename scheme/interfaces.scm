@@ -288,6 +288,7 @@
 	    with-new-proposal) :syntax)
 
 	  maybe-commit
+          proposal-active?
 	  remove-current-proposal!
 	  invalidate-current-proposal!
 

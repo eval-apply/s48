@@ -392,6 +392,7 @@
 
 (define-structure proposals proposals-interface
   (open scheme-level-1 low-proposals
+        util
 	define-record-types define-sync-record-types
 	primitives)		 ;unspecific
   (files (rts proposal)))
