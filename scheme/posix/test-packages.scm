@@ -1,6 +1,11 @@
 (define-structure posix-core-test (export posix-core-tests)
   (open scheme test-suites matchers sort threads
 	util		; every
+        (with-prefix srfi-1 srfi-1:)
+        threads
+        (subset threads-internal (terminate-thread!))
+        placeholders
+        queues
 	posix-files
 	posix-time
 	posix-users
