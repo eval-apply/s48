@@ -183,6 +183,8 @@ s48_lookup_record(s48_call_t call, s48_ref_t *the_list_loc, int offset, s48_ref_
     the_list = s48_unsafe_cdr_2(call, the_list);
 
   if (the_list != *the_list_loc) {
+    s48_free_global_ref(*the_list_loc);
+    the_list = s48_local_to_global_ref(the_list);
     *the_list_loc = the_list;
     cleanup_p = 1; }
 
