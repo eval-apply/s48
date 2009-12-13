@@ -106,7 +106,9 @@
 		      #f))))
     (if condition
 	(begin
-	  (apply warning 'report-errors-as-warnings (append irritants (list condition)))
+	  (apply warning 'report-errors-as-warnings
+		 message
+		 (append irritants (list condition)))
 	  #t)
 	#f)))
 
