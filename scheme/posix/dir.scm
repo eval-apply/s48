@@ -194,19 +194,27 @@
 ; The following are stat(), lstat(), and fstat().
 
 (define (get-file-info name)
-  (call-imported-binding-2 posix-file-info
-			   (x->os-byte-vector name)
-			   #t file-types))
+  (let ((os-str-name (x->os-string name)))
+    (call-imported-binding-2 posix-file-info
+			     os-str-name
+			     (os-string->byte-vector os-str-name)
+			     #t file-types)))
 
 (define (get-file/link-info name)
-  (call-imported-binding-2 posix-file-info
-			   (x->os-byte-vector name)
-			   #f file-types))
+  (let ((os-str-name (x->os-string name)))
+    (call-imported-binding-2 posix-file-info
+			     os-str-name
+			     (os-string->byte-vector os-str-name)
+			     #f file-types)))
 
 (define (get-port-info port)
   (let ((channel (port->channel port)))
     (if channel
-	(call-imported-binding-2 posix-file-info channel #f file-types)
+	(call-imported-binding-2 posix-file-info
+				 (x->os-string (channel-id channel))
+				 channel
+				 #f
+				 file-types)
 	(assertion-violation 'get-port-info "port without channel" port))))
 
 ;----------------

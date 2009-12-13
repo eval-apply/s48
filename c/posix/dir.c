@@ -40,7 +40,9 @@ static s48_ref_t	posix_opendir(s48_call_t call, s48_ref_t svname),
 				   s48_ref_t mode, s48_ref_t input_p),
 			posix_file_stuff(s48_call_t call, s48_ref_t op, s48_ref_t arg1,
 					 s48_ref_t arg2),
-			posix_file_info(s48_call_t call, s48_ref_t svname,
+			posix_file_info(s48_call_t call,
+					s48_ref_t os_str_name,
+					s48_ref_t svname,
 					s48_ref_t follow_link_p,
 					s48_ref_t mode_enum),
 			posix_create_symbolic_link(s48_call_t call,
@@ -415,7 +417,9 @@ extern s48_ref_t s48_posix_enter_time(s48_call_t call, time_t time);
 
 
 static s48_ref_t
-posix_file_info(s48_call_t call, s48_ref_t svname,
+posix_file_info(s48_call_t call,
+		s48_ref_t os_str_name,
+		s48_ref_t svname,
 		s48_ref_t follow_link_p,
 		s48_ref_t mode_enum)
 {
@@ -429,8 +433,7 @@ posix_file_info(s48_call_t call, s48_ref_t svname,
     RETRY_OR_RAISE_NEG(status,
 		       fstat(s48_unsafe_extract_long_2(call, 
 			       s48_unsafe_channel_os_index_2(call, svname)),
-			     &sbuf));
-    svname = s48_unsafe_channel_id_2(call, svname); }
+			     &sbuf)); }
   else if (s48_false_p_2(call, follow_link_p))
     RETRY_OR_RAISE_NEG(status, stat(s48_extract_byte_vector_2(call, svname), &sbuf));
   else
@@ -452,10 +455,11 @@ posix_file_info(s48_call_t call, s48_ref_t svname,
 
   /* Stashing the various field values into temp before handing them
      off to S48_UNSAFE_RECORD_SET is necessary because their
-     evaluation may cause GC; that GC could destroy the temporary
-     holding the value of info. */
+     evaluation may cause GC; that GC could have destroyed the
+     temporary holding the value of info before this function was
+     moved to the new FFI. */
 
-  s48_unsafe_record_set_2(call, info, 0, svname);
+  s48_unsafe_record_set_2(call, info, 0, os_str_name);
   s48_unsafe_record_set_2(call, info, 1, scm_mode);
   temp = s48_enter_long_2(call, sbuf.st_dev);
   s48_unsafe_record_set_2(call, info, 2, temp);
