@@ -41,14 +41,16 @@ A few command line arguments are processed by Scheme~48 as
 
 \item[{\tt -a} \cvar{argument \ldots}]
     is only useful with images built using \code{,build}.
-    The arguments are passed as a list of strings to the procedure specified
-    in the \code{,build} command as for example:
+    The arguments are passed as a list of OS strings (see section
+    \ref{os-strings}) to the procedure specified
+    in the \code{,build} command. For example:
 \begin{example}
-> (define (f a) (for-each display a) (newline) 0)
+> ,open os-strings
+> (define (f xs) (write (map os-string->string xs)) (newline) 0)
 > ,build f foo.image
 > ,exit
 \% scheme48vm -i foo.image -a mumble "foo x"
-mumblefoo x
+("mumble" "foo x")
 \%
 \end{example}
 \end{description}
