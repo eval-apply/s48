@@ -18,25 +18,36 @@
     ((list*)
      '())))
 
+(define (prov-cell-push! c x)
+  (ensure-atomicity!
+   (provisional-cell-set! c (cons x (provisional-cell-ref c)))))
+
+;; Test wrapper for ENQUEUE!.  Real applications should use
+;; ENQUEUE-MANY!, which is faster.
 (define (stuff-queue! q xs)
-  (for-each (lambda (x) (enqueue! q x)) xs))
+  (ensure-atomicity!
+   (for-each (lambda (x) (enqueue! q x)) xs)))
 
 (define (devour-queue! q)
-  (let loop ((acc '()))
-    (if (queue-empty? q) ; race condition doesn't matter here
-        (reverse acc)
-        (loop (cons (dequeue! q) acc)))))
+  (ensure-atomicity
+   (let loop ((acc '()))
+     (if (queue-empty? q)
+	 (reverse acc)
+	 (loop (cons (dequeue! q) acc))))))
 
 (define (suck-queue! q n)
-  (let loop ((acc '())
-             (n n))
-    (if (or (queue-empty? q)
-            (<= n 0))
-        (reverse acc)
-        (loop (cons (dequeue! q) acc)
-              (- n 1)))))
+  (ensure-atomicity
+   (let loop ((acc '())
+	      (n n))
+     (if (or (queue-empty? q)
+	     (<= n 0))
+	 (reverse acc)
+	 (loop (cons (dequeue! q) acc)
+	       (- n 1))))))
 
-(define-test-case basics queues-tests
+;;; Tests for the queue operations we plan to keep.
+
+(define (do-basic-tests!)
   (check (with-queue (q)
                      (enqueue! q 'a)
                      (dequeue! q))
@@ -53,6 +64,12 @@
          => '((a b c) (a b c d e f)))
   (check (with-queue (q)
                      (stuff-queue! q '(a b c a b c))
+                     (list* (suck-queue! q 3)
+                            (skip (enqueue-many! q '(d e f)))
+                            (devour-queue! q)))
+         => '((a b c) (a b c d e f)))
+  (check (with-queue (q)
+                     (stuff-queue! q '(a b c a b c))
                      (list* (devour-queue! q)
                             (maybe-dequeue! q)
                             (skip (stuff-queue! q '(d e f)))
@@ -63,12 +80,77 @@
               d
               (e f))))
 
+(define-test-case basics queues-tests
+  (do-basic-tests!))
+(define-test-case basics-in-big-transaction queues-tests
+  (ensure-atomicity!
+   ;; Calling CHECK inside a transaction is normally a *bad* idea, but
+   ;; this transaction should not need to be restarted.
+   (do-basic-tests!)))
+
+(define-test-case basics-comment-tests queues-tests
+  (check (let ((q (make-queue))
+	       (c (make-cell '())))
+	   (enqueue! q 'a)
+	   (ensure-atomicity!
+	    (enqueue! q 'b)
+	    (prov-cell-push! c (maybe-dequeue! q)))
+	   (prov-cell-push! c (maybe-dequeue! q))
+	   (cell-ref c))
+	 => '(b a)))
+
 (define-test-case queue-head queues-tests
   (check-exception (with-queue (q) (queue-head q)))
   (check (with-queue (q)
                      (stuff-queue! q '(a b c))
                      (queue-head q))
          => 'a))
+
+(define-test-case list->queue queues-tests
+  (check (let ((q (list->queue '(a b c d))))
+           (list* (suck-queue! q 2)
+                  (skip (stuff-queue! q '(e f g)))
+                  (devour-queue! q)))
+         => '((a b)
+              (c d e f g))))
+
+;;; Delenda.
+
+(define-test-case delenda-comment-tests queues-tests
+  (check (let ((q (make-queue))
+	       (c (make-cell 'OOPS)))
+	   (enqueue! q 'a)
+	   (ensure-atomicity!
+	    (enqueue! q 'b)
+	    (provisional-cell-set! c (queue->list q)))
+	   (cell-ref c))
+	 => '(a b))
+  (check (let ((q (make-queue))
+	       (c (make-cell 'OOPS)))
+	   (enqueue! q 'a)
+	   (ensure-atomicity!
+	    (enqueue! q 'b)
+	    (provisional-cell-set! c (queue-length q)))
+	   (cell-ref c))
+	 => 2)
+  (check (let ((q (make-queue))
+	       (c (make-cell 'OOPS)))
+	   (enqueue! q 'a)
+	   (ensure-atomicity!
+	    (enqueue! q 'b)
+	    (provisional-cell-set! c (on-queue? q 'b)))
+	   (cell-ref c))
+	 => #t)
+  (check (let ((q (make-queue))
+	       (c (make-cell '())))
+	   (enqueue! q 'a)
+	   (ensure-atomicity!
+	    (enqueue! q 'b)
+	    (prov-cell-push! c (delete-from-queue! q 'b))
+	    (prov-cell-push! c (maybe-dequeue! q))
+	    (prov-cell-push! c (maybe-dequeue! q)))
+	   (cell-ref c))
+	 => '(#f a #t)))
 
 (define-test-case queue-length queues-tests
   (for-each
@@ -133,11 +215,3 @@
               (a b)
               (c d e f g h)
               (c d e f g h))))
-
-(define-test-case list->queue queues-tests
-  (check (let ((q (list->queue '(a b c d))))
-           (list* (suck-queue! q 2)
-                  (skip (stuff-queue! q '(e f g)))
-                  (devour-queue! q)))
-         => '((a b)
-              (c d e f g))))

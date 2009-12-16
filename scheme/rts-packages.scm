@@ -446,7 +446,11 @@
 	 (unspecific))))))
 
 (define-structure queues queues-interface
-  (open scheme-level-1 proposals exceptions)
+  (open scheme-level-1
+        util
+        proposals
+        cells
+        exceptions)
   (files (big queue))
   (optimize auto-integrate))
 
