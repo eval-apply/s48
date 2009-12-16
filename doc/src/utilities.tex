@@ -248,28 +248,43 @@ The procedures are in structure \code{queues}.
 \proto{queue-empty?}{ queue}{boolean}
 \protonoresultnoindex{enqueue!}{ queue value}\mainschindex{enqueue"!}
 \protonoindex{dequeue!}{ queue}{value}\mainschindex{dequeue"!}
+\protonoindex{maybe-dequeue!}{ queue}{value}\mainschindex{maybe-dequeue"!}
+\protonoresultnoindex{empty-queue!}{ queue}\mainschindex{empty-queue"!}
 \end{protos}
-\noindent 
+\noindent
 \code{Make-queue} creates an empty queue, \code{queue?} is a predicate for
- identifying queues, \code{queue-empty?} tells you if a queue is empty,
- \code{enqueue!} and \code{dequeue!} add and remove values.
+ identifying queues, and \code{queue-empty?} tells you if a queue is empty.
+\code{Enqueue!} adds a value to the queue.
+\code{Dequeue!} and \code{maybe-dequeue!} remove a value from the queue if
+ one is available; if the queue is empty, \code{dequeue!} raises an error,
+ and \code{maybe-dequeue!} returns \code{\#f}.
+\code{Maybe-dequeue!} can therefore be used to avoid a race condition
+ between \code{queue-empty?} and \code{dequeue!} if a queue known to never
+ contain \code{\#f} must be read by two or more threads at once.
+\code{Empty-queue!} removes all values from \var{queue}.
 
 \begin{protos}
+\proto{queue-head}{ queue}{value}
 \proto{queue-length}{ queue}{integer}
 \proto{queue->list}{ queue}{values}
 \proto{list->queue}{ values}{queue}
 \protonoindex{delete-from-queue!}{ queue value}{boolean}\mainschindex{delete-from-queue"!}
+\proto{on-queue?}{ queue value}{boolean}
 \end{protos}
 \noindent
+\code{Queue-head} returns the first value in \var{queue} if it is not empty,
+ or raises an error if it is empty.
 \code{Queue-length} returns the number of values in \var{queue}.
 \code{Queue->list} returns the values in \var{queue} as a list, in the
  order in which the values were added.
 \code{List->queue} returns a queue containing \var{values}, preserving
  their order.
-\code{Delete-from-queue} removes the first instance of \var{value} from
- \code{queue}, using \code{eq?} for comparisons.
-\code{Delete-from-queue} returns \code{\#t} if \var{value} is found and
+\code{Delete-from-queue!} removes the first instance of \var{value} from
+ \var{queue}, using \code{eq?} for comparisons.
+\code{Delete-from-queue!} returns \code{\#t} if \var{value} is found and
  \code{\#f} if it is not.
+\code{On-queue?} returns \code{\#t} if \var{value} is in the \var{queue}
+ (using \code{eq?} for comparisons) and \code{\#f} if it is not.
 
 \section{Arrays}
 

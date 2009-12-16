@@ -47,15 +47,29 @@
   (open scheme test-suites matchers)
   (files (big matcher-check)))
 
+(define-structure queues-test (export queues-tests)
+  (open scheme
+        test-suites
+	util
+        (subset big-util (delq))
+        queues
+        (with-prefix srfi-1 srfi-1:))
+  (files (big queue-check)))
+
 (define-structure big-test (export big-tests)
   (open scheme test-suites
-	misc-big-test inversion-lists-test constant-tables-test matchers-test)
+	misc-big-test
+        inversion-lists-test
+        constant-tables-test
+        matchers-test
+        queues-test)
   (begin
     (define-test-suite big-tests
       (misc-big-tests
        inversion-lists-tests
        constant-tables-tests
-       matchers-tests))))
+       matchers-tests
+       queues-tests))))
 
 (define-structure sockets-test (export tcp-sockets-tests
 				       udp-sockets-tests)
