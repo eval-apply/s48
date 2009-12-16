@@ -107,11 +107,6 @@
 
 ;(test "lap" equal? #f ((lap #f () (protocol 0) (false) (return))))
 
-(define-test-case q misc-big-tests
-  (let ((q (make-queue)))
-    (enqueue! q 'a)
-    (check (dequeue! q) => 'a)))
-
 (define-test-case random misc-big-tests
   (check (<= 0 ((make-random 7))) => #t))
 
