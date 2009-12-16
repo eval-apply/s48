@@ -813,9 +813,30 @@
           decrement-counter!))
 
 (define-interface queues-interface
-  (export make-queue enqueue! dequeue! maybe-dequeue! queue-empty? empty-queue!
-	  queue? queue->list list->queue queue-head queue-length
-	  delete-from-queue! on-queue?))
+  (export queue?
+
+          ;; Constructors.
+          make-queue
+          list->queue
+
+          ;; Queue operations.
+          queue-empty?
+          enqueue!
+          enqueue-many!
+          queue-head-or-thunk
+          queue-head
+          maybe-queue-head
+          dequeue-or-thunk!
+          dequeue!
+          maybe-dequeue!
+          empty-queue!
+
+          ;; The following operations are *very* slow, and may be
+          ;; removed in a future revision.
+          queue->list
+          queue-length
+          on-queue?
+          delete-from-queue!))
 
 (define-interface exceptions-interface
   (compound-interface (export with-exception-handler

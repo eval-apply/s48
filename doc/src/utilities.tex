@@ -246,7 +246,15 @@ The procedures are in structure \code{queues}.
 \proto{make-queue}{}{queue}
 \proto{queue?}{ value}{boolean}
 \proto{queue-empty?}{ queue}{boolean}
+\proto{list->queue}{ values}{queue}
 \protonoresultnoindex{enqueue!}{ queue value}\mainschindex{enqueue"!}
+\protonoresultnoindex{enqueue-many!}{ queue list}\mainschindex{enqueue-many"!}
+\proto{queue-head-or-value}{ queue value}{value}
+\proto{queue-head-or-thunk}{ queue thunk}{value}
+\proto{queue-head}{ queue}{value}
+\proto{maybe-queue-head}{ queue}{value}
+\protonoindex{dequeue-or-value!}{ queue value}{value}\mainschindex{dequeue-or-value"!}
+\protonoindex{dequeue-or-thunk!}{ queue thunk}{value}\mainschindex{dequeue-or-thunk"!}
 \protonoindex{dequeue!}{ queue}{value}\mainschindex{dequeue"!}
 \protonoindex{maybe-dequeue!}{ queue}{value}\mainschindex{maybe-dequeue"!}
 \protonoresultnoindex{empty-queue!}{ queue}\mainschindex{empty-queue"!}
@@ -254,37 +262,56 @@ The procedures are in structure \code{queues}.
 \noindent
 \code{Make-queue} creates an empty queue, \code{queue?} is a predicate for
  identifying queues, and \code{queue-empty?} tells you if a queue is empty.
-\code{Enqueue!} adds a value to the queue.
-\code{Dequeue!} and \code{maybe-dequeue!} remove a value from the queue if
- one is available; if the queue is empty, \code{dequeue!} raises an error,
- and \code{maybe-dequeue!} returns \code{\#f}.
-\code{Maybe-dequeue!} can therefore be used to avoid a race condition
- between \code{queue-empty?} and \code{dequeue!} if a queue known to never
- contain \code{\#f} must be read by two or more threads at once.
+\code{List->queue} returns a queue containing \var{values}, preserving
+ their order.
+\code{Enqueue!} adds one value to the queue; \code{enqueue-many!} adds a
+ list of values to the queue.
+\code{Queue-head-or-value}, \code{queue-head-or-thunk}, \code{queue-head},
+ and \code{maybe-queue-head} return the first value in \var{queue} if it is
+ not empty; if the queue is empty, \code{queue-head-or-value} returns
+ \var{value}, \code{queue-head-or-thunk} tail-calls \var{thunk},
+ \code{queue-head} raises an error, and \code{maybe-queue-head} returns
+ \code{\#f}.
+\code{Dequeue-or-value!}, \code{dequeue-or-thunk!}, \code{dequeue!}, and
+ \code{maybe-dequeue!} remove a value from the queue if one is available; if
+ the queue is empty, \code{dequeue-or-value!} returns \var{value},
+ \code{dequeue-or-thunk!} tail-calls \var{thunk}, \code{dequeue!} raises an
+ error, and \code{maybe-dequeue!} returns \code{\#f}.
 \code{Empty-queue!} removes all values from \var{queue}.
 
+\code{(Dequeue-or-value! q value)} is more efficient than, but otherwise
+ equivalent to:
+\begin{example}
+(ensure-atomicity
+ (if (queue-empty? q)
+     value
+     (dequeue! q)))
+\end{example}
+
+Because \code{queue-head} and \code{dequeue!} raise exceptions if they are
+ called on an empty queue, they {\em must not} be called with a proposal
+ already active unless \code{queue-empty?} has returned \code{\#f} with the
+ same proposal active.
+
+The following procedures are not used in the \hack{} system, and are {\em
+ very} slow.  These operations may be removed from the \code{queues}
+ structure in a future revision.
 \begin{protos}
-\proto{queue-head}{ queue}{value}
 \proto{queue-length}{ queue}{integer}
 \proto{queue->list}{ queue}{values}
-\proto{list->queue}{ values}{queue}
 \protonoindex{delete-from-queue!}{ queue value}{boolean}\mainschindex{delete-from-queue"!}
 \proto{on-queue?}{ queue value}{boolean}
 \end{protos}
 \noindent
-\code{Queue-head} returns the first value in \var{queue} if it is not empty,
- or raises an error if it is empty.
 \code{Queue-length} returns the number of values in \var{queue}.
 \code{Queue->list} returns the values in \var{queue} as a list, in the
  order in which the values were added.
-\code{List->queue} returns a queue containing \var{values}, preserving
- their order.
 \code{Delete-from-queue!} removes the first instance of \var{value} from
- \var{queue}, using \code{eq?} for comparisons.
-\code{Delete-from-queue!} returns \code{\#t} if \var{value} is found and
- \code{\#f} if it is not.
+ \var{queue}, using \code{eqv?} for comparisons.
+\code{Delete-from-queue!} returns \code{\#t} if it removes an element and
+ \code{\#f} if it does not.
 \code{On-queue?} returns \code{\#t} if \var{value} is in the \var{queue}
- (using \code{eq?} for comparisons) and \code{\#f} if it is not.
+ (using \code{eqv?} for comparisons) and \code{\#f} if it is not.
 
 \section{Arrays}
 

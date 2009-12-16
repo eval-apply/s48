@@ -52,6 +52,8 @@
         test-suites
 	util
         (subset big-util (delq))
+	cells
+	proposals
         queues
         (with-prefix srfi-1 srfi-1:))
   (files (big queue-check)))

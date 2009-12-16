@@ -137,7 +137,11 @@ If a proposal has an invalid read then the effort to commit fails; no change
  is made to the value of any location.
 The verifications and subsequent writes to memory are performed atomically
  with respect to other proposal commit attempts.
-% Explain better.  Add an example?
+% Explain better?
+
+The \code{queues} structure (with source in \code{scheme/big/queue.scm})
+ is a thoroughly commented example of a moderately complex data structure
+ made thread-safe using optimistic concurrency.
 
 \begin{protos}
 \proto{call-ensuring-atomicity}{ thunk}{value \ldots}
