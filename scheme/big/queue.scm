@@ -137,6 +137,7 @@
 
 ;; QUEUE-HEAD-OR-VALUE - Return the first element in the queue, or
 ;; return VALUE if the queue is empty.
+
 (define (queue-head-or-value q value)
   (ensure-atomicity
    (let ((head (real-queue-head q)))
@@ -151,14 +152,13 @@
 ;; proposal active, THUNK will not use the proposal created by this
 ;; function.  This is especially important if THUNK raises an
 ;; exception.
-(define queue-head-or-thunk
-  (let ((unreleased (make-cell 'unreleased))) ;similar in use to the
-                                              ; VM's unreleased value
-    (lambda (q thunk)
-      (let ((x (queue-head-or-value q unreleased)))
-        (if (eq? x unreleased)
-            (thunk)
-            x)))))
+
+(define (queue-head-or-thunk q thunk)
+  ((ensure-atomicity
+    (let ((head (real-queue-head q)))
+      (if (null? head)
+	  thunk
+	  (lambda () (car head)))))))
 
 ;; QUEUE-HEAD - Return the first element in the queue, or raise an
 ;; error if the queue is empty.
@@ -178,22 +178,24 @@
 (define (maybe-queue-head q)
   (queue-head-or-value q #f))
 
-;; DEQUEUE-OR-VALUE! - Remove and return the first element in the
-;; queue, or return VALUE if the queue is empty.
-(define (dequeue-or-value! q value)
-  (ensure-atomicity
+;; DEQUEUE-OR-THUNK! - Remove and return the first element in the
+;; queue, or tail-call THUNK if the queue is empty.
+;;
+;; THUNK is tail-called here for the same reason as it is in
+;; QUEUE-HEAD-OR-THUNK.
+(define (dequeue-or-thunk! q thunk)
+  ((ensure-atomicity
    (let ((head (real-queue-head q)))
      (cond
-      ((null? head)
-       ;; empty; return VALUE
-       value)
+      ((null? head) thunk)
       (else
        (let ((new-head (provisional-cdr head)))
 	 ;; The preceding line must use PROVISIONAL-CDR; see below.
 	 (set-queue-head! q new-head)
 	 (if (null? new-head)
 	     (set-queue-tail! q '())))
-       (car head))))))
+       (lambda () (car head))))))))
+
 ;; If NEW-HEAD were set to (CDR HEAD) above, the following code would
 ;; return a value EQUAL? to '(#f a):
 ;;
@@ -208,19 +210,8 @@
 ;;
 ;; The result should be EQUAL? to '(b a).
 
-;; DEQUEUE-OR-THUNK! - Remove and return the first element in the
-;; queue, or tail-call THUNK if the queue is empty.
-;;
-;; THUNK is tail-called here for the same reason as it is in
-;; QUEUE-HEAD-OR-THUNK.
-(define dequeue-or-thunk!
-  (let ((unreleased (make-cell 'unreleased))) ;similar in use to the
-                                              ; VM's unreleased value
-    (lambda (q thunk)
-      (let ((x (dequeue-or-value! q unreleased)))
-        (if (eq? x unreleased)
-            (thunk)
-            x)))))
+(define (dequeue-or-value! q value)
+  (dequeue-or-thunk! q (lambda () value)))
 
 ;; DEQUEUE! - Remove and return the first element in the queue, or
 ;; raise an error if the queue is empty.
