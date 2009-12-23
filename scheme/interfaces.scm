@@ -824,9 +824,11 @@
           enqueue!
           enqueue-many!
           queue-head-or-thunk
+	  queue-head-or-value
           queue-head
           maybe-queue-head
           dequeue-or-thunk!
+	  dequeue-or-value!
           dequeue!
           maybe-dequeue!
           empty-queue!
