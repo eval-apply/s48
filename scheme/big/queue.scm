@@ -60,16 +60,11 @@
 ;; temporarily set the current proposal to #F, each call to ENQUEUE!
 ;; would create and commit a proposal unnecessarily.
 (define (list->queue xs)
-  (if (null? xs)
-      (make-queue)
-      (let ((head (cons (car xs) '())))
-        (let loop ((xs (cdr xs))
-                   (lag head))
-          (if (null? xs)
-              (really-make-queue (next-queue-uid) head lag)
-              (let ((cur (cons (car xs) '())))
-                (set-cdr! lag cur)
-                (loop (cdr xs) cur)))))))
+  (call-with-values
+      (lambda ()
+	(copy-list-keeping-tail-pointer xs))
+    (lambda (head tail)
+      (really-make-queue (next-queue-uid) head tail))))
 
 ;; Slow reference version:
 ;; (define (list->queue xs)
@@ -79,6 +74,35 @@
 ;;      q)))
 
 ;;; Internal utilities.
+
+;; COPY-LIST-KEEPING-TAIL-POINTER - Copies a list, and returns the
+;; first and last pairs in the copy (or null, if the original list is
+;; empty).
+;;
+;; Throws an exception if XS is an improper list.
+(define (copy-list-keeping-tail-pointer xs)   ;side-effecting version
+  (if (null? xs)
+      (values '() '())
+      (let ((copy-head (cons (car xs) '())))
+	(let loop ((copy-tail copy-head)
+		   (xs-pair (cdr xs)))
+	  (if (null? xs-pair)
+	      (values copy-head copy-tail)
+	      (let ((new-copy-pair (cons (car xs-pair) '())))
+		(set-cdr! copy-tail new-copy-pair)
+		(loop new-copy-pair
+		      (cdr xs-pair))))))))
+
+;; (define (copy-list-keeping-tail-pointer xs)   ;cons-only version
+;;   (if (null? xs)
+;;       (values '() '())
+;;       (let loop ((xs xs))
+;; 	(if (null? (cdr xs))
+;; 	    (let ((copy (cons (car xs) '())))
+;; 	      (values copy copy))
+;; 	    (receive (head tail) (loop (cdr xs))
+;; 		     (values (cons (car xs) head)
+;; 			     tail))))))
 
 ;; ENQUEUE-MANY-NO-COPY! - Attach a list to the tail of the queue.
 ;; The last pair in the list must be passed as the third argument.
@@ -106,6 +130,28 @@
                                       the-nasty-message)
                        q))
 
+;; MAKE-EMPTY-QUEUE-DIE-THUNK - Adequately described by its name.
+(define (make-empty-queue-die-thunk who q)
+  (lambda ()
+    (if (proposal-active?)
+	(queue-proc-caller-*really*-messed-up! who q)
+	(assertion-violation who "empty queue" q))))
+
+;; FOO-OR-VALUE->FOO-OR-THUNK/1/0 - Converts a procedure which takes a
+;; default value and returns it on failure to a procedure which takes
+;; a thunk and tail-calls it on failure.
+;;
+;; This procedure should be moved to a utility package and generated
+;; by a macro.
+(define foo-or-value->foo-or-thunk/1/0        ;1 arg before VALUE, 0 after
+  (lambda (foo-or-value)
+    (let ((unreleased (make-cell 'unreleased)))
+      (lambda (b/0 thunk)
+	(let ((result (foo-or-value b/0 unreleased)))
+	  (if (eq? result unreleased)
+	      (thunk)
+	      result))))))
+
 ;;; The exported procedures for manipulating queues.
 
 ;; QUEUE-EMPTY? - Returns #F if the queue is not empty, or #T if the
@@ -125,24 +171,20 @@
   ;; ENSURE-ATOMICITY! is not necessary here, and not using it reduces
   ;; the risk of raising an exception (while traversing a
   ;; caller-provided value as a list) with a proposal active.
-  (if (not (null? xs))
-      (let ((xs-copy (cons (car xs) '())))
-        (let loop ((xs (cdr xs))
-                   (prev xs-copy))
-          (if (null? xs)
-              (enqueue-many-no-copy! q xs-copy prev)
-              (let ((cur (cons (car xs) '())))
-                (set-cdr! prev cur)
-                (loop (cdr xs) cur)))))))
+  (call-with-values
+      (lambda ()
+	(copy-list-keeping-tail-pointer xs))
+    (lambda (head tail)
+      (enqueue-many-no-copy! q head tail))))
 
 ;; QUEUE-HEAD-OR-VALUE - Return the first element in the queue, or
 ;; return VALUE if the queue is empty.
 (define (queue-head-or-value q value)
-  (ensure-atomicity
-   (let ((head (real-queue-head q)))
-     (if (null? head)
-	 value
-	 (car head)))))
+  ;; ENSURE-ATOMICITY is not necessary here.
+  (let ((head (real-queue-head q)))
+    (if (null? head)
+	value
+	(car head))))
 
 ;; QUEUE-HEAD-OR-THUNK - Return the first element in the queue, or
 ;; tail-call THUNK if the queue is empty.
@@ -152,13 +194,7 @@
 ;; function.  This is especially important if THUNK raises an
 ;; exception.
 (define queue-head-or-thunk
-  (let ((unreleased (make-cell 'unreleased))) ;similar in use to the
-                                              ; VM's unreleased value
-    (lambda (q thunk)
-      (let ((x (queue-head-or-value q unreleased)))
-        (if (eq? x unreleased)
-            (thunk)
-            x)))))
+  (foo-or-value->foo-or-thunk/1/0 queue-head-or-value))
 
 ;; QUEUE-HEAD - Return the first element in the queue, or raise an
 ;; error if the queue is empty.
@@ -166,12 +202,8 @@
 ;; DO NOT CALL THIS FUNCTION WITH A PROPOSAL ACTIVE UNLESS
 ;; QUEUE-EMPTY? HAS RETURNED #F!
 (define (queue-head q)
-  (queue-head-or-thunk
-   q
-   (lambda ()
-     (if (proposal-active?)
-         (queue-proc-caller-*really*-messed-up! 'queue-head q)
-         (assertion-violation 'queue-head "empty queue" q)))))
+  (let ((die-thunk (make-empty-queue-die-thunk 'queue-head q)))
+    (queue-head-or-thunk q die-thunk)))
 
 ;; MAYBE-QUEUE-HEAD - Return the first element in the queue, or return
 ;; #F if the queue is empty.
@@ -214,13 +246,7 @@
 ;; THUNK is tail-called here for the same reason as it is in
 ;; QUEUE-HEAD-OR-THUNK.
 (define dequeue-or-thunk!
-  (let ((unreleased (make-cell 'unreleased))) ;similar in use to the
-                                              ; VM's unreleased value
-    (lambda (q thunk)
-      (let ((x (dequeue-or-value! q unreleased)))
-        (if (eq? x unreleased)
-            (thunk)
-            x)))))
+  (foo-or-value->foo-or-thunk/1/0 dequeue-or-value!))
 
 ;; DEQUEUE! - Remove and return the first element in the queue, or
 ;; raise an error if the queue is empty.
@@ -228,12 +254,8 @@
 ;; DO NOT CALL THIS FUNCTION WITH A PROPOSAL ACTIVE UNLESS
 ;; QUEUE-EMPTY? HAS RETURNED #F!
 (define (dequeue! q)
-  (dequeue-or-thunk!
-   q
-   (lambda ()
-     (if (proposal-active?)
-         (queue-proc-caller-*really*-messed-up! 'dequeue q)
-         (assertion-violation 'dequeue! "empty queue" q)))))
+  (let ((die-thunk (make-empty-queue-die-thunk 'dequeue! q)))
+    (dequeue-or-thunk! q die-thunk)))
 
 ;; MAYBE-DEQUEUE! - Remove and return the first element in the queue,
 ;; or return #F if the queue is empty.
@@ -261,20 +283,12 @@
 ;; QUEUE->LIST - Return a list of the elements in the queue.
 (define (queue->list q)
   (ensure-atomicity
-   (let ((head (real-queue-head q)))
-     (cond
-      ((null? head)
-       '())
-      (else
-       (let loop ((acc '())
-                  (qp head))
-         (let ((new-acc (cons (car qp) acc))
-               ;; The next line must use PROVISIONAL-CDR; see below.
-               (qp-cdr (provisional-cdr qp)))
-           (if (null? qp-cdr)
-	       (reverse new-acc)
-               (loop new-acc qp-cdr)))))))))
-;; If QP-CDR were set to (CDR QP) above, the following code would
+   (let loop ((qp (real-queue-head q)))
+     (if (null? qp)
+	 '()
+	 ;; The next line must use PROVISIONAL-CDR; see below.
+	 (cons (car qp) (loop (provisional-cdr qp)))))))
+;; If LOOP were applied to (CDR QP) above, the following code would
 ;; return a value EQUAL? to '(a):
 ;;
 ;; (let ((q (make-queue))
@@ -298,20 +312,13 @@
 ;; and write on another location).
 (define (queue-length q)
   (ensure-atomicity
-   (let ((head (real-queue-head q)))
-     (cond
-      ((null? head)
-       0)
-      (else
-       (let loop ((acc 0)
-                  (qp head))
-         (let ((new-acc (+ acc 1))
-	       (qp-cdr (provisional-cdr qp)))
-           ;; The preceding line must use PROVISIONAL-CDR; see below.
-           (if (null? qp-cdr)
-	       new-acc
-               (loop new-acc qp-cdr)))))))))
-;; If QP-CDR were set to (CDR QP) above, the following code would
+   (let loop ((acc 0)
+	      (qp (real-queue-head q)))
+     (if (null? qp)
+	 acc
+	 ;; The next line must use PROVISIONAL-CDR; see below.
+	 (loop (+ acc 1) (provisional-cdr qp))))))
+;; If LOOP were applied to (CDR QP) above, the following code would
 ;; return a value EQUAL? to 1:
 ;;
 ;; (let ((q (make-queue))
@@ -328,21 +335,16 @@
 ;; determined by EQV?), and returns #F if VALUE is not in the queue.
 (define (on-queue? q value)
   (ensure-atomicity
-   (let ((head (real-queue-head q)))
+   (let loop ((qp (real-queue-head q)))
      (cond
-      ((null? head)
+      ((null? qp)
        #f)
+      ((eqv? value (car qp))
+       #t)
       (else
-       (let loop ((qp head))
-         (if (eqv? value (car qp))
-             #t
-             (let ((qp-cdr (provisional-cdr qp)))
-               ;; The preceding line must use PROVISIONAL-CDR; see
-               ;; below.
-               (if (null? qp-cdr)
-		   #f
-                   (loop qp-cdr))))))))))
-;; If QP-CDR were set to (CDR QP) above, the following code would
+       ;; The next line must use PROVISIONAL-CDR; see below.
+       (loop (provisional-cdr qp)))))))
+;; If LOOP were applied to (CDR QP) above, the following code would
 ;; return a value EQUAL? to #f:
 ;;
 ;; (let ((q (make-queue))
