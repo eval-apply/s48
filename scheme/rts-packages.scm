@@ -445,7 +445,8 @@
 	((enum-case enumeration value)
 	 (unspecific))))))
 
-(define-structure queues queues-interface
+(define-structures ((queues queues-interface)
+		    (queues-internal queues-internal-interface))
   (open scheme-level-1
         util
         proposals

@@ -840,6 +840,10 @@
           on-queue?
           delete-from-queue!))
 
+(define-interface queues-internal-interface
+  ;; Exported for testing.
+  (export list->queue-list))
+
 (define-interface exceptions-interface
   (compound-interface (export with-exception-handler
 			      raise raise-continuable

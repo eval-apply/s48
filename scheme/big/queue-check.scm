@@ -18,6 +18,7 @@
     ((list*)
      '())))
 
+;;; TODO? - rename to PROVISIONAL-CELL-PUSH! and move to utility package?
 (define (prov-cell-push! c x)
   (ensure-atomicity!
    (provisional-cell-set! c (cons x (provisional-cell-ref c)))))
@@ -44,6 +45,23 @@
 	 (reverse acc)
 	 (loop (cons (dequeue! q) acc)
 	       (- n 1))))))
+
+;;; Tests for utility functions used by the queues package.
+
+(define-test-case list->queue-list queues-tests
+  (for-each
+   (lambda (xs)
+     (check (receive (head tail) (list->queue-list xs)
+		     (list xs (cdr head)))
+	    => (list xs xs))
+     (if (not (null? xs))
+	 (check (receive (head tail) (list->queue-list xs)
+			 (list xs tail))
+		=> (list xs (srfi-1:last-pair xs))))
+     (check (receive (head tail) (list->queue-list xs)
+		     (list xs (eq? (srfi-1:last-pair head) tail)))
+	    => (list xs #t)))
+   '(() (foo) (foo bar) (foo bar baz) (foo bar baz quux))))
 
 ;;; Tests for the queue operations we plan to keep.
 
@@ -141,6 +159,8 @@
 	    (provisional-cell-set! c (on-queue? q 'b)))
 	   (cell-ref c))
 	 => #t)
+  ;; The following test is no longer in a comment, but might as well
+  ;; stay here.
   (check (let ((q (make-queue))
 	       (c (make-cell '())))
 	   (enqueue! q 'a)

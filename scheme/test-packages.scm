@@ -55,6 +55,7 @@
 	cells
 	proposals
         queues
+	queues-internal
         (with-prefix srfi-1 srfi-1:))
   (files (big queue-check)))
 
