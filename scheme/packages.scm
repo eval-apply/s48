@@ -307,6 +307,7 @@
 	    more-types
 	    number-i/o
 	    ;; primitives
+	    queues-internal
 	    reading
 	    records-internal
 	    root-scheduler

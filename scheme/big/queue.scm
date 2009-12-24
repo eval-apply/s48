@@ -2,11 +2,20 @@
 
 ;;;; Queues
 
-;;; The elements in a queue are stored in an ordinary list.  When the
-;;; queue is not empty, it maintains pointers to both the first pair
-;;; in the list (in the HEAD field) and the last pair in the list (in
-;;; the TAIL field).  When the queue is empty, both the HEAD and TAIL
-;;; fields are set to '().
+;;; Following Taylor Campbell's suggestion, the elements in a queue
+;;; are stored in an ordinary list, with a dummy pair at the beginning
+;;; of the list.  The queue record maintains pointers to both the
+;;; dummy pair (in the HEAD field) and the last pair in the list (in
+;;; the TAIL field).
+;;;
+;;; With this representation, the only fields that queue operations
+;;; need to mutate are cdrs of pairs and the TAIL field of the queue
+;;; record, and the TAIL field needs to be set if and only if a pair's
+;;; cdr is set to '().  This allows all queue mutations to be
+;;; performed by two procedures, SPLICE-IN-QUEUE-LIST! and
+;;; SPLICE-OUT-OF-QUEUE!, which are simple, easy to use correctly,
+;;; and, when used correctly, maintain the queue's invariant (that the
+;;; TAIL field points to the last pair in the queue's list).
 ;;;
 ;;; The procedures exported from this module never give away pointers
 ;;; to the pairs in a queue's list, and never attach pairs provided by
@@ -17,17 +26,27 @@
 ;;; modifications of CDRs must be provisional.
 
 (define-synchronized-record-type queue :queue
-  (really-make-queue uid head tail)
-  (head tail)     	;synchronize on these
+  (really-make-queue head tail)
+  (tail)          	;synchronize on these
   queue?
-  (uid queue-uid)       ;for debugging
-  ;; Despite the names, these accessors and modifiers are all
+  ;; Despite their names, the tail's accessor and modifier are both
   ;; provisional.
-  (head real-queue-head set-queue-head!)
+  (head real-queue-head)
   (tail queue-tail set-queue-tail!))
 
-;; A few of the examples in the comments below use the following
-;; utility function:
+;; A few of the comments below use the following utility functions:
+;;
+;; (define (func-exp/1 f n)
+;;   (lambda (x)
+;;     (do ((x x (f x))
+;;          (n n (- n 1)))
+;;         ((= n 0) x))))
+;;
+;; (define (nth-cdr n x)
+;;   ((func-exp/1 cdr n) x))
+;;
+;; (define (nth-prov-cdr n x)
+;;   ((func-exp/1 provisional-cdr n) x))
 ;;
 ;; (define (prov-cell-push! c x)
 ;;   (ensure-atomicity!
@@ -35,13 +54,16 @@
 
 ;;; Unique IDs and discloser for debugging.
 
-(define *next-queue-uid* (make-cell 1))
+(define *next-queue-list-uid* (make-cell 1))
 
-(define (next-queue-uid)
+(define (next-queue-list-uid)
   (atomically
-    (let ((uid (provisional-cell-ref *next-queue-uid*)))
-      (provisional-cell-set! *next-queue-uid* (+ uid 1))
+    (let ((uid (provisional-cell-ref *next-queue-list-uid*)))
+      (provisional-cell-set! *next-queue-list-uid* (+ uid 1))
       uid)))
+
+(define (queue-uid q)
+  (car (real-queue-head q)))
 
 (define-record-discloser :queue
   (lambda (q)
@@ -51,7 +73,8 @@
 
 ;; MAKE-QUEUE - Create a new, empty queue.
 (define (make-queue)
-  (really-make-queue (next-queue-uid) '() '()))
+  (let ((head (cons (next-queue-list-uid) '())))
+    (really-make-queue head head)))
 
 ;; LIST->QUEUE - Create a new queue containing a list of elements.
 ;;
@@ -62,61 +85,157 @@
 (define (list->queue xs)
   (call-with-values
       (lambda ()
-	(copy-list-keeping-tail-pointer xs))
-    (lambda (head tail)
-      (really-make-queue (next-queue-uid) head tail))))
-
-;; Slow reference version:
-;; (define (list->queue xs)
-;;   (atomically             ;do not clutter existing transaction
-;;    (let ((q (make-queue)))
-;;      (for-each (lambda (x) (enqueue! q x)) xs)
-;;      q)))
+	(list->queue-list xs))
+    really-make-queue))
 
 ;;; Internal utilities.
 
-;; COPY-LIST-KEEPING-TAIL-POINTER - Copies a list, and returns the
-;; first and last pairs in the copy (or null, if the original list is
-;; empty).
+;; LIST->QUEUE-LIST - Copies a list, prepending a head pair, and
+;; returns the head pair and the last pair in the copy (or null, if
+;; the original list is empty).
 ;;
 ;; Throws an exception if XS is an improper list.
-(define (copy-list-keeping-tail-pointer xs)   ;side-effecting version
-  (if (null? xs)
-      (values '() '())
-      (let ((copy-head (cons (car xs) '())))
-	(let loop ((copy-tail copy-head)
-		   (xs-pair (cdr xs)))
-	  (if (null? xs-pair)
-	      (values copy-head copy-tail)
-	      (let ((new-copy-pair (cons (car xs-pair) '())))
-		(set-cdr! copy-tail new-copy-pair)
-		(loop new-copy-pair
-		      (cdr xs-pair))))))))
+(define list->queue-list                      ;cons-only version
+  (let ()
+    (define (loop xs)
+      (if (null? (cdr xs))
+	  (let ((tail (cons (car xs) '())))
+	    (values tail tail))
+	  (receive (head tail) (loop (cdr xs))
+		   (values (cons (car xs) head) tail))))
+    (lambda (xs)
+      (loop (cons (next-queue-list-uid) xs)))))
 
-;; (define (copy-list-keeping-tail-pointer xs)   ;cons-only version
+;; (define (list->queue-list xs)                 ;side-effecting version
+;;   (let ((result-head (cons (next-queue-list-uid) '())))
+;;     (let loop ((xs xs)
+;; 	       (prev-result-pair result-head))
+;;       (if (null? xs)
+;; 	  (values result-head prev-result-pair)
+;; 	  (let ((cur-result-pair (cons (car xs) '())))
+;; 	    (set-cdr! prev-result-pair cur-result-pair)
+;; 	    (loop (cdr xs) cur-result-pair))))))
+
+;; (define (list->queue-list xs)                 ;alternate cons-only version
 ;;   (if (null? xs)
-;;       (values '() '())
-;;       (let loop ((xs xs))
-;; 	(if (null? (cdr xs))
-;; 	    (let ((copy (cons (car xs) '())))
-;; 	      (values copy copy))
-;; 	    (receive (head tail) (loop (cdr xs))
-;; 		     (values (cons (car xs) head)
-;; 			     tail))))))
+;;       (let ((result-head (cons (next-queue-list-uid) '())))
+;; 	(values result-head result-head))
+;;       (receive (head tail)
+;; 	       (let loop ((xs xs))
+;; 		 (if (null? (cdr xs))
+;; 		     (let ((result-tail (cons (car xs) '())))
+;; 		       (values result-tail result-tail))
+;; 		     (receive (head tail) (loop (cdr xs))
+;; 			      (values (cons (car xs) head) tail))))
+;; 	       (values (cons (next-queue-list-uid) head) tail))))
 
-;; ENQUEUE-MANY-NO-COPY! - Attach a list to the tail of the queue.
-;; The last pair in the list must be passed as the third argument.
+;; SPLICE-IN-QUEUE-LIST! - Inserts a list into a queue.
+;;
+;; This function must be called with a proposal active.  No argument
+;; checking is performed.
+;;
+;; Preconditions:
+;;
+;; - Q must be a queue.
+;;
+;; - (QUEUE-TAIL Q) must be (NTH-PROV-CDR k (REAL-QUEUE-HEAD Q)) for
+;;   some exact non-negative integer k.
+;;
+;; - (PROVISIONAL-CDR (QUEUE-TAIL Q)) must be the empty list.
+;;
+;; - PAIR-BEFORE-INSERTION must be a pair.
+;;
+;; - PAIR-BEFORE-INSERTION must be (NTH-PROV-CDR m (REAL-QUEUE-HEAD
+;;   Q)) for some exact non-negative integer m.
+;;
+;; - SPLICE-HEAD-PAIR must be a pair.
+;;
+;; - SPLICE-TAIL-PAIR must be a pair.
+;;
+;; - SPLICE-TAIL-PAIR must be (NTH-CDR n SPLICE-HEAD-PAIR) for some
+;;   exact non-negative integer n.
+;;
+;; - Each pair reachable as (NTH-CDR i SPLICE-HEAD-PAIR) for some
+;;   exact non-negative integer i such that (<= i n) must not have
+;;   been accessed or modified provisionally within any active
+;;   proposal.
+;;
+;; Postconditions:
+;;
+;; - (QUEUE-TAIL Q) is (NTH-PROV-CDR k2 (REAL-QUEUE-HEAD Q)) for some
+;;   exact non-negative integer k2.
+;;
+;; - (PROVISIONAL-CDR (QUEUE-TAIL Q)) is the empty list.
+;;
+;; - (PROVISIONAL-CDR PAIR-BEFORE-INSERTION) is EQ? to (CDR
+;;   SPLICE-HEAD-PAIR).
+;;
+;; - (PROVISIONAL-CDR SPLICE-TAIL-PAIR) is EQ? to the value of
+;;   (PROVISIONAL-CDR PAIR-BEFORE-INSERTION) when this function was
+;;   called.
+(define (splice-in-queue-list! q
+			       pair-before-insertion
+			       splice-head-pair
+			       splice-tail-pair)
+  (if (not (eq? splice-head-pair splice-tail-pair))
+      (begin
+	(let ((new-splice-tail-cdr (provisional-cdr pair-before-insertion)))
+	  (set-cdr! splice-tail-pair new-splice-tail-cdr)
+	  (if (null? new-splice-tail-cdr)
+	      (set-queue-tail! q splice-tail-pair)))
+	(provisional-set-cdr! pair-before-insertion
+			      (cdr splice-head-pair)))))
+
+;; SPLICE-OUT-OF-QUEUE! - Removes a piece of a queue's list.
+;;
+;; This function must be called with a proposal active.  No argument
+;; checking is performed.
+;;
+;; Preconditions:
+;;
+;; - Q must be a queue.
+;;
+;; - (QUEUE-TAIL Q) must be (NTH-PROV-CDR k (REAL-QUEUE-HEAD Q)) for
+;;   some exact non-negative integer k.
+;;
+;; - (PROVISIONAL-CDR (QUEUE-TAIL Q)) must be the empty list.
+;;
+;; - SPLICE-HEAD-PAIR must be a pair.
+;;
+;; - SPLICE-HEAD-PAIR must be (NTH-PROV-CDR m (REAL-QUEUE-HEAD Q)) for
+;;   some exact non-negative integer m.
+;;
+;; - SPLICE-TAIL-PAIR must be a pair.
+;;
+;; - SPLICE-TAIL-PAIR must be (NTH-PROV-CDR n SPLICE-HEAD-PAIR) for
+;;   some exact non-negative integer n.
+;;
+;; Postconditions:
+;;
+;; - (QUEUE-TAIL Q) is (NTH-PROV-CDR k2 (REAL-QUEUE-HEAD Q)) for some
+;;   exact non-negative integer k2.
+;;
+;; - (PROVISIONAL-CDR (QUEUE-TAIL Q)) is the empty list.
+;;
+;; - (PROVISIONAL-CDR SPLICE-HEAD-PAIR) is EQ? to the value of
+;;   (PROVISIONAL-CDR SPLICE-TAIL-PAIR) when this function was called.
+(define (splice-out-of-queue! q
+			      splice-head-pair
+			      splice-tail-pair)
+  (if (not (eq? splice-head-pair splice-tail-pair))
+      (let ((splice-tail-cdr (provisional-cdr splice-tail-pair)))
+	(provisional-set-cdr! splice-head-pair splice-tail-cdr)
+	(if (null? splice-tail-cdr)
+	    (set-queue-tail! q splice-head-pair)))))
+
+;; ENQUEUE-MANY-NO-COPY! - Attach a list (provided as (CDR HEAD)) to
+;; the tail of the queue.  TAIL must be the last pair in HEAD (since
+;; (CDR HEAD) is a list, HEAD is a non-empty list).
 ;;
 ;; No argument checking is performed.
-(define (enqueue-many-no-copy! q xs xs-tail)
+(define (enqueue-many-no-copy! q head tail)
   (ensure-atomicity!
-   (let ((tail (queue-tail q)))
-     (cond
-      ((null? tail)
-       (set-queue-head! q xs))
-      (else
-       (provisional-set-cdr! tail xs)))
-     (set-queue-tail! q xs-tail))))
+   (splice-in-queue-list! q (queue-tail q) head tail)))
 
 ;; QUEUE-PROC-CALLER-*REALLY*-MESSED-UP! - Removes the current
 ;; proposal and raises an error with a rather more useful message than
@@ -152,19 +271,21 @@
 	      (thunk)
 	      result))))))
 
-;;; The exported procedures for manipulating queues.
+;;; The exported queue operations.
 
 ;; QUEUE-EMPTY? - Returns #F if the queue is not empty, or #T if the
 ;; queue is empty.
 (define (queue-empty? q)
-  ;; ENSURE-ATOMICITY is not necessary here.
-  (null? (real-queue-head q)))
+  ;; ENSURE-ATOMICITY is not necessary here, as this function makes
+  ;; only one call to a provisional function (PROVISIONAL-CDR).
+  (null? (provisional-cdr (real-queue-head q))))
 
 ;; ENQUEUE! - Enqueue one element.
 (define (enqueue! q v)
-  ;; ENSURE-ATOMICITY! is not necessary here.
+  ;; ENSURE-ATOMICITY! is not necessary here, as ENQUEUE-MANY-NO-COPY!
+  ;; uses it for us.
   (let ((p (cons v '())))
-    (enqueue-many-no-copy! q p p)))
+    (enqueue-many-no-copy! q (cons 'dummy p) p)))
 
 ;; ENQUEUE-MANY! - Enqueue a list of elements.
 (define (enqueue-many! q xs)
@@ -173,7 +294,7 @@
   ;; caller-provided value as a list) with a proposal active.
   (call-with-values
       (lambda ()
-	(copy-list-keeping-tail-pointer xs))
+	(list->queue-list xs))
     (lambda (head tail)
       (enqueue-many-no-copy! q head tail))))
 
@@ -181,10 +302,10 @@
 ;; return VALUE if the queue is empty.
 (define (queue-head-or-value q value)
   ;; ENSURE-ATOMICITY is not necessary here.
-  (let ((head (real-queue-head q)))
-    (if (null? head)
+  (let ((first-pair (provisional-cdr (real-queue-head q))))
+    (if (null? first-pair)
 	value
-	(car head))))
+	(car first-pair))))
 
 ;; QUEUE-HEAD-OR-THUNK - Return the first element in the queue, or
 ;; tail-call THUNK if the queue is empty.
@@ -214,31 +335,13 @@
 ;; queue, or return VALUE if the queue is empty.
 (define (dequeue-or-value! q value)
   (ensure-atomicity
-   (let ((head (real-queue-head q)))
-     (cond
-      ((null? head)
-       ;; empty; return VALUE
-       value)
-      (else
-       (let ((new-head (provisional-cdr head)))
-	 ;; The preceding line must use PROVISIONAL-CDR; see below.
-	 (set-queue-head! q new-head)
-	 (if (null? new-head)
-	     (set-queue-tail! q '())))
-       (car head))))))
-;; If NEW-HEAD were set to (CDR HEAD) above, the following code would
-;; return a value EQUAL? to '(#f a):
-;;
-;; (let ((q (make-queue))
-;;       (c (make-cell '())))
-;;   (enqueue! q 'a)
-;;   (ensure-atomicity!
-;;    (enqueue! q 'b)
-;;    (prov-cell-push! c (maybe-dequeue! q)))
-;;   (prov-cell-push! c (maybe-dequeue! q))
-;;   (cell-ref c))
-;;
-;; The result should be EQUAL? to '(b a).
+   (let* ((head (real-queue-head q))
+	  (first-pair (provisional-cdr head)))
+     (if (null? first-pair)
+	 value                                ;empty queue
+	 (begin
+	   (splice-out-of-queue! q head first-pair)
+	   (car first-pair))))))
 
 ;; DEQUEUE-OR-THUNK! - Remove and return the first element in the
 ;; queue, or tail-call THUNK if the queue is empty.
@@ -265,8 +368,7 @@
 ;; EMPTY-QUEUE! - Make the queue empty.
 (define (empty-queue! q)
   (ensure-atomicity!
-   (set-queue-head! q '())
-   (set-queue-tail! q '())))
+   (splice-out-of-queue! q (real-queue-head q) (queue-tail q))))
 
 ;;; Queue operations not used in the Scheme 48 system, and known to be
 ;;; *very* slow.  These operations may be removed from this package in
@@ -283,7 +385,7 @@
 ;; QUEUE->LIST - Return a list of the elements in the queue.
 (define (queue->list q)
   (ensure-atomicity
-   (let loop ((qp (real-queue-head q)))
+   (let loop ((qp (provisional-cdr (real-queue-head q))))
      (if (null? qp)
 	 '()
 	 ;; The next line must use PROVISIONAL-CDR; see below.
@@ -313,7 +415,7 @@
 (define (queue-length q)
   (ensure-atomicity
    (let loop ((acc 0)
-	      (qp (real-queue-head q)))
+	      (qp (provisional-cdr (real-queue-head q))))
      (if (null? qp)
 	 acc
 	 ;; The next line must use PROVISIONAL-CDR; see below.
@@ -335,7 +437,7 @@
 ;; determined by EQV?), and returns #F if VALUE is not in the queue.
 (define (on-queue? q value)
   (ensure-atomicity
-   (let loop ((qp (real-queue-head q)))
+   (let loop ((qp (provisional-cdr (real-queue-head q))))
      (cond
       ((null? qp)
        #f)
@@ -370,45 +472,16 @@
 (define (delete-from-queue-if! q pred)
   (ensure-atomicity
    (let ((head (real-queue-head q)))
-     (cond
-      ((null? head)
-       #f)
-      (else
-       (let loop ((qp head)
-                  (provisional-set-prev-obj-field! set-queue-head!)
-                  (prev-obj q)
-                  (new-tail-if-prev-obj-field-is-set-to-null '()))
-         (let ((qp-cdr (provisional-cdr qp)))
-           ;; The preceding line must use PROVISIONAL-CDR; see below.
-           (cond
-            ((pred (car qp))
-             (provisional-set-prev-obj-field! prev-obj qp-cdr)
-             (if (null? qp-cdr)
-                 (set-queue-tail!
-                  q
-                  new-tail-if-prev-obj-field-is-set-to-null))
-             #t)
-            ((null? qp-cdr)
-             #f)
-            (else
-             (loop qp-cdr
-                   provisional-set-cdr!
-                   qp
-                   qp))))))))))
-;; If QP-CDR were set to (CDR QP) above, the following code would
-;; return a value EQUAL? to '(b a #f):
-;;
-;; (let ((q (make-queue))
-;;       (c (make-cell '())))
-;;   (enqueue! q 'a)
-;;   (ensure-atomicity!
-;;    (enqueue! q 'b)
-;;    (prov-cell-push! c (delete-from-queue! q 'b))
-;;    (prov-cell-push! c (maybe-dequeue! q))
-;;    (prov-cell-push! c (maybe-dequeue! q)))
-;;   (cell-ref c))
-;;
-;; The result should be EQUAL? to '(#f a #t).
+     (let loop ((prev-pair head)
+		(cur-pair (provisional-cdr head)))
+       (cond
+	((null? cur-pair)
+	 #f)
+	((pred (car cur-pair))
+	 (splice-out-of-queue! q prev-pair cur-pair)
+	 #t)
+	(else
+	 (loop cur-pair (provisional-cdr cur-pair))))))))
 
 ;; DELETE-FROM-QUEUE! - Removes the first element in the queue EQV? to
 ;; VALUE; returns #T if an element is removed, #F otherwise.
