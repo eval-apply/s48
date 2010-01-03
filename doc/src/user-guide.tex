@@ -32,6 +32,8 @@ A few command line arguments are processed by Scheme~48 as
     The default heap size is 3000000 words.  The system will use a
     larger heap if the specified (or default) size is less than
     the size of the image being resumed.
+% #### true only for twospace GC; with BIBOP, specifies size of whole heap
+%      (or unlimited heap size with -h 0)
 
 %\item[{\tt -s} \cvar{stacksize}]
 %    specifies how much space should be reserved for the continuation
@@ -52,6 +54,17 @@ A few command line arguments are processed by Scheme~48 as
 \% scheme48vm -i foo.image -a mumble "foo x"
 ("mumble" "foo x")
 \%
+\end{example}
+
+\item[{\tt -I} \cvar{image} \cvar{argument \ldots}]
+    is equivalent to {\tt % -h 0
+      -i \cvar{image} -a \cvar{argument \ldots}}.
+    On most Unix-like systems, a heap image can be made executable with the
+    following Bourne shell commands:
+\begin{example}
+\% (echo '\#!\cvar{/s48/install/prefix}/lib/scheme48-\cvar{1.9t}/scheme48vm -I'
+   cat \cvar{original.image}) >\cvar{new.image}
+\% chmod +x \cvar{new.image}
 \end{example}
 \end{description}
 

@@ -93,6 +93,19 @@ s48_initialize(int *argcp, char ***argv)
 	vm_argc = argc;    /* remaining args are passed to the VM */
 	argc = 0;
 	break;
+      case 'I':
+#ifdef S48_GC_BIBOP
+	heap_size = 0;  /* unlimited heap size (BIBOP GC only) */
+#endif
+	/* code for -i */
+	argc--; (*argv)++;
+	if (argc == 0) { errors++; break; }
+	image_name = *(*argv);
+	/* code for -a */
+	argc--;
+	vm_argc = argc;    /* remaining args are passed to the VM */
+	argc = 0;
+	break;
       default:
 	fprintf(stderr, "Invalid argument: %s\n", *(*argv));
 	errors++;
