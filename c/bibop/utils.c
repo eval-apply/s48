@@ -14,7 +14,7 @@ void s48_gc_error(const char* message, ...) {
   vfprintf(stderr, message, args);
   fprintf(stderr, "\n");
   va_end(args);
-  assert(0);
+  abort();
   exit(-1);
 }
 
