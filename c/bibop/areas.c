@@ -73,11 +73,17 @@ Area* s48_delete_area(Area* start, Area* area) {
 
 /* Allocate an area of between MINIMUM and MAXIMUM pages, inclusive. */
     
-Area* s48_allocate_area(unsigned long minimum, unsigned long maximum,
-			unsigned char generation_index, area_type_size_t area_type_size) {
+Area* s48_allocate_area_without_crashing(unsigned long minimum,
+					 unsigned long maximum,
+					 unsigned char generation_index,
+					 area_type_size_t area_type_size) {
   s48_address start;
   Area* area;
   unsigned long size = s48_allocate_pages(minimum, maximum, &start);
+
+  if (size == 0) {
+    return NULL;
+  };
 
 #if (BIBOP_LOG)
   s48_bibop_log("s48_allocate_pages: size = %i",
@@ -86,10 +92,28 @@ Area* s48_allocate_area(unsigned long minimum, unsigned long maximum,
 
   /* Safe because S48_ALLOCATE_PAGES has already checked MINIMUM and
      MAXIMUM with PAGES_TO_BYTES_LOSES_P, and SIZE is less than
-     MAXIMUM. */
+     MAXIMUM.
+
+     This call does crash if S48_MAKE_AREA cannot allocate an Area
+     struct, but avoiding an out-of-memory crash here is too hard to
+     be worthwhile. */
   area = s48_make_area(start, ADD_PAGES_I_KNOW_THIS_CAN_OVERFLOW(start, size),
 		       start,
 		       generation_index, area_type_size);
+
+  return area;
+}
+
+Area* s48_allocate_area(unsigned long minimum, unsigned long maximum,
+			unsigned char generation_index,
+			area_type_size_t area_type_size) {
+  Area* area = s48_allocate_area_without_crashing(minimum, maximum,
+						  generation_index,
+						  area_type_size);
+
+  if (area == NULL) {
+    s48_gc_error("s48_allocate_area: out of memory");
+  }
 
   return area;
 }

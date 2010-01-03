@@ -1564,7 +1564,14 @@ static s48_address s48_allocate_large(long len_in_bytes) {
     /* pretend we're just out of memory */
     return NULL;
   };
-  Area* area = s48_allocate_area(len_in_pages, len_in_pages, 0,  AREA_TYPE_SIZE_LARGE);
+  Area* area = s48_allocate_area_without_crashing(len_in_pages,
+						  len_in_pages,
+						  0,
+						  AREA_TYPE_SIZE_LARGE);
+  if (area == NULL) {
+    /* out of memory */
+    return NULL;
+  };
   area->frontier = area->start + len_in_bytes;
   area->next = creation_space.large;
   creation_space.large = area;
