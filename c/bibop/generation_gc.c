@@ -78,7 +78,7 @@ typedef struct {
 
 static CreationSpace creation_space;
 
-static unsigned int current_water_mark; /* pages */
+static unsigned long current_water_mark; /* pages */
 
 /* from young to old */
 static Generation generations[S48_GENERATIONS_COUNT];
@@ -90,8 +90,8 @@ static long gc_seconds = 0;
 static long gc_mseconds = 0;
 
 static void recreate_creation_space() {
-  unsigned int s_below;
-  unsigned int s_above;
+  unsigned long s_below;
+  unsigned long s_above;
 
   /* free current areas */
   if (creation_space.small_below != NULL)
@@ -198,8 +198,9 @@ static void adjust_water_mark(float aging_space_survival) {
   /* maybe take int_max(gc_count, 1000) or something... */
 
   current_water_mark =
-    BYTES_TO_PAGES((unsigned long)(PAGES_TO_BYTES(S48_CREATION_SPACE_SIZE)
-				   * last_aging_space_survival));
+    BYTES_TO_PAGES((unsigned long)
+		   (PAGES_TO_BYTES_I_KNOW_THIS_CAN_OVERFLOW(S48_CREATION_SPACE_SIZE)
+		    * last_aging_space_survival));
   /* if the water-mark would be at the top, then nothing would be
      copied into the aging_space, and we could not adjust the
      water-mark in the future. */
@@ -330,8 +331,8 @@ static void reset_young_targets(Space* space, Space* target) {
   FOR_YOUNG_AREAS(space->weaks_area, area->target_space = target);
 }
 
-static void set_gc_actions(Space* space, unsigned int small,
-			   unsigned int large, unsigned int weaks) {
+static void set_gc_actions(Space* space, gc_action_t small,
+			   gc_action_t large, gc_action_t weaks) {
   FOR_ALL_AREAS(space->small_area, area->action = small);
   FOR_ALL_AREAS(space->large_area, area->action = large);
   FOR_ALL_AREAS(space->weaks_area, area->action = weaks);
@@ -905,10 +906,10 @@ static psbool do_collect(psbool force_major, psbool emergency) {
 
 inline static void mark_large(Area* area, Space* to_space);
 inline static Area* allocate_small_area(Space* space,
-					unsigned int size_in_bytes);
+					unsigned long size_in_bytes);
 inline static Area* allocate_weak_area(Space* space);
 inline static Area* allocate_large_area(Space* space,
-					unsigned int size_in_bytes);
+					unsigned long size_in_bytes);
 
 /* the value STOB has been written to location ADDR */
 inline static void call_internal_write_barrier(Area* maybe_area, char area_looked_up, s48_address addr,
@@ -929,7 +930,8 @@ inline static void call_internal_write_barrier2(Area* maybe_area, char area_look
 
 #if (S48_HAVE_TRANSPORT_LINK_CELLS)
 
-static Area* make_small_available_in_no_gc(Space* space, long size_in_bytes) {
+static Area* make_small_available_in_no_gc(Space* space,
+					   unsigned long size_in_bytes) {
   Area* area = space->small_area;
   if (size_in_bytes > AREA_REMAINING(area)) {
     area = allocate_small_area(space, size_in_bytes);
@@ -937,17 +939,18 @@ static Area* make_small_available_in_no_gc(Space* space, long size_in_bytes) {
   return area;
 }
 
-static s48_address allocate_small_in_no_gc(Space* space, long size_in_bytes) {
+static s48_address allocate_small_in_no_gc(Space* space,
+					   unsigned long size_in_bytes) {
   Area* area = make_small_available_in_no_gc(space, size_in_bytes);
   s48_address addr = area->frontier;
   area->frontier += S48_BYTES_TO_A_UNITS(size_in_bytes);
   return addr;
 }
 
-static s48_value make_stob(long type, long size_in_cells) {
+static s48_value make_stob(long type, unsigned long size_in_cells) {
   /* Must work during a collection! */
 
-  long size_in_bytes = S48_CELLS_TO_BYTES(size_in_cells);
+  unsigned long size_in_bytes = S48_CELLS_TO_BYTES(size_in_cells);
 
   /* Allocate a place for it */
   s48_address addr = allocate_small_in_no_gc(
@@ -1000,7 +1003,7 @@ static void append_tconcB(s48_value tconc, s48_value elem) {
 
 static void trace_transport_link_cell(Area* maybe_area, char area_looked_up,
                                       s48_address contents_pointer,
-				      long size_in_a_units) {
+				      unsigned long size_in_a_units) {
   s48_value tlc = S48_ADDRESS_TO_STOB_DESCRIPTOR(contents_pointer);
   s48_value old_key;
   char key_moved_p;
@@ -1224,8 +1227,8 @@ void s48_internal_trace_locationsB(Area* maybe_area, char area_looked_up, s48_ad
  copy_small: { /* parameter: copy_to_space, copy_header, copy_thing */
    /* get the current Area of the copy_space, means target_space */
    Area* area = copy_to_space->small_area;
-   unsigned int size_in_bytes = (S48_HEADER_LENGTH_IN_A_UNITS(copy_header)
-				 + S48_STOB_OVERHEAD_IN_A_UNITS);
+   unsigned long size_in_bytes = (S48_HEADER_LENGTH_IN_A_UNITS(copy_header)
+				  + S48_STOB_OVERHEAD_IN_A_UNITS);
    if (size_in_bytes <= AREA_REMAINING(area))
      
      /* If the object fits then this is the copy_area ...*/
@@ -1255,8 +1258,8 @@ void s48_internal_trace_locationsB(Area* maybe_area, char area_looked_up, s48_ad
  copy_weak_pointer: { /* parameter: copy_to_space, copy_thing */
    Area* area = copy_to_space->weaks_area;
    /*copy_header = WEAK_POINTER_HEADER;*/
-   if ((int) (S48_HEADER_LENGTH_IN_A_UNITS(copy_header)
-	      + S48_STOB_OVERHEAD_IN_A_UNITS)
+   if ((unsigned long) (S48_HEADER_LENGTH_IN_A_UNITS(copy_header)
+			+ S48_STOB_OVERHEAD_IN_A_UNITS)
        < AREA_REMAINING(area))
      copy_area = area;
    else
@@ -1292,18 +1295,18 @@ s48_value s48_trace_value(s48_value stob) {
 
 void s48_trace_stob_contentsB(s48_value stob) {
   s48_address start = (s48_address)S48_ADDRESS_AFTER_HEADER(stob, void);
-  unsigned int size = S48_BYTES_TO_A_UNITS(S48_STOB_BYTE_LENGTH(stob));
+  unsigned long size = S48_BYTES_TO_A_UNITS(S48_STOB_BYTE_LENGTH(stob));
   s48_trace_locationsB(start, (start + size));
 }
 
 /* creating new areas during gc */
 
 inline static Area* allocate_small_area(Space* space,
-					unsigned int size_in_bytes) {
-  Area* area = s48_allocate_area(int_max(S48_MINIMUM_SMALL_AREA_SIZE,
-					 BYTES_TO_PAGES(size_in_bytes)),
-				 int_max(S48_MAXIMUM_SMALL_AREA_SIZE,
-					 BYTES_TO_PAGES(size_in_bytes)),
+					unsigned long size_in_bytes) {
+  Area* area = s48_allocate_area(ulong_max(S48_MINIMUM_SMALL_AREA_SIZE,
+					   BYTES_TO_PAGES(size_in_bytes)),
+				 ulong_max(S48_MAXIMUM_SMALL_AREA_SIZE,
+					   BYTES_TO_PAGES(size_in_bytes)),
 				 (unsigned char)space->generation_index,
 				 AREA_TYPE_SIZE_SMALL);
   area->action = GC_ACTION_IGNORE;
@@ -1314,8 +1317,8 @@ inline static Area* allocate_small_area(Space* space,
 }
 
 inline static Area* allocate_large_area(Space* space,
-					unsigned int size_in_bytes) {
-  unsigned int pages = BYTES_TO_PAGES(size_in_bytes);
+					unsigned long size_in_bytes) {
+  unsigned long pages = BYTES_TO_PAGES(size_in_bytes);
   Area* area = s48_allocate_area(pages,
 				 pages,
 				 (unsigned char)space->generation_index, 
@@ -1508,10 +1511,10 @@ void s48_make_availableAgc(long len_in_bytes) {
 	creation_space.small = generations[0].current_space->small_area;
 	if (AREA_REMAINING(creation_space.small) < len_in_bytes) {
 	  Area* new_area =
-	    s48_allocate_area(int_max(S48_MINIMUM_SMALL_AREA_SIZE,
-				      BYTES_TO_PAGES(len_in_bytes)),
-			      int_max(S48_MAXIMUM_SMALL_AREA_SIZE,
-				      BYTES_TO_PAGES(len_in_bytes)),
+	    s48_allocate_area(ulong_max(S48_MINIMUM_SMALL_AREA_SIZE,
+					BYTES_TO_PAGES(len_in_bytes)),
+			      ulong_max(S48_MAXIMUM_SMALL_AREA_SIZE,
+					BYTES_TO_PAGES(len_in_bytes)),
 			      0, 
 			      AREA_TYPE_SIZE_SMALL);
 	  new_area->next = generations[0].current_space->small_area;
@@ -1557,6 +1560,10 @@ static void s48_make_large_availableAgc(long len_in_bytes) {
 
 static s48_address s48_allocate_large(long len_in_bytes) {
   unsigned long len_in_pages = BYTES_TO_PAGES(len_in_bytes);
+  if (PAGES_TO_BYTES_LOSES_P(len_in_pages)) {
+    /* pretend we're just out of memory */
+    return NULL;
+  };
   Area* area = s48_allocate_area(len_in_pages, len_in_pages, 0,  AREA_TYPE_SIZE_LARGE);
   area->frontier = area->start + len_in_bytes;
   area->next = creation_space.large;
