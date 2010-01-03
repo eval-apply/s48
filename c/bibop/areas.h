@@ -68,6 +68,10 @@ typedef struct Space {
 
 
 /* Allocate an area of between MINIMUM and MAXIMUM pages, inclusive. */
+extern Area* s48_allocate_area_without_crashing(unsigned long minimum,
+						unsigned long maximum,
+						unsigned char generation_index,
+						area_type_size_t area_type_size);
 extern Area* s48_allocate_area(unsigned long minimum, unsigned long maximum,
 			       unsigned char generation_index, area_type_size_t area_type_size);
 
