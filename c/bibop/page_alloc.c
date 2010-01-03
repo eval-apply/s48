@@ -169,8 +169,9 @@ static unsigned long minimum_allocation_quantum = BYTES_TO_PAGES(2 << 18);
 #define generic_max(a, b) ((a < b) ? b : a)
 
 /* We grab the memory and then cut it down to even page boundaries. */
+/* Returns 0 on failure, non-zero on success. */
 
-static void get_more_memory(unsigned long minimum) {
+static int get_more_memory(unsigned long minimum) {
   unsigned long ask_for = generic_max(minimum, minimum_allocation_quantum) + 1;
   /* may lose up to one full page on the ends */
   unsigned long size = PAGES_TO_BYTES_I_KNOW_THIS_CAN_OVERFLOW(ask_for);
@@ -181,7 +182,7 @@ static void get_more_memory(unsigned long minimum) {
   };
   memory = (s48_address)malloc(size);
   if (memory == NULL)
-    s48_gc_error("get_more_memory %li : out of memory", size);
+    return 0;
   else {
     s48_address start = PAGE_START_ADDRESS(memory);
     if (start == memory)
@@ -189,13 +190,15 @@ static void get_more_memory(unsigned long minimum) {
     else
       s48_free_pagesB(ADD_PAGES_I_KNOW_THIS_CAN_OVERFLOW(start, 1),
 		      ask_for - 1);
+    return 1;
   }
 }
 
 /* Do a first-fit search of the free list to find a free section of
    between MINIMUM and MAXIMUM pages, inclusive. */
 
-/* Returns the number of pages allocated (between MINIMUM and MAXIMUM) */
+/* Returns the number of pages allocated (between MINIMUM and MAXIMUM,
+   or 0 on failure). */
 
 unsigned long s48_allocate_pages(unsigned long minimum,
 				 unsigned long maximum,
@@ -209,7 +212,9 @@ unsigned long s48_allocate_pages(unsigned long minimum,
 
   while (1) {
     if (area == freelist) {
-      get_more_memory(minimum);
+      if (!get_more_memory(minimum)) {
+	return 0;
+      };
       area = freelist->next; /* LOOP */
     } else if (area->size < minimum) {
       area = area->next; /* LOOP */
