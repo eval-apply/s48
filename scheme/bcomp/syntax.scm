@@ -367,7 +367,7 @@
 (define-expander 'define
   (lambda (op op-node exp env)
     (syntax-violation 'define
-		      (if (define? exp)
+		      (if (destructure-define exp)
 			  "definition in expression context"
 			  "ill-formed definition")
 		      exp)))
