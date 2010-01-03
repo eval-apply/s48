@@ -49,11 +49,25 @@ extern void write_line(FILE* f, long num);
 extern void s48_bibop_log(const char* message, ...);
 #endif
 
+/* These functions are too dangerous to have around. The BIBOP GC
+   should not need to do much arithmetic on ints, as all sizes must be
+   stored in longs. */
+
+/*
 inline static int int_min(int a, int b) {
   return (a < b) ? a : b;
 }
 
 inline static int int_max(int a, int b) {
+  return (a > b) ? a : b;
+}
+*/
+
+inline static unsigned long ulong_min(unsigned long a, unsigned long b) {
+  return (a < b) ? a : b;
+}
+
+inline static unsigned long ulong_max(unsigned long a, unsigned long b) {
   return (a > b) ? a : b;
 }
 

@@ -7,9 +7,9 @@
 #include "memory.h"
 
 extern void s48_initialize_page_allocation();
-extern unsigned int s48_allocate_pages(unsigned int minimum,
-				       unsigned int maximum,
-				       s48_address* start);
-extern void s48_free_pagesB(s48_address start, unsigned int size);
+extern unsigned long s48_allocate_pages(unsigned long minimum,
+					unsigned long maximum,
+					s48_address* start);
+extern void s48_free_pagesB(s48_address start, unsigned long size);
 
 #endif
