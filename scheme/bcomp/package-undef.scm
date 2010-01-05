@@ -145,10 +145,9 @@
 (define $note-undefined (make-fluid (lambda (cenv name) (values))))
 
 ; Because of generated names CENV may not be an actual compile-env
-; (i.e. a procedure).
 
 (define (cenv->package cenv)
-  (cond ((procedure? cenv)
+  (cond ((compiler-env? cenv)
          ;; This returns #f if package is stable (static linking).
          (extract-package-from-comp-env cenv))
         ((package? cenv)
