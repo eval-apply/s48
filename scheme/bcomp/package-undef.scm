@@ -114,6 +114,9 @@
 
 ; Get a location for NAME which is SET! but isn't supposed to be.
 
+; In this case, we're creating a new, local location for the
+; assignment to happen - the original location isn't touched.
+
 (define (get-location-for-unassignable cenv name)
   (if (generated? name)
       (get-location-for-unassignable (generated-env name)
