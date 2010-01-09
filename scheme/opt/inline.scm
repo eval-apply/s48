@@ -187,7 +187,7 @@
 			       (sexp->type (cadr st) #t)
 			       (label (caddr st)))))
 	     ((lambda)
-	      (error "lambda substitution NYI" st))
+	      (assertion-violation 'reconstitute-name "lambda substitution NYI" st))
 	     (else
 	      (let ((keyword (car st)))
 		(make-node (get-operator keyword)
@@ -225,8 +225,8 @@
 		((structure? static)
 		 static)
 		(else
-		 (error "invalid qualified reference"
-			env parent static))))
-	(error "invalid qualified reference"
-	       env parent binding))))
+		 (assertion-violation 'get-qualified-env "invalid qualified reference"
+				      env parent static))))
+	(assertion-violation 'get-qualified-env "invalid qualified reference"
+			     env parent binding))))
 
