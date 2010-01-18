@@ -103,13 +103,18 @@
 
 (define (bind-aliases token transform env-of-use)
   (let ((env-of-definition (transform-env transform)))
-    (if (procedure? env-of-definition)
-	(lambda (name)
-	  (if (and (generated? name)
-		   (eq? (generated-token name)
-			token))
-	      (lookup env-of-definition (generated-name name))
-	      (lookup env-of-use name)))
+    (if (compiler-env? env-of-definition)
+	(make-compiler-env
+	 (lambda (name)
+	   (if (and (generated? name)
+		    (eq? (generated-token name)
+			 token))
+	       (lookup env-of-definition (generated-name name))
+	       (lookup env-of-use name)))
+	 (lambda (name type . rest)
+	   (assertion-violation 'bind-aliases "no definitions allowed" name))
+	 #f
+	 #f)
 	env-of-use)))
 
 ; Generate names for bindings reached in ENV reached via PARENT-NAME.
