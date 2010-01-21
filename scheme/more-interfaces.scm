@@ -282,15 +282,6 @@
 	  package-undefine!
 	  ))
 
-(define-interface packages-cruft-interface
-  (export assume-denotation
-	  ;; new-location-uid    ;?
-	  interface-ref
-	  structure-interface
-	  verify-package		;for debugging the package system
-	  ))
-
-
 ; --------------------
 ; Linker
 
