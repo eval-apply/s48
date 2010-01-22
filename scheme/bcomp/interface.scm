@@ -153,7 +153,7 @@
 ; does not allow any names to be seen.
 
 (define (make-modified-interface-maker commands)
-  (if (and (proper-list? commands)
+  (if (and (list? commands)
 	   (every okay-command? commands))
       (receive (alist hidden default)
 	  (process-commands commands)
@@ -201,7 +201,7 @@
 ; Checks that COMMAND is properly formed.
 
 (define (okay-command? command)
-  (and (proper-list? command)
+  (and (list? command)
        (pair? command)
        (symbol? (car command))
        (pair? (cdr command))
@@ -214,23 +214,13 @@
 	    (every symbol? args))
 	   ((alias rename)
 	    (every (lambda (spec)
-		     (and (proper-list? spec)
+		     (and (list? spec)
 			  (= 2 (length spec))
 			  (symbol? (car spec))
 			  (symbol? (cadr spec))))
 		   args))
 	   (else
 	    #f)))))
-
-; Checks that L is a proper list.
-
-(define (proper-list? l)
-  (cond ((null? l)
-	 #t)
-	((pair? l)
-	 (proper-list? (cdr l)))
-	(else
-	 #f)))
 
 ; We add the prefix to the names in ALIST and HIDDEN.  If DEFAULT is already
 ; a prefix we add this one to it, otherwise the prefix is the new default.
