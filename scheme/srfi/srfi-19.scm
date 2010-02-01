@@ -1142,7 +1142,10 @@
 				    2)
 			port)))
    (cons #\Y (lambda (date pad-with port)
-	       (display (date-year date) port)))
+	       (display (tm:padding (date-year date)
+				    pad-with
+				    4)
+			port)))
    (cons #\z (lambda (date pad-with port)
 	       (tm:tz-printer (date-zone-offset date) port)))
    (cons #\Z (lambda (date pad-with port)
