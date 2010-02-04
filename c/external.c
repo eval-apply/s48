@@ -928,7 +928,7 @@ s48_system_2(s48_call_t call, s48_ref_t string)
   return s48_enter_long_2(call, 
 			  system(s48_false_p_2(call, string)
 				 ? NULL
-				 : s48_extract_byte_vector_2(call, string)));
+				 : s48_extract_byte_vector_readonly_2(call, string)));
 }
 
 /********************************/

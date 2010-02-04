@@ -321,7 +321,7 @@ s48_sendto(s48_call_t call, s48_ref_t sch_channel,
 			      sch_buffer, sch_start, sch_count);
   
   sent = sendto(socket_fd,
-		s48_extract_byte_vector_2(call, sch_buffer) + start,
+		s48_extract_byte_vector_readonly_2(call, sch_buffer) + start,
 		count,
 		flags,
 		(struct sockaddr *) sa, salen);

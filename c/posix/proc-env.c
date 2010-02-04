@@ -122,7 +122,7 @@ posix_get_env(s48_call_t call, s48_ref_t name)
 {
   char *value;
 
-  value = getenv(s48_extract_byte_vector_2(call, name));
+  value = getenv(s48_extract_byte_vector_readonly_2(call, name));
 
   return (value == NULL) ? s48_false_2(call) : s48_enter_byte_string_2(call, value);
 }
@@ -133,8 +133,8 @@ posix_set_env(s48_call_t call, s48_ref_t name, s48_ref_t value)
   int status;
 
   RETRY_OR_RAISE_NEG(status,
-                     setenv(s48_extract_byte_vector_2(call, name),
-                            s48_extract_byte_vector_2(call, value), 1));
+                     setenv(s48_extract_byte_vector_readonly_2(call, name),
+                            s48_extract_byte_vector_readonly_2(call, value), 1));
 
   return s48_unspecific_2(call);
 }

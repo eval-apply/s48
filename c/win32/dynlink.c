@@ -22,13 +22,13 @@ shared_object_dlopen(s48_call_t call, s48_ref_t name, s48_ref_t complete_name_p)
   s48_ref_t res;
   s48_ref_t full_name;
   WCHAR* name_utf16;
-  size_t len = strlen(s48_extract_byte_vector_2(call, name));
+  size_t len = strlen(s48_extract_byte_vector_readonly_2(call, name));
 
   if (!s48_false_p_2(call, complete_name_p))
     {
       full_name = s48_make_byte_vector_2(call, len + 5);
       memcpy(s48_extract_byte_vector_2(call, full_name),
-	     s48_extract_byte_vector_2(call, name),
+	     s48_extract_byte_vector_readonly_2(call, name),
 	     len);
       memcpy(s48_extract_byte_vector_2(call, full_name) + len,
 	     ".dll",
@@ -63,7 +63,7 @@ shared_object_dlsym(s48_call_t call, s48_ref_t handle, s48_ref_t name)
   char *native_name;
   
   native_handle = s48_extract_value_2(call, handle, HINSTANCE);
-  native_name = s48_extract_byte_vector_2(call, name);
+  native_name = s48_extract_byte_vector_readonly_2(call, name);
 
   entry = GetProcAddress(native_handle, native_name);
 

@@ -1894,7 +1894,7 @@ s48_sendto(s48_call_t call, s48_ref_t sch_channel,
 	DWORD numberOfBytesSent;
 	DWORD flags = 0;
 	int wsa_status;
-	char* buffer = s48_extract_byte_vector_2(call, sch_buffer) + start;
+	char* buffer = s48_extract_byte_vector_readonly_2(call, sch_buffer) + start;
 
 	maybe_grow_callback_data_buffer(callback_data, count);
 	
