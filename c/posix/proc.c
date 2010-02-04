@@ -322,7 +322,7 @@ posix_exec(s48_call_t call, s48_ref_t program, s48_ref_t lookup_p,
   char *c_program, *real_c_program;
   int status;
 
-  c_program = s48_extract_byte_vector_2(call, program);
+  c_program = s48_extract_byte_vector_readonly_2(call, program);
 
   s48_stop_alarm_interrupts();
 
@@ -375,7 +375,7 @@ enter_byte_vector_array(s48_call_t call, s48_ref_t vectors)
     if (! s48_byte_vector_p_2(call, vector)) {
       free(result);
       s48_assertion_violation_2(call, NULL, "not a byte vector", 1, vector); }
-    result[i] = s48_extract_byte_vector_2(call, vector); }
+    result[i] = s48_extract_byte_vector_readonly_2(call, vector); }
   result[length] = NULL;
 
   return result;

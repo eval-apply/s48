@@ -102,7 +102,7 @@ posix_opendir(s48_call_t call, s48_ref_t svname)
   s48_ref_t	res;
   char		*c_name;
 
-  c_name = s48_extract_byte_vector_2(call, svname);
+  c_name = s48_extract_byte_vector_readonly_2(call, svname);
   RETRY_OR_RAISE_NULL(dp, opendir(c_name));
   res = s48_make_value_2(call, DIR *);
   s48_unsafe_extract_value_2(call, res, DIR *) = dp;
@@ -208,7 +208,7 @@ posix_working_directory(s48_call_t call, s48_ref_t new_wd)
   else {
     int		status;
 
-    RETRY_OR_RAISE_NEG(status, chdir(s48_extract_byte_vector_2(call, new_wd)));
+    RETRY_OR_RAISE_NEG(status, chdir(s48_extract_byte_vector_readonly_2(call, new_wd)));
     
     return s48_unspecific_2(call);
   }
@@ -229,7 +229,7 @@ posix_open(s48_call_t call, s48_ref_t path, s48_ref_t id, s48_ref_t options, s48
   s48_ref_t	channel;
 
   c_options = s48_extract_file_options(call, options);
-  c_path = s48_extract_byte_vector_2(call, path);
+  c_path = s48_extract_byte_vector_readonly_2(call, path);
 
   if ((O_WRONLY & c_options) || (O_RDWR & c_options))
     c_options |= O_NONBLOCK;
@@ -272,36 +272,36 @@ posix_file_stuff(s48_call_t call, s48_ref_t op, s48_ref_t arg0, s48_ref_t arg1)
 
     /* link(existing, new) */
   case 1:
-    RETRY_OR_RAISE_NEG(status, link(s48_extract_byte_vector_2(call, arg0),
-				    s48_extract_byte_vector_2(call, arg1)));
+    RETRY_OR_RAISE_NEG(status, link(s48_extract_byte_vector_readonly_2(call, arg0),
+				    s48_extract_byte_vector_readonly_2(call, arg1)));
     break;
 
     /* mkdir(path, mode) */
   case 2:
-    RETRY_OR_RAISE_NEG(status, mkdir(s48_extract_byte_vector_2(call, arg0),
+    RETRY_OR_RAISE_NEG(status, mkdir(s48_extract_byte_vector_readonly_2(call, arg0),
 				     s48_extract_mode(call, arg1)));
     break;
 
     /* mkfifo(path, mode) */
   case 3:
-    RETRY_OR_RAISE_NEG(status, mkfifo(s48_extract_byte_vector_2(call, arg0),
+    RETRY_OR_RAISE_NEG(status, mkfifo(s48_extract_byte_vector_readonly_2(call, arg0),
 				      s48_extract_mode(call, arg1)));
     break;
 
     /* unlink(char *path) */
   case 4:
-    RETRY_OR_RAISE_NEG(status, unlink(s48_extract_byte_vector_2(call, arg0)));
+    RETRY_OR_RAISE_NEG(status, unlink(s48_extract_byte_vector_readonly_2(call, arg0)));
     break;
     
     /* rmdir(char *path) */
   case 5:
-    RETRY_OR_RAISE_NEG(status, rmdir(s48_extract_byte_vector_2(call, arg0)));
+    RETRY_OR_RAISE_NEG(status, rmdir(s48_extract_byte_vector_readonly_2(call, arg0)));
     break;
     
     /* rename(char *old, char *new) */
   case 6:
-    RETRY_OR_RAISE_NEG(status, rename(s48_extract_byte_vector_2(call, arg0),
-				      s48_extract_byte_vector_2(call, arg1)));
+    RETRY_OR_RAISE_NEG(status, rename(s48_extract_byte_vector_readonly_2(call, arg0),
+				      s48_extract_byte_vector_readonly_2(call, arg1)));
     break;
     
     /* access(char *path, int modes) */
@@ -311,7 +311,7 @@ posix_file_stuff(s48_call_t call, s48_ref_t op, s48_ref_t arg0, s48_ref_t arg1)
                       (002 & modes ? W_OK : 0) |
                       (004 & modes ? X_OK : 0) |
                       (010 & modes ? F_OK : 0);
-    char *path = s48_extract_byte_vector_2(call, arg0);
+    char *path = s48_extract_byte_vector_readonly_2(call, arg0);
 
     RETRY_NEG(status, access(path, local_modes));
 
@@ -435,9 +435,9 @@ posix_file_info(s48_call_t call,
 			       s48_unsafe_channel_os_index_2(call, svname)),
 			     &sbuf)); }
   else if (s48_false_p_2(call, follow_link_p))
-    RETRY_OR_RAISE_NEG(status, stat(s48_extract_byte_vector_2(call, svname), &sbuf));
+    RETRY_OR_RAISE_NEG(status, stat(s48_extract_byte_vector_readonly_2(call, svname), &sbuf));
   else
-    RETRY_OR_RAISE_NEG(status, lstat(s48_extract_byte_vector_2(call, svname), &sbuf));
+    RETRY_OR_RAISE_NEG(status, lstat(s48_extract_byte_vector_readonly_2(call, svname), &sbuf));
 
   info = s48_make_record_2(call, posix_file_info_type_binding);
 
@@ -496,8 +496,8 @@ posix_create_symbolic_link(s48_call_t call,
 {
   int status;
   RETRY_OR_RAISE_NEG(status, 
-		     symlink(s48_extract_byte_vector_2(call, svname1),
-			     s48_extract_byte_vector_2(call, svname2)));
+		     symlink(s48_extract_byte_vector_readonly_2(call, svname1),
+			     s48_extract_byte_vector_readonly_2(call, svname2)));
   return s48_unspecific_2(call);
 }
 
@@ -510,7 +510,7 @@ posix_read_symbolic_link(s48_call_t call, s48_ref_t svname)
   ssize_t status;
   for (;;)
     {
-      RETRY_NEG(status, readlink(s48_extract_byte_vector_2(call, svname), buf, buf_size - 1));
+      RETRY_NEG(status, readlink(s48_extract_byte_vector_readonly_2(call, svname), buf, buf_size - 1));
       if (status >= 0)
 	{
 	  s48_ref_t result;

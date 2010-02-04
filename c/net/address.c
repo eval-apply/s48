@@ -208,7 +208,7 @@ s48_enter_in6_addr(s48_call_t call, const struct in6_addr* addr)
 void
 s48_extract_in6_addr(s48_call_t call, s48_ref_t sch_addr, struct in6_addr* addr)
 {
-  char* bytes = s48_extract_byte_vector_2(call, sch_addr);
+  char* bytes = s48_extract_byte_vector_readonly_2(call, sch_addr);
   int i = 0;
   while (i < 16)
     {
@@ -304,7 +304,7 @@ s48_make_sockaddr_un_raw(s48_call_t call, s48_ref_t sch_path)
 			      sch_path);
   
   saddr.sun_family = AF_UNIX;
-  strcpy(saddr.sun_path, s48_extract_byte_vector_2(call, sch_path));
+  strcpy(saddr.sun_path, s48_extract_byte_vector_readonly_2(call, sch_path));
 
 #ifdef SIN6_LEN
   saddr.sun_len = SUN_LEN(&saddr);

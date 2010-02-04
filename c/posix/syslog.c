@@ -155,7 +155,7 @@ posix_openlog(s48_call_t call,
      * openlog doesn't copy the input string, at least not
      * on every system.  That's just great. 
      */
-    char* ident = s48_extract_byte_vector_2(call, sch_ident);
+    char* ident = s48_extract_byte_vector_readonly_2(call, sch_ident);
     size_t ident_size = strlen(ident) + 1;
     if (ident_size > syslog_ident_size)
       {
@@ -193,7 +193,7 @@ posix_syslog(s48_call_t call,
   if (!syslog_open)
     s48_assertion_violation_2(call, "posix_syslog", "syslog isn't open", 
 			      3, sch_level, sch_opt_facility, sch_message);
-  syslog(facility | level, "%s", s48_extract_byte_vector_2(call, sch_message));
+  syslog(facility | level, "%s", s48_extract_byte_vector_readonly_2(call, sch_message));
   return s48_unspecific_2(call);
 }
 

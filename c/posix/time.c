@@ -210,7 +210,7 @@ posix_strftime(s48_call_t call, s48_ref_t sch_format, s48_ref_t sch_t)
   size_t status;
   for (;;)
     {
-      status = strftime(buf, buf_size, s48_extract_byte_vector_2(call, sch_format), &t);
+      status = strftime(buf, buf_size, s48_extract_byte_vector_readonly_2(call, sch_format), &t);
       if (status > 0)
 	{
 	  s48_ref_t result = s48_enter_byte_string_2(call, buf);
