@@ -2023,7 +2023,7 @@ s48_ref_t
 s48_enter_byte_vector_2(s48_call_t call, const char *bytes, long length)
 {
   s48_ref_t ref = s48_make_byte_vector_2(call, length);
-  memcpy(s48_unsafe_extract_byte_vector_2(call, ref), bytes, length);
+  s48_enter_byte_vector_region_2(call, ref, 0, length, (char *) bytes);
   return ref;
 }
 
@@ -2039,7 +2039,7 @@ s48_ref_t
 s48_enter_unmovable_byte_vector_2(s48_call_t call, const char *bytes, long length)
 {
   s48_ref_t ref = s48_make_unmovable_byte_vector_2(call, length);
-  memcpy(s48_unsafe_extract_byte_vector_2(call, ref), bytes, length);
+  s48_enter_byte_vector_region_2(call, ref, 0, length, (char *) bytes);
   return ref;
 }
 
@@ -2057,6 +2057,85 @@ s48_extract_byte_vector_2(s48_call_t call, s48_ref_t byte_vector)
   s48_check_value_2(call, byte_vector);
 
   return s48_unsafe_extract_byte_vector_2(call, byte_vector);
+}
+
+void
+s48_extract_byte_vector_region_2(s48_call_t call, s48_ref_t byte_vector,
+				 long start, long length, char *buf)
+{
+  char *scheme_buf;
+  s48_check_value_2(call, byte_vector);
+  scheme_buf = s48_unsafe_extract_byte_vector_2(call, byte_vector);
+  memcpy(buf, scheme_buf + start, length);
+}
+
+void
+s48_enter_byte_vector_region_2(s48_call_t call, s48_ref_t byte_vector,
+			       long start, long length, char *buf)
+{
+  char *scheme_buf;
+  s48_check_value_2(call, byte_vector);
+  scheme_buf = s48_unsafe_extract_byte_vector_2(call, byte_vector);
+  memcpy(scheme_buf + start, buf, length);
+}
+
+void
+s48_copy_from_byte_vector_2(s48_call_t call, s48_ref_t byte_vector, char *buf)
+{
+  s48_extract_byte_vector_region_2(call, byte_vector, 0,
+				   s48_byte_vector_length_2(call, byte_vector), buf);
+}
+
+void
+s48_copy_to_byte_vector_2(s48_call_t call, s48_ref_t byte_vector, char *buf)
+{
+  s48_enter_byte_vector_region_2(call, byte_vector, 0,
+				   s48_byte_vector_length_2(call, byte_vector), buf);
+}
+
+psbool
+s48_unmovable_p(s48_call_t call, s48_ref_t ref)
+{
+  return s48_unmovableP(s48_deref(ref));
+}
+
+char *
+s48_extract_unmovable_byte_vector_2(s48_call_t call, s48_ref_t byte_vector)
+{
+  s48_check_value_2(call, byte_vector);
+  if (!s48_unmovable_p(call, byte_vector))
+    s48_assertion_violation("s48_extract_unmovable_byte_vector_2",
+			    "not an unmovable byte vector", 1, byte_vector);
+  return s48_unsafe_extract_byte_vector_2(call, byte_vector);
+}
+
+/* 
+   The returned byte vector by s48_extract_byte_vector_unmanaged_2 may
+   be a copy of the Scheme byte vector, changes made to the returned
+   byte vector will not necessarily be reflected in Scheme until
+   s48_release_byte_vector_2 is called. 
+*/
+char *
+s48_extract_byte_vector_unmanaged_2(s48_call_t call, s48_ref_t byte_vector)
+{
+  if (s48_unmovable_p(call, byte_vector))
+    {
+      return s48_extract_unmovable_byte_vector_2(call, byte_vector);
+    }
+  else
+    {
+      long len = s48_byte_vector_length_2(call, byte_vector);
+      char *buf = s48_make_local_buf(call, len);
+      s48_extract_byte_vector_region_2(call, byte_vector, 0, len, buf);
+      return buf;
+    }
+}
+
+void
+s48_release_byte_vector_2(s48_call_t call, s48_ref_t byte_vector, char *buf)
+{
+  if (!s48_unmovable_p(call, byte_vector))
+    s48_copy_to_byte_vector_2(call, byte_vector, buf);
 }
 
 /*
