@@ -79,7 +79,7 @@ posix_compile_regexp(s48_call_t call, s48_ref_t pattern,
   sch_regex = s48_make_value_2(call, regex_t);
 
   status = regcomp(s48_unsafe_extract_value_pointer_2(call, sch_regex, regex_t),
-		   s48_unsafe_extract_byte_vector_2(call, pattern),
+		   s48_extract_byte_vector_2(call, pattern),
 		   flags);
 
   if (status == 0)
@@ -131,7 +131,7 @@ posix_regexp_match(s48_call_t call, s48_ref_t sch_regex, s48_ref_t string, s48_r
       s48_out_of_memory_error_2(call); }
     
   status = regexec(s48_extract_value_pointer_2(call, sch_regex, regex_t),
-		   s48_unsafe_extract_byte_vector_2(call, string) + start,
+		   s48_extract_byte_vector_2(call, string) + start,
 		   nmatch, pmatch, flags);
 
   if (status == REG_NOMATCH)
@@ -190,7 +190,7 @@ posix_regexp_error_message(s48_call_t call, s48_ref_t pattern,
 
   s48_check_string_2(call, pattern);
 
-  status = regcomp(&compiled_regex, s48_unsafe_extract_byte_vector_2(call, pattern), flags);
+  status = regcomp(&compiled_regex, s48_extract_byte_vector_2(call, pattern), flags);
 
   if (status == 0)
     return s48_false_2(call);
@@ -203,7 +203,7 @@ posix_regexp_error_message(s48_call_t call, s48_ref_t pattern,
     buffer = s48_make_byte_vector_2(call, buffer_size);
     regerror(status,
 	     &compiled_regex,
-	     s48_unsafe_extract_byte_vector_2(call, buffer),
+	     s48_extract_byte_vector_2(call, buffer),
 	     buffer_size);
     
     return buffer; }
