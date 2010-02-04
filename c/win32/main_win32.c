@@ -5,6 +5,7 @@
 #include <windows.h>
 
 extern long s48_initialize(int *argc, char ***argv);
+extern long s48_call_startup_procedure(char **, long);
 
 extern int s48_utf_16_to_utf_8of16(LPWSTR utf_16, 
 				   unsigned char* utf_8of16);

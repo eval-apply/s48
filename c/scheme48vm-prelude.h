@@ -40,7 +40,8 @@ extern s48_value	s48_extended_vm(long, s48_value),
  */
 
 extern long		s48_call_native_procedure(long, long),
-			s48_invoke_native_continuation(long, long);
+			s48_invoke_native_continuation(long, long),
+			s48_jump_to_native_address(long, long);
 
 #define	GET_PROPOSAL_LOCK()	((void)0)
 #define	RELEASE_PROPOSAL_LOCK()	((void)0)
