@@ -50,6 +50,10 @@
   null-address ;; for the correct signature
   )
 
+(define (s48-unmovable? stob) 
+  (= stob 0) ;; for the type-checker
+  #f)
+
 ;; For allocation done outside the VM.
 
 (define (s48-allocate-stob type size)
