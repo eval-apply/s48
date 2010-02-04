@@ -2070,9 +2070,9 @@ s48_make_string_2(s48_call_t call, int length, long init)
 }
 
 s48_value
-s48_make_vector(int length, s48_value init)
+s48_make_vector(long length, s48_value init)
 {
-  int i;
+  long i;
   s48_value obj;
   S48_DECLARE_GC_PROTECT(1);
 
@@ -2088,9 +2088,9 @@ s48_make_vector(int length, s48_value init)
 }
 
 s48_ref_t
-s48_make_vector_2(s48_call_t call, int length, s48_ref_t init)
+s48_make_vector_2(s48_call_t call, long length, s48_ref_t init)
 {
-  int i;
+  long i;
   s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_VECTOR, length));
   for (i = 0; i < length; ++i)
     s48_unsafe_vector_set_2(call, ref, i, init);
@@ -2098,13 +2098,13 @@ s48_make_vector_2(s48_call_t call, int length, s48_ref_t init)
 }
 
 s48_value
-s48_make_byte_vector(int length)
+s48_make_byte_vector(long length)
 {
     return s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length);
 }
 
 s48_ref_t
-s48_make_byte_vector_2(s48_call_t call, int length)
+s48_make_byte_vector_2(s48_call_t call, long length)
 {
   return s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length));
 }
@@ -2142,7 +2142,7 @@ s48_enter_byte_string_2(s48_call_t call, const char *str)
 s48_value
 s48_make_record(s48_value type_shared_binding)
 {
-    int i, number_of_fields;
+    long i, number_of_fields;
     s48_value record = S48_FALSE;
     s48_value record_type = S48_FALSE;
     S48_DECLARE_GC_PROTECT(1);
@@ -2173,7 +2173,7 @@ s48_make_record(s48_value type_shared_binding)
 s48_ref_t
 s48_make_record_2(s48_call_t call, s48_ref_t type_shared_binding)
 {
-    int i, number_of_fields;
+    long i, number_of_fields;
     s48_ref_t record;
     s48_ref_t record_type;
 
