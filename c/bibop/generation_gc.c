@@ -1616,7 +1616,12 @@ s48_address s48_allocate_untracedAgc(long len_in_bytes) {
 
 /* Unmovable objects are allocated directly in a new large area, which
    are never moved in a collection. */
-psbool s48_gc_can_allocate_untraced_unmovableP() { return PSTRUE; }
+psbool s48_gc_can_allocate_unmovableP() { return PSTRUE; }
+
+s48_address s48_allocate_traced_unmovableAgc(long len_in_bytes) {
+    s48_make_large_availableAgc(len_in_bytes);
+    return s48_allocate_large(len_in_bytes);
+}
 
 s48_address s48_allocate_untraced_unmovableAgc(long len_in_bytes) {
     s48_make_large_availableAgc(len_in_bytes);
@@ -1624,7 +1629,7 @@ s48_address s48_allocate_untraced_unmovableAgc(long len_in_bytes) {
 }
 
 psbool s48_unmovableP(s48_value stob) {
-  Area* area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(thing));
+  Area* area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(stob));
   return ((area != NULL) && 
 	  (area->area_type_size == AREA_TYPE_SIZE_LARGE)) ? PSTRUE : PSFALSE;
 }

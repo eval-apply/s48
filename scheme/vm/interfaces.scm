@@ -59,6 +59,7 @@
 (define-interface stob-interface
   (export make-d-vector make-b-vector
 	  maybe-make-d-vector+gc maybe-make-b-vector+gc
+	  maybe-make-unmovable-d-vector+gc
 	  maybe-make-unmovable-b-vector+gc
           d-vector-length d-vector-ref d-vector-init! d-vector-set!
 	  b-vector-length b-vector-ref b-vector-set!
@@ -82,11 +83,13 @@
 	  s48-allocate-traced+gc
 	  s48-allocate-untraced+gc
 
-	  s48-gc-can-allocate-untraced-unmovable? ;; is a function due to a limitation (bug?) of pre-scheme
+	  s48-gc-can-allocate-unmovable? ;; is a function due to a limitation (bug?) of pre-scheme
+	  s48-allocate-traced-unmovable+gc
 	  s48-allocate-untraced-unmovable+gc
 	  s48-unmovable?
 	  s48-allocate-stob
 	  s48-allocate-weak-stob
+	  s48-allocate-unmovable-stob
 	  
 	  s48-forbid-gc!
 	  s48-allow-gc!

@@ -2014,7 +2014,7 @@ s48_make_weak_pointer_2(s48_call_t call, s48_ref_t value)
 s48_value
 s48_enter_byte_vector(char *bytes, long length)
 {
-  s48_value obj = s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length);
+  s48_value obj = s48_make_byte_vector(length);
   memcpy(S48_UNSAFE_EXTRACT_BYTE_VECTOR(obj), bytes, length);
   return obj;
 }
@@ -2022,7 +2022,23 @@ s48_enter_byte_vector(char *bytes, long length)
 s48_ref_t
 s48_enter_byte_vector_2(s48_call_t call, const char *bytes, long length)
 {
-  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length));
+  s48_ref_t ref = s48_make_byte_vector_2(call, length);
+  memcpy(s48_unsafe_extract_byte_vector_2(call, ref), bytes, length);
+  return ref;
+}
+
+s48_value
+s48_enter_unmovable_byte_vector(char *bytes, long length)
+{
+  s48_value obj = s48_make_unmovable_byte_vector(length);
+  memcpy(S48_UNSAFE_EXTRACT_BYTE_VECTOR(obj), bytes, length);
+  return obj;
+}
+
+s48_ref_t
+s48_enter_unmovable_byte_vector_2(s48_call_t call, const char *bytes, long length)
+{
+  s48_ref_t ref = s48_make_unmovable_byte_vector_2(call, length);
   memcpy(s48_unsafe_extract_byte_vector_2(call, ref), bytes, length);
   return ref;
 }
@@ -2107,6 +2123,18 @@ s48_ref_t
 s48_make_byte_vector_2(s48_call_t call, long length)
 {
   return s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length));
+}
+
+s48_value
+s48_make_unmovable_byte_vector(long length)
+{
+    return s48_allocate_unmovable_stob(S48_STOBTYPE_BYTE_VECTOR, length);
+}
+
+s48_ref_t
+s48_make_unmovable_byte_vector_2(s48_call_t call, long length)
+{
+  return s48_make_local_ref(call, s48_allocate_unmovable_stob(S48_STOBTYPE_BYTE_VECTOR, length));
 }
 
 s48_value

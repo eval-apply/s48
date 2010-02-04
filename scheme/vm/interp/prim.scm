@@ -284,7 +284,7 @@
     ;; this test would be better placed in
     ;; maybe-make-unmovable-b-vector+gc, but that would introduce a
     ;; circular dependency:
-    (if (and unmovable? (not (s48-gc-can-allocate-untraced-unmovable?)))
+    (if (and unmovable? (not (s48-gc-can-allocate-unmovable?)))
 	(raise-exception unimplemented-instruction 0)
 	(let ((size (size len)))
 	  (if (or (< len 0)
