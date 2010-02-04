@@ -713,6 +713,8 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
 	  nargs, callback_depth());
 #endif
   
+  s48_copy_local_bvs_to_scheme (call);
+
   s48_shared_binding_check_2(call, callback_binding);
 
   /* It would be nice to push a list of the arguments, but we have no way
@@ -809,6 +811,8 @@ s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...)
 #ifdef DEBUG_FFI
   fprintf(stderr, "[s48_call_scheme_2 returns from depth %d]\n", callback_depth());
 #endif
+
+  s48_copy_local_bvs_from_scheme (call);
 
   return s48_make_local_ref (call, value);
 }
@@ -949,6 +953,13 @@ raise_scheme_exception_prelude(long why, long nargs)
   return nargs;
 }
 
+static long
+raise_scheme_exception_prelude_2(s48_call_t call, long why, long nargs)
+{
+  s48_copy_local_bvs_to_scheme(call);
+  return raise_scheme_exception_prelude(why, nargs);
+}
+
 static void
 raise_scheme_exception_postlude(void)
 {
@@ -982,7 +993,7 @@ s48_raise_scheme_exception_2(s48_call_t call, long why, long nargs, ...)
   int i;
   va_list irritants;
 
-  nargs = raise_scheme_exception_prelude(why, nargs + 1) - 1;
+  nargs = raise_scheme_exception_prelude_2(call, why, nargs + 1) - 1;
 
   s48_push_2(call, current_procedure);
 
@@ -1028,7 +1039,7 @@ raise_scheme_standard_exception_2(s48_call_t call, long why, const char* who, co
   int i;
   long nargs = irritant_count + 2; /* who and message */
 
-  nargs = raise_scheme_exception_prelude(why, nargs);
+  nargs = raise_scheme_exception_prelude_2(call, why, nargs);
   irritant_count = nargs - 2;
   
   for (i = 0; i < irritant_count; i++)
@@ -1124,7 +1135,7 @@ s48_os_error_2(s48_call_t call, const char* who, int the_errno,
   long nargs = irritant_count + 2; /* who and errno */
   va_list irritants;
 
-  nargs = raise_scheme_exception_prelude(S48_EXCEPTION_EXTERNAL_OS_ERROR, nargs);
+  nargs = raise_scheme_exception_prelude_2(call, S48_EXCEPTION_EXTERNAL_OS_ERROR, nargs);
   irritant_count = nargs - 2;
   
   va_start(irritants, irritant_count);

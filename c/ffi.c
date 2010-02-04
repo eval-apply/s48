@@ -513,10 +513,7 @@ walk_local_bvs (s48_call_t call,
 {
   struct bv_group *b;
 
-  if (! call->local_bvs)
-    return;
-
-  for (b = call->local_bvs; b; b->next)
+  for (b = call->local_bvs; b; b = b->next)
     func (call, b, closure);
 }
 
