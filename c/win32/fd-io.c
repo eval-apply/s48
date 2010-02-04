@@ -1320,11 +1320,11 @@ s48_socket(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_type, s48_ref_t sch_
   return channel;
 }
 
-#define RETRY_OR_RAISE_NEG(STATUS, CALL)			\
+#define RETRY_OR_RAISE_NEG(C, STATUS, CALL)			\
 do {								\
     STATUS = (CALL);						\
     if (STATUS == SOCKET_ERROR)					\
-      s48_os_error(NULL, WSAGetLastError(), 0);			\
+      s48_os_error_2(C, NULL, WSAGetLastError(), 0);		\
  } while (0)
 
 static s48_ref_t
@@ -1354,9 +1354,9 @@ s48_socketpair(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_type, s48_ref_t 
   addr.sin_port = 0;
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-  RETRY_OR_RAISE_NEG(status, bind(listener, (struct sockaddr*)&addr, sizeof(addr)));
-  RETRY_OR_RAISE_NEG(status, listen(listener, 1));
-  RETRY_OR_RAISE_NEG(status,
+  RETRY_OR_RAISE_NEG(call, status, bind(listener, (struct sockaddr*)&addr, sizeof(addr)));
+  RETRY_OR_RAISE_NEG(call, status, listen(listener, 1));
+  RETRY_OR_RAISE_NEG(call, status,
 		     getsockname(listener, (struct sockaddr*)&addr, &salen));
 
   socket1 = WSASocket(af, socktype, protocol,
@@ -1367,7 +1367,7 @@ s48_socketpair(s48_call_t call, s48_ref_t sch_af, s48_ref_t sch_type, s48_ref_t 
     s48_os_error_2(call, "s48_socketpair", WSAGetLastError(), 3,
 		   sch_af, sch_type, sch_protocol);
   
-  RETRY_OR_RAISE_NEG(status, connect(socket1, (struct sockaddr*) &addr, salen));
+  RETRY_OR_RAISE_NEG(call, status, connect(socket1, (struct sockaddr*) &addr, salen));
   socket0 = accept(listener, (struct sockaddr*) &addr, &salen);
   if (socket0 == INVALID_SOCKET)
     s48_os_error_2(call, "s48_socketpair", WSAGetLastError(), 3,

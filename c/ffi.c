@@ -199,7 +199,7 @@ s48_free_local_ref (s48_call_t call, s48_ref_t ref)
 void
 s48_free_local_ref_array (s48_call_t call, s48_ref_t *refs, size_t len)
 {
-  int i;
+  size_t i;
   for (i = 0; i < len; i++)
     s48_free_local_ref (call, refs[i]);
 }
