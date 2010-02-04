@@ -1814,6 +1814,18 @@ s48_string_length_2(s48_call_t call, s48_ref_t string)
   return s48_string_length(s48_deref(string));
 }
 
+long
+s48_string_latin_1_length_2(s48_call_t call, s48_ref_t string)
+{
+  return s48_string_length_2(call, string);
+}
+
+long
+s48_string_latin_1_length_n_2(s48_call_t call, s48_ref_t string, long start, long count)
+{
+  return count;
+}
+
 void
 s48_string_set_2(s48_call_t call, s48_ref_t s, long i, long c)
 {
@@ -1826,6 +1838,54 @@ s48_string_ref_2(s48_call_t call, s48_ref_t s, long i)
   return s48_string_ref(s48_deref(s), i);
 }
 
+/*
+ * Extract strings to local buffer
+ */
+
+#define MAKE_STRING_EXTRACT_FUNCTION(encoding)				\
+  char *s48_extract_##encoding##_from_string_2(s48_call_t call, s48_ref_t sch_s) { \
+    char *buf = s48_make_local_buf(call, s48_string_##encoding##_length_2(call, sch_s)); \
+    s48_copy_string_to_##encoding##_2(call, sch_s, buf);		\
+    return buf;								\
+  }
+
+char *
+s48_extract_latin_1_from_string_2(s48_call_t call, s48_ref_t sch_s) {
+  long size = s48_string_latin_1_length_2(call, sch_s) + 1;
+  char *buf = s48_make_local_buf(call, size + 1);
+  s48_copy_string_to_latin_1_2(call, sch_s, buf);
+  buf[size] = '\0';
+  return buf;
+}
+
+char *
+s48_extract_utf_8_from_string_2(s48_call_t call, s48_ref_t sch_s) {
+  long size = s48_string_utf_8_length_2(call, sch_s) + 1;
+  char *buf = s48_make_local_buf(call, size + 1);
+  s48_copy_string_to_utf_8_2(call, sch_s, buf);
+  buf[size] = '\0';
+  return buf;
+}
+
+uint16_t *
+s48_extract_utf_16be_from_string_2(s48_call_t call, s48_ref_t sch_s) {
+  long size = s48_string_utf_16be_length_2(call, sch_s);
+  uint16_t *buf = 
+    (uint16_t *) s48_make_local_buf(call, (size + 1) * sizeof(uint16_t));
+  s48_copy_string_to_utf_16be_2(call, sch_s, buf);
+  buf[size] = 0;
+  return buf;
+}
+
+uint16_t *
+s48_extract_utf_16le_from_string_2(s48_call_t call, s48_ref_t sch_s) {
+  long size = s48_string_utf_16le_length_2(call, sch_s);
+  uint16_t *buf = 
+    (uint16_t *) s48_make_local_buf(call, (size + 1) * sizeof(uint16_t));
+  s48_copy_string_to_utf_16le_2(call, sch_s, buf);
+  buf[size] = 0;
+  return buf;
+}
 
 /*
  * Doubles and characters are straightforward.
