@@ -2054,9 +2054,9 @@ s48_extract_byte_vector(s48_value byte_vector)
 char *
 s48_extract_byte_vector_2(s48_call_t call, s48_ref_t byte_vector)
 {
-  s48_check_value_2(call, byte_vector);
-
-  return s48_unsafe_extract_byte_vector_2(call, byte_vector);
+  long s = s48_byte_vector_length_2(call, byte_vector);
+  char *buf = s48_make_local_bv(call, byte_vector, s);
+  return buf;
 }
 
 void

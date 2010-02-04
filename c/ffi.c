@@ -58,6 +58,15 @@ struct buf_group
   struct buf_group *next, *prev;
 };
 
+struct bv_group;
+
+struct bv_group
+{
+  char *buffer;
+  s48_ref_t byte_vector;
+  struct bv_group *next, *prev;
+};
+
 struct s48_call_s
 {
   s48_call_t older_call;
@@ -66,6 +75,7 @@ struct s48_call_s
   s48_call_t next_subcall, prev_subcall;
   struct ref_group *local_refs;
   struct buf_group *local_bufs;
+  struct bv_group *local_bvs;
 };
 
 
@@ -341,6 +351,188 @@ s48_free_local_buf (s48_call_t call, void *buffer)
 }
 
 
+/* BYTE VECTORS */
+
+struct bv_group *
+make_bv_group (void)
+{
+  struct bv_group *g = (struct bv_group *) malloc (sizeof (struct bv_group));
+  if (g == NULL)
+    s48_out_of_memory_error();
+#ifdef DEBUG_FFI
+  fprintf (stderr, "make bv group %x\n", g);
+#endif
+  return g;
+}
+
+
+static void
+copy_to_bv (s48_call_t call, struct bv_group *bv, void *closure)
+{
+  s48_copy_to_byte_vector_2(call, bv->byte_vector, bv->buffer);
+}
+
+static void
+copy_from_bv (s48_call_t call, struct bv_group *bv, void *closure)
+{
+  s48_copy_from_byte_vector_2(call, bv->byte_vector, bv->buffer);
+}
+
+void
+free_bv (s48_call_t call, struct bv_group *b)
+{
+#ifdef DEBUG_FFI
+  fprintf (stderr, "free bv %x\n", b);
+#endif
+  copy_to_bv (call, b, NULL);
+  free (b->buffer);
+  free (b);
+}
+
+void
+free_bv_group (s48_call_t call, struct bv_group *g)
+{
+  struct bv_group *b, *next;
+#ifdef DEBUG_FFI
+  fprintf (stderr, "free bv group %x\n", g);
+#endif
+  for (b = g; b; b = next) {
+    next = b->next;
+    free_bv (call, b);
+  }
+}
+
+char *
+s48_find_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
+{
+  struct bv_group *b;
+
+  if (! call->local_bvs)
+    return NULL;
+
+  if (s48_eq_p_2 (call, byte_vector, call->local_bvs->byte_vector)) {
+    return call->local_bvs->buffer;
+  }
+  
+  b = call->local_bvs->next;
+  while (b) {
+    if (s48_eq_p_2 (call, byte_vector, b->byte_vector)) {
+      return b->buffer;
+    } else {
+      b = b->next;
+    }
+  }
+
+  return NULL;
+}
+
+char *
+s48_really_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
+{
+  struct bv_group *g = make_bv_group ();
+#ifdef DEBUG_FFI
+  fprintf (stderr, "make bv with size %x\n", s);
+#endif
+  g->buffer = (char *) calloc (1, s);
+  if (g->buffer == NULL)
+    s48_out_of_memory_error();
+  g->byte_vector = byte_vector;
+  g->prev = NULL;
+  g->next = call->local_bvs;
+  if (g->next)
+    g->next->prev = g;
+  call->local_bvs = g;
+  return g->buffer;
+}
+
+psbool     s48_unmovable_p (s48_call_t, s48_ref_t);
+
+char *
+s48_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
+{
+  char *buf;
+
+  if (s48_unmovable_p(call, byte_vector))
+    {
+      return s48_extract_unmovable_byte_vector_2(call, byte_vector);
+    }
+
+  buf = s48_find_local_bv (call, byte_vector, s);
+  if (buf)
+    return buf;
+  else
+    {
+      buf = s48_really_make_local_bv (call, byte_vector, s);
+      s48_extract_byte_vector_region_2(call, byte_vector, 0, s, buf);
+      return buf;
+    }
+}
+
+void
+s48_free_local_bv (s48_call_t call, char *buffer)
+{
+  struct bv_group *prev, *b, *next;
+
+  if (! call->local_bvs)
+    return;
+
+#ifdef DEBUG_FFI
+  fprintf (stderr, "free bv %x\n", buffer);
+#endif
+
+  if (buffer == call->local_bvs->buffer) {
+    b = call->local_bvs;
+    call->local_bvs = call->local_bvs->next;
+    if (call->local_bvs)
+      call->local_bvs->prev = NULL;
+    free_bv (call, b);
+    return;
+  }
+  
+  prev = call->local_bvs;
+  b = call->local_bvs->next;
+  while (b) {
+    if (buffer == b->buffer) {
+      next = b->next;
+      prev = b->prev;
+      prev->next = next;
+      if (next)
+	next->prev = prev;
+      free_bv (call, b);
+      b = NULL;
+    } else {
+      b = b->next;
+    }
+  }
+}
+
+static void
+walk_local_bvs (s48_call_t call,
+		void (*func) (s48_call_t call, struct bv_group *bv, void *closure),
+		void *closure)
+{
+  struct bv_group *b;
+
+  if (! call->local_bvs)
+    return;
+
+  for (b = call->local_bvs; b; b->next)
+    func (call, b, closure);
+}
+
+void
+s48_copy_local_bvs_to_scheme (s48_call_t call)
+{
+  walk_local_bvs (call, copy_to_bv, NULL);
+}
+
+void
+s48_copy_local_bvs_from_scheme (s48_call_t call)
+{
+  walk_local_bvs (call, copy_from_bv, NULL);
+}
+
+
 /* CALLS */
 
 static s48_call_t
@@ -355,6 +547,7 @@ really_make_call (s48_call_t older_call)
   new->subcall_parent = NULL;
   new->child = NULL;
   new->local_bufs = NULL;
+  new->local_bvs = NULL;
   return new;
 }
 
@@ -382,6 +575,7 @@ free_call (s48_call_t call)
   }
   free_ref_group (call->local_refs);
   free_buf_group (call->local_bufs);
+  free_bv_group (call, call->local_bvs);
 #ifdef DEBUG_FFI
   fprintf (stderr, "free_call\n");
   fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
