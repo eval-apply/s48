@@ -84,15 +84,18 @@
 (define (maybe-make-b-vector+gc type len)
   (maybe-make-stob type len s48-allocate-untraced+gc))
 
-;; Hint: considder looking at s48-gc-can-allocate-untraced-unmovable? 
+;; Hint: consider looking at s48-gc-can-allocate-unmovable? 
 ;; before calling maybe-make-unmovable-b-vector+gc because the
-;; twospace-gc version of s48-allocate-untraced-unmovable+gc will stop
+;; twospace-gc version of s48-allocate-(un)traced-unmovable+gc will stop
 ;; the program with an error message.
 (define (maybe-make-unmovable-b-vector+gc type len)
   (maybe-make-stob type len s48-allocate-untraced-unmovable+gc))
 
 (define (maybe-make-d-vector+gc type len)
   (maybe-make-stob type (cells->bytes len) s48-allocate-traced+gc))
+
+(define (maybe-make-unmovable-d-vector+gc type len)
+  (maybe-make-stob type (cells->bytes len) s48-allocate-traced-unmovable+gc))
 
 ; we can't go through ensure-space, as weak pointers might live in
 ; a separate area

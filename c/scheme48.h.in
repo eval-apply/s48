@@ -114,9 +114,11 @@ S48_EXTERN double	s48_extract_double_2(s48_call_t, s48_ref_t);
 
 S48_EXTERN s48_ref_t	s48_cons_2(s48_call_t, s48_ref_t, s48_ref_t);
 S48_EXTERN s48_ref_t	s48_enter_byte_vector_2(s48_call_t, const char *, long);
+S48_EXTERN s48_ref_t	s48_enter_unmovable_byte_vector_2(s48_call_t, const char *, long);
 S48_EXTERN char *	s48_extract_byte_vector_2(s48_call_t, s48_ref_t);
 S48_EXTERN s48_ref_t	s48_make_vector_2(s48_call_t, long, s48_ref_t);
 S48_EXTERN s48_ref_t	s48_make_byte_vector_2(s48_call_t, long);
+S48_EXTERN s48_ref_t	s48_make_unmovable_byte_vector_2(s48_call_t, long);
 S48_EXTERN s48_ref_t	s48_enter_byte_string_2(s48_call_t, const char *);
 S48_EXTERN s48_ref_t	s48_enter_byte_substring_2(s48_call_t, const char *, long);
 S48_EXTERN s48_ref_t	s48_make_record_2(s48_call_t, s48_ref_t);
@@ -268,9 +270,11 @@ S48_EXTERN double	s48_extract_double(s48_value);
 
 S48_EXTERN s48_value	s48_cons(s48_value, s48_value);
 S48_EXTERN s48_value	s48_enter_byte_vector(char *, long);
+S48_EXTERN s48_value	s48_enter_unmovable_byte_vector(char *, long);
 S48_EXTERN char *	s48_extract_byte_vector(s48_value);
 S48_EXTERN s48_value	s48_make_vector(long, s48_value);
 S48_EXTERN s48_value	s48_make_byte_vector(long);
+S48_EXTERN s48_value	s48_make_unmovable_byte_vector(long);
 S48_EXTERN s48_value	s48_enter_byte_string(char *);
 S48_EXTERN s48_value	s48_enter_byte_substring(char *, long);
 S48_EXTERN s48_value	s48_make_record(s48_value);

@@ -64,6 +64,7 @@
 	  s48-allocate-small
 	  s48-allocate-traced+gc
 	  s48-allocate-untraced+gc
+	  s48-allocate-traced-unmovable+gc
 	  s48-allocate-untraced-unmovable+gc
 	  s48-allocate-weak+gc
 	  s48-forbid-gc!
@@ -108,6 +109,12 @@
     ;; GCing to get room if necessary
     (define s48-allocate-untraced+gc
       (external "s48_allocate_untracedAgc" (=> (integer) address)))
+
+    ;; allocate an unmovable object (allocation uses the large area
+    ;; discarding the size of the object. The large area is collected
+    ;; with the non-copy algorithmus). GCing to get room if necessary
+    (define s48-allocate-traced-unmovable+gc
+      (external "s48_allocate_untraced_unmovableAgc" (=> (integer) address)))
 
     ;; allocate an unmovable object (allocation uses the large area
     ;; discarding the size of the object. The large area is collected
