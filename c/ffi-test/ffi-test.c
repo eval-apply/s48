@@ -215,6 +215,43 @@ ffi_extract_twice_and_modify_byte_vector(s48_call_t call, s48_ref_t bv)
   return s48_true_2(call);
 }
 
+s48_ref_t
+ffi_extract_byte_vector_and_call_scheme(s48_call_t call, s48_ref_t bv, s48_ref_t sch_proc)
+{  
+  char *buf = s48_extract_byte_vector_2(call, bv);
+  buf[4] = '4';
+  buf[8] = '8';
+
+  s48_call_scheme_2(call, sch_proc, 0);
+
+  if (!((buf[4] == 'b') && (buf[8] == 'b')))
+    return s48_false_2(call);
+
+  buf[4] = '8';
+  buf[8] = '4';
+
+  return s48_true_2(call);
+}
+
+s48_ref_t
+ffi_extract_byte_vector_assertion(s48_call_t call, s48_ref_t bv)
+{  
+  char *buf = s48_extract_byte_vector_2(call, bv);
+  buf[4] = '4';
+  buf[8] = '8';
+
+  s48_assertion_violation_2(call, "ffi_extract_byte_vector_assertion",
+			    "throw back to Scheme", 1, bv);
+
+  if (!((buf[4] == 'b') && (buf[8] == 'b')))
+    return s48_false_2(call);
+
+  buf[4] = '8';
+  buf[8] = '4';
+
+  return s48_true_2(call);
+}
+
 s48_ref_t 
 ffi_make_vector(s48_call_t call,
 		s48_ref_t sch_length,
@@ -527,6 +564,8 @@ void s48_on_load(void)
   S48_EXPORT_FUNCTION(ffi_extract_byte_vector);
   S48_EXPORT_FUNCTION(ffi_extract_and_modify_byte_vector);
   S48_EXPORT_FUNCTION(ffi_extract_twice_and_modify_byte_vector);
+  S48_EXPORT_FUNCTION(ffi_extract_byte_vector_and_call_scheme);
+  S48_EXPORT_FUNCTION(ffi_extract_byte_vector_assertion);
   S48_EXPORT_FUNCTION(ffi_make_vector);
   S48_EXPORT_FUNCTION(ffi_enums);
   S48_EXPORT_FUNCTION(ffi_call_scheme);

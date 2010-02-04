@@ -23,6 +23,8 @@
 	  ffi-extract-byte-vector
 	  ffi-extract-and-modify-byte-vector
 	  ffi-extract-twice-and-modify-byte-vector
+	  ffi-extract-byte-vector-and-call-scheme
+	  ffi-extract-byte-vector-assertion
 	  ffi-make-vector
 	  ffi-enums
 	  ffi-get-color-enum-set

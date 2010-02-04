@@ -70,6 +70,7 @@ s48_ref_t ffi_make_byte_vector (s48_call_t call,
 s48_ref_t ffi_extract_byte_vector (s48_call_t call, s48_ref_t bv);
 s48_ref_t ffi_extract_and_modify_byte_vector (s48_call_t call, s48_ref_t bv);
 s48_ref_t ffi_extract_twice_and_modify_byte_vector (s48_call_t call, s48_ref_t bv);
+s48_ref_t ffi_extract_byte_vector_and_call_scheme (s48_call_t call, s48_ref_t bv, s48_ref_t callback);
 
 s48_ref_t ffi_make_a_record(s48_call_t call,
 			    s48_ref_t sch_id_string);
