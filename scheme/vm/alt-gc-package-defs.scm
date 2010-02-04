@@ -21,6 +21,8 @@
       (external "s48_gc_can_allocate_untraced_unmovableP" (=> () boolean)))
     (define s48-allocate-untraced-unmovable+gc
       (external "s48_allocate_untraced_unmovableAgc" (=> (integer) address)))
+    (define s48-unmovable?
+      (external "s48_unmovableP" (=> (integer) boolean)))
     ))
 
 (define-structure heap heap-interface

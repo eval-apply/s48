@@ -84,6 +84,7 @@
 
 	  s48-gc-can-allocate-untraced-unmovable? ;; is a function due to a limitation (bug?) of pre-scheme
 	  s48-allocate-untraced-unmovable+gc
+	  s48-unmovable?
 	  s48-allocate-stob
 	  s48-allocate-weak-stob
 	  

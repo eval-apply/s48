@@ -1623,6 +1623,12 @@ s48_address s48_allocate_untraced_unmovableAgc(long len_in_bytes) {
     return s48_allocate_large(len_in_bytes);
 }
 
+psbool s48_unmovableP(s48_value stob) {
+  Area* area = s48_memory_map_ref(S48_ADDRESS_AT_HEADER(thing));
+  return ((area != NULL) && 
+	  (area->area_type_size == AREA_TYPE_SIZE_LARGE)) ? PSTRUE : PSFALSE;
+}
+
 /* Weak Pointers */
 
 s48_address s48_allocate_weakAgc(long len_in_bytes) {
