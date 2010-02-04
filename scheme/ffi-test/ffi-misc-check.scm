@@ -49,6 +49,12 @@
   (let ((bv (make-byte-vector 10 97)))
     (check (ffi-extract-byte-vector bv))))
 
+(define-test-case ffi-extract-byte-vector-test-readonly ffi-misc-tests
+  (let ((bv (make-byte-vector 10 97)))
+    (check (ffi-extract-byte-vector-readonly bv))
+    (check (byte-vector-ref bv 4) => 97)
+    (check (byte-vector-ref bv 8) => 97)))
+
 (define-test-case ffi-extract-and-modify-byte-vector-test ffi-misc-tests
   (let ((bv (make-byte-vector 10 97)))
     (check (ffi-extract-and-modify-byte-vector bv))

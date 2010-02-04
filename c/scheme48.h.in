@@ -116,6 +116,7 @@ S48_EXTERN s48_ref_t	s48_cons_2(s48_call_t, s48_ref_t, s48_ref_t);
 S48_EXTERN s48_ref_t	s48_enter_byte_vector_2(s48_call_t, const char *, long);
 S48_EXTERN s48_ref_t	s48_enter_unmovable_byte_vector_2(s48_call_t, const char *, long);
 S48_EXTERN char *	s48_extract_byte_vector_2(s48_call_t, s48_ref_t);
+S48_EXTERN char *	s48_extract_byte_vector_readonly_2(s48_call_t, s48_ref_t);
 S48_EXTERN char *       s48_extract_unmovable_byte_vector_2(s48_call_t, s48_ref_t);
 S48_EXTERN void		s48_extract_byte_vector_region_2(s48_call_t, s48_ref_t, long, long, char*);
 S48_EXTERN void		s48_enter_byte_vector_region_2(s48_call_t, s48_ref_t, long, long, char*);

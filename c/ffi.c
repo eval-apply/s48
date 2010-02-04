@@ -58,12 +58,15 @@ struct buf_group
   struct buf_group *next, *prev;
 };
 
+enum BV_MODE { READWRITE, READONLY };
+
 struct bv_group;
 
 struct bv_group
 {
   char *buffer;
   s48_ref_t byte_vector;
+  enum BV_MODE mode;
   struct bv_group *next, *prev;
 };
 
@@ -369,7 +372,8 @@ make_bv_group (void)
 static void
 copy_to_bv (s48_call_t call, struct bv_group *bv, void *closure)
 {
-  s48_copy_to_byte_vector_2(call, bv->byte_vector, bv->buffer);
+  if (bv->mode != READONLY)
+    s48_copy_to_byte_vector_2(call, bv->byte_vector, bv->buffer);
 }
 
 static void
@@ -402,7 +406,7 @@ free_bv_group (s48_call_t call, struct bv_group *g)
   }
 }
 
-char *
+struct bv_group *
 s48_find_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
 {
   struct bv_group *b;
@@ -411,13 +415,13 @@ s48_find_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
     return NULL;
 
   if (s48_eq_p_2 (call, byte_vector, call->local_bvs->byte_vector)) {
-    return call->local_bvs->buffer;
+    return call->local_bvs;
   }
   
   b = call->local_bvs->next;
   while (b) {
     if (s48_eq_p_2 (call, byte_vector, b->byte_vector)) {
-      return b->buffer;
+      return b;
     } else {
       b = b->next;
     }
@@ -427,7 +431,7 @@ s48_find_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
 }
 
 char *
-s48_really_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
+s48_really_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s, enum BV_MODE mode)
 {
   struct bv_group *g = make_bv_group ();
 #ifdef DEBUG_FFI
@@ -437,6 +441,7 @@ s48_really_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
   if (g->buffer == NULL)
     s48_out_of_memory_error();
   g->byte_vector = byte_vector;
+  g->mode = mode;
   g->prev = NULL;
   g->next = call->local_bvs;
   if (g->next)
@@ -448,24 +453,40 @@ s48_really_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
 psbool     s48_unmovable_p (s48_call_t, s48_ref_t);
 
 char *
-s48_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
+s48_maybe_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s, enum BV_MODE mode)
 {
   char *buf;
+  struct bv_group *b;
 
   if (s48_unmovable_p(call, byte_vector))
     {
       return s48_extract_unmovable_byte_vector_2(call, byte_vector);
     }
 
-  buf = s48_find_local_bv (call, byte_vector, s);
-  if (buf)
-    return buf;
+  b = s48_find_local_bv (call, byte_vector, s);
+  if (b)
+    {
+      b->mode = mode;
+      return b->buffer;
+    }
   else
     {
-      buf = s48_really_make_local_bv (call, byte_vector, s);
+      buf = s48_really_make_local_bv (call, byte_vector, s, mode);
       s48_extract_byte_vector_region_2(call, byte_vector, 0, s, buf);
       return buf;
     }
+}
+
+char *
+s48_make_local_bv (s48_call_t call, s48_ref_t byte_vector, long s)
+{
+  return s48_maybe_make_local_bv(call, byte_vector, s, READWRITE);
+}
+
+char *
+s48_make_local_bv_readonly (s48_call_t call, s48_ref_t byte_vector, long s)
+{
+  return s48_maybe_make_local_bv(call, byte_vector, s, READONLY);
 }
 
 void
