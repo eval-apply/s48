@@ -2228,9 +2228,9 @@ s48_enter_byte_substring(char *str, long length)
 s48_ref_t
 s48_enter_byte_substring_2(s48_call_t call, const char *str, long length)
 {
-  s48_ref_t ref = s48_make_local_ref(call, s48_allocate_stob(S48_STOBTYPE_BYTE_VECTOR, length + 1));
-  memcpy(s48_unsafe_extract_byte_vector_2(call, ref), str, length);
-  *(s48_unsafe_extract_byte_vector_2(call, ref) + length) = '\0';
+  s48_ref_t ref = s48_make_byte_vector_2(call, length + 1);
+  s48_enter_byte_vector_region_2(call, ref, 0, length, (char *) str);
+  s48_byte_vector_set_2(call, ref, length, '\0');
   return ref;
 }
 
