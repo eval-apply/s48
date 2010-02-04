@@ -126,7 +126,7 @@ posix_getpwnam(s48_call_t call, s48_ref_t name)
 {
   struct passwd *data;
   
-  RETRY_OR_RAISE_NULL(data, getpwnam(s48_unsafe_extract_byte_vector_2(call, name)));
+  RETRY_OR_RAISE_NULL(data, getpwnam(s48_extract_byte_vector_2(call, name)));
 
   return enter_user_data(call, data);
 }
@@ -194,7 +194,7 @@ posix_getgrnam(s48_call_t call, s48_ref_t name)
 {
   struct group *data;
   
-  RETRY_OR_RAISE_NULL(data, getgrnam(s48_unsafe_extract_byte_vector_2(call, name)));
+  RETRY_OR_RAISE_NULL(data, getgrnam(s48_extract_byte_vector_2(call, name)));
 
   return enter_group_data(call, data);
 }
