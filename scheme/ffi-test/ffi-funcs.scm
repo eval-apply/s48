@@ -220,6 +220,18 @@
 			    (length)
 			    "ffi_make_byte_vector")
 
+(import-lambda-definition-2 ffi-extract-byte-vector 
+			    (byte-vector)
+			    "ffi_extract_byte_vector")
+
+(import-lambda-definition-2 ffi-extract-and-modify-byte-vector 
+			    (byte-vector)
+			    "ffi_extract_and_modify_byte_vector")
+
+(import-lambda-definition-2 ffi-extract-twice-and-modify-byte-vector 
+			    (byte-vector)
+			    "ffi_extract_twice_and_modify_byte_vector")
+
 (import-lambda-definition-2 external-ffi-make-vector
 			    (length value)
 			    "ffi_make_vector")
