@@ -181,6 +181,40 @@ ffi_make_byte_vector (s48_call_t call, s48_ref_t sch_length)
   return result;
 }  
 
+s48_ref_t
+ffi_extract_byte_vector(s48_call_t call, s48_ref_t bv) 
+{
+  char *buf = s48_extract_byte_vector_2(call, bv);
+  int i;
+  int res = 1;
+  for (i = 0; i < 10; i++)
+    res = res && (buf[i] == 'a');
+  if (res)
+    return s48_true_2(call);
+  else
+    return s48_false_2(call);
+}
+
+s48_ref_t
+ffi_extract_and_modify_byte_vector(s48_call_t call, s48_ref_t bv) 
+{
+  char *buf = s48_extract_byte_vector_2(call, bv);
+  buf[5] = '5';
+  return s48_true_2(call);
+}
+
+s48_ref_t
+ffi_extract_twice_and_modify_byte_vector(s48_call_t call, s48_ref_t bv) 
+{
+  char *buf = s48_extract_byte_vector_2(call, bv);
+  buf[4] = '4';
+
+  buf = s48_extract_byte_vector_2(call, bv);
+  buf[8] = '8';
+
+  return s48_true_2(call);
+}
+
 s48_ref_t 
 ffi_make_vector(s48_call_t call,
 		s48_ref_t sch_length,
@@ -490,6 +524,9 @@ void s48_on_load(void)
   S48_EXPORT_FUNCTION(ffi_vector_set);
   S48_EXPORT_FUNCTION(ffi_vector_ref);
   S48_EXPORT_FUNCTION(ffi_make_byte_vector );
+  S48_EXPORT_FUNCTION(ffi_extract_byte_vector);
+  S48_EXPORT_FUNCTION(ffi_extract_and_modify_byte_vector);
+  S48_EXPORT_FUNCTION(ffi_extract_twice_and_modify_byte_vector);
   S48_EXPORT_FUNCTION(ffi_make_vector);
   S48_EXPORT_FUNCTION(ffi_enums);
   S48_EXPORT_FUNCTION(ffi_call_scheme);

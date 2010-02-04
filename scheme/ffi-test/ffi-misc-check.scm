@@ -44,3 +44,53 @@
       (check (eq? (byte-vector-ref latin-1 3) 223))
       (check (eq? (byte-vector-ref utf-8 3) 188))
       (check (eq? (byte-vector-ref utf-8 5) 159)))))
+
+(define-test-case ffi-extract-byte-vector-test ffi-misc-tests
+  (let ((bv (make-byte-vector 10 97)))
+    (check (ffi-extract-byte-vector bv))))
+
+(define-test-case ffi-extract-and-modify-byte-vector-test ffi-misc-tests
+  (let ((bv (make-byte-vector 10 97)))
+    (check (ffi-extract-and-modify-byte-vector bv))
+    (check (eq? (byte-vector-ref bv 5) 53))))
+
+(define-test-case ffi-extract-twice-and-modify-byte-vector-test ffi-misc-tests
+  (let ((bv (make-byte-vector 10 97)))
+    (check (ffi-extract-twice-and-modify-byte-vector bv))
+    (check (eq? (byte-vector-ref bv 4) 52))
+    (check (eq? (byte-vector-ref bv 8) 56))))
+
+(define (maybe-make-unmovable-byte-vector count init)
+  (call-with-current-continuation
+   (lambda (esc)
+     (with-exception-handler
+      (lambda (c)
+	(esc
+	 (call-with-values
+           (lambda () (decode-condition c))
+           (lambda (type who message more-stuff)
+             (check type => 'assertion-violation)
+             (check who => 'make-unmovable-byte-vector)
+	     (check message => "unimplemented instruction")
+	     (newline)
+	     (display "Warning: Unmovable byte vectors are not supported by the GC.")(newline)
+	     (display "         Using a regular byte vector for this test.")(newline)
+	     (make-byte-vector count init)))))
+      (lambda ()
+        (make-unmovable-byte-vector count init))))))
+
+
+(define-test-case ffi-extract-unmovable-byte-vector-test ffi-misc-tests
+  (let ((bv (maybe-make-unmovable-byte-vector 10 97)))
+    (check (ffi-extract-byte-vector bv))))
+
+(define-test-case ffi-extract-and-modify-unmovable-byte-vector-test ffi-misc-tests
+  (let ((bv (maybe-make-unmovable-byte-vector 10 97)))
+    (check (ffi-extract-and-modify-byte-vector bv))
+    (check (eq? (byte-vector-ref bv 5) 53))))
+
+(define-test-case ffi-extract-twice-and-modify-unmovable-byte-vector-test ffi-misc-tests
+  (let ((bv (maybe-make-unmovable-byte-vector 10 97)))
+    (check (ffi-extract-twice-and-modify-byte-vector bv))
+    (check (eq? (byte-vector-ref bv 4) 52))
+    (check (eq? (byte-vector-ref bv 8) 56))))
