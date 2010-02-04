@@ -21,6 +21,7 @@
 	  ffi-vector-ref
 	  ffi-make-byte-vector
 	  ffi-extract-byte-vector
+	  ffi-extract-byte-vector-readonly
 	  ffi-extract-and-modify-byte-vector
 	  ffi-extract-twice-and-modify-byte-vector
 	  ffi-extract-byte-vector-and-call-scheme

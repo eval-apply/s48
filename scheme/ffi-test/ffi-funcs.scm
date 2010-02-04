@@ -224,6 +224,10 @@
 			    (byte-vector)
 			    "ffi_extract_byte_vector")
 
+(import-lambda-definition-2 ffi-extract-byte-vector-readonly
+			    (byte-vector)
+			    "ffi_extract_byte_vector_readonly")
+
 (import-lambda-definition-2 ffi-extract-and-modify-byte-vector 
 			    (byte-vector)
 			    "ffi_extract_and_modify_byte_vector")
