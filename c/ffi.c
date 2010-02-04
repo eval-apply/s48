@@ -296,6 +296,8 @@ s48_make_local_buf (s48_call_t call, size_t s)
     s48_out_of_memory_error();
   g->prev = NULL;
   g->next = call->local_bufs;
+  if (g->next)
+    g->next->prev = g;
   call->local_bufs = g;
   return g->buffer;
 }
@@ -315,6 +317,8 @@ s48_free_local_buf (s48_call_t call, void *buffer)
   if (buffer == call->local_bufs->buffer) {
     b = call->local_bufs;
     call->local_bufs = call->local_bufs->next;
+    if (call->local_bufs)
+      call->local_bufs->prev = NULL;
     free_buf (b);
     return;
   }
@@ -322,12 +326,13 @@ s48_free_local_buf (s48_call_t call, void *buffer)
   prev = call->local_bufs;
   b = call->local_bufs->next;
   while (b) {
-    if (b == b->buffer) {
+    if (buffer == b->buffer) {
       next = b->next;
       prev = b->prev;
       prev->next = next;
-      next->prev = prev;
-    free_buf (b);
+      if (next)
+	next->prev = prev;
+      free_buf (b);
       b = NULL;
     } else {
       b = b->next;
