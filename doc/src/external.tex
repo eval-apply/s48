@@ -1,13 +1,24 @@
 \chapter{Mixing Scheme 48 and C}
 \label{external-chapter}
 
-This chapter describes an interface for calling C functions
- from Scheme, calling Scheme functions from C, and allocating
- storage in the Scheme heap.
-Scheme~48 manages stub functions in C that
- negotiate between the calling conventions of Scheme and C and the
- memory allocation policies of both worlds.
-No stub generator is available yet, but writing stubs is a straightforward task.
+This chapter describes the foreign-function interface for calling C
+functions from Scheme, calling Scheme functions from C, and allocating
+storage in the Scheme heap.  Scheme~48 manages stub functions in C
+that negotiate between the calling conventions of Scheme and C and the
+memory allocation policies of both worlds.  No stub generator is
+available yet, but writing stubs is a straightforward task.
+
+The foreign-function interface is modeled after the Java Native
+Interface (JNI), more information can be found at
+\urlhd{http://java.sun.com/javase/6/docs/technotes/guides/jni/index.html}{Sun's
+  JNI Page}
+{http://java.sun.com/javase/6/docs\-/technotes/guides/jni/index.html}.
+
+Currently, Scheme~48 supports two foreign-function interfaces: The old
+GCPROTECT-style and the new JNI-style interface (this chapter) live
+side by side.  The old interface is deprecated and will go away in a
+future release.  Section~\ref{sec:gcprotect-conversion-recipe} gives a
+recipe how to convert external code from the old to the new interface.
 
 \section{Available facilities}
 \label{sec:facilities}
@@ -29,12 +40,7 @@ The following facilities are available for interfacing between
   Scheme.  Conversely, Scheme code can register shared
   bindings for access by C code.
 \end{itemize}
-%
-%This section has three parts: the first describes how bindings are
-% moved from Scheme to C and vice versa, the second tells how to call
-% C functions from Scheme, and the third covers the C interface
-% to Scheme objects, including calling Scheme procedures, using the
-% Scheme heap, and so forth.
+
 
 \subsection{Scheme structures}
 
@@ -48,37 +54,116 @@ Section~\ref{dynamic-externals},
  described in
 section~\ref{more-shared-bindings}.
 
+
 \subsection{C naming conventions}
 
-The names of all of Scheme~48's visible C bindings begin 
- with `\code{s48\_}' (for procedures and variables) or 
- `\code{S48\_}' (for macros).
-Whenever a C name is derived from a Scheme identifier, we
- replace `\code{-}' with `\code{\_}' and convert letters to lowercase
- for procedures and uppercase for macros.
-A final `\code{?}'  converted to `\code{\_p}' (`\code{\_P}' in C macro names).
-A final `\code{!}' is dropped.
-Thus the C macro for Scheme's \code{pair?} is \code{S48\_PAIR\_P} and
- the one for \code{set-car!} is \code{S48\_SET\_CAR}.
-Procedures and macros that do not check the types of their arguments
- have `\code{unsafe}' in their names.
+The names of all of Scheme~48's visible C bindings begin with
+`\code{s48\_}' (for procedures, variables, and macros).  Note that the
+new foreign-function interface does not distinguish between procedures
+and macros.  Whenever a C name is derived from a Scheme identifier, we
+replace `\code{-}' with `\code{\_}' and convert letters to lowercase.
+A final `\code{?}'  converted to `\code{\_p}', a final `\code{!}' is
+dropped.  As a naming convention, all functions and macros of the new
+foreign-function interface end in `\code{\_2}' (for now) to make them
+distinguishable from the old interface's functions and macros.  Thus
+the C macro for Scheme's \code{pair?} is \code{s48\_pair\_p\_2} and
+the one for \code{set-car!}  is \code{s48\_set\_car\_2}.  Procedures
+and macros that do not check the types of their arguments have
+`\code{unsafe}' in their names.
 
-All of the C functions and macros described have prototypes or definitions
- in the file \code{c/scheme48.h}.
-The C type for Scheme values is defined there to be \code{s48\_value}.
+All of the C functions and macros described have prototypes or
+definitions in the file \code{c/scheme48.h}.
 
-\subsection{Garbage collection}
 
-Scheme~48 uses a copying garbage collector.
-The collector must be able to locate all references
- to objects allocated in the Scheme~48 heap in order to ensure that
- storage is not reclaimed prematurely and to update references to objects
- moved by the collector.
-The garbage collector may run whenever an object is allocated in the heap.
-C variables whose values are Scheme~48 objects and which are live across
- heap allocation calls need to be registered with
- the
-garbage collector.  See section~\ref{gc} for more information.
+\subsection{Garbage collection and reference objects}
+\label{sec:reference-objects}
+
+Scheme~48 uses a precise, copying garbage collector.  The garbage
+collector may run whenever an object is allocated in the heap.  The
+collector must be able to locate all references to objects allocated
+in the Scheme~48 heap in order to ensure that storage is not reclaimed
+prematurely and to update references to objects moved by the
+collector.  This interface takes care of communicating to the garbage
+collector what objects it uses in most situations.  It relieves the
+programmer from having to think about garbage collector interactions
+in the common case.
+
+This interface does not give external code direct access to Scheme
+objects.  It introduces one level of indiretion as external code never
+accepts or returns Scheme values directly.  Instead, external code
+accepts or returns \emph{reference objects} of type \code{s48\_ref\_t}
+that refer to Scheme values (their C type is defined to be
+\code{s48\_value}).  This indirection is only needed as an interface
+to external code, interior pointers in Scheme objects are unaffected.
+
+There are two types of reference objects:
+%
+\begin{description}
+\item[local references] A local reference is valid for the duration of
+  a function call from Scheme to external code and is automatically
+  freed after the external function returns to the virtual machine.
+
+\item[global references] A global reference remains valid until
+  external code explicitly frees it.
+\end{description}
+%
+Scheme objects that are passed to external functions are
+passed as local references.  External functions return Scheme objects
+as local references.  External code has to manually manage Scheme
+objects that outlive a function call as global references.  Scheme
+objects outlive a function call if they are assigned to a global
+variable of the external code or stored in long-living external
+objects, see section~\ref{sec:global-references}.
+
+A local reference is valid only within the dynamic context of the
+native method that creates it.  Therefore, a local reference behaves
+exactly like a local variable in the external code: It is live as long
+as external code can access it.  To achieve this, every external
+function in the interface that accepts or returns reference objects
+takes a \emph{call object} of type \code{s48\_call\_t} as its first
+argument.  A call object corresponds to a particular call from Scheme
+to C.  The call object holds all the references that belong to a call
+(like the call's arguments and return value) to external code from
+Scheme.  External code may pass a local reference through multiple
+external functions.  The foreign-function interface automatically
+frees all the local references a call object owns, along with the call
+object itself, when an external call returns to Scheme.
+
+This means that in the common case of Scheme calling an external
+function that does some work on its arguments and returns without
+stashing any Scheme objects in global variables or global data
+structures, the external code does not need to do any bookkeeping,
+since all the reference objects the external code accumulates are
+local references.  Once the call returns, the foreign-function
+interface frees all the local references.
+
+For example, the functions to construct and access pairs are declared
+like this:
+
+\begin{protos}
+\cproto{s48\_ref\_t s48\_cons\_2(s48\_call\_t call, s48\_ref\_t car, s48\_ref\_t cdr);}
+\cproto{s48\_ref\_t s48\_car\_2(s48\_call\_t call, s48\_ref\_t pair);}
+\cproto{s48\_ref\_t s48\_cdr\_2(s48\_call\_t call, s48\_ref\_t pair);}
+\end{protos}
+
+This foreign-function interface takes a significant burden off the
+programmer as it handles most common cases automatically.  If all the
+Scheme objects are live for the extent of the current external call,
+the programmer does not have to do anything at all.  Since the
+lifetime of the Scheme objects is then identical with the lifetime of
+the according reference objects.  In this case, the systems
+automatically manages both for the programmer.  Using this
+foreign-function interface does not make the code more complex; the
+code stays compact and readable.  The programmer has to get accustomed
+to passing the call argument around.
+
+How to manage Scheme objects that outlive the current call is described
+in section~\ref{sec:global-references}.
+
+Section~\ref{sec:gcprotect-conversion-recipe} gives a recipe how to
+convert external code from the old GCPROTECT-style interface to the
+new JIN-style interface.
+
 
 \section{Shared bindings}
 \label{sec:shared-bindings}
@@ -100,19 +185,28 @@ This is necessary because C initialization code may be run before or after
 \end{protos}
 
 \begin{protos}
-\cproto{s48\_value s48\_get\_imported\_binding(char *name)}
-\cproto{s48\_value S48\_SHARED\_BINDING\_REF(s48\_value shared\_binding)}
+\cproto{s48\_ref\_t s48\_get\_imported\_binding\_2(char *name)}
+\cproto{s48\_ref\_t s48\_get\_imported\_binding\_local\_2(s48\_call\_t call, char *name)}
+\cproto{s48\_ref\_t s48\_shared\_binding\_ref\_2(s48\_call\_t call, s48\_ref\_t shared\_binding)}
 \end{protos}
 
 \noindent\code{Define-exported-binding} makes \cvar{value} available to C code
- under \cvar{name}, which must be a \cvar{string}, creating a new shared
- binding if necessary.
-The C function \code{s48\_get\_imported\_binding} returns the shared binding
- defined for \code{name}, again creating it if necessary.
-The C macro \code{S48\_SHARED\_BINDING\_REF} dereferences a shared binding,
- returning its current value.
+under \cvar{name}, which must be a \cvar{string}, creating a new
+shared binding if necessary.  The C function
+\code{s48\_get\_imported\_binding\_2} returns a global reference to
+the shared binding defined for \code{name}, again creating it if
+necessary, \code{s48\_get\_imported\_binding\_local\_2} returns a
+local reference to the shared binding (see
+section~\ref{sec:reference-objects} for details on reference objects).
+The C macro \code{s48\_shared\_binding\_ref\_2} dereferences a shared
+binding, returning its current value.
 
 \subsection{Exporting C values to Scheme}
+
+Since shared bindings are defined during initialization, i.e. outside
+an external call, there is no call object.  Therefore, exporting
+shared bindings from C does not use the new foreign-function
+interfaces specifications.
 
 \begin{protos}
 \cproto{void s48\_define\_exported\_binding(char *name, s48\_value v)}
@@ -129,7 +223,7 @@ Again, if a name is looked up before it has been defined, a new binding is
  created for it.
 
 The common case of exporting a C function to Scheme can be done using
- the macro \code{S48\_EXPORT\_FUNCTION(\cvar{name})}.
+ the macro \code{s48\_export\_function(\cvar{name})}.
 This expands into
 \begin{example}
 s48\_define\_exported\_binding("\cvar{name}",
@@ -188,29 +282,31 @@ They do nothing if the name is not found in the table.
 The following C macros correspond to the Scheme functions above.
 
 \begin{protos}
-\cproto{int\ \ \ \ \ \ \ S48\_SHARED\_BINDING\_P(x)}
-\cproto{int\ \ \ \ \ \ \ S48\_SHARED\_BINDING\_IS\_IMPORT\_P(s48\_value s\_b)}
-\cproto{s48\_value S48\_SHARED\_BINDING\_NAME(s48\_value s\_b)}
-\cproto{void\ \ \ \ \ \ S48\_SHARED\_BINDING\_SET(s48\_value s\_b, s48\_value v)}
+\cproto{int\ \ \ \ \ \ \ s48\_shared\_binding\_p(s48\_call\_t call, x)}
+\cproto{int\ \ \ \ \ \ \ s48\_shared\_binding\_is\_import\_p(s48\_call\_t call, s48\_ref\_t s\_b)}
+\cproto{s48\_ref\_t s48\_shared\_binding\_name(s48\_call\_t call, s48\_ref\_t s\_b)}
+\cproto{void\ \ \ \ \ \ s48\_shared\_binding\_set(s48\_call\_t call, s48\_ref\_t s\_b, s48\_ref\_t v)}
 \end{protos}
 
 \section{Calling C functions from Scheme}
 \label{sec:external-call}
 
-There are three different ways to call C functions from Scheme, depending on
+There are different ways to call C functions from Scheme, depending on
  how the C function was obtained.
 
 \begin{protos}
-\proto{call-imported-binding}{ binding arg$_0$ \ldots}{value}
+\proto{call-imported-binding-2}{ binding arg$_0$ \ldots}{value}
 \end{protos}
 \noindent
-Each of these applies its first argument, a C function, to the rest of
- the arguments.
-For \code{call-imported-binding} the function argument must be an
- imported binding.
+Each of these applies its first argument, a C function that accepts
+and/or returns objects of type \code{s48\_ref\_t} and has its first
+argument of type \code{s48\_call\_t}, to the rest of the arguments.
+For \code{call-imported-binding-2} the function argument must be an
+imported binding.
 
-For all of these, the C function is passed the \cvar{arg$_i$} values
- and the value returned is that returned by C procedure.
+For all of these, the interface passes the current call object and
+ the \cvar{arg$_i$} values to the C function and the value returned is
+ that returned by C procedure.
 No automatic representation conversion occurs for either arguments or
  return values.
 Up to twelve arguments may be passed.
@@ -223,12 +319,15 @@ Keyboard interrupts that occur during a call to a C function are ignored
  problem; we are working on a solution).
 
 \begin{protos}
-\syntaxprotonoresult{import-lambda-definition}
+\syntaxprotonoresult{import-lambda-definition-2}
 { \cvar{name} (\cvar{formal} \ldots)}
-\syntaxprotonoresultnoindex{import-lambda-definition}
+\syntaxprotonoresultnoindex{import-lambda-definition-2}
 { \cvar{name} (\cvar{formal} \ldots)\ \cvar{c-name}}
 \end{protos}
-\noindent{}These macros simplify importing functions from C.
+\noindent{}These macros simplify importing functions from C that
+ follow the return value and argument conventions of the
+ foreign-function interface and use \code{s48\_call\_t} and
+ \code{s48\_ref\_t} as their argument and return types.
 They define \cvar{name} to be a function with the given formals that
  applies those formals to the corresponding C binding.
 \cvar{C-name}, if supplied, should be a string.
@@ -238,7 +337,7 @@ These expand into
 (define temp (lookup-imported-binding \cvar{c-name}))
 (define \cvar{name}
   (lambda (\cvar{formal} \ldots)
-    (call-imported-binding temp \cvar{formal} \ldots)))
+    (call-imported-binding-2 temp \cvar{formal} \ldots)))
 \end{example}
 
 \noindent{}
@@ -336,11 +435,12 @@ dynamic-externals.  It is best explained by its definition:
 
 The C header file \code{scheme48.h} provides
  access to Scheme~48 data structures.
-The type \code{s48\_value} is used for Scheme values.
+The type \code{s48\_ref\_t} is used for reference objects that 
+ refer to Scheme values.
 When the type of a value is known, such as the integer returned
  by \code{vector-length} or the boolean returned by \code{pair?},
  the corresponding C procedure returns a C value of the appropriate
- type, and not a \code{s48\_value}.
+ type, and not a \code{s48\_ref\_t}.
 Predicates return \code{1} for true and \code{0} for false.
 
 \subsection{Constants}
@@ -349,14 +449,14 @@ Predicates return \code{1} for true and \code{0} for false.
 The following macros denote Scheme constants:
 %
 \begin{itemize}
-\item \code{S48\_FALSE} is \verb|#f|.
-\item \code{S48\_TRUE} is \verb|#t|.
-\item \code{S48\_NULL} is the empty list.
-\item \code{S48\_UNSPECIFIC} is a value used for functions which have no
+\item \code{s48\_false\_2(s48\_call\_t)} is \verb|#f|.
+\item \code{s48\_true\_2(s48\_call\_t)} is \verb|#t|.
+\item \code{s48\_null\_2(s48\_call\_t)} is the empty list.
+\item \code{s48\_unspecific\_2(s48\_call\_t)} is a value used for functions which have no
   meaningful return value
  (in Scheme~48 this value returned by the nullary procedure \code{unspecific}
  in the structure \code{util}).
-\item \code{S48\_EOF} is the end-of-file object
+\item \code{s48\_eof\_2(s48\_call\_t)} is the end-of-file object
  (in Scheme~48 this value is returned by the nullary procedure \code{eof-object}
  in the structure \code{i/o-internal}).
 \end{itemize}
@@ -369,181 +469,206 @@ The `extract' ones convert from Scheme to C and the `enter's go the other
  way.
 
 \begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_EXTRACT\_BOOLEAN(s48\_value)}
-\cproto{long\ \ \ \ \ \ s48\_extract\_char(s48\_value)}
-\cproto{char * \ \ \ s48\_extract\_byte\_vector(s48\_value)}
-\cproto{long \ \ \ \ \ s48\_extract\_integer(s48\_value)}
-\cproto{double \ \ \ s48\_extract\_double(s48\_value)}
-\cproto{s48\_value S48\_ENTER\_BOOLEAN(int)}
-\cproto{s48\_value s48\_enter\_char(long)}
-\cgcproto{s48\_value s48\_enter\_byte\_vector(char *, long)}
-\cgcproto{s48\_value s48\_enter\_integer(long)}
-\cgcproto{s48\_value s48\_enter\_double(double)}
+\cproto{int \ \ \ \ \ \ s48\_extract\_boolean\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{long\ \ \ \ \ \ s48\_extract\_char\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{char * \ \ \ s48\_extract\_byte\_vector\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{long \ \ \ \ \ s48\_extract\_long\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{long \ \ \ \ \ s48\_extract\_unsigned\_long\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{double \ \ \ s48\_extract\_double\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{s48\_ref\_t s48\_enter\_boolean\_2(s48\_call\_t, int)}
+\cproto{s48\_ref\_t s48\_enter\_char\_2(s48\_call\_t, long)}
+\cgcproto{s48\_ref\_t s48\_enter\_byte\_vector\_2(s48\_call\_t, char *, long)}
+\cgcproto{s48\_ref\_t s48\_enter\_long\_2(s48\_call\_t, long)}
+\cgcproto{s48\_ref\_t s48\_enter\_long\_as\_fixnum\_2(s48\_call\_t, long)}
+\cgcproto{s48\_ref\_t s48\_enter\_double\_2(s48\_call\_t, double)}
 \end{protos}
 
-\noindent{}\code{S48\_EXTRACT\_BOOLEAN} is false if its argument is
+\noindent{}\code{s48\_extract\_boolean\_2} is false if its argument is
  \code{\#f} and true otherwise.
- \code{S48\_ENTER\_BOOLEAN} is \code{\#f} if its argument is zero
+ \code{s48\_enter\_boolean\_2} is \code{\#f} if its argument is zero
   and \code{\#t} otherwise.
 
-The \code{s48\_extract\_char} function extracts the scalar value from
+The \code{s48\_extract\_char\_2} function extracts the scalar value from
 a Scheme character as a C \code{long}.  Conversely,
-\code{s48\_enter\_char} creates a Scheme character from a scalar
+\code{s48\_enter\_char\_2} creates a Scheme character from a scalar
 value.  (Note that ASCII values are also scalar values.)
 
- The \code{s48\_extract\_byte\_vector} function returns a
- pointer to the actual
- storage used by the byte vector.
- These pointers are valid only until the next GC; see Section~\ref{gc}.
+The \code{s48\_extract\_byte\_vector\_2} function needs to deal with
+ the garbage collector to avoid invalidating the returned pointer.
+ For more details see section~\ref{sec:byte-vectors}.
 
-The second argument to \code{s48\_enter\_byte\_vector} is the length of
+The second argument to \code{s48\_enter\_byte\_vector\_2} is the length of
  byte vector.
 
-\code{s48\_enter\_integer()} needs to allocate storage when
+\code{s48\_enter\_long\_2()} needs to allocate storage when
  its argument is too large to fit in a Scheme~48 fixnum.
-In cases where the number is known to fit within a fixnum (currently 30 bits
+In cases where the number is known to fit within a fixnum (currently 30 
+ bits on a 32-bits architecture and 62 bit on a 64-bits architecture 
  including the sign), the following procedures can be used.
 These have the disadvantage of only having a limited range, but
  the advantage of never causing a garbage collection.
-\code{S48\_FIXNUM\_P} is a macro that true if its argument is a fixnum
+\code{s48\_fixnum\_p\_2(s48\_call\_t)} is a macro that true if its argument is a fixnum
  and false otherwise.
 
 \begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_TRUE\_P(s48\_value)}
-\cproto{int \ \ \ \ \ \ S48\_FALSE\_P(s48\_value)}
-\end{protos}
-
-\noindent \code{S48\_TRUE\_P} is true if its argument is \code{S48\_TRUE}
- and \code{S48\_FALSE\_P} is true if its argument is \code{S48\_FALSE}.
-
-\begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_FIXNUM\_P(s48\_value)}
-\cproto{long \ \ \ \ \ s48\_extract\_fixnum(s48\_value)}
-\cproto{s48\_value s48\_enter\_fixnum(long)}
+\cproto{int \ \ \ \ \ \ s48\_fixnum\_p\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{s48\_ref\_t s48\_enter\_long\_as\_fixnum\_2(s48\_call\_t, long)}
 \cproto{long \ \ \ \ \ S48\_MAX\_FIXNUM\_VALUE}
 \cproto{long \ \ \ \ \ S48\_MIN\_FIXNUM\_VALUE}
 \end{protos}
 
-\noindent An error is signalled if \code{s48\_extract\_fixnum}'s argument
- is not a fixnum or if the argument to \code{s48\_enter\_fixnum} is less than
- \code{S48\_MIN\_FIXNUM\_VALUE} or greater than \code{S48\_MAX\_FIXNUM\_VALUE}
- ($-2^{29}$ and $2^{29}-1$ in the current system).
+\noindent An error is signalled if the argument to
+ \code{s48\_enter\_fixnum} is less than \code{S48\_MIN\_FIXNUM\_VALUE}
+ or greater than \code{S48\_MAX\_FIXNUM\_VALUE} ($-2^{29}$ and
+ $2^{29}-1$ on a 32-bits architecture and $-2^{61}$ and $2^{62}-1$ on 
+ a 64-bits architecture).
 
 \begin{protos}
-\cgcproto{s48\_value s48\_enter\_string\_latin\_1(char*);}
-\cgcproto{s48\_value s48\_enter\_string\_latin\_1\_n(char*, long);}
-\cproto{void\ \ \ \ \ \ s48\_copy\_latin\_1\_to\_string(char*, s48\_value);}
-\cproto{void\ \ \ \ \ \ s48\_copy\_latin\_1\_to\_string\_n(char*, long, s48\_value);}
-\cproto{void\ \ \ \ \ \ s48\_copy\_string\_to\_latin\_1(s48\_value, char*);}
-\cproto{void\ \ \ \ \ \ s48\_copy\_string\_to\_latin\_1\_n(s48\_value, long, long, char*);}
-\cgcproto{s48\_value s48\_enter\_string\_utf\_8(char*);}
-\cgcproto{s48\_value s48\_enter\_string\_utf\_8\_n(char*, long);}
-\cproto{long\ \ \ \ \ \ s48\_string\_utf\_8\_length(s48\_value);}
-\cproto{long\ \ \ \ \ \ s48\_string\_utf\_8\_length\_n(s48\_value, long, long);}
-\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_8(s48\_value, char*);}
-\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_8\_n(s48\_value, long, long, char*);}
-\cgcproto{s48\_value s48\_enter\_string\_utf\_16be(char*);}
-\cgcproto{s48\_value s48\_enter\_string\_utf\_16be\_n(char*, long);}
-\cproto{long\ \ \ \ \ \ s48\_string\_utf\_16be\_length(s48\_value);}
-\cproto{long\ \ \ \ \ \ s48\_string\_utf\_16be\_length\_n(s48\_value, long, long);}
-\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_16be(s48\_value, char*);}
-\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_16be\_n(s48\_value, long, long, char*);}
-\cgcproto{s48\_value s48\_enter\_string\_utf\_16le(char*);}
-\cgcproto{s48\_value s48\_enter\_string\_utf\_16le\_n(char*, long);}
-\cproto{long\ \ \ \ \ \ s48\_string\_utf\_16le\_length(s48\_value);}
-\cproto{long\ \ \ \ \ \ s48\_string\_utf\_16le\_length\_n(s48\_value, long, long);}
-\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_16le(s48\_value, char*);}
-\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_16le\_n(s48\_value, long, long, char*);}
+\cproto{int \ \ \ \ \ \ s48\_true\_p\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{int \ \ \ \ \ \ s48\_false\_p\_2(s48\_call\_t, s48\_ref\_t)}
+\end{protos}
+
+\noindent \code{s48\_true\_p} is true if its argument is \code{s48\_true}
+ and \code{s48\_false\_p} is true if its argument is \code{s48\_false}.
+
+\begin{protos}
+\cgcproto{s48\_ref\_t s48\_enter\_string\_latin\_1\_2(s48\_call\_t, char*);}
+\cgcproto{s48\_ref\_t s48\_enter\_string\_latin\_1\_n\_2(s48\_call\_t, char*, long);}
+\cproto{long\ \ \ \ \ \ s48\_string\_latin\_1\_length\_2(s48\_call\_t, s48\_ref\_t);}
+\cproto{long\ \ \ \ \ \ s48\_string\_latin\_1\_length\_n\_2(s48\_call\_t, s48\_ref\_t, long, long);}
+\cproto{void\ \ \ \ \ \ s48\_copy\_latin\_1\_to\_string\_2(s48\_call\_t, char*, s48\_ref\_t);}
+\cproto{void\ \ \ \ \ \ s48\_copy\_latin\_1\_to\_string\_n\_2(s48\_call\_t, char*, long, s48\_ref\_t);}
+\cproto{void\ \ \ \ \ \ s48\_copy\_string\_to\_latin\_1\_2(s48\_call\_t, s48\_ref\_t, char*);}
+\cproto{void\ \ \ \ \ \ s48\_copy\_string\_to\_latin\_1\_n\_2(s48\_call\_t, s48\_ref\_t, long, long, char*);}
+\cgcproto{s48\_ref\_t s48\_enter\_string\_utf\_8\_2(s48\_call\_t, char*);}
+\cgcproto{s48\_ref\_t s48\_enter\_string\_utf\_8\_n\_2(s48\_call\_t, char*, long);}
+\cproto{long\ \ \ \ \ \ s48\_string\_utf\_8\_length\_2(s48\_call\_t, s48\_ref\_t);}
+\cproto{long\ \ \ \ \ \ s48\_string\_utf\_8\_length\_n\_2(s48\_call\_t, s48\_ref\_t, long, long);}
+\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_8\_2(s48\_call\_t, s48\_ref\_t, char*);}
+\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_8\_n\_2(s48\_call\_t, s48\_ref\_t, long, long, char*);}
+\cgcproto{s48\_ref\_t s48\_enter\_string\_utf\_16be\_2(s48\_call\_t, char*);}
+\cgcproto{s48\_ref\_t s48\_enter\_string\_utf\_16be\_n\_2(s48\_call\_t, char*, long);}
+\cproto{long\ \ \ \ \ \ s48\_string\_utf\_16be\_length\_2(s48\_call\_t, s48\_ref\_t);}
+\cproto{long\ \ \ \ \ \ s48\_string\_utf\_16be\_length\_n\_2(s48\_call\_t, s48\_ref\_t, long, long);}
+\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_16be\_2(s48\_call\_t, s48\_ref\_t, char*);}
+\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_16be\_n\_2(s48\_call\_t, s48\_ref\_t, long, long, char*);}
+\cgcproto{s48\_ref\_t s48\_enter\_string\_utf\_16le\_2(s48\_call\_t, char*);}
+\cgcproto{s48\_ref\_t s48\_enter\_string\_utf\_16le\_n\_2(s48\_call\_t, char*, long);}
+\cproto{long\ \ \ \ \ \ s48\_string\_utf\_16le\_length\_2(s48\_call\_t, s48\_ref\_t);}
+\cproto{long\ \ \ \ \ \ s48\_string\_utf\_16le\_length\_n\_2(s48\_call\_t, s48\_ref\_t, long, long);}
+\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_16le\_2(s48\_call\_t, s48\_ref\_t, char*);}
+\cproto{long\ \ \ \ \ \ s48\_copy\_string\_to\_utf\_16le\_n\_2(s48\_call\_t, s48\_ref\_t, long, long, char*);}
 \end{protos}
 %
-The \code{s48\_enter\_string\_latin\_1} function creates a Scheme
+The \code{s48\_enter\_string\_latin\_1\_2} function creates a Scheme
 string, initializing its contents from its NUL-terminated,
-Latin-1-encoded argument.  The \code{s48\_enter\_string\_latin\_1\_n}
+Latin-1-encoded argument.  The \code{s48\_enter\_string\_latin\_1\_n\_2}
 function does the same, but allows specifying the length explicitly---no NUL
 terminator is necessary.
 
-The \code{s48\_copy\_latin\_1\_to\_string} function copies
-Latin-1-encoded characters from its first NUL-terminated argument to
-the Scheme string that is its second argument.  The
-\code{s48\_copy\_latin\_1\_to\_string\_n} does the same, but allows
+The \code{s48\_string\_latin\_1\_length\_2} function computes the
+length that the Latin-1 encoding of its argument (a Scheme string)
+would occupy, not including NUL termination.  The
+\code{s48\_string\_latin\_1\_length\_2} function does the same, but
+allows specifying a starting index and a count into the input string.
+
+The \code{s48\_copy\_latin\_1\_to\_string\_2} function copies
+Latin-1-encoded characters from its second NUL-terminated argument to
+the Scheme string that is its third argument.  The
+\code{s48\_copy\_latin\_1\_to\_string\_n\_2} does the same, but allows
 specifying the number of characters explicitly.  The
-\code{s48\_copy\_string\_to\_latin\_1} function converts the
-characters of the Scheme string specified as the first argument into
-Latin-1 and writes them into the string specified as the second
+\code{s48\_copy\_string\_to\_latin\_1\_2} function converts the
+characters of the Scheme string specified as the second argument into
+Latin-1 and writes them into the string specified as the third
 argument.  (Note that it does not NUL-terminate the result.)  The
-\code{s48\_copy\_string\_to\_latin\_1\_n} function does the same, but
+\code{s48\_copy\_string\_to\_latin\_1\_n\_2} function does the same, but
 allows specifying a starting index and a character count into the
 source string.
 
-The \code{s48\_enter\_string\_utf\_8} function creates a Scheme
+The \code{s48\_extract\_latin\_1\_from\_string\_2} function returns a
+buffer that contains the Latin-1 encoded characters including NUL
+termination of the Scheme string specified.  The buffer that is
+returned is a local buffer managed by the foreign-function interface
+and is automatically freed on the return of the current call.
+
+The \code{s48\_enter\_string\_utf\_8\_2} function creates a Scheme
 string, initializing its contents from its NUL-terminated,
-UTF-8-encoded argument.  The \code{s48\_enter\_string\_utf\_8\_n}
+UTF-8-encoded argument.  The \code{s48\_enter\_string\_utf\_8\_n\_2}
 function does the same, but allows specifying the length
 explicitly---no NUL terminator is necessary.
 
-The \code{s48\_string\_utf\_8\_length} function computes the length
+The \code{s48\_string\_utf\_8\_length\_2} function computes the length
 that the UTF-8 encoding of its argument (a Scheme string) would
 occupy, not including NUL termination.  The
-\code{s48\_string\_utf\_8\_length} function does the same, but allows
+\code{s48\_string\_utf\_8\_length\_2} function does the same, but allows
 specifying a starting index and a count into the input string.
 
-The \code{s48\_copy\_string\_to\_utf\_8} function converts the
-characters of the Scheme string specified as the first argument into
-UTF-8 and writes them into the string specified as the second
+The \code{s48\_copy\_string\_to\_utf\_8\_2} function converts the
+characters of the Scheme string specified as the second argument into
+UTF-8 and writes them into the string specified as the third
 argument.  (Note that it does not NUL-terminate the result.)  The
-\code{s48\_copy\_string\_to\_utf\_8\_n} function does the same, but
+\code{s48\_copy\_string\_to\_utf\_8\_n\_2} function does the same, but
 allows specifying a starting index and a character count into the
 source string.  Both return the length of the written encodings in
 bytes.
+
+The \code{s48\_extract\_utf\_8\_from\_string\_2} function returns a
+buffer that contains the UTF-8 encoded characters including NUL
+termination of the Scheme string specified.  The buffer that is
+returned is a local buffer managed by the foreign-function interface
+and is automatically freed on the return of the current call.
 
 The functions with \code{utf\_16} in their names work analogously to
 their \code{utf\_8} counterparts, but implement the UTF-16 encodings.
 The lengths returned be the \code{\_length} and
 \code{copy\_string\_to} functions are in terms of UTF-16 code units.
+The \code{extract} function returns a local buffer that contains
+UTF-16 code units including NUL termination.
 
 \subsection{C versions of Scheme procedures}
 
 The following macros and procedures are C versions of Scheme procedures.
 The names were derived by replacing `\code{-}' with `\code{\_}',
- `\code{?}' with `\code{\_P}', and dropping `\code{!}.
+ `\code{?}' with `\code{\_p}', and dropping `\code{!}.
 
 \begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_EQ\_P(s48\_value, s48\_VALUE)}
-\cproto{int \ \ \ \ \ \ S48\_CHAR\_P(s48\_value)}
+\cproto{int \ \ \ \ \ \ s48\_eq\_p\_2(s48\_call\_t, s48\_ref\_t, s48\_ref\_t)}
+\cproto{int \ \ \ \ \ \ s48\_char\_p\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{int \ \ \ \ \ \ s48\_null\_p\_2(s48\_call\_t, s48\_ref\_t)}
 \end{protos}
 \begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_PAIR\_P(s48\_value)}
-\cproto{s48\_value S48\_CAR(s48\_value)}
-\cproto{s48\_value S48\_CDR(s48\_value)}
-\cproto{void \ \ \ \ \ S48\_SET\_CAR(s48\_value, s48\_value)}
-\cproto{void \ \ \ \ \ S48\_SET\_CDR(s48\_value, s48\_value)}
-\cgcproto{s48\_value s48\_cons(s48\_value, s48\_value)}
-\cproto{long \ \ \ \ \ s48\_length(s48\_value)} 
+\cproto{int \ \ \ \ \ \ s48\_pair\_p\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{s48\_ref\_t s48\_car\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{s48\_ref\_t s48\_cdr\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void \ \ \ \ \ s48\_set\_car\_2(s48\_call\_t, s48\_ref\_t, s48\_ref\_t)}
+\cproto{void \ \ \ \ \ s48\_set\_cdr\_2(s48\_call\_t, s48\_ref\_t, s48\_ref\_t)}
+\cgcproto{s48\_ref\_t s48\_cons\_2(s48\_call\_t, s48\_ref\_t, s48\_ref\_t)}
+\cproto{long \ \ \ \ \ s48\_length\_2(s48\_call\_t, s48\_ref\_t)} 
 \end{protos}
 \begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_VECTOR\_P(s48\_value)} 
-\cproto{long \ \ \ \ \ S48\_VECTOR\_LENGTH(s48\_value)} 
-\cproto{s48\_value S48\_VECTOR\_REF(s48\_value, long)} 
-\cproto{void \ \ \ \ \ S48\_VECTOR\_SET(s48\_value, long, s48\_value)} 
-\cgcproto{s48\_value s48\_make\_vector(long, s48\_value)}
+\cproto{int \ \ \ \ \ \ s48\_vector\_p\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{long \ \ \ \ \ s48\_vector\_length\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{s48\_ref\_t s48\_vector\_ref\_2(s48\_call\_t, s48\_ref\_t, long)} 
+\cproto{void \ \ \ \ \ s48\_vector\_set\_2(s48\_call\_t, s48\_ref\_t, long, s48\_ref\_t)} 
+\cgcproto{s48\_ref\_t s48\_make\_vector\_2(s48\_call\_t, long, s48\_ref\_t)}
 \end{protos}
 \begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_STRING\_P(s48\_value)} 
-\cproto{long \ \ \ \ \ S48\_STRING\_LENGTH(s48\_value)} 
-\cproto{long \ \ \ \ \ S48\_STRING\_REF(s48\_value, long)} 
-\cproto{void \ \ \ \ \ S48\_STRING\_SET(s48\_value, long, long)} 
-\cgcproto{s48\_value s48\_make\_string(long, char)}
+\cproto{int \ \ \ \ \ \ s48\_string\_p\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{long \ \ \ \ \ s48\_string\_length\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{long \ \ \ \ \ s48\_string\_ref\_2(s48\_call\_t, s48\_ref\_t, long)} 
+\cproto{void \ \ \ \ \ s48\_string\_set\_2(s48\_call\_t, s48\_ref\_t, long, long)} 
+\cgcproto{s48\_ref\_t s48\_make\_string\_2(s48\_call\_t, long, char)}
 \end{protos}
 \begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_SYMBOL\_P(s48\_value)} 
-\cproto{s48\_value s48\_SYMBOL\_TO\_STRING(s48\_value)} 
+\cproto{int \ \ \ \ \ \ s48\_symbol\_p\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{s48\_ref\_t s48\_symbol\_to\_string\_2(s48\_call\_t, s48\_ref\_t)} 
 \end{protos}
 \begin{protos}
-\cproto{int \ \ \ \ \ \ S48\_BYTE\_VECTOR\_P(s48\_value)} 
-\cproto{long \ \ \ \ \ S48\_BYTE\_VECTOR\_LENGTH(s48\_value)} 
-\cproto{char \ \ \ \ \ S48\_BYTE\_VECTOR\_REF(s48\_value, long)} 
-\cproto{void \ \ \ \ \ S48\_BYTE\_VECTOR\_SET(s48\_value, long, int)} 
-\cgcproto{s48\_value s48\_make\_byte\_vector(long, int)}
+\cproto{int \ \ \ \ \ \ s48\_byte\_vector\_p\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{long \ \ \ \ \ s48\_byte\_vector\_length\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{char \ \ \ \ \ s48\_byte\_vector\_ref\_2(s48\_call\_t, s48\_ref\_t, long)} 
+\cproto{void \ \ \ \ \ s48\_byte\_vector\_set\_2(s48\_call\_t, s48\_ref\_t, long, int)} 
+\cgcproto{s48\_ref\_t s48\_make\_byte\_vector\_2(s48\_call\_t, long, int)}
 \end{protos}
 
 \section{Calling Scheme functions from C}
@@ -553,10 +678,10 @@ External code that has been called from Scheme can call back to Scheme
  procedures using the following function.
 
 \begin{protos}
-\cproto{s48\_value s48\_call\_scheme(s48\_value p, long nargs, \ldots)}
+\cproto{s48\_ref\_t s48\_call\_scheme\_2(s48\_call\_t, s48\_ref\_t p, long nargs, \ldots)}
 \end{protos}
 \noindent{}This calls the Scheme procedure \code{p} on \code{nargs}
- arguments, which are passed as additional arguments to \code{s48\_call\_scheme}.
+ arguments, which are passed as additional arguments to \code{s48\_call\_scheme\_2}.
 There may be at most twelve arguments.
 The value returned by the Scheme procedure is returned by the C procedure.
 Invoking any Scheme procedure may potentially cause a garbage collection.
@@ -605,61 +730,258 @@ The return to Scheme is required because context switches can only occur while
 Scheme~48 uses a copying, precise garbage collector.
 Any procedure that allocates objects within the Scheme~48 heap may trigger
  a garbage collection.
-Variables bound to values in the Scheme~48 heap need to be registered with
- the garbage collector so that the value will be retained and so that the
- variables will be updated if the garbage collector moves the object.
-The garbage collector has no facility for updating pointers to the interiors
- of objects, so such pointers, for example the ones returned by
- \code{s48\_extract\_byte\_vector}, will likely become invalid when a garbage collection
- occurs.
 
-\subsection{Registering objects with the GC}
-\label{sec:gc-register}
+Local object references refer to values in the Scheme~48 heap and are
+ automatically registered with the garbage collector by the interface
+ for the duration of a function call from Scheme to C so that the
+ values will be retained and the references will be updated if the
+ garbage collector moves the object.
 
-A set of macros are used to manage the registration of local variables with the
- garbage collector.
+Global object references need to be created and freed explicitly for
+ Scheme values that need to survive one function call, e.g. that are
+ stored in global variables, global data structures or are passed to
+ libraries.  See section~\ref{sec:global-references} for details.
 
-\begin{protos}
-\cproto{S48\_DECLARE\_GC\_PROTECT($n$)}
-\cproto{void S48\_GC\_PROTECT\_$n$(s48\_value$_1$, $\ldots$, s48\_value$_n$)}
-\cproto{void S48\_GC\_UNPROTECT()}
-\end{protos}
+Additionally, the interface provides \emph{local buffers} that are malloc'd regions
+ of memory valid for the duration of a function call and are freed automatically upon
+ return from the external code.  This reliefes the programmer from explicitly freeing
+ locally allocated memory.  See section~\ref{sec:local-bufs} for details.
 
-\code{S48\_DECLARE\_GC\_PROTECT($n$)}, where  $1\leq n\leq 9$, allocates
- storage for registering $n$ variables.
-% JAR says: what is a block?  (How to describe it? -RK)
-At most one use of \code{S48\_DECLARE\_GC\_PROTECT} may occur in a
- block.
-\code{S48\_GC\_PROTECT\_$n$($v_1$, $\ldots$, $v_n$)} registers the
- $n$ variables (l-values) with the garbage collector.
-It must be within scope of a \code{S48\_DECLARE\_GC\_PROTECT($n$)}
- and be before any code which can cause a GC.
-\code{S48\_GC\_UNPROTECT} removes the block's protected variables from
- the garbage collector's list.
-It must be called at the end of the block after 
-  any code which may cause a garbage collection.
-Omitting any of the three may cause serious and
- hard-to-debug problems.
-Notably, the garbage collector may relocate an object and
- invalidate \code{s48\_value} variables which are not protected.
+The interface treats byte vectors in a special way, since the garbage
+ collector has no facility for updating pointers to the interiors of
+ objects, so that such pointers, for example the ones returned by
+ \code{s48\_unsafe\_extract\_byte\_vector\_2}, will likely become
+ invalid when a garbage collection occurs.  The interface provides a
+ facility to prevent a garbage collection from invalidating pointers to
+ byte vector's memory region, see section~\ref{sec:byte-vectors} for 
+ details.
 
-A \code{gc-protection-mismatch} exception is raised if, when a C
- procedure returns to Scheme, the calls
- to \code{S48\_GC\_PROTECT()} have not been matched by an equal number of
- calls to \code{S48\_GC\_UNPROTECT()}.
+\subsection{Registering global references}
+\label{sec:global-references}
 
-Global variables may also be registered with the garbage collector.
+When external code needs a reference object to survive the current
+call, the external code needs to do explicit bookkeeping.  Local
+references must not be stored in global variables of the external code
+or passed to other threads, since all local references are freed once
+the call returns, which leads to a dangling pointer in the global
+variable or other thread respectively.  Instead, promote a local
+reference to a global reference and store it in a global variable or
+pass to another thread as global references will survive the current
+call.  Since the foreign-function interface never automatically frees
+global references, the programmer must free them at the right time.
 
 \begin{protos}
-\cproto{void * S48\_GC\_PROTECT\_GLOBAL(\cvar{value})}
-\cproto{void S48\_GC\_UNPROTECT\_GLOBAL(void * handle)}
+\cproto{s48\_ref\_t s48\_make\_global\_ref(s48\_value obj)}
+\cproto{void \ \ \ \ \ s48\_free\_global\_ref(s48\_ref\_t ref)}
+\cproto{s48\_ref\_t s48\_local\_to\_global\_ref(s48\_ref\_t ref)}
 \end{protos}
 
-\noindent{}\code{S48\_GC\_PROTECT\_GLOBAL} permanently registers the
-variable \cvar{value} (an l-value of type \code{s48\_value}) with the
-garbage collector.  It returns a handle pointer for use as an argument
-to \code{S48\_GC\_UNPROTECT\_GLOBAL}, which unregisters the variable
-again.
+\noindent{}\code{s48\_make\_global\_ref} permanently registers the
+Scheme value \cvar{obj} as a global reference with the garbage
+collector.  To free a global reference an to unregister it with the
+garbage collector, use \code{s48\_free\_global\_ref}.  The function
+\code{s48\_local\_to\_global\_ref} promotes a local reference object
+to a global reference object.
+
+\subsection{Local buffers}
+\label{sec:local-bufs}
+
+The foreign-function interface supports the programmer with allocating
+memory in external code: The programmer can request chunks of memory,
+called local buffers, that are automatically freed on return from the
+current call.
+
+\begin{protos}
+\cproto{void *s48\_make\_local\_buf (s48\_call\_t, size\_t)}
+\cproto{void s48\_free\_local\_buf (s48\_call\_t, void *)}
+\end{protos}
+
+The function \code{s48\_make\_local\_buf} returns a block of memory of
+the given size in bytes.  This memory freed by the foreign-function
+interface when the current call returns.  To free the buffer manually,
+use \code{s48\_free\_local\_buf}.
+
+\subsection{Special treatment for byte vectors}
+\label{sec:byte-vectors}
+
+The interface treats byte vectors in a special way, since the garbage
+collector has no facility for updating pointers to the interiors of
+objects, so that such pointers, for example the ones returned by
+\code{s48\_unsafe\_extract\_byte\_vector\_2}, will likely become
+invalid when a garbage collection occurs.  The interface provides a
+facility to prevent a garbage collection from invalidating pointers to
+byte vector's memory region.  It does this by copying byte vectors
+that are used in external code from and to the Scheme heap.
+
+These functions create byte vectors:
+
+\begin{protos}
+\cgcproto{s48\_ref\_t s48\_make\_byte\_vector\_2(s48\_call\_t, long)}
+\cgcproto{s48\_ref\_t s48\_make\_unmovable\_byte\_vector\_2(s48\_call\_t, long)}
+\cgcproto{s48\_ref\_t s48\_enter\_byte\_vector\_2(s48\_call\_t, const char *, long)}
+\cgcproto{s48\_ref\_t s48\_enter\_unmovable\_byte\_vector\_2(s48\_call\_t, const char *, long)}
+\end{protos}
+
+\code{s48\_make\_byte\_vector\_2} creates a byte vector of given size,
+\code{s48\_make\_unmovable\_byte\_vector\_2} creates a byte vector in
+that is not moved by the garbage collector (only the Bibop garbage
+collector supports this).  The functions
+\code{s48\_enter\_byte\_vector\_2} and
+\code{s48\_enter\_unmovable\_byte\_vector\_2} create and initialize
+byte vectors.
+
+The following functions copy byte vectors from and to the Scheme heap:
+
+\begin{protos}
+\cproto{void s48\_extract\_byte\_vector\_region\_2(s48\_call\_t, s48\_ref\_t, long, long, char*)}
+\cproto{void s48\_enter\_byte\_vector\_region\_2(s48\_call\_t, s48\_ref\_t, long, long, char*)}
+\cproto{void s48\_copy\_from\_byte\_vector\_2(s48\_call\_t, s48\_ref\_t, char *)}
+\cproto{void s48\_copy\_to\_byte\_vector\_2(s48\_call\_t, s48\_ref\_t, char *)}
+\end{protos}
+
+\code{s48\_extract\_byte\_vector\_region\_2} copies a given section
+from the given byte vector to its last argument,
+\code{s48\_enter\_byte\_vector\_region\_2} copies the contents of its
+last argument to its first argument to the given index.
+\code{s48\_copy\_from\_byte\_vector\_2} copies the whole byte vector
+to its last argument, \code{s48\_copy\_to\_byte\_vector\_2} copies the
+contents of its last argument to the byte vector.
+
+\begin{protos}
+\cproto{char *s48\_extract\_byte\_vector\_unmanaged\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void \ s48\_release\_byte\_vector\_2(s48\_call\_t, s48\_ref\_t, char*)}
+\end{protos}
+
+\code{s48\_extract\_byte\_vector\_unmanaged\_2} returns a local buffer
+that is valid during the current external call and copies the contents
+of the given byte vector to the returned buffer.  The returned byte
+vector may be a copy of the Scheme byte vector, changes made to the
+returned byte vector will not necessarily be reflected in Scheme until
+\code{s48\_release\_byte\_vector\_2} is called.
+
+The following functions to access byte vectors come with the most
+support from the foreign-function interface.  Byte vectors that are
+accessed via these functions are automatically managed by the
+interface and are copied back to Scheme on return from the current
+call:
+
+\begin{protos}
+\cproto{char *s48\_extract\_byte\_vector\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{char *s48\_extract\_byte\_vector\_readonly\_2(s48\_call\_t, s48\_ref\_t)}
+\end{protos}
+
+\code{s48\_extract\_byte\_vector\_2} extracts a byte vector from
+Scheme by making a copy of the byte vectors contents and returning a
+pointer to that copy.  Changes to the byte vector are automatically
+copied back to the Scheme heap when the function returns, external
+code raises an exception, or external code calls a Scheme function.
+\code{s48\_extract\_byte\_vector\_readonly\_2} should be used for byte
+vectors that are not modified by external code, since these byte
+vectors are not copied back to Scheme.
+
+\subsection{Memory overhead}
+\label{sec:memory-overhead}
+
+Each reference object consumes a certain amount of memory itself, in
+addition to the memory taken by the referred Scheme object itself.
+Even though local references are eventually freed on return of an
+external call, there are some situations where it is desirable to free
+local references explicitly, since waiting until the call returns may
+be too long or never happen, which could keep unneeded objects live:
+
+\begin{itemize}
+\item External code may create a large number of local references in a
+  single external call.  An example is the traversal of a list: Each
+  call from external code to the functions that correspond to
+  \texttt{car} and \texttt{cdr} returns a fresh local reference.  To
+  avoid the consumption of storage for local references proportional
+  to the length of the list, the traversal must free the
+  no-longer-needed references as it goes.
+
+For example, this is a straightforward definition of an
+  external function that calculates the length of a list:
+
+\begin{verbatim}
+  s48_ref_t
+  s48_length_2(s48_call_t call, s48_ref_t list)
+  {
+    long i = 0;
+    while (!(s48_null_p_2(call, list)))
+      {
+        list = s48_cdr_2(call, list);
+        ++i;
+      }
+    return s48_unsafe_enter_long_as_fixnum_2(call, i);
+  }
+\end{verbatim}
+
+  \noindent{}In this implementation, each iteration step creates a new
+  local reference object via \code{s48\_cdr\_2} that is actually only
+  needed for the next iteration step.  As a result, this function
+  creates new local references for every element of the list.  The
+  local references are live during the entire function call.
+
+  The improved version cleans up the unneeded local reference on every
+  iteration step:
+
+\begin{verbatim}
+  s48_ref_t
+  s48_ad_length_2(s48_call_t call, s48_ref_t list)
+  {
+    long i = 0;
+    while (!(s48_null_p_2(call, list)))
+      {
+        s48_ref_t temp = list;
+        list = s48_cdr_2(call, list);
+        s48_free_local_ref(call, temp);
+        ++i;
+      }
+    return s48_unsafe_enter_long_as_fixnum_2(call, i);
+  }
+\end{verbatim}
+
+\item The external call does not return at all.  If the external
+  function enters an infinite event dispatch loop, for example, it is
+  crucial that the programmer releases local references manually that
+  he created inside the loop so that they do not accumulate
+  indefinitely and lead to a memory leak.
+
+\item External code may hold a local reference to a large Scheme
+  object.  After the external code is done working on this object, it
+  performs some additional computation before returning to the caller.
+  The local reference to the large object prevents the object from
+  being garbage collected until the external function returns, even if
+  the object is no longer in use for the remainder of the computation.
+  It is more space-efficient if the programmer frees the local
+  reference when the external function does not need it any longer and
+  will not return for quite some time.
+
+\item There are common situations where local references are created
+  solely to be passed to another function and afterwards never used
+  again.  In this case, the called function can free the local
+  references of the arguments.
+
+\item To improve memory usage while making subcalls from external
+  calls, the foreign-function interface provides functionality to
+  create a new (sub-)call object and clean the local references that
+  are created during that subcall:
+
+  \begin{protos}
+  \cproto{s48\_call\_t s48\_make\_subcall(s48\_call\_t call)}
+  \cproto{void s48\_free\_subcall(s48\_call\_t subcall)}
+  \cproto{s48\_ref\_t s48\_finish\_subcall(s48\_call\_t call, s48\_call\_t subcall, s48\_ref\_t ref)}
+  \end{protos}
+
+  \code{s48\_make\_subcall} returns a new call object that represents a
+  subcall of the current call and can be passed as the call argument
+  to any subcalls of the current call.  Upon return of a subcall,
+  \code{s48\_free\_subcall} frees the subcall and all the local
+  references associated with it.  The function {s48\_finish\_subcall}
+  also frees the subcall and all the local references associated with
+  it, but copies its third argument to the current call, so that it
+  survives the subcall.
+
+\end{itemize}
 
 \subsection{Keeping C data structures in the Scheme heap}
 \label{sec:external-data}
@@ -669,41 +991,39 @@ C data structures can be kept in the Scheme heap by embedding them
 The following macros can be used to create and access embedded C objects.
 
 \begin{protos}
-\cgcproto{s48\_value S48\_MAKE\_VALUE(type)}
-\cgcproto{s48\_value S48\_MAKE\_SIZED\_VALUE(size)}
-\cproto{type \ \ \ \ \ S48\_EXTRACT\_VALUE(s48\_value, type)}
-\cproto{long \ \ \ \ \ S48\_VALUE\_SIZE(s48\_value)}
-\cproto{type * \ \ \ S48\_EXTRACT\_VALUE\_POINTER(s48\_value, type)}
-\cproto{void \ \ \ \ \ S48\_SET\_VALUE(s48\_value, type, value)}
+\cgcproto{s48\_ref\_t s48\_make\_value\_2(s48\_call\_t, type)}
+\cgcproto{s48\_ref\_t s48\_make\_sized\_value\_2(s48\_call\_t, size)}
+\cproto{type \ \ \ \ \ s48\_extract\_value\_2(s48\_call\_t, s48\_ref\_t, type)}
+\cproto{long \ \ \ \ \ s48\_value\_size\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{type * \ \ \ s48\_extract\_value\_pointer\_2(s48\_call\_t, s48\_ref\_t, type)}
+\cproto{void \ \ \ \ \ s48\_set\_value\_2(s48\_call\_t, s48\_ref\_t, type, value)}
 \end{protos}
 
 \noindent{}
-\code{S48\_MAKE\_VALUE} makes a byte vector large enough to hold an object
+\code{s48\_make\_value\_2} makes a byte vector large enough to hold an object
 whose type is \cvar{type}.
-\code{S48\_MAKE\_SIZED\_VALUE} makes a byte vector large enough to hold an object
+\code{s48\_make\_sized\_value\_2} makes a byte vector large enough to hold an object
 of \cvar{size} bytes.
-\code{S48\_EXTRACT\_VALUE} returns the contents of a byte vector cast to
- \cvar{type}, \code{S48\_VALUE\_SIZE} returns its size,
-and \code{S48\_EXTRACT\_VALUE\_POINTER} returns a pointer to the
+\code{s48\_extract\_value\_2} returns the contents of a byte vector cast to
+ \cvar{type}, \code{s48\_value\_size\_2} returns its size,
+and \code{s48\_extract\_value\_pointer\_2} returns a pointer to the
 contents of the byte vector.
-The value returned by \code{S48\_EXTRACT\_VALUE\_POINTER} is valid only until
+The value returned by \code{s48\_extract\_value\_pointer\_2} is valid only until
 the next garbage collection.
+\code{s48\_set\_value\_2} stores \code{value} into the byte vector.
 
-\code{S48\_SET\_VALUE} stores \code{value} into the byte vector.
+Pointers to C data structures can be stored in the Scheme heap:
 
-%There are some convenient macros for external objects that hold
-% arrays:
-%
-%\begin{itemize}
-%\item \code{S48\_MAKE\_ARRAY($b$, $s$)} returns an external object
-%  which holds an array with base type $b$ and size $s$.
-%\item \code{S48\_EXTRACT\_ARRAY(\cvar{value}, $b$)} returns the address of the
-%  array with base type $b$ inside external object \cvar{value}.  It does not
-%  check if \cvar{value} is actually an external object.  Note that the address
-%  returned by \code{S48\_EXTRACT\_ARRAY} is only valid until the next
-%  \link{heap allocation}[ (see
-%  Sec.~\ref{sec:heap-allocation})]{sec:heap-allocation}.
-%\end{itemize}
+\begin{protos}
+\cgcproto{s48\_ref\_t s48\_enter\_pointer\_2(s48\_call\_t, void *)}
+\cgcproto{void * \ \ \ s48\_extract\_pointer\_2(s48\_call\_t, s48\_ref\_t)}
+\end{protos}
+
+\noindent{}The function \code{s48\_enter\_pointer\_2} makes a byte
+vector large enough to hold the pointer value and stores the pointer
+value in the byte vector.  The function
+\code{s48\_extract\_pointer\_2} extracts the pointer value from the
+scheme heap.
 
 \subsection{C code and heap images}
 \label{sec:hibernation}
@@ -747,14 +1067,14 @@ External modules can create records and access their slots
  positionally.
 
 \begin{protos}
-\cgcproto{s48\_value s48\_make\_record(s48\_value)}
-\cproto{int \ \ \ \ \ \ S48\_RECORD\_P(s48\_value)} 
-\cproto{s48\_value S48\_RECORD\_TYPE(s48\_value)} 
-\cproto{s48\_value S48\_RECORD\_REF(s48\_value, long)} 
-\cproto{void \ \ \ \ \ S48\_RECORD\_SET(s48\_value, long, s48\_value)} 
+\cgcproto{s48\_ref\_t s48\_make\_record\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{int \ \ \ \ \ \ s48\_record\_p\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{s48\_ref\_t s48\_record\_type\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{s48\_ref\_t s48\_record\_ref\_2(s48\_call\_t, s48\_ref\_t, long)} 
+\cproto{void \ \ \ \ \ s48\_record\_set\_2(s48\_call\_t, s48\_ref\_t, long, s48\_ref\_t)} 
 \end{protos}
 %
-The argument to \code{s48\_make\_record} should be a shared binding
+The argument to \code{s48\_make\_record\_2} should be a shared binding
  whose value is a record type.
 In C the fields of Scheme records are only accessible via offsets,
  with the first field having offset zero, the second offset one, and
@@ -777,35 +1097,29 @@ For example, given the following record-type definition
 \end{example}
 \code{Thing} records can then be made in C:
 \begin{example}
-static s48_value
-  thing_record_type_binding = S48_FALSE;
+static s48_ref_t
+  thing_record_type_binding = NULL;
 
 void initialize_things(void)
 \{
-  S48_GC_PROTECT_GLOBAL(thing_record_type_binding);
   thing_record_type_binding =
-     s48_get_imported_binding("thing-record-type");
+     s48_get_imported_binding_2("thing-record-type");
 \}
 
-s48_value make_thing(s48_value a, s48_value b)
+s48_ref_t make_thing(s48_ref_t a, s48_ref_t b)
 \{
-  s48_value thing;
-  s48_DECLARE_GC_PROTECT(2);
-
-  S48_GC_PROTECT_2(a, b);
-
-  thing = s48_make_record(thing_record_type_binding);
-  S48_RECORD_SET(thing, 0, a);
-  S48_RECORD_SET(thing, 1, b);
-
-  S48_GC_UNPROTECT();
-
+  s48_ref_t thing;
+  thing = s48_make_record_2(s48_call_t, thing_record_type_binding);
+  s48_record_set_2(s48_call_t, thing, 0, a);
+  s48_record_set_2(s48_call_t, thing, 1, b);
   return thing;
 \}
 \end{example}
-Note that the variables \code{a} and \code{b} must be protected
+Note that the interface takes care of protecting all local references 
  against the possibility of a garbage collection occurring during
- the call to \code{s48\_make\_record()}.
+ the call to \code{s48\_make\_record\_2()}; also note that the record
+ type binding is a global reference that is live until explicitly
+ freed.
 
 \section{Raising exceptions from external code}
 \label{sec:exceptions}
@@ -821,16 +1135,16 @@ The following procedures are available for raising particular
 These never return.
 
 \begin{protos}
-\cproto{s48\_assertion\_violation(const char* who, const char* message, long count, ...)}
-\cproto{s48\_error(const char* who, const char* message, long count, ...)}
-\cproto{s48\_os\_error(const char* who, const char* message, long count, ...)}
-\cproto{s48\_out\_of\_memory\_error()}
+\cproto{s48\_assertion\_violation\_2(s48\_call\_t, const char* who, const char* message, long count, ...)}
+\cproto{s48\_error\_2(s48\_call\_t, const char* who, const char* message, long count, ...)}
+\cproto{s48\_os\_error\_2(s48\_call\_t, const char* who, const char* message, long count, ...)}
+\cproto{s48\_out\_of\_memory\_error\_2(s48\_call\_t, )}
 \end{protos}
 
 \noindent{}An assertion violation signalled via
-\code{s48\_assertion\_violation} typically means that an invalid
+\code{s48\_assertion\_violation\_2} typically means that an invalid
 argument (or invalid number of arguments) has been passed.  An error
-signalled via \code{s48\_error} means that an environmental error
+signalled via \code{s48\_error\_2} means that an environmental error
 (like an I/O error) has occurred.  In both cases, \code{who} indicates
 the location of the error, typically the name of the function it
 occurred in.  It may be \code{NULL}, in which the system guesses a
@@ -838,27 +1152,27 @@ name.  The \code{message} argument is an error message encoded in
 UTF-8.  Additional arguments may be passed that become part of the
 condition object that will be raised on the Scheme side: \code{count}
 indicates their number, and the arguments (which must be of type
-\code{s48\_value}) follow.
+\code{s48\_ref\_t}) follow.
 
-The \code{s48\_os\_error} function is like \code{s48\_error}, except
+The \code{s48\_os\_error\_2} function is like \code{s48\_error\_2}, except
 that the error message is inferred from an OS error code (as in
-\code{strerror}).  The \code{s48\_out\_of\_memory\_error} function
+\code{strerror}).  The \code{s48\_out\_of\_memory\_error\_2} function
 signals that the system has run out of memory.
 
 The following macros raise assertion violations if their argument does
-not have the required type.  \code{S48\_CHECK\_BOOLEAN} raises an
+not have the required type.  \code{s48\_check\_boolean\_2} raises an
 error if its argument is neither \code{\#t} or \code{\#f}.
 
 \begin{protos}
-\cproto{void S48\_CHECK\_BOOLEAN(s48\_value)}
-\cproto{void S48\_CHECK\_SYMBOL(s48\_value)}
-\cproto{void S48\_CHECK\_PAIR(s48\_value)}
-\cproto{void S48\_CHECK\_STRING(s48\_value)}
-\cproto{void S48\_CHECK\_INTEGER(s48\_value)}
-\cproto{void S48\_CHECK\_CHANNEL(s48\_value)}
-\cproto{void S48\_CHECK\_BYTE\_VECTOR(s48\_value)}
-\cproto{void S48\_CHECK\_RECORD(s48\_value)}
-\cproto{void S48\_CHECK\_SHARED\_BINDING(s48\_value)}
+\cproto{void s48\_check\_boolean\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void s48\_check\_symbol\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void s48\_check\_pair\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void s48\_check\_string\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void s48\_check\_integer\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void s48\_check\_channel\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void s48\_check\_byte\_vector\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void s48\_check\_record\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void s48\_check\_shared\_binding\_2(s48\_call\_t, s48\_ref\_t)}
 \end{protos}
 
 \section{Unsafe functions and macros}
@@ -871,56 +1185,118 @@ They are provided for the purpose of writing more efficient code;
  their general use is not recommended.
 
 \begin{protos}
-\cproto{long \ \ \ \ \ S48\_UNSAFE\_EXTRACT\_CHAR(s48\_value)}
-\cproto{s48\_value S48\_UNSAFE\_ENTER\_CHAR(long)}
-\cproto{long \ \ \ \ \ S48\_UNSAFE\_EXTRACT\_INTEGER(s48\_value)}
-\cproto{long \ \ \ \ \ S48\_UNSAFE\_EXTRACT\_DOUBLE(s48\_value)}
+\cproto{long \ \ \ \ \ s48\_unsafe\_extract\_char\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{s48\_ref\_t s48\_unsafe\_enter\_char\_2(s48\_call\_t, long)}
+\cproto{long \ \ \ \ \ s48\_unsafe\_extract\_integer\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{long \ \ \ \ \ s48\_unsafe\_extract\_double\_2(s48\_call\_t, s48\_ref\_t)}
 \end{protos}
 \begin{protos}
-\cproto{long \ \ \ \ \ S48\_UNSAFE\_EXTRACT\_FIXNUM(s48\_value)}
-\cproto{s48\_value S48\_UNSAFE\_ENTER\_FIXNUM(long)}
+\cproto{long \ \ \ \ \ s48\_unsafe\_extract\_fixnum\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{s48\_ref\_t s48\_unsafe\_enter\_fixnum\_2(s48\_call\_t, long)}
 \end{protos}
 \begin{protos}
-\cproto{s48\_value S48\_UNSAFE\_CAR(s48\_value)}
-\cproto{s48\_value S48\_UNSAFE\_CDR(s48\_value)}
-\cproto{void \ \ \ \ \ S48\_UNSAFE\_SET\_CAR(s48\_value, s48\_value)}
-\cproto{void \ \ \ \ \ S48\_UNSAFE\_SET\_CDR(s48\_value, s48\_value)}
+\cproto{s48\_ref\_t s48\_unsafe\_car\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{s48\_ref\_t s48\_unsafe\_cdr\_2(s48\_call\_t, s48\_ref\_t)}
+\cproto{void \ \ \ \ \ s48\_unsafe\_set\_car\_2(s48\_call\_t, s48\_ref\_t, s48\_ref\_t)}
+\cproto{void \ \ \ \ \ s48\_unsafe\_set\_cdr\_2(s48\_call\_t, s48\_ref\_t, s48\_ref\_t)}
 \end{protos}
 \begin{protos}
-\cproto{long \ \ \ \ \ S48\_UNSAFE\_VECTOR\_LENGTH(s48\_value)} 
-\cproto{s48\_value S48\_UNSAFE\_VECTOR\_REF(s48\_value, long)} 
-\cproto{void \ \ \ \ \ S48\_UNSAFE\_VECTOR\_SET(s48\_value, long, s48\_value)} 
+\cproto{long \ \ \ \ \ s48\_unsafe\_vector\_length\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{s48\_ref\_t s48\_unsafe\_vector\_ref\_2(s48\_call\_t, s48\_ref\_t, long)} 
+\cproto{void \ \ \ \ \ s48\_unsafe\_vector\_set\_2(s48\_call\_t, s48\_ref\_t, long, s48\_ref\_t)} 
 \end{protos}
 \begin{protos}
-\cproto{long \ \ \ \ \ S48\_UNSAFE\_STRING\_LENGTH(s48\_value)} 
-\cproto{char \ \ \ \ \ S48\_UNSAFE\_STRING\_REF(s48\_value, long)} 
-\cproto{void \ \ \ \ \ S48\_UNSAFE\_STRING\_SET(s48\_value, long, char)} 
+\cproto{long \ \ \ \ \ s48\_unsafe\_string\_length\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{char \ \ \ \ \ s48\_unsafe\_string\_ref\_2(s48\_call\_t, s48\_ref\_t, long)} 
+\cproto{void \ \ \ \ \ s48\_unsafe\_string\_set\_2(s48\_call\_t, s48\_ref\_t, long, char)} 
 \end{protos}
 \begin{protos}
-\cproto{s48\_value S48\_UNSAFE\_SYMBOL\_TO\_STRING(s48\_value)} 
+\cproto{s48\_ref\_t s48\_unsafe\_symbol\_to\_string\_2(s48\_call\_t, s48\_ref\_t)} 
 \end{protos}
 \begin{protos}
-\cproto{long \ \ \ \ \ S48\_UNSAFE\_BYTE\_VECTOR\_LENGTH(s48\_value)} 
-\cproto{char \ \ \ \ \ S48\_UNSAFE\_BYTE\_VECTOR\_REF(s48\_value, long)} 
-\cproto{void \ \ \ \ \ S48\_UNSAFE\_BYTE\_VECTOR\_SET(s48\_value, long, int)} 
+\cproto{char * \ \ \ s48\_unsafe\_extract\_byte\_vector\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{long \ \ \ \ \ s48\_unsafe\_byte\_vector\_length\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{char \ \ \ \ \ s48\_unsafe\_byte\_vector\_ref\_2(s48\_call\_t, s48\_ref\_t, long)} 
+\cproto{void \ \ \ \ \ s48\_unsafe\_byte\_vector\_set\_2(s48\_call\_t, s48\_ref\_t, long, int)} 
+\end{protos}
+
+Additionally to not performing type checks, the pointer returned by
+\code{s48\_unsafe\_extract\_byte\_vector\_2} will likely become
+invalid when a garbage collection occurs.  See
+section\ref{sec:byte-vectors} on how the interface deals with byte
+vectors in a proper way.
+
+\begin{protos}
+\cproto{s48\_ref\_t s48\_unsafe\_shared\_binding\_ref\_2(s48\_call\_t, s48\_ref\_t s\_b)}
+\cproto{int\ \ \ \ \ \ \ s48\_unsafe\_shared\_binding\_p\_2(s48\_call\_t, x)}
+\cproto{int\ \ \ \ \ \ \ s48\_unsafe\_shared\_binding\_is\_import\_p\_2(s48\_call\_t, s48\_ref\_t s\_b)}
+\cproto{s48\_ref\_t s48\_unsafe\_shared\_binding\_name\_2(s48\_call\_t, s48\_ref\_t s\_b)}
+\cproto{void\ \ \ \ \ \ s48\_unsafe\_shared\_binding\_set\_2(s48\_call\_t, s48\_ref\_t s\_b, s48\_ref\_t value)}
 \end{protos}
 \begin{protos}
-\cproto{s48\_value S48\_UNSAFE\_SHARED\_BINDING\_REF(s48\_value s\_b)}
-\cproto{int\ \ \ \ \ \ \ S48\_UNSAFE\_SHARED\_BINDING\_P(x)}
-\cproto{int\ \ \ \ \ \ \ S48\_UNSAFE\_SHARED\_BINDING\_IS\_IMPORT\_P(s48\_value s\_b)}
-\cproto{s48\_value S48\_UNSAFE\_SHARED\_BINDING\_NAME(s48\_value s\_b)}
-\cproto{void\ \ \ \ \ \ S48\_UNSAFE\_SHARED\_BINDING\_SET(s48\_value s\_b, s48\_value value)}
+\cproto{s48\_ref\_t s48\_unsafe\_record\_type\_2(s48\_call\_t, s48\_ref\_t)} 
+\cproto{s48\_ref\_t s48\_unsafe\_record\_ref\_2(s48\_call\_t, s48\_ref\_t, long)} 
+\cproto{void \ \ \ \ \ s48\_unsafe\_record\_set\_2(s48\_call\_t, s48\_ref\_t, long, s48\_ref\_t)} 
 \end{protos}
 \begin{protos}
-\cproto{s48\_value S48\_UNSAFE\_RECORD\_TYPE(s48\_value)} 
-\cproto{s48\_value S48\_UNSAFE\_RECORD\_REF(s48\_value, long)} 
-\cproto{void \ \ \ \ \ S48\_UNSAFE\_RECORD\_SET(s48\_value, long, s48\_value)} 
+\cproto{type \ \ \ \ \ s48\_unsafe\_extract\_value\_2(s48\_call\_t, s48\_ref\_t, type)}
+\cproto{type * \ \ \ s48\_unsafe\_extract\_value\_pointer\_2(s48\_call\_t, s48\_ref\_t, type)}
+\cproto{void \ \ \ \ \ s48\_unsafe\_set\_value\_2(s48\_call\_t, s48\_ref\_t, type, value)}
 \end{protos}
-\begin{protos}
-\cproto{type \ \ \ \ \ S48\_UNSAFE\_EXTRACT\_VALUE(s48\_value, type)}
-\cproto{type * \ \ \ S48\_UNSAFE\_EXTRACT\_VALUE\_POINTER(s48\_value, type)}
-\cproto{void \ \ \ \ \ S48\_UNSAFE\_SET\_VALUE(s48\_value, type, value)}
-\end{protos}
+
+
+\section{Converting external code to the new foreign-function interface}
+\label{sec:gcprotect-conversion-recipe}
+
+It is straightforward to convert external code from the old
+foreign-function interface to the new foreign-function interface:
+
+\begin{itemize}
+\item Converting functions:
+  \begin{itemize}
+  \item Add \code{s48\_call call} as a first argument to every
+    function prototype that returns or accepts a \code{s48\_value}.
+
+  \item Replace every \code{s48\_value} type in the function prototype
+    and the body with \code{s48\_ref\_t}.
+
+  \item Add \code{call} as the first argument to every function call
+    that returns or accepts a Scheme object.
+
+  \item Remove all the \code{GCPROTECT}-related code (i.e.
+    \code{GCPROTECT} and \code{UNPROTECT}).
+  \end{itemize}
+
+\item Converting global (static) variables:
+  \begin{itemize}
+  \item Replace \code{s48\_value} type of the global variable with
+    \code{s48\_ref\_t}, initialize these variables with \code{NULL}.
+
+  \item Set a real Scheme object in the initialization function of
+    your code with one of these alternatives:
+    \begin{itemize}
+    \item Use \code{s48\_make\_global\_ref} to convert a
+      \code{s48\_value} to a global reference.
+
+    \item Use \code{s48\_local\_to\_global\_ref} to convert a local
+      reference object to an global one.
+
+    \item If your global variable is supposed to hold a shared binding
+      (e.g. an record type binding), you can use
+      \code{s48\_get\_imported\_binding\_2} that returns a global
+      reference.
+    \end{itemize}
+    
+  \item Use \code{s48\_free\_global\_ref} to cleanup global references
+    when appropriate.
+  \end{itemize}
+\end{itemize}
+
+\noindent{}If you add \verb|#define NO_OLD_FFI 1| just above
+\verb|#define <scheme48.h>| in your source code file, it will hide all
+the macros and prototype definitions of the old foreign-function
+interface.  That way you can make sure that you are only using the new
+interface and the C compiler will remind you if you don't.
 
 %%% Local Variables: 
 %%% mode: latex
