@@ -41,6 +41,8 @@ extern void		s48_setup_external_exception(s48_value exception,
 						     long nargs);
 extern s48_value	s48_resetup_external_exception(s48_value exception,
 						       long additional_nargs);
+extern void		s48_argument_type_violation(s48_value value);
+extern void		s48_range_violation(s48_value value, s48_value min, s48_value max);
 extern void		s48_push(s48_value value);
 extern s48_value	s48_stack_ref(long offset);
 extern void		s48_stack_setB(long offset, s48_value value);
@@ -76,6 +78,7 @@ extern s48_value	s48_really_add_channel(s48_value, s48_value, long);
 
 /* external allocation and GC roots */
 extern void		s48_gc_root(void);
+extern long		s48_gc_run_time(long *);       
 extern s48_value	s48_allocate_stob(long type, long size);
 extern s48_value	s48_allocate_weak_stob(long type, long size);
 S48_EXTERN void		s48_push_gc_rootsB(char *, long);
