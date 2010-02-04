@@ -20,28 +20,28 @@ shared_object_dlopen(s48_call_t call, s48_ref_t name, s48_ref_t complete_name_p)
 {
   HINSTANCE handle;
   s48_ref_t res;
-  s48_ref_t full_name;
+  char *full_name;
   WCHAR* name_utf16;
   size_t len = strlen(s48_extract_byte_vector_readonly_2(call, name));
 
   if (!s48_false_p_2(call, complete_name_p))
     {
-      full_name = s48_make_byte_vector_2(call, len + 5);
-      memcpy(s48_extract_byte_vector_2(call, full_name),
+      full_name = s48_make_local_buf(call, len + 5);
+      memcpy(full_name,
 	     s48_extract_byte_vector_readonly_2(call, name),
 	     len);
-      memcpy(s48_extract_byte_vector_2(call, full_name) + len,
+      memcpy(full_name + len,
 	     ".dll",
 	     5);
       len += 4;
     }
   else
-      full_name = name;
+    full_name = s48_extract_byte_vector_readonly_2(call, name);
 
   name_utf16 = malloc(sizeof(WCHAR) * (len + 1));
   if (name_utf16 == NULL)
     s48_out_of_memory_error_2(call);
-  s48_utf_8of16_to_utf_16(s48_extract_byte_vector_2(call, full_name), name_utf16, NULL);
+  s48_utf_8of16_to_utf_16(full_name, name_utf16, NULL);
 
   handle = LoadLibraryW(name_utf16);
 
