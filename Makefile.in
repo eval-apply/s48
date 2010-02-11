@@ -39,6 +39,7 @@ libdir = @libdir@
 incdir = @includedir@
 manext = 1
 mandir = @mandir@/man$(manext)
+docdir = @docdir@
 datarootdir = @datarootdir@
 datadir = @datadir@
 
@@ -165,6 +166,8 @@ CONFIG_FILES = scheme/interfaces.scm scheme/packages.scm \
 	       scheme/comp-packages.scm scheme/initial-packages.scm
 
 # Rules:
+
+.PHONY: enough all clean install man doc dist
 
 # The following is the first rule and therefore the "make" command's
 # default target.
@@ -412,9 +415,37 @@ $(IMAGE): $(VM) scheme/env/init-defpackage.scm scheme/more-interfaces.scm \
 		"`(cd $(srcdir) && pwd)`/scheme" "`pwd`/c" '$(IMAGE)' './$(VM)' \
 		'$(INITIAL)-$(BIT_SUFFIX)'
 
-### Fake targets:  all clean install man dist
+# --------------------
+# Documentation
 
-install: enough dirs \
+MANUAL_SRC = doc/src/manual.tex doc/src/bibliography.tex	      \
+  doc/src/bibliography.tex					      \
+  doc/src/code.tex doc/src/command.tex doc/src/external.tex	      \
+  doc/src/hacks.tex doc/src/intro.tex				      \
+  doc/src/meeting.tex doc/src/module.tex doc/src/myindex.tex	      \
+  doc/src/posix.tex doc/src/proto.tex doc/src/summary.tex	      \
+  doc/src/thread.tex doc/src/unicode.tex doc/src/user-guide.tex	      \
+  doc/src/utilities.tex doc/src/version-number.tex doc/src/matter.sty \
+
+doc/manual.pdf: $(MANUAL_SRC)
+	cd $(srcdir)/doc/src && pdflatex manual && \
+	  makeindex manual && \
+	  pdflatex manual && pdflatex manual
+	mv $(srcdir)/doc/src/manual.pdf $(srcdir)/doc
+
+doc/manual.ps: $(MANUAL_SRC)
+	cd $(srcdir)/doc/src && latex manual && \\
+	  makeindex manual && \
+	  latex manual && latex manual && \
+	  dvips manual
+	mv $(srcdir)/doc/src/manual.ps $(srcdir)/doc
+
+doc/html/manual.html: doc/manual.pdf
+	cd $(srcdir)/doc/src && tex2page manual && tex2page manual && tex2page manual
+
+doc: doc/manual.pdf doc/manual.ps doc/html/manual.html
+
+install: enough dirs doc \
 # install the VM
 	$(INSTALL_PROGRAM) $(VM) $(DESTDIR)$(LIB)
 	if test -e $(VM).a; then $(INSTALL_PROGRAM) $(VM).a $(DESTDIR)$(LIB); fi
@@ -474,6 +505,14 @@ install: enough dirs \
 	chmod +x $$config_script
 # install the external modules
 	$(INSTALL_PROGRAM) $(EXTERNALS) $(DESTDIR)$(LIB)/
+# install the documentation
+	$(srcdir)/mkinstalldirs $(DESTDIR)$(docdir)
+	$(INSTALL_DATA) $(srcdir)/COPYING $(docdir)
+	$(INSTALL_DATA) $(srcdir)/doc/manual.pdf $(docdir)
+	$(INSTALL_DATA) $(srcdir)/doc/manual.ps $(docdir)
+	for f in $(srcdir)/doc/html/*; do \
+		$(INSTALL_DATA) $$f $(DESTDIR)$(docdir) || exit 1; \
+	done
 
 # Script to run scheme48 in this directory.
 go:
@@ -563,7 +602,7 @@ check: $(VM) $(IMAGE) scheme/debug/check.scm
 # Rules from here on down are not essential for the basic installation
 # procedure.
 
-all: vm image $(LIBSCHEME48) script-interpreter go
+all: vm image $(LIBSCHEME48) script-interpreter go doc
 libscheme48: $(LIBSCHEME48)
 vm: $(VM)
 image: $(INITIAL)-$(BIT_SUFFIX)
