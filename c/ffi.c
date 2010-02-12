@@ -591,9 +591,9 @@ free_call (s48_call_t call)
       free_call (temp);
     } while (c != c->child);
   }
+  free_bv_group (call, call->local_bvs);
   free_ref_group (call->local_refs);
   free_buf_group (call->local_bufs);
-  free_bv_group (call, call->local_bvs);
 #ifdef DEBUG_FFI
   fprintf (stderr, "free_call\n");
   fprintf(stderr, "  count calls: %d, localrefs: %d, globalrefs: %d\n",
