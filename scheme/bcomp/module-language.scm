@@ -224,16 +224,20 @@
       (,(r 'define) ,(string->symbol ".make-reflective-tower.") ,(string->symbol ".make-syntactic-tower."))))
   (define))
 
+;; This now exports everything that could be needed in a new config
+;; package.
 (define-syntax export-syntactic-tower-maker
   (lambda (e r c)
-    `(,(r 'export) ,(string->symbol ".make-syntactic-tower.")))
+    `(,(r 'export) ,@(map string->symbol '(".make-syntactic-tower."
+					   ".make-reflective-tower."
+					   ".reader."))))
   (export))
 
-;; backwards compatibility for PreScheme compiler
+;; backwards compatibility
 (define-syntax export-reflective-tower-maker
   (lambda (e r c)
-    `(,(r 'export) ,(string->symbol ".make-reflective-tower.")))
-  (export))
+    `(,(r 'export-syntactic-tower-maker)))
+  (export-syntactic-tower-maker))
 
 ; Modules  = package combinators...
 
