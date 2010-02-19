@@ -48,11 +48,14 @@ A few command line arguments are processed by Scheme~48 as
     in the \code{,build} command. For example:
 \begin{example}
 > ,open os-strings
-> (define (f xs) (write (map os-string->string xs)) (newline) 0)
+> (define (f xs)
+    (write (map os-string->string xs))
+    (newline)
+    0)                                        ;must return an integer
 > ,build f foo.image
 > ,exit
-\% scheme48vm -i foo.image -a mumble "foo x"
-("mumble" "foo x")
+\% scheme48vm -i foo.image -a mumble "foo x" -h 5000000
+("mumble" "foo x" "-h" "5000000")
 \%
 \end{example}
 
@@ -62,7 +65,7 @@ A few command line arguments are processed by Scheme~48 as
     On most Unix-like systems, a heap image can be made executable with the
     following Bourne shell commands:
 \begin{example}
-\% (echo '\#!\cvar{/s48/install/prefix}/lib/scheme48-\cvar{1.9t}/scheme48vm -I'
+\% (echo '\#!\cvar{/s48/install/prefix}/lib/scheme48-1.9t/scheme48vm -I'
    cat \cvar{original.image}) >\cvar{new.image}
 \% chmod +x \cvar{new.image}
 \end{example}

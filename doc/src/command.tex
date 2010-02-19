@@ -114,7 +114,7 @@ Whenever moving to an existing level, either by sending
     any package, unlike \code{(load "\cvar{filename}")}, which will work only
     in packages in which the variable \code{load} is defined appropriately.
 
-\item \code{,exit [\cvar{exp}]}
+\item \code{,exit [\cvar{exp}]}\\
     Exits back out to shell (or executive or whatever invoked Scheme~48
     in the first place).
     \cvar{Exp} should evaluate to an integer.  The
@@ -138,7 +138,7 @@ a brief description of modules, structures, and packages in section~\ref{module-
 Makes the bindings in the \cvar{structure}s visible in the current package.
 The packages associated with the \cvar{structure}s will be loaded if
  this has not already been done (the \code{ask-before-loading} setting
- can be used disable the automatic loading of packages).
+ can be used to disable the automatic loading of packages).
 
 \item \code{,config [\cvar{command}]}\\
 Executes \cvar{command} in the \code{config} package, which includes
@@ -182,8 +182,9 @@ If no \cvar{command} is given, the \code{config} package becomes the
     Evaluate \cvar{exp}, printing the result(s) and making them
     (or a list of them, if \cvar{exp} returns multiple results)
     the new focus object.
-    The \code{,run} command is useful when writing
-    command programs, which are described in section~\ref{command-programs} below.
+    The \code{,run} command is useful in inspection mode (see
+    section~\ref{inspector} below) and when writing
+    command programs (see section~\ref{command-programs} below).
 
 \item \code{,trace \cvar{name} \ldots}\\
     Start tracing calls to the named procedure or procedures.
@@ -624,7 +625,7 @@ The settings are as follows:
     following an error in order to retain the error continuation for
     debugging purposes; otherwise the continuation is lost as soon as
     the focus object changes.  If you don't know anything about the
-    available debugging tools, then levels might as well be disabled.
+    available debugging tools, then \code{levels} might as well be disabled.
 
 \item \code{break-on-warnings} (boolean)\\
     Enter a new command level when a warning is produced, just as
@@ -645,7 +646,7 @@ Load structure random (y/n)? y
 
 \item \code{load-noisily} (boolean)\\
     When on, the system will print out the names of modules and files
-    as they are loaded.  \code{load-noisily} is off by default.
+    as they are loaded.  \code{Load-noisily} is off by default.
 \begin{example}
 > ,set load-noisily
 will notify when loading modules and files
@@ -878,7 +879,7 @@ The file \code{scheme/vm/load-vm.scm} in the source directory contains an
 \end{description}
     
 \section{Resource query and control}
-\label{resource-commands}.
+\label{resource-commands}
 
 \begin{description}
 \item \code{,time \cvar{exp}}\\
