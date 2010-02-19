@@ -655,7 +655,7 @@ inc:
 # shouldn't be invoked for simple installations.  But it will be used
 # if you change any of the *-packages.scm files.
 #
-# You can actually run the forms in filenames.scm in any Scheme
+# You can actually run the forms in extract-filenames.scm in any Scheme
 # implementation that has syntax-rules and explicit-renaming low-level
 # macros (e.g., most versions of Scheme 48 and Pseudoscheme).
 # If there are errors running this script, and you need to debug,
@@ -670,15 +670,14 @@ PACKAGES=scheme/packages.scm scheme/rts-packages.scm scheme/alt-packages.scm \
 	 scheme/link-packages.scm \
 	 scheme/env-packages.scm \
 	 scheme/sort/packages.scm scheme/more-packages.scm \
-	 scheme/cml/packages.scm scheme/r6rs/packages.scm \
-	 build/filenames.scm
+	 scheme/cml/packages.scm scheme/r6rs/packages.scm
 
-$(srcdir)/build/filenames.make: $(PACKAGES)
+$(srcdir)/build/filenames.make: $(PACKAGES) build/extract-filenames.scm
 # uncomment this if you activate the line below:
 #	$(MAKE) $(VM) PACKAGES=
 	cd $(srcdir) && \
-	$(RUNNABLE) -a batch <build/filenames.scm
-# or:	./$(VM) -i $(srcdir)/$(INITIAL)-$(BIT_SUFFIX) -a batch <build/filenames.scm
+	$(RUNNABLE) -a batch <build/extract-filenames.scm
+# or:	./$(VM) -i $(srcdir)/$(INITIAL)-$(BIT_SUFFIX) -a batch <build/extract-filenames.scm
 
 
 # --------------------
