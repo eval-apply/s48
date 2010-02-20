@@ -528,9 +528,10 @@
 	    implementation-restriction-violation
 	    warning note
 	    syntax-violation)
-	   (proc (:value :string &rest :value) :values))
+	   (proc (:value :string &rest :value) :values))))
 
-	  initialize-low-exception-procedures!))
+(define-interface low-exceptions-internal-interface
+  (export initialize-low-exception-procedures!))
 
 (define-interface handle-interface
   (export ignore-errors report-errors-as-warnings with-handler))
@@ -848,7 +849,6 @@
   (compound-interface (export with-exception-handler
 			      raise raise-continuable
 			      (guard :syntax)
-			      syntax-violation
 			      (assert :syntax))
 		      low-exceptions-interface))
 
