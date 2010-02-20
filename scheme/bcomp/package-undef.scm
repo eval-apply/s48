@@ -114,6 +114,9 @@
 
 ; Get a location for NAME which is SET! but isn't supposed to be.
 
+; In this case, we're creating a new, local location for the
+; assignment to happen - the original location isn't touched.
+
 (define (get-location-for-unassignable cenv name)
   (if (generated? name)
       (get-location-for-unassignable (generated-env name)
@@ -145,10 +148,9 @@
 (define $note-undefined (make-fluid (lambda (cenv name) (values))))
 
 ; Because of generated names CENV may not be an actual compile-env
-; (i.e. a procedure).
 
 (define (cenv->package cenv)
-  (cond ((procedure? cenv)
+  (cond ((compiler-env? cenv)
          ;; This returns #f if package is stable (static linking).
          (extract-package-from-comp-env cenv))
         ((package? cenv)
