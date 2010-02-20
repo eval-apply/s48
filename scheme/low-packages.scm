@@ -27,6 +27,7 @@
 		    (shared-bindings shared-bindings-interface)
 		    (low-proposals low-proposals-interface)
 		    (low-exceptions low-exceptions-interface)
+		    (low-exceptions-internal low-exceptions-internal-interface)
 		    (signal-conditions signal-conditions-interface)
 		    (debug-messages (export debug-message))
 		    (silly (export reverse-list->string))
