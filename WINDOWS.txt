@@ -66,9 +66,9 @@ build\build-initial-image.bat
 
   Before running it, you need to generate build\filenames.bat via
 
-  <Scheme 48> -a batch < build\filenames.scm
+  <Scheme 48> -a batch < build\extract-filenames.scm
   where <Scheme 48> starts up a Scheme 48 REPL, for example
-  "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48" -a batch < build\filenames.scm
+  "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48" -a batch < build\extract-filenames.scm
 
   build\build-initial-image.bat "C:\Program Files\Scheme 48\Scheme 48 1.8\scheme48"
 

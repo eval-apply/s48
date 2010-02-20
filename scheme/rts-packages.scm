@@ -319,7 +319,7 @@
 		    (exceptions-internal exceptions-internal-interface)
 		    (handle handle-interface))
   (open scheme-level-1
-	(subset low-exceptions (initialize-low-exception-procedures!))
+	low-exceptions-internal
 	signal-conditions
 	fluids cells
 	conditions
@@ -339,7 +339,7 @@
 	closures	  ;closure-template
 	number-i/o)       ; number->string, for backtrace
   (files (rts exception)))  ; Needs generic, arch
-	
+
 (define-structure interrupts interrupts-interface
   (open scheme-level-1
 	fluids

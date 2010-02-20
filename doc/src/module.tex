@@ -46,7 +46,7 @@ When a structure is opened, all of its exported bindings are visible
 in the client package.
 %On the other hand, bindings from an accessed
 %structure require explicitly qualified references written with the
-%{\tt structure-ref} operator.
+%{\tt structure-ref} operator (see below).
 
 For example:
 \begin{example}
@@ -645,11 +645,9 @@ foo>
 
 Unfortunately, the above example does not work.
 The problem is that every environment in which
- \code{define-structure} is defined must also have a way to
- create ``reflective towers'' (a misnomer; a better name would be
- ``syntactic towers'').
-% JAR says: fix this?
-A new reflective tower is required whenever a new environment is created for
+ \code{define-structure} is used must also have a way to
+ create ``syntactic towers''.
+A new syntactic tower is required whenever a new environment is created for
  compiling the source code in the package associated with a new structure.
 The environment's tower is used at compile time for
  evaluating the \cvar{macro-source} in
@@ -663,20 +661,24 @@ It is a ``tower'' because that environment, in turn, has to say what environment
 
 The simplest way to provide a tower maker is to pass on the one used by
  an existing configuration package.
-The special form \code{export-reflective-tower} creates an interface
+The special form \code{export-syntactic-tower-maker} creates an interface
  that exports a configuration package's tower.
-The following example uses \code{export-reflective-tower} and
+The following example uses \code{export-syntactic-tower-maker} and
  the \code{,structure} command to obtain a tower maker and create a new
  configuration environment.
 
 \begin{example}
-> ,config ,structure t (export-reflective-tower-maker)
+> ,config ,structure t (export-syntactic-tower-maker)
 > ,config (define-structure foo (export)
             (open module-system
                   t
                   built-in-structures
                   more-structures))
 \end{example}
+
+Before \hack{}~1.9, \code{export-syntactic-tower-maker} was named
+ \code{export-reflective-tower-maker}; this name is still supported for
+ backwards compatibility.
 
 %Talk about bootstrapping, define-all-operators, and usual-transforms?
 
@@ -754,7 +756,7 @@ modules, which Scheme Xerox considers unimportant.
 %[Discuss use of module system in the \hack{} implementation?  Maybe
 %give an extended excerpt from \hack{}'s configuration files?]
 %
-%[Discuss or flush OPTIMIZE clause.]
+%[Discuss OPTIMIZE clause.]
 %
 %[Future work: ideas for anonymous structures and more of a module
 %calculus; dealing with name conflicts; interface subtraction.]

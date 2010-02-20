@@ -171,11 +171,11 @@ else:
 
 // Build initial image.
 
-herald('%RUNNABLE% -a batch <build/filenames.scm')
+herald('%RUNNABLE% -a batch <build/extract-filenames.scm')
 
 p = runWithInput(runnable, '-a', 'batch')
-stuffProcessInputFromFile(p, 'build/filenames.scm')
-p.StandardInput.Write(',exit\n') // not in filenames.scm because it's portable
+stuffProcessInputFromFile(p, 'build/extract-filenames.scm')
+p.StandardInput.Write(',exit\n') // not in extract-filenames.scm because it's portable
 closeProcessInput(p)
 p.WaitForExit()
 
