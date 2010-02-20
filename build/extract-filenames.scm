@@ -63,7 +63,7 @@
 (define u-f (all-file-names usual-features initial-system))
 
 (define (write-file-names mumble comment . stuff)
-  (comment "#### This file was generated automatically. ####")
+  (comment "This file was generated automatically.")
   (do ((stuff stuff (cddr stuff)))
       ((null? stuff))
     (mumble (car stuff) (cadr stuff))
@@ -86,7 +86,7 @@
 				    filenames)
 			  (newline port))
 			(lambda (comment)
-			  (display "#" port)
+			  (display "# " port)
 			  (display comment port)
 			  (newline port))
 			'initial-files i-f

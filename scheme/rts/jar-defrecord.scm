@@ -68,7 +68,7 @@
 
 ; (define-constructor <id> <type> ((<arg> <arg-type>)*) (<field-name>*))
 ;
-; Checks to see that there is an <arg> corresponding to every <field-name>.
+; Checks to see that there is a <field-name> corresponding to every <arg>.
 
 (define-syntax define-constructor
   (lambda (e r c)
