@@ -1560,14 +1560,15 @@ static void s48_make_large_availableAgc(long len_in_bytes) {
 
 static s48_address s48_allocate_large(long len_in_bytes) {
   unsigned long len_in_pages = BYTES_TO_PAGES(len_in_bytes);
+  Area *area;
   if (PAGES_TO_BYTES_LOSES_P(len_in_pages)) {
     /* pretend we're just out of memory */
     return NULL;
   };
-  Area* area = s48_allocate_area_without_crashing(len_in_pages,
-						  len_in_pages,
-						  0,
-						  AREA_TYPE_SIZE_LARGE);
+  area = s48_allocate_area_without_crashing(len_in_pages,
+					    len_in_pages,
+					    0,
+					    AREA_TYPE_SIZE_LARGE);
   if (area == NULL) {
     /* out of memory */
     return NULL;
