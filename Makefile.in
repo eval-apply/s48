@@ -434,7 +434,7 @@ doc/manual.pdf: $(MANUAL_SRC)
 	mv $(srcdir)/doc/src/manual.pdf $(srcdir)/doc
 
 doc/manual.ps: $(MANUAL_SRC)
-	cd $(srcdir)/doc/src && latex manual && \\
+	cd $(srcdir)/doc/src && latex manual && \
 	  makeindex manual && \
 	  latex manual && latex manual && \
 	  dvips manual
