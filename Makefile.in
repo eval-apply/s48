@@ -445,7 +445,7 @@ doc/html/manual.html: doc/manual.pdf
 
 doc: doc/manual.pdf doc/manual.ps doc/html/manual.html
 
-install: enough dirs doc \
+install: enough dirs
 # install the VM
 	$(INSTALL_PROGRAM) $(VM) $(DESTDIR)$(LIB)
 	if test -e $(VM).a; then $(INSTALL_PROGRAM) $(VM).a $(DESTDIR)$(LIB); fi
@@ -506,6 +506,10 @@ install: enough dirs doc \
 # install the external modules
 	$(INSTALL_PROGRAM) $(EXTERNALS) $(DESTDIR)$(LIB)/
 # install the documentation
+	$(srcdir)/mkinstalldirs $(DESTDIR)$(docdir)
+	$(INSTALL_DATA) $(srcdir)/COPYING $(docdir)
+
+install-doc: dirs doc
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(docdir)
 	$(INSTALL_DATA) $(srcdir)/COPYING $(docdir)
 	$(INSTALL_DATA) $(srcdir)/doc/manual.pdf $(docdir)
