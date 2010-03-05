@@ -36,9 +36,7 @@
 (define (new-package . maybe-opens)
   (let* ((opens-thunk
           (if (pair? maybe-opens)
-	      (let ((structs (map get-structure maybe-opens)))
-		(for-each quietly-ensure-loaded structs)
-		(lambda () structs))
+	      list
               (lambda ()
                 (list (get-structure 'scheme)))))
          (p (make-package opens-thunk
@@ -51,7 +49,8 @@
                           #f))) ;name
     (set-package-integrate?! p
 			     (package-integrate? (environment-for-commands)))
-    (set-environment-for-commands! p)))
+    (set-environment-for-commands! p)
+    (for-each open maybe-opens)))
 
 (define (get-syntactic-tower env)    ;Returns promise of (eval . env)
   (comp-env-macro-eval (if (package? env)
