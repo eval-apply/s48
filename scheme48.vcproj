@@ -809,6 +809,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\c\win32\time.c"
+				>
+			</File>
+			<File
 				RelativePath=".\c\win32\utf-8of16.c"
 				>
 			</File>

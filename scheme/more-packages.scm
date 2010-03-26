@@ -597,3 +597,19 @@
 (define record records)
 ; It used to be called `code-quote', so this is the name the linker imports.
 (define code-quote code-quotation)
+
+; Time
+(define-interface os-time-interface
+  (export current-utc-time
+          timezone-offset
+          time-seconds
+          time-microseconds
+          time?))
+
+(define-structure os-time os-time-interface
+  (open scheme
+        define-record-types
+        os-strings
+	external-calls
+        shared-bindings)
+  (files (big os-time)))

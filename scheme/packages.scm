@@ -456,6 +456,7 @@
 	    nondeterminism
 	    net-addresses
 	    net-sockets
+            os-time
 	    package-commands-internal
 	    package-mutation
 	    parse-bytecode

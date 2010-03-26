@@ -148,7 +148,7 @@ POSIX_EXTERNAL = c/posix.so
 SRFI_27_EXTERNAL = c/srfi-27.so
 FFI_TEST_EXTERNAL = c/ffi-test.so
 EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(FFI_TEST_EXTERNAL) $(ADDITIONAL_EXTERNALS)
-UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o
+UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o c/unix/time.o
 OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
 	c/extension.o c/free.o c/double_to_string.o c/bignum.o c/ffi.o \
 	c/external.o c/external-lib.o c/external-init.o c/init.o
@@ -578,6 +578,7 @@ check: $(VM) $(IMAGE) scheme/debug/check.scm
 		echo ',open base-test';					\
 		echo ',open big-test';					\
 		echo ',open sockets-test';				\
+		echo ',open os-time-test';				\
 		echo ',open tconc-queue-test';				\
 		echo ',open transport-link-cell-test';			\
 		echo ',open tlc-table-test';				\
@@ -598,7 +599,7 @@ check: $(VM) $(IMAGE) scheme/debug/check.scm
 		echo ',config ,load =scheme48/ffi-test/test-packages.scm';	\
 		echo ',open ffi-test';					\
 		echo ',open test-suites';				\
-		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests tlc-table-weak-tests tlc-table-string-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
+		echo '(define-test-suite all-tests (compiler-tests base-tests big-tests tcp-sockets-tests tconc-queue-tests transport-link-cell-tests tlc-table-tests tlc-table-weak-tests tlc-table-string-tests os-time-tests sort-tests misc-tests env-tests r6rs-tests cml-tests srfi-tests posix-tests ffi-tests))'; \
 		echo '(run-test-suite all-tests)'			\
 	) | ./$(VM) -i $(IMAGE) $(BIG_HEAP)
 

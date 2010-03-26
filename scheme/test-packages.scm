@@ -59,6 +59,12 @@
         (with-prefix srfi-1 srfi-1:))
   (files (big queue-check)))
 
+(define-structure os-time-test (export os-time-tests)
+  (open scheme
+        test-suites
+	os-time)
+  (files (big os-time-check)))
+
 (define-structure big-test (export big-tests)
   (open scheme test-suites
 	misc-big-test
