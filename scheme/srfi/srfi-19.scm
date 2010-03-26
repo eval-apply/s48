@@ -78,11 +78,11 @@
     ((_ val default-value)
      (if (null? val) default-value (car val)))))
 
-;; This emulates the SCSH function via the POSIX-TIME package
-(define (time+ticks)
-  (values (posix:time-seconds (posix:current-time)) 0))
+(define (seconds+nanoseconds)
+  (let ((time (os-time:current-utc-time)))
+    (values (os-time:time-seconds time) (* (os-time:time-microseconds time) 1000))))
 
-(define (ticks/sec) 1) ;; we don't suppport sub-second precision yet
+(define (ticks/sec) (expt 10 6))
 (define (cpu-ticks/sec) 1) ;; we don't suppport sub-second precision yet
 
 (define time-tai 'time-tai)
@@ -257,31 +257,17 @@
 ;;; current-time
 
 ;;; specific time getters.
-;;; these should be rewritten to be os specific.
-;;
-;; -- using gnu gettimeofday() would be useful here -- gets
-;;    second + millisecond 
-;;    let's pretend we do, using mzscheme's current-seconds & current-milliseconds
-;;    this is supposed to return utc.
-;; 
 
-;; SCSH portability: scsh has even more than milliseconds: ticks
-; (define (tm:get-time-of-day)
-;   (values (current-seconds)
-; 	  (abs (remainder (current-milliseconds) 1000))))
-
-;; SCSH portability: use time+ticks
 (define (tm:current-time-utc)
-  (receive (seconds quanta) (time+ticks)
+  (receive (seconds nanoseconds) (seconds+nanoseconds)
 	   (make-time  time-utc 
-		       (* quanta tm:ns/quantum)
-		       seconds )))
+		       nanoseconds
+		       seconds)))
 
-;; SCSH portability: use time+ticks
 (define (tm:current-time-tai)
-  (receive (seconds  quanta) (time+ticks)
+  (receive (seconds nanoseconds) (seconds+nanoseconds)
 	   (make-time time-tai
-		      (* quanta tm:ns/quantum)
+                      nanoseconds
 		      (+ seconds (tm:leap-second-delta seconds)))))
 
 ;; SCSH portability: use tm:ns/quantum
@@ -297,11 +283,10 @@
 ;;    will require rewriting all of the time-monotonic converters,
 ;;    of course.
 
-;; SCSH portability: use time+ticks
 (define (tm:current-time-monotonic)
-  (receive (seconds quanta) (time+ticks)
+  (receive (seconds nanoseconds) (seconds+nanoseconds)
 	   (make-time time-monotonic
-		      (*  quanta tm:ns/quantum)
+		      nanoseconds
 		      (+ seconds (tm:leap-second-delta seconds))
 		      )))
 
@@ -663,14 +648,8 @@
      (if (>= 0 y) (- y 1) y))
     ))
 
-
-;; relies on the fact that we named our time zone accessor
-;; differently from MzScheme's....
-;; This should be written to be OS specific.
-
-;; SCSH portability: use scsh's DATE procedure
 (define (tm:local-tz-offset)
-  0) ;; FIXME: quick hack
+  (os-time:timezone-offset))
 
 ;; special thing -- ignores nanos
 (define (tm:time->julian-day-number seconds tz-offset)

@@ -14,6 +14,7 @@
 (define-structure srfi-19-test (export srfi-19-tests)
   (open scheme matchers
 	srfi-9 ; DEFINE-RECORD-PROCEDURES
+        os-time
         srfi-19
 	test-suites
         formats)
@@ -25,9 +26,10 @@
 
 (define-structure portable-srfi-test (export portable-srfi-tests)
   (open scheme test-suites
-	srfi-13-test srfi-14-test srfi-95-test)
+	srfi-13-test srfi-14-test srfi-95-test srfi-19-test)
   (begin
-    (define-test-suite portable-srfi-tests (srfi-13-tests srfi-14-tests srfi-95-tests))))
+    (define-test-suite portable-srfi-tests 
+      (srfi-19-tests srfi-13-tests srfi-14-tests srfi-95-tests))))
 
 (define-structure srfi-test (export portable-srfi-tests posix-srfi-tests srfi-tests)
   (open scheme test-suites
