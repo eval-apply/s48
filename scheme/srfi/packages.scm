@@ -421,7 +421,7 @@
         srfi-23 ; ERROR
         ascii
         receiving
-        (modify posix-time (prefix posix:))
+        (modify os-time (prefix os-time:))
         (modify extended-ports
                 (rename (make-string-output-port open-output-string)
                         (string-output-port-output get-output-string)
