@@ -13,7 +13,6 @@ static s48_ref_t time_type_binding;
 void
 s48_init_time(void)
 {
-  S48_EXPORT_FUNCTION(s48_time_to_string);
   S48_EXPORT_FUNCTION(s48_get_current_time);
   S48_EXPORT_FUNCTION(s48_get_timezone);
 
@@ -22,37 +21,6 @@ s48_init_time(void)
 }
 
 /* ************************************************************ */
-
-/*
- * Convert a Scheme time record into a timeval.
- */
-void
-extract_time(s48_call_t call, s48_ref_t *sch_time, struct timeval *time)
-{
-  s48_check_record_type_2(call, *sch_time, time_type_binding);
-
-  time->tv_sec =
-    s48_extract_long_2(call, s48_unsafe_record_ref_2(call, *sch_time, 0));
-  time->tv_usec =
-    s48_extract_long_2(call, s48_unsafe_record_ref_2(call, *sch_time, 1));
-}
-
-/*
- * The posix ctime() procedure, which converts a time_t into a string, using
- * the local time zone.
- *
- * ENTER_STRING does a copy, which gets us out of ctime()'s static buffer.
- */
-s48_ref_t
-s48_time_to_string(s48_call_t call, s48_ref_t sch_time)
-{
-  struct timeval time;
-  s48_check_record_type_2(call, sch_time, time_type_binding);
-
-  extract_time(call, &sch_time, &time) ;
-
-  return s48_enter_byte_string_2(call, ctime(&time.tv_sec));
-}
 
 
 /*
