@@ -13,7 +13,6 @@ static s48_ref_t time_type_binding;
 void
 s48_init_time(void)
 {
-  S48_EXPORT_FUNCTION(s48_time_to_string);
   S48_EXPORT_FUNCTION(s48_get_current_time);
   S48_EXPORT_FUNCTION(s48_get_timezone);
 
@@ -22,41 +21,6 @@ s48_init_time(void)
 }
 
 /* ************************************************************ */
-
-/*
- * Convert a Scheme time record into a _timeb structure
- */
-void
-extract_time(s48_call_t call, s48_ref_t *sch_time, struct _timeb *time)
-{
-  s48_check_record_type_2(call, *sch_time, time_type_binding);
-
-  time->time = 
-    s48_extract_long_2(call, s48_unsafe_record_ref_2(call, *sch_time, 0));
-  time->millitm = 
-    (unsigned short)s48_extract_long_2(call, 
-		    s48_unsafe_record_ref_2(call, *sch_time, 1))/1000;
-}
-
-/*
- * The ctime_s() procedure, which converts a _timeb into a string, using
- * the local time zone.
- */
-s48_ref_t
-s48_time_to_string(s48_call_t call, s48_ref_t sch_time)
-{
-  struct _timeb time;
-  char buffer[26];
-
-  s48_check_record_type_2(call, sch_time, time_type_binding);
-
-  extract_time(call, &sch_time, &time);
-  ctime_s(buffer, 26, &time.time);
-
-  // return current time as String
-  return s48_enter_byte_string_2(call, buffer);
-}
-
 
 /*
  * Convert a _timeb into a Scheme time record.

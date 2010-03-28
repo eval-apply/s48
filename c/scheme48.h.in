@@ -156,8 +156,6 @@ S48_EXTERN s48_ref_t	s48_integer2enum_set_2(s48_call_t, s48_ref_t, long);
 
 S48_EXTERN s48_ref_t 	s48_call_scheme_2(s48_call_t call, s48_ref_t proc, long nargs, ...);
 
-
-S48_EXTERN s48_ref_t s48_time_to_string(s48_call_t call, s48_ref_t sch_time);
 S48_EXTERN s48_ref_t s48_get_current_time(s48_call_t call);
 S48_EXTERN s48_ref_t s48_get_timezone(s48_call_t call);
 
