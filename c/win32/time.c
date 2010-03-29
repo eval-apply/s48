@@ -29,8 +29,6 @@ s48_ref_t
 s48_enter_time(s48_call_t call, struct _timeb *now)
 {
   s48_ref_t	sch_time;
-  s48_ref_t	seconds; 
-  s48_ref_t	useconds;
 
   sch_time = s48_make_record_2(call, time_type_binding);
 
