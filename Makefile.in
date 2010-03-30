@@ -445,7 +445,9 @@ doc/html/manual.html: doc/manual.pdf
 
 doc: doc/manual.pdf doc/manual.ps doc/html/manual.html
 
-install: enough dirs
+install: install-no-doc install-doc
+
+install-no-doc: enough dirs
 # install the VM
 	$(INSTALL_PROGRAM) $(VM) $(DESTDIR)$(LIB)
 	if test -e $(VM).a; then $(INSTALL_PROGRAM) $(VM).a $(DESTDIR)$(LIB); fi
