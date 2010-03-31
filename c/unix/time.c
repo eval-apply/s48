@@ -57,12 +57,12 @@ s48_ref_t
 s48_get_timezone(s48_call_t call)
 {
   time_t helper_time;
-  struct tm *broken_time;
+  struct tm broken_time;
 
   if ((helper_time = time(NULL)) == -1)
     s48_assertion_violation_2(call, "os_time", "unknown error calling time()", 0);
 
-  broken_time = localtime(&helper_time);
+  localtime_r(&helper_time, &broken_time);
 
-  return s48_enter_long_2(call, broken_time->tm_gmtoff);
+  return s48_enter_long_2(call, broken_time.tm_gmtoff);
 }
