@@ -39,6 +39,7 @@ AC_INIT(c/prescheme.h)
      AC_CHECK_LIB(socket, main)
      AC_CHECK_LIB(sun, getpwnam)
      S48_POSIX_LIBC
+     S48_TM_GMTOFF
      AC_CONST
      AC_MSG_CHECKING(for socklen_t)
      AC_TRY_COMPILE([#include <sys/types.h>

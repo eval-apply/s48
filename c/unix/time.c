@@ -56,6 +56,7 @@ s48_get_current_time(s48_call_t call)
 s48_ref_t
 s48_get_timezone(s48_call_t call)
 {
+#ifdef HAVE_TM_GMTOFF
   time_t helper_time;
   struct tm broken_time;
 
@@ -65,4 +66,10 @@ s48_get_timezone(s48_call_t call)
   localtime_r(&helper_time, &broken_time);
 
   return s48_enter_long_2(call, broken_time.tm_gmtoff);
+#else /* not HAVE_TM_GMTOFF */
+  /* On systems that do not have the tm_gmtoff field in struct tm,
+     there is no reliable way to get the timezone.  We do not 
+     support timezones on these systems. */
+  return 0;
+#endif /* not HAVE_TM_GMTOFF */
 }
