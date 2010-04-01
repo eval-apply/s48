@@ -70,6 +70,6 @@ s48_get_timezone(s48_call_t call)
   /* On systems that do not have the tm_gmtoff field in struct tm,
      there is no reliable way to get the timezone.  We do not 
      support timezones on these systems. */
-  return 0;
+  return s48_enter_long_2(call, 0);
 #endif /* not HAVE_TM_GMTOFF */
 }
