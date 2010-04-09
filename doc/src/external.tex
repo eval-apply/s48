@@ -956,24 +956,31 @@ For example, this is a straightforward definition of an
   creates new local references for every element of the list.  The
   local references are live during the entire function call.
 
-  The improved version cleans up the unneeded local reference on every
-  iteration step:
+  To avoid consuming storage proportional to the length of the list
+  for all those local reference objects, the improved version cleans
+  up the unneeded local reference on every iteration step:
 
 \begin{verbatim}
   s48_ref_t
-  s48_ad_length_2(s48_call_t call, s48_ref_t list)
+  s48_length_2(s48_call_t call, s48_ref_t list)
   {
+    s48_ref_t l = s48_copy_local_ref(call, list);
     long i = 0;
-    while (!(s48_null_p_2(call, list)))
+    while (!(s48_null_p_2(call, l)))
       {
-        s48_ref_t temp = list;
-        list = s48_cdr_2(call, list);
+        s48_ref_t temp = l;
+        l = s48_cdr_2(call, l);
         s48_free_local_ref(call, temp);
         ++i;
       }
     return s48_unsafe_enter_long_as_fixnum_2(call, i);
   }
 \end{verbatim}
+
+  \noindent{}Note that without the call to
+  \code{s48\_copy\_local\_ref} the reference to the head of the list
+  would be freed along with all the temporary references.  This would
+  render the whole list unusable after the return from \code{s48\_length\_2}.
 
 \item The external call does not return at all.  If the external
   function enters an infinite event dispatch loop, for example, it is
