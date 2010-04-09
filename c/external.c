@@ -2433,23 +2433,12 @@ s48_length(s48_value list)
 s48_ref_t
 s48_length_2(s48_call_t call, s48_ref_t list)
 {
+  s48_ref_t l = s48_copy_local_ref(call, list);
   long i = 0;
-  while (!(s48_null_p_2(call, list)))
+  while (!(s48_null_p_2(call, l)))
     {
-      list = s48_cdr_2(call, list);
-      ++i;
-    }
-  return s48_unsafe_enter_long_as_fixnum_2(call, i);
-}
-
-s48_ref_t
-s48_ad_length_2(s48_call_t call, s48_ref_t list)
-{
-  long i = 0;
-  while (!(s48_null_p_2(call, list)))
-    {
-      s48_ref_t temp = list;
-      list = s48_cdr_2(call, list);
+      s48_ref_t temp = l;
+      l = s48_cdr_2(call, l);
       s48_free_local_ref(call, temp);
       ++i;
     }
