@@ -778,10 +778,45 @@ global references, the programmer must free them at the right time.
 
 \noindent{}\code{s48\_make\_global\_ref} permanently registers the
 Scheme value \cvar{obj} as a global reference with the garbage
-collector.  To free a global reference an to unregister it with the
+collector.  Basic Scheme values are \code{\_s48\_value\_true},
+\code{\_s48\_value\_false}, \code{\_s48\_value\_null},
+\code{\_s48\_value\_unspecific}, \code{\_s48\_value\_undefined}, and
+\code{\_s48\_value\_eof}.
+
+To free a global reference an to unregister it with the
 garbage collector, use \code{s48\_free\_global\_ref}.  The function
 \code{s48\_local\_to\_global\_ref} promotes a local reference object
 to a global reference object.
+
+For example, to maintain a global list of values, declare a static
+global variable
+
+\begin{verbatim}
+  s48_ref_t global_list = NULL;
+\end{verbatim}
+
+\noindent{}and initialize it in the external code's initialization function
+
+\begin{verbatim}
+  global_list = s48_make_global_ref(_s48_value_null);
+\end{verbatim}
+
+\noindent{}Note that you need to use a Scheme value (not a reference
+object) as the argument for \code{s48\_make\_global\_ref}, since there
+is not yet a call object at the time external code gets initialized.
+To add \code{new\_value} to the list, you can use the following
+snippet:
+
+\begin{verbatim}
+  temp = global_list;
+  global_list =  s48_local_to_global_ref(s48_cons_2(call, new_value, global_list))
+  s48_free_global_ref(temp);
+\end{verbatim}
+
+\noindent{}You have to remember to always promote reference objects to
+global references when assigning to a global variable (and later, to
+free them manually).  Note that it is more efficient to free the
+previous head of the list when adding a new element to the list.
 
 \subsection{Local buffers}
 \label{sec:local-bufs}
@@ -1276,7 +1311,8 @@ foreign-function interface to the new foreign-function interface:
     your code with one of these alternatives:
     \begin{itemize}
     \item Use \code{s48\_make\_global\_ref} to convert a
-      \code{s48\_value} to a global reference.
+      \code{s48\_value} to a global reference.  For details and an
+      example see section~\ref{sec:global-references}.
 
     \item Use \code{s48\_local\_to\_global\_ref} to convert a local
       reference object to an global one.
