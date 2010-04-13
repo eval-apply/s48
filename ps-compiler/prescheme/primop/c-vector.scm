@@ -235,6 +235,7 @@
   (let ((size (call-exits call))
         (parent-id (lambda-id (node-parent call))))
     (display "\n#ifdef USE_DIRECT_THREADING\n" port)
+    (write-goto-jump-table call port indent)
     (indent-to port indent)
     (format port "goto *Jtable~D[" parent-id)
     (c-value (call-arg call (+ size 1)) port)
@@ -271,6 +272,23 @@
   (indent-to port (+ indent 2))
   (display "break;\n#endif\n" port))
 
+(define (write-goto-jump-table call port indent)
+  (let ((size (call-exits call))
+        (parent-id (lambda-id (node-parent call))) ; use the id of the parent lambda to identify this computed-goto
+        (max-value 0))                             ; find the highest case value in the computed goto
+    (for-each
+      (lambda (labels)
+        (for-each
+          (lambda (l) (if (> l max-value) (set! max-value l)))
+          labels))
+      (literal-value (call-arg call size)))
+    (indent-to port indent)
+    (format port "static void *Jtable~D[] = { " parent-id)
+    (do ((i 0 (+ i 1))) ((>= i max-value))
+      (format port "&&Jlabel~D_~D, " parent-id i)
+      (if (equal? 0 (modulo i 6)) ; make the output more readable
+        (indent-to port (+ indent 2))))
+    (format port "&&Jlabel~D_~D };" parent-id max-value)))
     
     
   

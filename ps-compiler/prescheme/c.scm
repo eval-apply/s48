@@ -234,7 +234,6 @@
     (write-arg-variable-declarations all-lambdas merged port)      
     (write-rename-variable-declarations rename-vars port)
     (write-merged-declarations merged port)
-    (write-goto-jump-tables all-lambdas port)
     (fixup-nasty-c-primops! (lambda-body top))
     (for-each (lambda (form)
 		(write-merged-decls form port))
