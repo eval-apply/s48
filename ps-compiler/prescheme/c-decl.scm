@@ -363,40 +363,6 @@
 	   (set! *type-uids* (cons (cons type id) *type-uids*))
 	   id))))
 
-;------------------------------------------------------------
-
-(define (write-goto-jump-tables lambdas port)
-  (letrec ((iterate-nodes
-            (lambda (node)
-              (case (node-variant node)
-                ((lambda) (iterate-nodes (lambda-body node)))
-                ((call)
-                 (if (equal? (primop-id (call-primop node)) 'COMPUTED-GOTO)
-                   (really-write-goto-jump-table node port 2))
-                 (for-each (lambda (n) (iterate-nodes n)) (vector->list (call-args node))))))))
-    (for-each
-      iterate-nodes
-      lambdas)))
-
-(define (really-write-goto-jump-table call port indent)
-  (let ((size (call-exits call))
-        (parent-id (lambda-id (node-parent call))) ; use the id of the parent lambda to identify this computed-goto
-        (max-value 0))                             ; find the highest case value in the computed goto
-    (for-each
-      (lambda (labels)
-        (for-each
-          (lambda (l) (if (> l max-value) (set! max-value l)))
-          labels))
-      (literal-value (call-arg call size)))
-    (format port "~%#ifdef USE_DIRECT_THREADING~%")
-    (indent-to port indent)
-    (format port "static void *Jtable~D[] = { " parent-id)
-    (do ((i 0 (+ i 1))) ((>= i max-value))
-      (format port "&&Jlabel~D_~D, " parent-id i)
-      (if (equal? 0 (modulo i 6)) ; make the output more readable
-        (indent-to port (+ indent 2))))
-    (format port "&&Jlabel~D_~D };~%#endif~%" parent-id max-value)))
-
 ;----------------------------------------------------------------
 ; Random utility here for historical reasons.
 
