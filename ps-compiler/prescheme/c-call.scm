@@ -193,6 +193,7 @@
     (string-set! string (char->ascii '#\=) '#\E)
     (string-set! string (char->ascii '#\>) '#\G)
     ; used for flattened closures             H
+    ; used for computed-goto                  J
     ; precedes C keywords                     K
     (string-set! string (char->ascii '#\<) '#\L)
     (string-set! string (char->ascii '#\?) '#\P)

@@ -2,6 +2,11 @@
 #include "io.h"
 #include "scheme48arch.h"
 
+#ifdef __GNUC__
+  // This requires the "labels as values" extension of GCC
+  #define USE_DIRECT_THREADING
+#endif
+
 #if SIZEOF_VOID_P == 4
 #define BITS_PER_CELL 32
 #elif SIZEOF_VOID_P == 8

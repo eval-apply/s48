@@ -211,5 +211,6 @@
           display-c-type
 	  add-c-type-declaration!
 	  note-jump-generated!
+    write-argument-initializers
           ))
 
