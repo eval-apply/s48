@@ -555,6 +555,7 @@
 	    posix-time
 	    posix-users
 	    posix-process-data
+	    posix-platform-names
 	    posix-processes
 	    posix-regexps
 	    posix-i/o
