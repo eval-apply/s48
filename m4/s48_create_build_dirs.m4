@@ -5,6 +5,7 @@ AC_DEFUN([S48_CREATE_BUILD_DIRS], [dnl
         mkdir -p c/bibop
         mkdir -p c/unix
 	mkdir -p c/net
+	mkdir -p c/r6rs
         mkdir -p c/posix
         mkdir -p c/fake
         mkdir -p c/ffi-test

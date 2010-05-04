@@ -53,12 +53,22 @@
         r6rs-unicode)
   (files comparison-check))
 
+(define-structure r6rs-bytevectors-test (export r6rs-bytevectors-tests 
+						ieee-bytevectors-tests  
+						string-bytevectors-tests)
+  (open scheme test-suites matchers
+	(subset srfi-13 (string-contains))
+	r6rs-bytevectors)
+	(files bytevector-check 
+	       bytevector-string-check 
+	       bytevector-ieee-check))
+
 (define-structure r6rs-test (export r6rs-tests)
   (open scheme test-suites
 	r6rs-records-test r6rs-lists-test r6rs-enums-test r6rs-reader-test
-        r6rs-comparison-test)
+        r6rs-comparison-test r6rs-bytevectors-test)
   (begin
     (define-test-suite r6rs-tests
       (r6rs-records-tests r6rs-lists-tests r6rs-enums-tests r6rs-reader-tests
-       r6rs-comparison-tests))))
+       r6rs-comparison-tests r6rs-bytevectors-tests))))
 

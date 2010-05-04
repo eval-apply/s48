@@ -549,6 +549,7 @@
 	    r6rs-reader-internals
             r6rs-equal
             r6rs-control
+	    r6rs-bytevectors
 
 	    ; POSIX packages (see scheme/posix/packages.scm)
 	    posix-files

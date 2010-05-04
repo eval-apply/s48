@@ -147,7 +147,8 @@ LIBSCHEME48 = c/libscheme48.a
 POSIX_EXTERNAL = c/posix.so
 SRFI_27_EXTERNAL = c/srfi-27.so
 FFI_TEST_EXTERNAL = c/ffi-test.so
-EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(FFI_TEST_EXTERNAL) $(ADDITIONAL_EXTERNALS)
+R6RS_EXTERNAL = c/r6rs.so
+EXTERNALS = $(POSIX_EXTERNAL) $(SRFI_27_EXTERNAL) $(FFI_TEST_EXTERNAL) $(ADDITIONAL_EXTERNALS) $(R6RS_EXTERNAL)
 UNIX_OBJS = c/unix/misc.o c/unix/io.o c/unix/fd-io.o c/unix/event.o c/unix/time.o
 OBJS =	c/scheme48vm-$(BIT_SUFFIX).o \
 	c/extension.o c/free.o c/double_to_string.o c/bignum.o c/ffi.o \
@@ -247,6 +248,24 @@ $(POSIX_EXTERNAL) : $(POSIX_OBJECTS)
 
 
 # End of POSIX rules
+
+# R6RS native support
+
+r6rs_dir = c/r6rs
+
+$(r6rs_dir)/ieee_bytevect.o: c/r6rs/ieee_bytevect.c \
+	$(SCHEME48HS)
+	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
+
+$(r6rs_dir)/r6rs_externals.o: c/r6rs/r6rs_externals.c \
+	$(SCHEME48HS)
+	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
+
+R6RS_OBJECTS = $(r6rs_dir)/ieee_bytevect.o $(r6rs_dir)/r6rs_externals.o
+
+$(R6RS_EXTERNAL) : $(R6RS_OBJECTS)
+	$(LD) -o $@ $(R6RS_OBJECTS)  $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) 
+
 
 c/srfi-27.o: c/srfi-27.c $(SCHEME48HS)
 	$(CC) -c $(CPPFLAGS) $(DEFS) -I ./c -I$(srcdir)/c -I$(srcdir)/c/bibop $(CFLAGS) $(DYNAMIC_EXTERNALS_CFLAGS) -o $@ $<
