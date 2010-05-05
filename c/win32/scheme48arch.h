@@ -48,5 +48,6 @@
 #undef HAVE_SYS_TYPES_H
 
 typedef unsigned _int16 uint16_t;
+typedef unsigned _int32 uint32_t;
 
 #include <stdio.h> /* size_t */
