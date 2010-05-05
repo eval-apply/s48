@@ -121,6 +121,15 @@
               </Component>
             </Directory>
 
+            <Directory Id="external" Name="EXTERNAL" LongName="external" >
+              <Component Id="external_component" Guid="A1C66B3A-E0DA-47CD-AA8D-16A80691ADAD">
+                <File Id="external_r6rs.dll"
+                      Name="r6rs.dll" LongName="r6rs.dll"
+                      src="r6rs.dll"
+                      DiskId="1" Vital="yes" />
+              </Component>
+            </Directory>
+
             <Directory Id="build" Name="BUILD" LongName="build" >
               <Component Id="build_component" Guid="7d78a564-df2e-11d9-817f-00111175eb9e">
 
