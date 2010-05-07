@@ -63,6 +63,11 @@
 	       bytevector-string-check 
 	       bytevector-ieee-check))
 
+(define-structure r6rs-bitwise-test (export r6rs-bitwise-tests)
+  (open scheme test-suites
+	r6rs-bitwise)
+	(files bitwise-check))
+
 (define-structure r6rs-test (export r6rs-tests)
   (open scheme test-suites
 	r6rs-records-test r6rs-lists-test r6rs-enums-test r6rs-reader-test
@@ -70,5 +75,5 @@
   (begin
     (define-test-suite r6rs-tests
       (r6rs-records-tests r6rs-lists-tests r6rs-enums-tests r6rs-reader-tests
-       r6rs-comparison-tests r6rs-bytevectors-tests))))
+       r6rs-comparison-tests r6rs-bytevectors-tests r6rs-bitwise-tests))))
 
