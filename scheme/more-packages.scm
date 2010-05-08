@@ -140,8 +140,12 @@
 (define-structure tlc-tables tlc-tables-interface
   (open scheme-level-1 
         exceptions
+	features  ; string-hash, make-immutable!
         define-record-types
         tconc-queues
+	unicode-char-maps
+        tables
+        variable-argument-lists
         (subset primitives   (make-transport-link-cell
                               transport-link-cell?
                               transport-link-cell-key

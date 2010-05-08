@@ -1000,6 +1000,8 @@
 	  table-walk table->entry-list
 	  make-table-immutable!
 
+          table-string-hash table-symbol-hash
+	  number-hash
 	  string-hash symbol-hash datum-hash
 	  default-hash-function))
 

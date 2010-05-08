@@ -218,11 +218,6 @@
 	  assp assoc assv assq
 	  cons*))
 
-(define-structure r6rs-lists r6rs-lists-interface
-  (open scheme
-	exceptions)
-  (files list))
-
 (define-interface r6rs-enums-interface
   (export make-enumeration
 	  enum-set-universe
@@ -340,6 +335,14 @@
 	  string->utf32 utf8->string
           utf16->string utf32->string))
 
+(define-structure r6rs-hashtables r6rs-hashtables-interface
+  (open scheme
+        tlc-tables
+        variable-argument-lists
+        (modify features (hide string-hash))
+        exceptions)
+  (files hashtable))
+
 (define-structure r6rs-bytevectors r6rs-bytevectors-interface
   (open scheme
 	r6rs-enums
@@ -355,6 +358,36 @@
   (files bytevector
 	 bytevector-ieee
 	 bytevector-string))
+
+(define-structure r6rs-lists r6rs-lists-interface
+  (open scheme
+	exceptions)
+  (files list))
+
+(define-interface r6rs-hashtables-interface
+  (export make-eq-hashtable
+          make-eqv-hashtable
+          make-hashtable
+          hashtable?
+          hashtable-size
+          hashtable-ref
+          hashtable-set!
+          hashtable-delete!
+          hashtable-contains?
+          hashtable-update!
+          hashtable-copy
+          hashtable-clear!
+          hashtable-keys
+          hashtable-entries
+          hashtable-equivalence-function
+          hashtable-hash-function
+          hashtable-mutable?
+          equal-hash
+          string-hash
+          string-ci-hash
+          symbol-hash))
+
+
 
 ; Utilities
 

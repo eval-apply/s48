@@ -4,15 +4,7 @@
 ;; Ghuloum, Dybvig 2007
 
 ;; TODO
-;;  - R6RS conformance:
-;;    - mutable/immutable, tlc-table-mutable?
-;;    - constructors without size argument
-;;    - initial size if no size given
-;;    - shall the hashtable grow/shrink over time?
-;;    - equal-hash
-;;    - string-ci-hash
-;;    - symbol-hash
-;;    - tlc-table-copy
+;; - shall the hashtable grow/shrink over time?
 
 ;; record type for table
 
@@ -21,8 +13,8 @@
 			 equivalence-function tconc
 			 count loc)
   tlc-table?
-  (buckets-size tlc-table-buckets-size)                 ; number of buckets
-  (buckets tlc-table-buckets)                           ; vector of buckets
+  (buckets-size tlc-table-buckets-size set-tlc-table-buckets-size!)
+  (buckets tlc-table-buckets set-tlc-table-buckets!)
   (hash-function tlc-table-hash-function)               ; hash function
   (equivalence-function tlc-table-equivalence-function) ; equivalence function
   (tconc tlc-table-tconc)             ; to track the links that need rehashing
@@ -40,6 +32,9 @@
   
 ;; minimal size of a tlc table
 (define *tlc-table-min-size* 1)
+
+;; default size if no size is given
+(define *tlc-table-default-init-size* 20)
 
 ;; initialize buckets
 
@@ -66,39 +61,16 @@
 (define (tlc-table-default-eq-hash-function object)
   (memory-status (enum memory-status-option pointer-hash) object))
 
-(define fixnum-limit (expt 2 27)) ; leave some room for intermediate calculations
-
-(define (assimilate-hash hash adjustment)
-  (modulo (+ (* 2 hash) adjustment) fixnum-limit))
-
 (define (tlc-table-default-eqv-hash-function x)
   (let recur ((x x)
               (budget 16))
     (cond
      ((number? x)
-      (if (exact? x)
-          (cond ((integer? x)
-                 (assimilate-hash (modulo (abs x) fixnum-limit) 6789012))
-                ((rational? x)
-                 (assimilate-hash (recur (numerator x) (- budget 1))
-                                  (assimilate-hash (recur (denominator x) (- budget 1))
-                                                   9012345)))
-                ((real? x) 21212121)	; would be strange
-                ((complex? x)
-                 (assimilate-hash (recur (real-part x) (- budget 1))
-                                  (assimilate-hash (recur (imag-part x) (- budget 1))
-                                                   123456)))
-                (else 21212121))
-          (cond ((rational? x)
-                 (assimilate-hash (recur (inexact->exact (numerator x)) (- budget 1))
-                                  (assimilate-hash (recur (inexact->exact (denominator x)) (- budget 1))
-                                                   2345601)))
-                ((real? x) 21212121)	; NaN, infinity
-                ((complex? x)
-                 (assimilate-hash (recur (real-part x) (- budget 1))
-                                  (assimilate-hash (recur (imag-part x) (- budget 1))
-                                                   3456012)))
-                (else 21212121))))
+      (number-hash x))  ; imported from general-tables
+     ((string? x)
+      (table-string-hash x))  ; imported from general-tables
+     ((symbol? x)
+      (table-symbol-hash x))  ; imported from general-tables
      (else
       (memory-status (enum memory-status-option pointer-hash) x)))))
 
@@ -249,7 +221,7 @@
 
 (define (tlc-table-lookup-link-for-deletion table key)
   (let ((link (tlc-table-direct-lookup table key)))
-    (if (and link (transport-link-cell-tconc link))
+    (if (and link (tlc-table-tconc table) (transport-link-cell-tconc link))
 	(begin
 	  (set-transport-link-cell-tconc! link #f)
 	  link)
@@ -262,12 +234,15 @@
 (define (make-non-default-tlc-table hash-function equiv size use-tconc-queue?)
   (make-tlc-table-internally size hash-function equiv use-tconc-queue?))
 
-(define (make-eq-tlc-table size)
-  (make-non-default-tlc-table tlc-table-default-eq-hash-function eq? size #t))
+(define make-eq-tlc-table
+  (opt-lambda ((size *tlc-table-default-init-size*))
+	      (make-non-default-tlc-table tlc-table-default-eq-hash-function eq? size #t)))
+
 (define make-tlc-table make-eq-tlc-table)
 
-(define (make-eqv-tlc-table size)
-  (make-non-default-tlc-table tlc-table-default-eqv-hash-function eqv? size #t))
+(define make-eqv-tlc-table
+  (opt-lambda ((size *tlc-table-default-init-size*))
+	      (make-non-default-tlc-table tlc-table-default-eqv-hash-function eqv? size #t)))
 
 ;; size
 
@@ -283,7 +258,14 @@
 
 ;; set
 
+(define (assert-immutable table origin)
+  (and (immutable? table)
+       (assertion-violation origin
+			    "immutable argument"
+			    table)))
+
 (define (tlc-table-set! table key value)
+  (assert-immutable table 'tlc-table-set!)
   (let ((x (tlc-table-lookup-link table key)))
     (if x
 	(let ((tlc-value (transport-link-cell-value x)))
@@ -293,6 +275,7 @@
 ;; delete
 
 (define (tlc-table-delete! table key not-found)
+  (assert-immutable table 'tlc-table-delete!)
   (let ((x (tlc-table-lookup-link-for-deletion table key)))
     (if x
 	(tlc-table-delete-link table x)
@@ -306,6 +289,7 @@
 ;; update
 
 (define (tlc-table-update! table key proc not-found)
+  (assert-immutable table 'tlc-table-update!)
   (let ((x (tlc-table-lookup-link table key)))
     (if x
 	(let ((tlc-value (transport-link-cell-value x)))
@@ -314,13 +298,68 @@
 	   (proc (tlc-value-value tlc-value))))
 	not-found)))
 
+;; copy
+
+(define (make-tlc-table-immutable! table)
+   (and (tlc-table-tconc table)
+	(assertion-violation 'make-tlc-table-immutable!
+			     "tlc tables that need tconc queues cannot be made immutable"))
+  (let loop ((tlc (tlc-table-loc table)))
+    (if tlc
+	(begin
+	  (make-immutable! (transport-link-cell-value tlc))
+	  (make-immutable! (transport-link-cell-key tlc))
+	  (make-immutable! tlc)
+	  (loop (tlc-value-next-tlc (transport-link-cell-value tlc))))))
+  (make-immutable! (tlc-table-buckets table))
+  (make-immutable! table))
+
+(define tlc-table-copy
+  (opt-lambda
+   (table (mutable? #f))
+   (and (not mutable?) (tlc-table-tconc table)
+	(assertion-violation 'tlc-table-copy
+			     "tlc tables that need tconc queues cannot be copied to immutable tables"))
+   (let ((hash-function (tlc-table-hash-function table))
+	 (equiv (tlc-table-equivalence-function table))
+	 (size (tlc-table-count table))
+	 (use-tconc-queue? (tlc-table-tconc table)))
+     (let ((copy (make-non-default-tlc-table hash-function equiv size use-tconc-queue?)))
+       (let loop ((tlc (tlc-table-loc table)))
+	 (if tlc
+	     (begin 
+	       (tlc-table-add copy
+			      (transport-link-cell-key tlc)
+			      (tlc-value-value (transport-link-cell-value tlc)))
+	       (loop (tlc-value-next-tlc (transport-link-cell-value tlc))))))
+       (and (not mutable?) (make-tlc-table-immutable! copy))
+       copy))))
+
 ;; clear
 
 (define (tlc-table-clear! table)
+  (assert-immutable table 'tlc-table-clear!)
   (tlc-table-initialize-buckets! (tlc-table-buckets table))
-  (if (tlc-table-tconc table) (tconc-queue-clear! (tlc-table-tconc table)))
+  (if (tlc-table-tconc table)
+      (tconc-queue-clear! (tlc-table-tconc table)))
   (set-tlc-table-count! table 0)
   (set-tlc-table-loc! table #f))
+
+;; resize
+
+;; at the moment if and really only if the table is empty
+
+(define (tlc-table-resize! table size)
+  (assert-immutable table 'tlc-table-resize!)
+  (let ((capacity (vector-length (tlc-table-buckets table)))
+	(buckets (tlc-table-buckets table))
+	(count (tlc-table-count table)))
+    (if (eq? count 0)
+	(begin (set-tlc-table-buckets! table (make-vector size))
+	       (set-tlc-table-buckets-size! table size)
+	       (tlc-table-initialize-buckets! (tlc-table-buckets table))
+	       (set-tlc-table-loc! table #f) #t)
+	#f)))
 
 ;; keys
 
@@ -359,6 +398,15 @@
 (define (tlc-table-has-tconc-queue? table)
   (and (tlc-table-tconc table)
        #t))
+
+;; exported hash functions
+
+(define (string-ci-hash value)
+  (let ((converted (string-foldcase value))) ;; get sring-fold... from r6rs impl
+    (string-hash converted)))
+
+(define (equal-hash object)
+  (datum-hash object))
 
 ;; debugging
 
