@@ -202,6 +202,7 @@ The C macro \code{s48\_shared\_binding\_ref\_2} dereferences a shared
 binding, returning its current value.
 
 \subsection{Exporting C values to Scheme}
+\label{sec:export-c-to-scheme}
 
 Since shared bindings are defined during initialization, i.e. outside
 an external call, there is no call object.  Therefore, exporting
@@ -1216,6 +1217,137 @@ error if its argument is neither \code{\#t} or \code{\#f}.
 \cproto{void s48\_check\_record\_2(s48\_call\_t, s48\_ref\_t)}
 \cproto{void s48\_check\_shared\_binding\_2(s48\_call\_t, s48\_ref\_t)}
 \end{protos}
+
+\section{External events}
+
+External code can register external events and push the occurance of
+external events into the main Scheme~48 event loop and Scheme code can
+wait and act on external events.
+
+The following prototypes build the interface on the external side:
+
+\begin{protos}
+\cproto{long s48\_external\_event\_uid(void)}
+\cproto{long s48\_permanent\_external\_event\_uid(char *)}
+\cproto{void s48\_note\_external\_event(long)}
+\cproto{void s48\_unregister\_external\_event\_uid(long)}
+\end{protos}
+
+The \code{s48\_external\_event\_uid} function returns a fresh event
+identifier on every call, \code{s48\_permanent\_external\_event\_uid}
+names an external event.  It returns the event identifier of the named
+external event or creates a fresh one if the name is used for the
+first time.  External event identifiers should be shared with Scheme,
+since Scheme code needs the event identifier to be able to wait on
+specific external events, i.e.  the result of
+\code{s48\_external\_event\_uid} and
+\code{s48\_permanent\_external\_event\_uid} should be assigned to a
+global variable and made accessible by an external function that is
+exportet to the Scheme side.  That function returns the external
+event identifier as a Scheme object.  Typically, Scheme code only
+calls this function once and assigns its result to a global variable
+(during initialization).  See section~\ref{sec:export-c-to-scheme} on
+how to export C values to Scheme.
+
+External code then has to collect external events and can use
+\code{s48\_note\_external\_event} to signal the occurrence of an
+external event to the main event loop.  Since the main event loop does
+not guarantee that every call to \code{s48\_note\_external\_event}
+causes the just occurred event to get handled immediately, external
+code has to make sure that it can collect multiple external events
+(i.e. keep them in an appropriate data structure).  It is safe for
+external code to call \code{s48\_note\_external\_event} on every
+collected external event, though, even if older events have not been
+handled yet.
+
+After external code is done with an external event source, it has to
+unregister the event identifier with
+\code{s48\_unregister\_external\_event\_uid}.
+
+The Scheme side waits on the occurrence of an external event with the
+following function of the structure \code{external-events}:
+
+\begin{protos}
+\protonoresult{wait-for-external-event}{ uid}
+\end{protos}
+
+The function \code{wait-for-external-event} blocks the caller until
+the Scheme main event loop receives an event notification (by
+\code{s48\_note\_external\_event}) of the given event source uid
+(which was registered by \code{s48\_external\_event\_uid} or
+\code{s48\_permanent\_external\_event\_uid} on the C side and obtained
+from the C side).  There is no guarantee that the caller of
+\code{wait-for-external-event} is unblocked on every event
+notification, therefore the caller has to be prepared to handle
+multiple external events that have occurred and external code has to
+be prepared to store multiple external events.
+
+\subsection{Collecting external events in external code}
+
+External code has to be able to collect multiple events that have
+occurred.  Therefore, external code has to create the needed data
+structures to store the information that is associated with the
+occurred event.  Usually, external code collects the events in a
+thread.  An separate thread does not have an call argument, though, so
+it cannot create Scheme data structures.  It must use C data
+structures to collect the events, for example it can create a linked
+list of events.
+
+Since the events are later handled on the Scheme side, the information
+associated with the event needs to be visible on the Scheme side, too.
+Therefore, external code exports a function to Scheme that returns all
+current events as Scheme objects (the function that returns the events
+knows about the current call and thus can create Scheme objects).
+Scheme and external code might need to share Scheme record types that
+represent the event information.  Typically, the function that returns
+the events converts the C event list into a Scheme event list by
+preserving the original order in which the events arrived.  Note that
+the external list data structure that holds all events needs to be
+mutex locked on each access to preserve thread-safe manipulation of
+the data structure (the Scheme thread that processes events and the
+external thread that collects events may access the data structures at
+the same time).
+
+\subsection{Handling external events in Scheme}
+
+If the sole occurrence of an event does not suffice for the program,
+the Scheme side has to pull the information that is associated with an
+event from the C side.  Then, the Scheme side can handle the event
+data.  For example, a typical event loop on the Scheme side that waits
+on external events may look like this:
+
+\begin{verbatim}
+(let loop ()
+  (wait-for-external-event *external-event-uid*)
+  (process-external-events! (get-external-events))
+  (loop))
+\end{verbatim}
+
+Note, that \code{wait-for-external-event} is the only predefined
+function of the above example, all other variables and functions need
+to be defined by the user.  In the above example, the variable
+\code{*external-event-uid*} contains an external event identifier and
+is obtained from external code (there it was obtained by calling
+either \code{s48\_external\_event\_uid} or
+\code{s48\_permanent\_external\_event\_uid}).  An example definition
+of \code{*external-event-uid*} could look like this:
+
+\begin{verbatim}
+(define *external-event-uid* (get-external-event-uid))
+\end{verbatim}
+
+In the above example maps \code{get-external-event-uid} to an external
+functions that returns the event identifier as an Scheme value.  The
+user-written function \code{process-external-events!} handles the
+events on the scheme side.  The function user-written
+\code{get-external-events} returns all the events that the external
+code collected since the last time \code{get-external-events} was
+called.
+
+The external code uses \code{s48\_note\_external\_event} to push the
+fact that an external event occurred into the main event loop, then
+the Scheme code needs to pull the actual event data from external code
+(in this example with \code{get-external-events}).
 
 \section{Unsafe functions and macros}
 
