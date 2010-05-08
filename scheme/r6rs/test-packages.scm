@@ -71,7 +71,7 @@
 (define-structure r6rs-test (export r6rs-tests)
   (open scheme test-suites
 	r6rs-records-test r6rs-lists-test r6rs-enums-test r6rs-reader-test
-        r6rs-comparison-test r6rs-bytevectors-test)
+        r6rs-comparison-test r6rs-bytevectors-test r6rs-bitwise-test)
   (begin
     (define-test-suite r6rs-tests
       (r6rs-records-tests r6rs-lists-tests r6rs-enums-tests r6rs-reader-tests
