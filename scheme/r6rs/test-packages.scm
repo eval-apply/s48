@@ -63,6 +63,22 @@
 	       bytevector-string-check 
 	       bytevector-ieee-check))
 
+(define-structure r6rs-hashtables-test (export r6rs-hashtables-tests)
+  (open (modify scheme (hide string-ci>? string-ci<? 
+                             string-ci>=? string-ci<=?
+                             string-ci=? char-ci>? 
+                             char-ci<? char-ci>=?
+                             char-ci<=? char-ci=?))
+        test-suites matchers
+        conditions
+        weak
+        srfi-42
+        exceptions
+        r6rs-hashtables
+        r6rs-unicode
+        (subset primitives (collect)))
+  (files hashtable-check))
+
 (define-structure r6rs-bitwise-test (export r6rs-bitwise-tests)
   (open scheme test-suites
 	r6rs-bitwise)
@@ -71,9 +87,11 @@
 (define-structure r6rs-test (export r6rs-tests)
   (open scheme test-suites
 	r6rs-records-test r6rs-lists-test r6rs-enums-test r6rs-reader-test
-        r6rs-comparison-test r6rs-bytevectors-test r6rs-bitwise-test)
+        r6rs-comparison-test r6rs-bytevectors-test r6rs-bitwise-test
+	r6rs-hashtables-test)
   (begin
     (define-test-suite r6rs-tests
       (r6rs-records-tests r6rs-lists-tests r6rs-enums-tests r6rs-reader-tests
-       r6rs-comparison-tests r6rs-bytevectors-tests r6rs-bitwise-tests))))
+       r6rs-comparison-tests r6rs-bytevectors-tests r6rs-bitwise-tests
+       r6rs-hashtables-tests))))
 

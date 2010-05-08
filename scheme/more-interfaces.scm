@@ -416,11 +416,14 @@
           tlc-table-contains?
           tlc-table-update!
           tlc-table-clear!
+	  tlc-table-resize!
+	  tlc-table-copy
           tlc-table-keys
           tlc-table-entries
           tlc-table-equivalence-function
           tlc-table-hash-function
           tlc-table-has-tconc-queue?
+	  equal-hash string-hash string-ci-hash symbol-hash
           tlc-table-distribution))
 
 ; --------------------

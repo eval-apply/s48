@@ -551,6 +551,7 @@
             r6rs-equal
             r6rs-control
 	    r6rs-bytevectors
+	    r6rs-hashtables
 
 	    ; POSIX packages (see scheme/posix/packages.scm)
 	    posix-files

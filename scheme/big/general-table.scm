@@ -281,40 +281,14 @@
 			     (assimilate-hash (recur (vector-ref x 1) budget)
 					      (assimilate-hash (recur (vector-ref x 2) budget)
 							       7890123))))))))
-     ((symbol? x) 
-      (assimilate-hash (string-hash (symbol->string x)) ; can probably be tuned later
-		       78901234)) 
+     ((symbol? x)
+      (table-symbol-hash x))  ; can probably be tuned later
      ((number? x)
-      (if (exact? x)
-	  (cond ((integer? x)
-		 (assimilate-hash (modulo (abs x) fixnum-limit) 6789012))
-		((rational? x)
-		 (assimilate-hash (recur (numerator x) (- budget 1))
-				  (assimilate-hash (recur (denominator x) (- budget 1))
-						   9012345)))
-		((real? x) 21212121)	; would be strange
-		((complex? x)
-		 (assimilate-hash (recur (real-part x) (- budget 1))
-				  (assimilate-hash (recur (imag-part x) (- budget 1))
-						   123456)))
-			  
-		(else 21212121))
-	  (cond ((rational? x)
-		 (assimilate-hash (recur (inexact->exact (numerator x)) (- budget 1))
-				  (assimilate-hash (recur (inexact->exact (denominator x)) (- budget 1))
-						   2345601)))
-		((real? x) 21212121)	; NaN, infinity
-		((complex? x)
-		 (assimilate-hash (recur (real-part x) (- budget 1))
-				  (assimilate-hash (recur (imag-part x) (- budget 1))
-						   3456012)))
-					   
-					   
-		(else 21212121))))
+      (number-hash x))
      ((char? x)
       (assimilate-hash (char->integer x) 45670123))
      ((string? x)
-      (assimilate-hash (string-hash x) 56789012))
+      (table-string-hash x))
      ((eq? x #t)
       (assimilate-hash 1 12223344))
      ((eq? x #f)
@@ -323,6 +297,41 @@
       (assimilate-hash 3 12223344))
      ((procedure? x) 43322110)
      (else 32211005))))
+
+(define (table-string-hash x)
+
+  (assimilate-hash (string-hash x) 56789012))
+
+(define (table-symbol-hash x)
+  (assimilate-hash (string-hash (symbol->string x))
+		   78901234))
+
+(define (number-hash x)
+  (let recur ((x x)
+	      (budget 16))
+    (if (exact? x)
+	(cond ((integer? x)
+	       (assimilate-hash (modulo (abs x) fixnum-limit) 6789012))
+	      ((rational? x)
+	       (assimilate-hash (recur (numerator x) (- budget 1))
+				(assimilate-hash (recur (denominator x) (- budget 1))
+						 9012345)))
+	      ((real? x) 21212121)	; would be strange
+	      ((complex? x)
+	       (assimilate-hash (recur (real-part x) (- budget 1))
+				(assimilate-hash (recur (imag-part x) (- budget 1))
+						 123456)))
+	      (else 21212121))
+	(cond ((rational? x)
+	       (assimilate-hash (recur (inexact->exact (numerator x)) (- budget 1))
+				(assimilate-hash (recur (inexact->exact (denominator x)) (- budget 1))
+						 2345601)))
+	      ((real? x) 21212121)	; NaN, infinity
+	      ((complex? x)
+	       (assimilate-hash (recur (real-part x) (- budget 1))
+				(assimilate-hash (recur (imag-part x) (- budget 1))
+						 3456012)))
+	      (else 21212121)))))
 
 (define fixnum-limit (expt 2 27)) ; leave some room for intermediate calculations
 
