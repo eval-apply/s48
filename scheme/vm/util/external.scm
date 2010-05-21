@@ -60,6 +60,9 @@
 (document-it external-bignum-bit-count   bit-count)
 (document-it external-bignum-arithmetic-shift arithmetic-shift)
 
+(define (trace-external-calls)
+  (fake-it 'trace-external-calls))
+
 (define (real-time) 0)
 (define (run-time) 0)
 (define (cheap-time) 0)

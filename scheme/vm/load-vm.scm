@@ -9,7 +9,7 @@
 ;   ,config ,load ps-platform-64-packages.scm
 ; (ignoring the warning) and then:
 ;   ,exec ,load load-vm.scm
-;
+; (ignoring "name from opened structure redefined" warnings for the config package)
 ; Then, for example,
 ;  (start-vm "=scheme48/../build/initial.image" 2000000 20000 '#())
 ; in the user package will start up the VM with the initial image.

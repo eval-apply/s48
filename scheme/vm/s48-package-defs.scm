@@ -2,7 +2,13 @@
 
 
 (define-structure vm-utilities vm-utilities-interface
-  (open scheme prescheme)
+  (open scheme
+	(subset prescheme
+		(char->ascii
+		 error
+		 enum errors
+		 shift-left bitwise-and arithmetic-shift-right logical-shift-right 
+		 write-string write-integer current-error-port)))
   (files (util vm-utilities))
   (begin
 ;    (define-syntax assert
