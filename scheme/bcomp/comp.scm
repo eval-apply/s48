@@ -135,7 +135,7 @@
 				       frame
 				       (fall-through-cont #f #f))
 			(instruction (enum op pop-n) 0 1) ; remove template
-			(instruction (enum op tail-call) nargs)))))
+			(instruction (enum op tail-call) nargs 0 0)))))
 
 ; Return a template that accepts NARGS arguments, invokes TEMPLATES in turn,
 ; and then calls template FINAL on the arguments.
