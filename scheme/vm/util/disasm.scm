@@ -67,9 +67,38 @@
       (display #\space)
       (write `(=> ,(+ start-pc (get-offset pc code)))))))
 
+
+; skip make-flat-env or make-big-flat-env
+; pc must point to the opcode, returns pc of next opcode
+;
+(define (skip-flat-env code pc)
+ (let* ((big?     (= (code-vector-ref code pc) (enum op make-big-flat-env)))
+	(size     (if big? 2 1))
+	(fetch    (if big? (lambda (code pc) (get-offset pc code)) code-vector-ref))
+	(offset   (+ pc 1)) ; skip opcode
+
+	(total    (fetch code offset))               ; # of values (total)
+	(closures (fetch code (+ offset size)))      ; # of closures
+	(offset   (+ offset size (* size closures))) ; skip template offset + offsets of templates in template
+
+	(vars     (fetch code offset))      ; # of vars in frame
+	(offset   (+ offset (* size vars))) ; skip offsets of vars in frame
+
+	(envs     (- total (+ closures vars))))  ; # of envs in frame
+    (let loop ((offset offset)                   ; skip env information
+               (env envs))
+      (if (= env 0)
+        offset  ; position of next opcode
+        (let ((env-vars (fetch code (+ offset size)))) ; # of vars in env
+          (loop 
+            (+ offset size size (* size env-vars)) ; skip env offset, # of vars, offsets of vars in env
+            (- env 1)))))))
+        
+
 (define (display-flat-env pc code)
   (let ((total-count (code-vector-ref code (+ pc 1))))
-    (display #\space) (write total-count) (display "...")))
+    (display #\space) (write total-count) (display " ...")
+    (skip-flat-env code pc)))
 
 ;    (let loop ((pc (+ pc 2)) (count 0) (old-back 0))
 ;      (if (= count total-count)
@@ -100,7 +129,7 @@
 		 (if (= pc 0) 5 4))
 		((= protocol args+nargs-protocol)
 		 (display "args+nargs")
-		 3)
+		 2)
 		((= protocol ignore-values-protocol)
 		 (display "discard all values")
 		 2)
@@ -119,7 +148,7 @@
 			   (display (list (if (= i 3) "3+" i)
 					  '=>
 					  (+ pc offset)))))))
-		 6)
+		 5)
 		(else
 		 (error "unknown protocol" protocol))))))
 
