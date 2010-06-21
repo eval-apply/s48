@@ -8,6 +8,7 @@
 ; Gambit-C.
 
 (define *return-fluid* (list 'return-fluid))
+(define *return-converter* (list 'return-converter))
 
 (define make-parameter
   (lambda (init . conv)
@@ -28,6 +29,8 @@
 				  parameter new-val))
 			  ((eq? (car new-val) *return-fluid*)
 			   $fluid)
+			  ((eq? (car new-val) *return-converter*)
+			   converter)
 			  (else
 			   (cell-set! cell (converter (car new-val)))))))))
 	parameter))))
@@ -36,11 +39,16 @@
 (define-syntax parameterize
   (syntax-rules ()
     ((parameterize ((?expr1 ?expr2) ...) ?body ...)
-     ;; massage the argument list for LET-FLUIDS
-     (parameterize-helper (((?expr1 *return-fluid*) (make-cell ?expr2)) ...)
-			  ?body ...))))
-
+     (parameterize-helper ((?expr1 ?expr2) ...) () ?body ...))))
+      
 (define-syntax parameterize-helper
   (syntax-rules ()
-    ((parameterize-helper ((?stuff ...) ...) ?body ...)
-     (let-fluids ?stuff ... ... (lambda () ?body ...)))))
+    ((parameterize-helper ((?expr1 ?expr2) ?binding ...) (?args ...) ?body ...)
+     (let ((val1 ?expr1))
+       (parameterize-helper (?binding ...)
+			    (?args ... 
+				   (val1 *return-fluid*) 
+				   (make-cell ((val1 *return-converter*) ?expr2)))
+			    ?body ...)))
+    ((parameterize-helper () (?args ...) ?body ...)
+     (let-fluids ?args ... (lambda () ?body ...)))))
