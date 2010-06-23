@@ -266,6 +266,14 @@
 	(stuff (if (irritants-condition? con)
 		   (condition-irritants con)
 		   '()))
+	(syntax-stuff
+	 (if (syntax-violation? con)
+	     (let ((form (syntax-violation-form con))
+		   (subform (syntax-violation-subform con)))
+	       (if subform
+		   (list form subform)
+		   (list form)))
+	     '()))
 	(more-stuff
 	 (delete-first
 	  (lambda (con)	; make sure interesting subtypes still get printed
@@ -281,7 +289,7 @@
 	     (delete-first
 	      irritants-condition?
 	      (simple-conditions con))))))))
-    (values type who message (append stuff more-stuff))))
+    (values type who message (append stuff syntax-stuff more-stuff))))
 
 (define (delete-first pred? l)
   (let recur ((l l))

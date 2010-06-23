@@ -31,8 +31,8 @@
 (define (note who message . irritants)
   (apply note-proc who message irritants))
 
-(define (syntax-violation who message . irritants)
-  (apply syntax-violation-proc who message irritants))
+(define (syntax-violation who message form . subforms)
+  (apply syntax-violation-proc who message form subforms))
 
 (define (initialize-low-exception-procedures!
 	 error assertion-violation implementation-restriction-violation

@@ -47,8 +47,8 @@
 		(newline))
 	      irritants)))
 
-(define (syntax-violation who message . irritants)
-  (apply warning who message irritants)
+(define (syntax-violation who message form . maybe-subform)
+  (apply warning who message form maybe-subform)
   ''syntax-error)
 
 ; FEATURES

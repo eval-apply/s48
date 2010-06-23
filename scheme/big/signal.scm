@@ -14,7 +14,7 @@
 	   ((error) (make-error))
 	   ((warning) (make-warning))
 	   ((note) (make-note))
-	   ((syntax-error) (make-syntax-violation))
+	   ((syntax-error) (make-syntax-violation #f #f))
 	   ((call-error) (make-assertion-violation))
 	   (else (make-assertion-violation)))))
     (call-with-values
