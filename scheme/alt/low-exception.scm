@@ -17,8 +17,8 @@
 (define (warning who message . irritants)
   (apply warn message (cons who irritants)))
 
-(define (syntax-violation who message . irritants)
-  (apply syntax-error message (cons message irritants)))
+(define (syntax-violation who message form . maybe-subform)
+  (apply syntax-error message (cons message (cons form maybe-subform))))
 
 (define (note who message . irritants)
   (apply signals:note message (cons message irritants)))

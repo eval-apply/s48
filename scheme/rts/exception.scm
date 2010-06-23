@@ -259,13 +259,11 @@
    (make-general-condition (make-note)
 			   who message irritants)))
 
-; must return a valid expression
-; pretty lame still
-(define (syntax-violation who message . irritants)
-  (signal-condition
-   (make-general-condition (make-syntax-violation #f #f)
-			   who message irritants))
-  ''syntax-violation)
+(define (syntax-violation who message form . maybe-subform)
+  (raise-general-trouble (make-syntax-violation form 
+						(and (pair? maybe-subform)
+						     (car maybe-subform)))
+			 who message '()))
 
 ; Set LOW-EXCEPTIONS straight
 

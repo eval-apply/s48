@@ -141,7 +141,7 @@
 
 (define (run-begin exp-list env)
   (if (null? exp-list)
-      (syntax-violation 'begin "null begin")
+      (syntax-violation 'begin "null begin" `(begin ,@exp-list))
       (let loop ((exp-list exp-list))
 	(if (null? (cdr exp-list))
 	    (run (car exp-list) env)

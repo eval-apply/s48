@@ -87,9 +87,9 @@
 		      (if probe
 			  probe
 			  (begin
-			    (syntax-violation 'assemble-instruction
-					      "can't find forward label reference"
-					      operand)
+			    (assertion-violation 'assemble-instruction
+						 "can't find forward label reference"
+						 operand)
 			    empty-segment)))
 		    (assemble-operands (cddr instr) arg-specs))))
 	  (else
@@ -111,8 +111,8 @@
 				      (compile-lap (cddr operand))
 				      (cadr operand)))
 	  (else
-	   (syntax-violation 'assemble-instruction-with-index
-			     "invalid index operand" operand)
+	   (assertion-violation 'assemble-instruction-with-index
+				"invalid index operand" operand)
 	   empty-segment))
 	;; Top-level variable reference
 	(instruction-with-location

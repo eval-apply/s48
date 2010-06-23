@@ -17,7 +17,7 @@
 		(syntax-violation 'define-record-type "invalid clause" e clause))
 	       ((search-clause keyword (cdr clauses))
 		=> (lambda (duplicate)
-		     (syntax-violation 'define-record-type "duplicate clause" e clause duplicate)))
+		     (syntax-violation 'define-record-type "duplicate clause" e clause)))
 	       (else
 		clause))))
 	   (else (loop (cdr clauses))))))

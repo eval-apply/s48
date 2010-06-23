@@ -26,8 +26,8 @@
 (define (warning who message . irritants)
   (display-error-message "Warning" who message irritants))
   
-(define (syntax-violation who message . irritants)
-  (display-error-message "Syntax violation" who message irritants)
+(define (syntax-violation who message form . maybe-subform)
+  (apply display-error-message "Syntax violation" who message form maybe-subform)
   ''syntax-error)
 
 (define (note who message . irritants)
