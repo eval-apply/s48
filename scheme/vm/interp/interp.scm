@@ -882,16 +882,3 @@
 	unspecific-value
 	0))
 
-(define-opcode op-with-cell-literal
-  (push *val*)
-  (set! *val*
-        (let lp ((arity (- bytes-per-cell 1))
-                 (index 0)
-                 (x 0))
-          (if (= index bytes-per-cell)
-              x
-              (lp (- arity 1)
-                  (+ index 1)
-                  (+ x (shift-left (code-byte index)
-                                   (* bits-used-per-byte arity)))))))
-  (goto continue bytes-per-cell))
