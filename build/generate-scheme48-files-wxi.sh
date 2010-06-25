@@ -7,7 +7,9 @@ runnable=$1
 
 (
 echo ',batch';
-echo ',open srfi-1 srfi-13 srfi-14';
+echo ',open (subset srfi-1 (partition delete-duplicates filter concatenate filter-map))';
+echo ',open (subset srfi-13 (string-tokenize))';
+echo ',open (subset srfi-14 (char-set char-set-complement))';
 echo ',load build/windows-installer.scm';
 # generate enough uuids and quote them
 echo '(define uuids (list ';
