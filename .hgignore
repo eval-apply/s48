@@ -49,6 +49,7 @@ syntax: regexp
 ^go\.bat$
 ^scheme48\.(bat|ncb|res|suo|(sln|vcproj)\..*)$
 ^srfi-27\.(dll|exp|ilk|lib|pdb|vcproj\..*)$
+^r6rs\.(dll|exp|ilk|lib|pdb|vcproj\..*)$
 ^ffi-test\.(dll|exp|ilk|lib|pdb|vcproj\..*)$
 ^scheme48vm\.(exe|exp|lib)$
 ^scheme48-files\.input$
