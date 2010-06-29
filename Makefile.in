@@ -644,7 +644,7 @@ tags:
 # DISTFILES should include all sources.
 DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		configure configure.in config.sub config.guess 		\
-		acconfig.h Makefile.in 					\
+		Makefile.in 						\
 		scheme48.sln scheme48.vcproj				\
 		mkinstalldirs install-sh				\
 		doc/*.ps doc/*.pdf doc/*.txt 				\
