@@ -50,7 +50,7 @@
 	proposals
 	trans-ids rendezvous make-rendezvous
 	queues
-	exceptions
+	(modify exceptions (hide guard))
 	(subset util (unspecific)))
   (files placeholder))
 
@@ -60,7 +60,7 @@
 	proposals (subset threads-internal (maybe-commit-and-make-ready))
 	trans-ids rendezvous make-rendezvous
 	queues
-	exceptions
+	(modify exceptions (hide guard))
 	(subset util (unspecific)))
   (files jar))
 

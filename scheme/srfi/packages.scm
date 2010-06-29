@@ -313,7 +313,7 @@
 
 (define-structure srfi-16 (export (case-lambda :syntax))
   (open scheme-level-2
-	(subset exceptions (syntax-violation)))
+	(subset exceptions (assertion-violation)))
   (files srfi-16))
 
 ; Generalized set!

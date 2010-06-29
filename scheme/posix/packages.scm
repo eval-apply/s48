@@ -366,7 +366,7 @@
   (open scheme define-record-types mvlet ascii unicode exceptions
 	bitwise bigbit
 	reduce
-	(modify posix-regexps (rename (make-regexp make-posix-regexp)))
+	(modify posix-regexps (hide regexp?) (rename (make-regexp make-posix-regexp)))
 	posix-regexps-internal
 	(subset util (every)))
   (optimize auto-integrate)
