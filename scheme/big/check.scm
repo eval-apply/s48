@@ -79,13 +79,11 @@
 	   (a))
 	 => 20))
 
-(define (identity x) x)		; handy for preventing inlining
-
 (define-test-case read-byte misc-big-tests
   (let ((port (make-port #f #f #f -1 0 0 (make-byte-vector 1024 25) 0 1023 #f #f)))
     (set-port-index! port 0)
     (check (read-byte port) => 25)
-    (check ((identity read-byte) port) => 25)))
+    (check ((identity read-byte) port) => 25))) ; prevent inlining
 
 (define-test-case apply misc-big-tests
   (check (apply list 1 2 '(3 4)) => '(1 2 3 4)))

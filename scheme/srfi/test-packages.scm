@@ -14,7 +14,7 @@
 (define-structure srfi-19-test (export srfi-19-tests)
   (open scheme matchers
 	srfi-9 ; DEFINE-RECORD-PROCEDURES
-        os-time
+        (modify os-time (hide time?))
         srfi-19
 	test-suites
         formats)
