@@ -660,8 +660,7 @@ DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		build/UnicodeData.txt build/PropList.txt		\
 		build/SpecialCasing.txt build/CaseFolding.txt		\
 		build/CompositionExclusions.txt				\
-		build/dummy build/*.wxs 				\
-		build/*.bmp build/*.ico					\
+		build/dummy build/*.wxs build/*.ico			\
 		build/scheme48-config.in				\
 		c/*.[ch] c/*/*.[ch] c/*/*.ci c/*.exp c/*.def		\
 		c/scheme48.h.in						\
