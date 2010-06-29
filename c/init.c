@@ -11,8 +11,8 @@
 extern long s48_get_file_size(unsigned char *);
 
 #if !defined(DEFAULT_HEAP_SIZE)
-/* 3 megacells = 12 megabytes */
-#define DEFAULT_HEAP_SIZE 3000000L
+/* 4 megacells = 16 megabytes on 32-bit systems */
+#define DEFAULT_HEAP_SIZE 4000000L
 #endif
 
 #if !defined(DEFAULT_STACK_SIZE)
