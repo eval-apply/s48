@@ -1149,12 +1149,12 @@ void initialize_things(void)
      s48_get_imported_binding_2("thing-record-type");
 \}
 
-s48_ref_t make_thing(s48_ref_t a, s48_ref_t b)
+s48_ref_t make_thing(s48_call_t call, s48_ref_t a, s48_ref_t b)
 \{
   s48_ref_t thing;
-  thing = s48_make_record_2(s48_call_t, thing_record_type_binding);
-  s48_record_set_2(s48_call_t, thing, 0, a);
-  s48_record_set_2(s48_call_t, thing, 1, b);
+  thing = s48_make_record_2(call, thing_record_type_binding);
+  s48_record_set_2(call, thing, 0, a);
+  s48_record_set_2(call, thing, 1, b);
   return thing;
 \}
 \end{example}
@@ -1454,21 +1454,25 @@ foreign-function interface to the new foreign-function interface:
       example see section~\ref{sec:global-references}.
 
     \item Use \code{s48\_local\_to\_global\_ref} to convert a local
-      reference object to an global one.
+      reference object to a global one.
 
     \item If your global variable is supposed to hold a shared binding
       (e.g. an record type binding), you can use
       \code{s48\_get\_imported\_binding\_2} that returns a global
       reference.
     \end{itemize}
-    
+  
+  \item Replace \code{S48\_GC\_PROTECT\_GLOBAL} with
+    \code{s48\_local\_to\_global\_ref} to convert a local reference
+    object to a global one.
+  
   \item Use \code{s48\_free\_global\_ref} to cleanup global references
     when appropriate.
   \end{itemize}
 \end{itemize}
 
 \noindent{}If you add \verb|#define NO_OLD_FFI 1| just above
-\verb|#define <scheme48.h>| in your source code file, it will hide all
+\verb|#include <scheme48.h>| in your source code file, it will hide all
 the macros and prototype definitions of the old foreign-function
 interface.  That way you can make sure that you are only using the new
 interface and the C compiler will remind you if you don't.
