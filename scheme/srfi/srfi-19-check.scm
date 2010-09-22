@@ -132,6 +132,17 @@
     (check-that test-date
 		(is tm:date= (modified-julian-day->date (date->modified-julian-day test-date) -7200)))))
 
+(define-test-case leap-seconds srfi-19-tests
+  (check (time-second
+	  (date->time-tai (make-date 0 59 59 23 31 12 2008 0)))
+	 => 1230768032)
+  (check (time-second
+	  (date->time-tai (make-date 0 60 59 23 31 12 2008 0)))
+	 => 1230768033)
+  (check (time-second
+	  (date->time-tai (make-date 0 0 0 0 1 1 2009 0)))
+	 => 1230768034))
+
 (define (test-one-utc-tai-edge utc tai-diff tai-last-diff)
   (let* ( ;; right on the edge they should be the same
 	 (utc-basic (make-time 'time-utc 0 utc))
