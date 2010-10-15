@@ -2,6 +2,52 @@
 
 Recent changes to Scheme 48.
 
+* 2010-10 (version 1.9)
+** Additions
+- A new C FFI as added, thanks to Crestani, Harald Glab-Plhak.  The
+  old one is still there but will eventually be phased out.
+  See Crestani's paper "Foreign-Function Interfaces for Garbage-Collected Programming Languages"
+  http://www-pu.informatik.uni-tuebingen.de/users/crestani/publications/2008-sws-ffi.pdf
+- A new networking code layer was added with full support for IPv6,
+  UDP etc. (undocumented as of yet)
+- Records now support single inheritance (accessible through the
+  r6rs-records packages)
+- `letrec*' was added to the `scheme' structure
+- A `r5rs' structure was added.
+- A new condition system based on R6RS's system has replaced the old system.
+- Some R6RS libraries were added (with help from Robert Ransom).
+- A statistical profiler was added (Marcel Turino, Manuel Dietrich) -
+  check the documentation for details.
+- TLC tables (`eq?' tables) were added by Marcus Crestani and David Frese.
+- The module system warns on cycles and redefinitions
+- When the VM is compiled with GNU C, it uses direct threading for
+  instruction dispatch, which speeds up the VM noticeable (done by
+  Timo Harter)
+- The reader for a structure is configurable (again).
+- SRFI 19 now works on Windows
+- `list-spine{,-cycle-safe}[*%]' sequence macros were added to `reduce'
+  structure by Robert Ransom
+- The Windows build can be done via a Boo script (contributed by
+  Robert Ransom)
+- The unquote and unquote-splicing were generalized to several
+  operands, in line with R6RS.
+** Changes
+- The BIBOP GC was heavily debugged and is now considered stable - it
+  is enabled by default.
+- The system builds on Windows Visual Studio Express 2008 instead of
+  Visual Studio 2005.
+- The BIBOP GC code was simplified significantly.
+- The `syntax-rules' implementation was rewritten by Richard Kelsey
+- Some structures were added to the POSIX subsystem 
+  (`posix-errnos', `posix-syslog')
+- Various procedures were added to the POSIX structures by Roderic
+  Morris to support scsh.
+- The autoconf code was reorganized by Ivan Shmakov.
+- The REPL now prints values without quotes and auto-capitalization of
+  record-type names.
+** Bug fixes
+- Many.
+
 * 01/20/08 (version 1.8)
 ** Additions
 - An experimental framework for asynchronous events from external code
