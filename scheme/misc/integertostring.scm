@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 
 ;Date: Mon, 24 Jan 94 15:10:30 -0500

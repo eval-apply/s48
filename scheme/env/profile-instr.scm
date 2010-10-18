@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; This optimizer does the instrumentation for the exact call profiler,
 ; by calling the profiler before executing the real function code.

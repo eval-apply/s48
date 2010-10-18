@@ -1,5 +1,5 @@
-/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
-   See file COPYING. */
+/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
+   */
 
 /* Modelled on Jim Blandy's foreign function interface that he put in
    his Scheme implementation called Minor. */

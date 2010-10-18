@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ; Random tests, mostly for stuff in scheme/big
 
 (define-test-suite misc-big-tests)

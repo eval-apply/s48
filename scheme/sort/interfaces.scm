@@ -1,6 +1,15 @@
 ;;; Interface defs for the Scheme Underground sorting package,
 ;;; in the Scheme 48 module language.
 
+;;; This code is
+;;;     Copyright (c) 1998 by Olin Shivers.
+;;; The terms are: You may do as you please with this code, as long as
+;;; you do not delete this notice or hold me responsible for any outcome
+;;; related to its use.
+;;;
+;;; Blah blah blah. Don't you think source files should contain more lines
+;;; of code than copyright notice?
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; list-delete-neighbor-dups = l -> list
 ;;; vector-delete-neighbor-dups = v [start end] -> vector

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; Returns the a list of compiled rules and a list of the names that are
 ; free in the templates.  'ellipsis?' is a predicate that matches ellipses.

@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; A frame contains information about a procedure's current stack frame.  It
 ; also has a list of the literals that will go in the procedure's template

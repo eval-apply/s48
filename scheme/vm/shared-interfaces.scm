@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; Two interfaces that are shared with the Scheme code.  We can't share the
 ; structure definitions, but this is a start.

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; Things used by the expression returned by REIFY-STRUCTURES.
 ; Cf. link/reify.scm.

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; We compile each rule into a pattern and template which are then used at
 ; expansion time.  The compiler performs error checking, replaces pattern

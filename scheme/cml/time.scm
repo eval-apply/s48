@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ;; Rendezvous that happen at a specified time
 
 (define (at-real-time-rv time)

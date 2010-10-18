@@ -1,5 +1,5 @@
 
-; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license. 
 
 ;   The information about a primitive operation.
 

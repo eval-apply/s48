@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ; This file contains the type declarations for the VM's interface to
 ; unbuffered i/o.  Unbuffered ports are called channels in the VM
 ; and FD's in the OS.  The external names are unixoid, but the interface

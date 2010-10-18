@@ -1,6 +1,6 @@
-/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
+/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
-   See file COPYING. */
+   */
 
 #include <stdio.h>
 #include <stdlib.h>		/* for getenv(), etc. (POSIX?/ANSI) */

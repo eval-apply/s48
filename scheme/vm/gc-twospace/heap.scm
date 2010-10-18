@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; Allocation
 ;  s48-*hp* is the heap pointer and s48-*limit* is the limit beyond which no

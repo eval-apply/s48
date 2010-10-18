@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ; R6RS bitwise operations
 
 ; Taken from the R6RS document.

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; The value of $NOTE-FILE-PACKAGE is called whenever a file is loaded into
 ; a package.  env/debug.scm uses this to associate packages with files so

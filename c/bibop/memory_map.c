@@ -1,5 +1,5 @@
-/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
-   See file COPYING. */
+/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
+   */
 
 /* The Boehm collector also has a link to the next entry in ascending
    order. This is used for sweeping etc.. I don't think we need
