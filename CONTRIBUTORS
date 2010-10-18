@@ -1,0 +1,29 @@
+Scheme 48 includes code by many contributors.  Their work is
+gratefully acknowledged:
+
+Panagiotis Christopoulos
+Taylor Campbell
+Henry Ceijtin
+Olivier Danvy
+Matthew Dempsky
+Manuel Dietrich
+David Frese
+Harald Glab-Plhak
+Chris Hanson
+Timo Harter
+Suresh Jagannathan
+C. R. Kirkwood-Watts
+Eric Knauel
+Andrew Lentvorski
+Emilio Lopes
+Artem Mironov
+Roderic Morris
+Bryan O'Sullivan
+Robert Ransom
+Olin Shivers
+Ivan Shmakov
+Marcel Turino
+Michael Zabka
+
+Details on who contributed what can be found in doc/news.txt, in the
+version-control archives on s48.org, and in the individual files.

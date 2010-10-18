@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 Please report bugs to scheme-48-bugs@s48.org, and include
 the version number in your message.
@@ -23,7 +23,7 @@ listed here):
     README		this file
     WINDOWS.txt		notes on the Windows port
     INSTALL		installation instructions
-    COPYING		copyright notice
+    COPYING		notices and licenses
     COPYING.rtf		copyright notice in RTF format
     configure		configuration script
     Makefile.in		input to configure

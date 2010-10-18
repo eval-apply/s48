@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 
 ; To use PSD with Scheme 48:
@@ -45,7 +45,7 @@
 ;;;; You should have received a copy of the GNU General Public License
 ;;;; along with this program; if not, write to the Free Software
 ;;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-;;;; See file COPYING in the psd distribution.
+;;;;in the psd distribution.
 ;;;;
 ;;;;  $Log: psd.scm,v $
 ;;;; Revision 1.6  1993/10/07  08:20:14  pk

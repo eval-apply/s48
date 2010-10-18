@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ;; This replaces trans-id REF in Reppy's code
 
 (define-synchronized-record-type trans-id :trans-id

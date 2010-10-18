@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ; Check that a node is well-formed
 
 (define (check-node node)

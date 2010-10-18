@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; Hilbert vectors are like vectors that grow as large as they need to.
 ; That is, they can be indexed by arbitrarily large nonnegative integers.

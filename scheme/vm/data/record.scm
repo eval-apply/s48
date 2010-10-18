@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; What the VM knows about the layout of records and record types.
 ; Needs to be synchronized with scheme/rts/record.scm

@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 (define-test-suite srfi-13-tests)
 
 (define-test-case string-contains srfi-13-tests

@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 ; A thingie (placecard?) is used to hold a spot for a location that is to be
 ; found later.  The compiler sticks them in templates and the module system

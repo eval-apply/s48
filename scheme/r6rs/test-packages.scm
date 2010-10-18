@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 (define-structure r6rs-records-procedural-test (export r6rs-records-procedural-tests)
   (open scheme test-suites

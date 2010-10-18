@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ;;; "sort.scm" defines: sorted?, merge, merge!, sort, sort!
 
 (define (sorted? seq less? . opt-key)

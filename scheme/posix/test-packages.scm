@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 (define-structure posix-core-test (export posix-core-tests)
   (open scheme test-suites matchers sort threads
 	util		; every

@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ; SRFI 14 test suite
 
 ;; adapted from Olin's test suite

@@ -1,3 +1,4 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 ;; Rendezvous combinators
 
 ;; There's considerable potential for more abstraction in the protocol

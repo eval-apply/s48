@@ -1,4 +1,4 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 (define make-record-type   #'scheme-translator::make-record-type)
 (define record-constructor #'scheme-translator::record-constructor)
