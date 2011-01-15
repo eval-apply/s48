@@ -44,11 +44,12 @@
 (define-syntax parameterize-helper
   (syntax-rules ()
     ((parameterize-helper ((?expr1 ?expr2) ?binding ...) (?args ...) ?body ...)
-     (let ((val1 ?expr1))
+     (let ((val1 ?expr1)
+	   (val2 ?expr2))
        (parameterize-helper (?binding ...)
 			    (?args ... 
 				   (val1 *return-fluid*) 
-				   (make-cell ((val1 *return-converter*) ?expr2)))
+				   (make-cell ((val1 *return-converter*) val2)))
 			    ?body ...)))
     ((parameterize-helper () (?args ...) ?body ...)
      (let-fluids ?args ... (lambda () ?body ...)))))
