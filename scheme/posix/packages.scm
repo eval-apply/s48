@@ -143,6 +143,7 @@
 	bitwise			;for manipulating protection masks
 	exceptions
 	posix-file-options
+	posix-time ; external binding for `posix-time-type'
 	channels
 	channel-i/o
 	channel-ports
