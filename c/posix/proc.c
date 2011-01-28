@@ -20,6 +20,7 @@
 #include "event.h"
 #include "posix.h"
 #include "unix.h"
+#include "sysdep.h"
 
 extern void		s48_init_posix_proc(void),
 			s48_uninit_posix_proc(void);
@@ -303,15 +304,54 @@ posix_fork(s48_call_t call)
     return make_pid(call, child_pid);
 }
 
+#ifndef HAVE_EXECVPE
+static int execvpe(const char *file, char **argv, char **env) {
+  char *path, *buf;
+  int path_len, file_len;
+
+  path = getenv("PATH");
+  if (path == NULL) path = "/bin:/usr/bin";
+  else if (*path == '\0') path = ".";
+  path_len = strlen(path);
+  file_len = strlen(file);
+  buf = malloc(path_len + file_len + 2);
+  if (buf == NULL)
+    s48_out_of_memory_error();
+
+  while (*path) {
+    int len;
+    char *colon = strchr(path, ':');
+
+    if (path == colon) {
+      path++;
+      path_len--;
+      continue;
+    }
+
+    len = (colon == NULL) ? path_len : (colon - path);
+    memcpy(buf, path, len);
+    buf[len] = '/';
+    memcpy(buf + len + 1, file, file_len);
+    buf[len + file_len + 1] = '\0';
+    execve(buf, argv, env);
+
+    if (errno == EACCES || errno == ENOENT || errno == ENOTDIR) {
+      path_len -= len;
+      path += len;
+    } else {
+      /* File accessible but failed to execute */
+      break;
+    }
+  }
+
+  free(buf);
+  return -1;
+}
+#endif /* HAVE_EXECVPE */
+
 /*
  * The environment is an array of strings of the form "name=value", where
  * `name' cannot contain `='.
- *
- * It is a nuisance that given three binary choices (arguments explicit or
- * in a vector, path lookup or not, explicit or implicit environment) Posix
- * only gives six functions.  The two calls that have an explict environment
- * both do path lookup.  We work around this by adding `./' to the beginning
- * of the program, if it does not already contain a `/'.
  */
 
 static s48_ref_t
@@ -326,25 +366,22 @@ posix_exec(s48_call_t call, s48_ref_t program, s48_ref_t lookup_p,
 
   s48_stop_alarm_interrupts();
 
-  if (s48_false_p_2(call, env))
+  if (s48_false_p_2(call, env)) {
     if (s48_false_p_2(call, lookup_p))
       status = execv(c_program, c_args);
-    else {
+    else
       status = execvp(c_program, c_args);
-    }
+  }
   else {
     char **c_env = enter_byte_vector_array(call, env);
     
-    if (NULL == strchr(c_program, '/'))
-      real_c_program = add_dot_slash(c_program);
+    if (s48_false_p_2(call, lookup_p) || strchr(c_program, '/'))
+      status = execve(c_program, c_args, c_env);
     else
-      real_c_program = c_program;
-
-    status = execve(c_program, c_args, c_env);
+      status = execvpe(c_program, c_args, c_env);
 
     free(c_env);
-    if (real_c_program != c_program)
-      free(real_c_program); }
+  }
 
   /* If we get here, then something has gone wrong. */
 
@@ -381,26 +418,6 @@ enter_byte_vector_array(s48_call_t call, s48_ref_t vectors)
   return result;
 }
   
-/*
- * Add `./' to the beginning of `name'.
- */
-
-static char *
-add_dot_slash(char *name)
-{
-  int len = strlen(name);
-  char *new_name = (char *)malloc((len + 1) * sizeof(char));
-  
-  if (new_name == NULL)
-    s48_out_of_memory_error();
-  
-  new_name[0] = '.';
-  new_name[1] = '/';
-  strcpy(new_name + 2, name);
-
-  return new_name;
-}
-
 /*
  * Signals
  */

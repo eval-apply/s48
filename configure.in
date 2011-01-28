@@ -65,7 +65,7 @@ AC_INIT(c/prescheme.h)
      AC_CHECK_HEADERS(sysexits.h)
      AC_CHECK_HEADERS(langinfo.h)
      AC_CHECK_FUNC(nl_langinfo, [], [AC_LIBOBJ([c/fake/langinfo])])
-     AC_CHECK_FUNCS(gettimeofday ftime select setitimer sigaction)
+     AC_CHECK_FUNCS(gettimeofday ftime select setitimer sigaction execvpe)
      AC_CHECK_HEADERS(poll.h)
      AC_CHECK_FUNCS(poll)
      S48_GLIB
