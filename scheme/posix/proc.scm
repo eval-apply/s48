@@ -45,7 +45,7 @@
   (external-exec-with-alias (thing->exec-arg-byte-string program)
 			    lookup?
 			    (and environment
-				 (thing->exec-arg-byte-string environment))
+				 (map thing->exec-arg-byte-string environment))
 			    (map thing->exec-arg-byte-string arguments)))
 
 ; Four versions of exec():
