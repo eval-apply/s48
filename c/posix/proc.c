@@ -268,6 +268,9 @@ posix_waitpid(s48_call_t call)
       else if (errno != EINTR)
 	s48_os_error_2(call, "posix_waitpid", errno, 0);
     }
+    else if (c_pid == 0) {      /* there are children, but no statuses available */
+      return s48_false_2(call);
+    }
     else {
       s48_ref_t sch_pid = lookup_pid(call, c_pid);
       s48_ref_t temp = s48_unspecific_2(call);
