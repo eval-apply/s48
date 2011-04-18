@@ -151,7 +151,7 @@
 	      (if placeholder
 		  (begin
 		    (placeholder-set! placeholder #t)
-		    (set-process-id-placeholder! pid #f))) ; no longer needed
+		    (set-process-id-placeholder! next #f))) ; no longer needed
 	      (if (not (eq? pid next))
 		  (loop))))))))
 
