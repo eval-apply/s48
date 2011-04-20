@@ -114,7 +114,7 @@
 ; CLEAR-STACK-TOP! is an empty C procedure.  When it returns, s48_external_call
 ; will automatically clear any free frames off of the stack.
 
-(import-lambda-definition-2 clear-stack-top! () "s48_clear_stack_top_2")
+(import-lambda-definition clear-stack-top! () "s48_clear_stack_top")
 
 ; Dealing with threads.
 ;

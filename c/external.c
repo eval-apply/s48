@@ -84,7 +84,6 @@ static s48_value external_return_value;
 
 /* Exports to Scheme */
 static s48_value	s48_clear_stack_top(void);
-static s48_ref_t	s48_clear_stack_top_2(s48_call_t call);
 static s48_ref_t	s48_system_2(s48_call_t call, s48_ref_t string);
 
 /* Imports from Scheme */
@@ -117,7 +116,6 @@ s48_initialize_external()
   current_procedure = s48_make_global_ref(_s48_value_false);
 
   S48_EXPORT_FUNCTION(s48_clear_stack_top);
-  S48_EXPORT_FUNCTION(s48_clear_stack_top_2);
   S48_EXPORT_FUNCTION(s48_system_2);
 
 #ifdef DEBUG_FFI
@@ -828,15 +826,6 @@ s48_clear_stack_top()
   fprintf(stderr, "[Clearing stack top]\n");
 #endif
   return S48_UNSPECIFIC;
-}
-
-static s48_ref_t
-s48_clear_stack_top_2(s48_call_t call)
-{
-#ifdef DEBUG_FFI
-  fprintf(stderr, "[Clearing stack top]\n");
-#endif
-  return s48_unspecific_2(call);
 }
 
 #ifdef DEBUG_FFI
