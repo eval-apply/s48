@@ -96,6 +96,7 @@ make_ref_group (void)
   struct ref_group *g = (struct ref_group *) malloc (sizeof (struct ref_group));
   if (g == NULL)
     s48_out_of_memory_error();
+  memset (g, 0, sizeof (*g));
 
   g->clumps = 0;
   g->free = 0;
@@ -588,7 +589,7 @@ free_call (s48_call_t call)
     do {
       s48_call_t temp = c;
       c = c->next_subcall;
-      free_call (temp);
+      s48_free_subcall (temp);
     } while (c != c->child);
   }
   free_bv_group (call, call->local_bvs);

@@ -204,8 +204,8 @@ S48_EXTERN void s48_raise_scheme_exception_2(s48_call_t call, long type, long na
 #define s48_check_record_2(c, v) do { if (!s48_record_p_2(c, v)) s48_assertion_violation_2(c, NULL, "must be a record", 1, v); } while (0)
 #define s48_check_value_2(c, v) do { if (!s48_byte_vector_p_2(c, v)) s48_assertion_violation_2(c, NULL, "must be an external value", 1, v); } while (0)
 #define s48_check_export_binding_2(c, v) do { if (!s48_export_binding_p_2(c, v)) s48_assertion_violation_2(c, NULL, "must be an exported value", 1, v ); } while (0)
-#define s48_check_boolean_2(c, r) \
-  do { if (!s48_false_p_2(c, r) && !s48_true_p_2(c, r))	\
+#define s48_check_boolean_2(c, v) \
+  do { if (!s48_false_p_2(c, v) && !s48_true_p_2(c, v))	\
 	 s48_assertion_violation_2(c, NULL, "must be a boolean", 1, v); } while (0)
 
 #define s48_value_p_2(c, v) (s48_byte_vector_p_2(c, v))
