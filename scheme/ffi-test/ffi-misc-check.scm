@@ -15,6 +15,25 @@
      result)
    => 15))
 
+(define-test-case ffi-call-scheme-assertion ffi-misc-tests
+  (call-with-current-continuation
+   (lambda (esc)
+     (with-exception-handler
+      (lambda (c)
+        (esc
+	 (call-with-values
+	   (lambda () (decode-condition c))
+	   (lambda (type who message more-stuff)
+	     (check type => 'assertion-violation)
+	     (check who => 'ffi)))))
+      (lambda ()
+        (ffi-call-scheme 
+	 (lambda (ignore-1 ignore-2 ignore-3)
+	   (assertion-violation 'ffi "Testing if exceptions from externally called Scheme code work.")
+	   'ignore)
+	 3 esc 2 3)
+        (check #f => 'should-never-reach-this-point))))))
+
 (define-test-case ffi-values-test ffi-misc-tests
   (check
    (let ((value (ffi-make-strange-value 10 "LolliPop")))

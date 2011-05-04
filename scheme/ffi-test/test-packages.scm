@@ -97,6 +97,12 @@
 	external-calls primitives records define-record-types)
   (files ffi-misc-check))
 
+(define-structure ffi-trampoline-test (export ffi-trampoline-tests)
+  (open scheme test-suites
+	exceptions conditions
+	external-calls threads locks)
+  (files ffi-trampoline-check))
+
 (define-structure ffi-buf-test (export ffi-buf-tests)
   (open scheme test-suites load-dynamic-externals 
 	ffi-funcs external-calls)
@@ -105,7 +111,7 @@
 (define-structure ffi-test (export ffi-tests)
   (open scheme test-suites
 	ffi-base-test ffi-list-test ffi-binding-test
-	ffi-aggregates-test ffi-misc-test ffi-buf-test)
+	ffi-aggregates-test ffi-misc-test ffi-trampoline-test ffi-buf-test)
   (begin
     (define-test-suite ffi-tests
       (ffi-base-tests 
@@ -113,4 +119,5 @@
        ffi-binding-tests 
        ffi-aggregates-tests 
        ffi-misc-tests 
+       ffi-trampoline-tests
        ffi-buf-tests))))
