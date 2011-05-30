@@ -258,6 +258,7 @@
 			(vector-set! mapper number (cons signal old)))))
 		named)
       (session-data-set! os-signal-map mapper)
+      (maybe-request-os-signal! (signal chld))
       (set-enabled-interrupts! ints))))
 
 ; Add SIGNAL to the list of those waiting for that signal number from the OS.
@@ -314,7 +315,9 @@
 		   (vector-set! mapper os-number okay))
 		  (else
 		   (loop (cdr signals)
-			 (if (deliver-signal (car signals))
+			 (if (or (deliver-signal (car signals))
+                                 ;; Never cancel interrupts for SIGCHLD.
+                                 (signal=? (car signals) (signal chld)))
 			     (cons (car signals) okay)
 			     okay)))))))))
 
