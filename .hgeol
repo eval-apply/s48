@@ -1,0 +1,5 @@
+[patterns]
+**.scm = native
+**.c = native
+**.h = native
+**.txt = native
