@@ -589,8 +589,8 @@ free_call (s48_call_t call)
     do {
       s48_call_t temp = c;
       c = c->next_subcall;
-      s48_free_subcall (temp);
-    } while (c != c->child);
+      free_call (temp);
+    } while (c != call->child);
   }
   free_bv_group (call, call->local_bvs);
   free_ref_group (call->local_refs);
