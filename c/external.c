@@ -552,11 +552,15 @@ s48_external_ecall(s48_call_t call,
 	s48_free_local_ref(call, cexternal_return_value);
 
       result = S48_UNSPECIFIC;
-    }
-    else {
+    } else {
+      if (cexternal_return_value) {
       s48_setup_external_exception(S48_EXCEPTION_CALLBACK_RETURN_UNCOVERED, 2);
       s48_push_2(call, current_stack_block);
       s48_push_2(call, cexternal_return_value);
+      } else {
+	s48_setup_external_exception(S48_EXCEPTION_CALLBACK_RETURN_UNCOVERED, 1);
+	s48_push_2(call, current_stack_block);
+      }
       result = S48_UNSPECIFIC;
     }
   } else {
