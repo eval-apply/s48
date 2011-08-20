@@ -259,7 +259,8 @@
 		named)
       (session-data-set! os-signal-map mapper)
       (maybe-request-os-signal! (signal chld))
-      (set-enabled-interrupts! ints))))
+      (set-enabled-interrupts! ints)))  
+  (set-interrupt-handler! (enum interrupt os-signal) os-signal-handler))
 
 ; Add SIGNAL to the list of those waiting for that signal number from the OS.
 ; If this is the first such we tell the OS we want the signal.
@@ -320,8 +321,6 @@
                                  (signal=? (car signals) (signal chld)))
 			     (cons (car signals) okay)
 			     okay)))))))))
-
-(set-interrupt-handler! (enum interrupt os-signal) os-signal-handler)
 
 ; Send SIGNAL to each of its queues.
 
