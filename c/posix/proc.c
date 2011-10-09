@@ -29,6 +29,9 @@ static s48_ref_t	posix_fork(s48_call_t call),
 				   s48_ref_t env, s48_ref_t args),
   			posix_enter_pid(s48_call_t call, s48_ref_t pid),
   			posix_waitpid(s48_call_t call),
+      posix_create_wait_uid(s48_call_t call),
+      posix_note_wait_uid(s48_call_t call, s48_ref_t wait_uid),
+      posix_unregister_wait_uid(s48_call_t call, s48_ref_t wait_uid),
 			posix_integer_to_signal(s48_call_t call, s48_ref_t sig_int),
 			posix_initialize_named_signals(s48_call_t call),
 			posix_request_interrupts(s48_call_t call, s48_ref_t int_number),  
@@ -90,6 +93,9 @@ s48_init_posix_proc(void)
   S48_EXPORT_FUNCTION(posix_exec);
   S48_EXPORT_FUNCTION(posix_enter_pid);
   S48_EXPORT_FUNCTION(posix_waitpid);
+  S48_EXPORT_FUNCTION(posix_create_wait_uid);
+  S48_EXPORT_FUNCTION(posix_note_wait_uid);
+  S48_EXPORT_FUNCTION(posix_unregister_wait_uid);
   S48_EXPORT_FUNCTION(posix_integer_to_signal);
   S48_EXPORT_FUNCTION(posix_initialize_named_signals);
   S48_EXPORT_FUNCTION(posix_request_interrupts);
@@ -287,6 +293,24 @@ posix_waitpid(s48_call_t call)
       }
     }
   }
+}
+
+static s48_ref_t
+posix_create_wait_uid(s48_call_t call) {
+  long wait_uid = s48_external_event_uid();
+  return s48_enter_long_2(call, wait_uid);
+}
+
+static s48_ref_t
+posix_note_wait_uid(s48_call_t call, s48_ref_t wait_uid) {
+  s48_note_external_event(s48_extract_long_2(call, wait_uid));
+  return s48_unspecific_2(call);
+}
+
+static s48_ref_t
+posix_unregister_wait_uid(s48_call_t call, s48_ref_t wait_uid) {
+  s48_unregister_external_event_uid(s48_extract_long_2(call, wait_uid));
+  return s48_unspecific_2(call);
 }
 
 /*
