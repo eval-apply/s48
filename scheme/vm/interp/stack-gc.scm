@@ -85,7 +85,12 @@
 (define current-continuation-size current-stack-size)
 
 (define (copy-current-continuation-to-heap key)
-  (preserve-continuation key))
+  (let ((arg-count (operands-on-stack))
+        (top *stack*))
+    (let ((cont (preserve-continuation key)))
+      (set! *stack* *cont*)
+      (move-stack-arguments! top arg-count)
+      cont)))
 
 (define (preserve-continuation key)
   (if (false? (address->integer *cont*))
