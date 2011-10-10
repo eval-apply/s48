@@ -90,7 +90,10 @@
   ; The rest are initially #F and are set as events warrant.
   (exit-status process-id-exit-status)
   (terminating-signal process-id-terminating-signal)
-  (placeholder process-id-placeholder set-process-id-placeholder!))
+  ;; When a thread waits on this process id, it'll add its uid to this queue, and keep a
+  ;; reference. When the event comes in, the event handler will note all the uids in the queue. When
+  ;; each waiting thread wakes up, it'll unregister its uid.
+  (wait-queue process-id-wait-queue set-process-id-wait-queue!))
 
 (define-record-discloser :process-id
   (lambda (process-id)
@@ -116,7 +119,7 @@
 
 ; Wait for a child process.  If the child isn't already known to have terminated
 ; we process any waiting, terminated children and try again.  If it still hasn't
-; finished we created a placeholder for it and block.
+; finished we created an external event uid for it and block.
 
 (define (wait-for-child-process pid)
   (if (not (process-id? pid))
@@ -124,17 +127,23 @@
   (or (process-id-exit-status pid)
       (process-id-terminating-signal pid)
       (begin
-	(process-terminated-children pid)
-	(disable-interrupts!)
-	(or (process-id-exit-status pid)
-	    (process-id-terminating-signal pid)
-	    (let ((placeholder (or (process-id-placeholder pid)
-				   (let ((p (make-placeholder)))
-				     (set-process-id-placeholder! pid p)
-				     p))))
-	      (placeholder-value placeholder)))
-	(enable-interrupts!)))
+        (process-terminated-children pid)
+        (disable-interrupts!)
+        (or (process-id-exit-status pid)
+            (process-id-terminating-signal pid)
+            (really-wait-for-child-process pid))
+        (enable-interrupts!)))
   (values))
+
+(define (really-wait-for-child-process pid)
+  (let ((wait-queue (or (process-id-wait-queue pid)
+                        (let ((new-queue (make-queue)))
+                          (set-process-id-wait-queue! pid new-queue)
+                          new-queue)))
+        (wait-uid (posix-create-wait-uid)))
+    (enqueue! wait-queue wait-uid)
+    (wait-for-external-event wait-uid)
+    (posix-unregister-wait-uid wait-uid)))
 
 ; Waiting for children.  We go through the terminated child processes until we
 ; find the one we are looking for or we run out.  This needs to be called by
@@ -142,22 +151,25 @@
 
 (define (process-terminated-children . maybe-pid)
   (let ((pid (if (null? maybe-pid)
-		 #f
-		 (car maybe-pid))))
+                 #f
+                 (car maybe-pid))))
     (let loop ()
       (let ((next (posix-waitpid)))
-	(if next
-	    (let ((placeholder (process-id-placeholder next)))
-	      (if placeholder
-		  (begin
-		    (placeholder-set! placeholder #t)
-		    (set-process-id-placeholder! next #f))) ; no longer needed
-	      (if (not (eq? pid next))
-		  (loop))))))))
+        (if next
+            (let ((wait-queue (process-id-wait-queue next)))
+              (if wait-queue
+                  (begin
+                    (for-each (lambda (x) (posix-note-wait-uid x))
+                              (queue->list wait-queue))
+                    (set-process-id-wait-queue! next #f)))
+              (if (not (eq? pid next))
+                  (loop))))))))
 
 (import-lambda-definition-2 posix-waitpid ())
+(import-lambda-definition-2 posix-create-wait-uid ())
+(import-lambda-definition-2 posix-note-wait-uid (wait-uid))
+(import-lambda-definition-2 posix-unregister-wait-uid (wait-uid))
 
 (define (exit status)
   (force-channel-output-ports!)
   (scheme-exit-now status))
-

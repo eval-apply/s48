@@ -245,6 +245,8 @@
 
 (define-structure posix-processes posix-processes-interface
   (open scheme
+  (subset external-events (wait-for-external-event))
+  (subset queues (make-queue enqueue! queue->list))
 	define-record-types finite-types
 	reinitializers
 	external-calls load-dynamic-externals
