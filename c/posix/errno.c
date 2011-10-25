@@ -12,15 +12,22 @@
 #include <stdlib.h>
 #include "scheme48.h"
 
+/*
+ * Mapping from our `canonical' errno numbers to the local OS's
+ * numbers. To avoid having to manually keep the values here in sync
+ * with the NAMED-ERRNOS finite record type, we generate the values
+ * using a Scheme program.
+ */
+static int errno_map[] = {
+#include "s48_errno.h"
+};
+
 extern void s48_init_posix_errno(void);
-extern void s48_uninit_posix_errno(void);
 static s48_ref_t posix_integer_to_errno(s48_call_t call, s48_ref_t sig_int);
 static s48_ref_t posix_initialize_named_errnos(s48_call_t call);
 
 static s48_ref_t enter_errno(s48_call_t call, int c_errno);
 static int extract_errno(s48_call_t call, s48_ref_t sch_errno);
-static void errno_map_init(void);
-static void errno_map_uninit(void);
 
 static s48_ref_t unnamed_errnos;
 
@@ -64,52 +71,6 @@ s48_init_posix_errno(void)
     s48_get_imported_binding_2("posix-unnamed-errno-marker");
 
   unnamed_errnos = s48_make_global_ref(_s48_value_null);
-
-  errno_map_init();
-}
-
-void
-s48_uninit_posix_errno(void)
-{
-  errno_map_uninit();
-}
-
-/*
- * This is an array that maps our `canonical' errno numbers to the local
- * OS's numbers.  The initialization is done via an include file written
- * by a Scheme program.  The include file first calls errno_count_is()
- * with the number of named errnos and then adds the named errnos supported
- * by the current os to `errno_map'.
- */
-
-static int	*errno_map, errno_map_size;
-
-static void
-errno_count_is(int count)
-{  
-  int i;
-
-  errno_map_size = count;
-  errno_map = (int *) malloc(count * sizeof(int));
-
-  if (errno_map == NULL) {
-    fprintf(stderr, "ran out of memory during initialization\n");
-    exit(1); }
-
-  for (i = 0; i < count; i++)
-    errno_map[i] = -1;
-}
-
-static void
-errno_map_init()
-{
-#include "s48_errno.h"
-}
-
-static void
-errno_map_uninit(void)
-{
-  free(errno_map);
 }
 
 /*
@@ -121,7 +82,7 @@ static int
 lookup_errno(int c_errno) {
   int i = 0;
 
-  for (i = 0; i < errno_map_size; i++)
+  for (i = 0; i < (sizeof errno_map/sizeof(int)); i++)
     if (errno_map[i] == c_errno)
       return i;
 
@@ -249,7 +210,7 @@ extract_errno(s48_call_t call, s48_ref_t sch_errno)
 
   if (s48_eq_p_2(call, type, s48_unsafe_shared_binding_ref_2(call, posix_named_errno_type_binding))) {
     int canonical = s48_extract_long_2(call, s48_unsafe_record_ref_2(call, sch_errno, 1));
-    if ((0 <= canonical) && (canonical < errno_map_size)
+    if ((0 <= canonical) && (canonical < (sizeof errno_map/sizeof(int)))
 	&& errno_map[canonical] != -1)
       return errno_map[canonical];
     else
