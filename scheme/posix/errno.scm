@@ -126,44 +126,24 @@
 	      (else
 	       (loop (+ i 1)))))))
 
-;----------------
-; Code to produce a C include file that checks whether each errno is defined.
-; The output file looks like:
-;
-; errno_count_is(<number of errnos>);
-; #ifdef E2BIG
-; errno_map[0] = E2BIG;
-; #endif
-; #ifdef EACCESS
-; errno_map[1] = EACCESS;
-; #endif
-; ...
-
+; Write the contents of the C array mapping canonical error numbers
+; to os error numbers.
 (define (write-c-errno-include-file filename)
   (call-with-output-file filename
     (lambda (out)
-      (display (string-append "errno_count_is("
-			      (number->string (vector-length named-errnos))
-			      ");"
-			      newline-string)
-	       out)
       (do ((i 0 (+ i 1)))
 	  ((= i (vector-length named-errnos)))
 	(let* ((name (named-errno-name
 		      (vector-ref named-errnos i)))
 	       (posix-name (if (eq? name 'toobig)
-			       "2BIG" ; argl
+			       "2BIG"
 			       (symbol->string name))))
-	  (display (string-append "#ifdef E" (string-upcase posix-name)
-				  newline-string
-				  "errno_map["
-				  (number->string i)
-				  "] = E"
-				  (string-upcase posix-name)
-				  ";"
-				  newline-string
-				  "#endif"
-				  newline-string)
+	  (display (string-append
+		    "#ifdef E" (string-upcase posix-name) newline-string
+		    "  E" (string-upcase posix-name) "," newline-string
+		    "#else" newline-string
+		    "  -1," newline-string
+		    "#endif" newline-string)
 		   out))))))
 
 (define newline-string (list->string '(#\newline)))
