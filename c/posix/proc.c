@@ -22,6 +22,16 @@
 #include "unix.h"
 #include "sysdep.h"
 
+/*
+ * Mapping from our `canonical' signal numbers to the local OS's
+ * numbers. To avoid having to manually keep the values here in sync
+ * with the NAMED-SIGNALS finite record type, we generate the values
+ * using a Scheme program.
+ */
+static int signal_map[] = {
+#include "s48_signals.h"
+};
+
 extern void		s48_init_posix_proc(void),
 			s48_uninit_posix_proc(void);
 static s48_ref_t	posix_fork(s48_call_t call),
@@ -40,8 +50,6 @@ static s48_ref_t	posix_fork(s48_call_t call),
 
 static s48_ref_t	enter_signal(s48_call_t call, int signal);
 static int		extract_signal(s48_call_t call, s48_ref_t sch_signal);
-static void		signal_map_init(void);
-static void		signal_map_uninit(void);
 static void		cancel_interrupt_requests(void);
 
 static char		**enter_byte_vector_array(s48_call_t call, s48_ref_t strings),
@@ -119,8 +127,6 @@ s48_init_posix_proc(void)
 
   child_pids = s48_make_global_ref(_s48_value_null);
   unnamed_signals = s48_make_global_ref(_s48_value_null);
-
-  signal_map_init();
 }
 
 void
@@ -128,7 +134,6 @@ s48_uninit_posix_proc(void)
 {
   /* this will lose our signal handlers without reinstalling them; too bad */
   cancel_interrupt_requests();
-  signal_map_uninit();
 }
 
 /*
@@ -468,44 +473,6 @@ posix_kill(s48_call_t call, s48_ref_t sch_pid, s48_ref_t sch_signal)
 }
 
 /*
- * This is an array that maps our `canonical' signal numbers to the local
- * OS's numbers.  The initialization is done via an include file written
- * by a Scheme program.  The include file first calls signal_count_is()
- * with the number of named signals and then adds the named signals supported
- * by the current os to `signal_map'.
- */
-
-static int	*signal_map, signal_map_size;
-
-static void
-signal_count_is(int count)
-{  
-  int i;
-
-  signal_map_size = count;
-  signal_map = (int *) malloc(count * sizeof(int));
-
-  if (signal_map == NULL) {
-    fprintf(stderr, "ran out of memory during initialization\n");
-    exit(1); }
-
-  for (i = 0; i < count; i++)
-    signal_map[i] = -1;
-}
-    
-static void
-signal_map_init()
-{
-#include "s48_signals.h"
-}
-
-static void
-signal_map_uninit(void)
-{
-  free(signal_map);
-}
-
-/*
  * Converts from an OS signal to a canonical signal number.
  * We return -1 if there is no matching named signal.
  */
@@ -514,7 +481,7 @@ static int
 lookup_signal(int c_signal) {
   int i = 0;
 
-  for (i = 0; i < signal_map_size; i++)
+  for (i = 0; i < (sizeof signal_map/sizeof(int)); i++)
     if (signal_map[i] == c_signal)
       return i;
 
@@ -643,7 +610,7 @@ extract_signal(s48_call_t call, s48_ref_t sch_signal)
 
   if (s48_eq_p_2(call, type, s48_unsafe_shared_binding_ref_2(call, posix_named_signal_type_binding))) {
     int canonical = s48_extract_long_2(call, s48_unsafe_record_ref_2(call, sch_signal, 1));
-    if ((0 <= canonical) && (canonical < signal_map_size)
+    if ((0 <= canonical) && (canonical < (sizeof signal_map/sizeof(int)))
 	&& signal_map[canonical] != -1)
       return signal_map[canonical];
     else

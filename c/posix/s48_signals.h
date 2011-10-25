@@ -1,115 +1,190 @@
-signal_count_is(38);
 #ifdef SIGABRT
-signal_map[0] = SIGABRT;
+  SIGABRT,
+#else
+  -1,
 #endif
 #ifdef SIGALRM
-signal_map[1] = SIGALRM;
+  SIGALRM,
+#else
+  -1,
 #endif
 #ifdef SIGFPE
-signal_map[2] = SIGFPE;
+  SIGFPE,
+#else
+  -1,
 #endif
 #ifdef SIGHUP
-signal_map[3] = SIGHUP;
+  SIGHUP,
+#else
+  -1,
 #endif
 #ifdef SIGILL
-signal_map[4] = SIGILL;
+  SIGILL,
+#else
+  -1,
 #endif
 #ifdef SIGINT
-signal_map[5] = SIGINT;
+  SIGINT,
+#else
+  -1,
 #endif
 #ifdef SIGKILL
-signal_map[6] = SIGKILL;
+  SIGKILL,
+#else
+  -1,
 #endif
 #ifdef SIGPIPE
-signal_map[7] = SIGPIPE;
+  SIGPIPE,
+#else
+  -1,
 #endif
 #ifdef SIGQUIT
-signal_map[8] = SIGQUIT;
+  SIGQUIT,
+#else
+  -1,
 #endif
 #ifdef SIGSEGV
-signal_map[9] = SIGSEGV;
+  SIGSEGV,
+#else
+  -1,
 #endif
 #ifdef SIGTERM
-signal_map[10] = SIGTERM;
+  SIGTERM,
+#else
+  -1,
 #endif
 #ifdef SIGUSR1
-signal_map[11] = SIGUSR1;
+  SIGUSR1,
+#else
+  -1,
 #endif
 #ifdef SIGUSR2
-signal_map[12] = SIGUSR2;
+  SIGUSR2,
+#else
+  -1,
 #endif
 #ifdef SIGCHLD
-signal_map[13] = SIGCHLD;
+  SIGCHLD,
+#else
+  -1,
 #endif
 #ifdef SIGCONT
-signal_map[14] = SIGCONT;
+  SIGCONT,
+#else
+  -1,
 #endif
 #ifdef SIGSTOP
-signal_map[15] = SIGSTOP;
+  SIGSTOP,
+#else
+  -1,
 #endif
 #ifdef SIGTSTP
-signal_map[16] = SIGTSTP;
+  SIGTSTP,
+#else
+  -1,
 #endif
 #ifdef SIGTTIN
-signal_map[17] = SIGTTIN;
+  SIGTTIN,
+#else
+  -1,
 #endif
 #ifdef SIGTTOU
-signal_map[18] = SIGTTOU;
+  SIGTTOU,
+#else
+  -1,
 #endif
 #ifdef SIGBUS
-signal_map[19] = SIGBUS;
+  SIGBUS,
+#else
+  -1,
 #endif
 #ifdef SIGTRAP
-signal_map[20] = SIGTRAP;
+  SIGTRAP,
+#else
+  -1,
 #endif
 #ifdef SIGIOT
-signal_map[21] = SIGIOT;
+  SIGIOT,
+#else
+  -1,
 #endif
 #ifdef SIGEMT
-signal_map[22] = SIGEMT;
+  SIGEMT,
+#else
+  -1,
 #endif
 #ifdef SIGSYS
-signal_map[23] = SIGSYS;
+  SIGSYS,
+#else
+  -1,
 #endif
 #ifdef SIGSTKFLT
-signal_map[24] = SIGSTKFLT;
+  SIGSTKFLT,
+#else
+  -1,
 #endif
 #ifdef SIGURG
-signal_map[25] = SIGURG;
+  SIGURG,
+#else
+  -1,
 #endif
 #ifdef SIGIO
-signal_map[26] = SIGIO;
+  SIGIO,
+#else
+  -1,
 #endif
 #ifdef SIGPOLL
-signal_map[27] = SIGPOLL;
+  SIGPOLL,
+#else
+  -1,
 #endif
 #ifdef SIGCLD
-signal_map[28] = SIGCLD;
+  SIGCLD,
+#else
+  -1,
 #endif
 #ifdef SIGXCPU
-signal_map[29] = SIGXCPU;
+  SIGXCPU,
+#else
+  -1,
 #endif
 #ifdef SIGXFSZ
-signal_map[30] = SIGXFSZ;
+  SIGXFSZ,
+#else
+  -1,
 #endif
-#ifdef SIGTALRM
-signal_map[31] = SIGTALRM;
+#ifdef SIGVTALRM
+  SIGVTALRM,
+#else
+  -1,
 #endif
 #ifdef SIGPROF
-signal_map[32] = SIGPROF;
+  SIGPROF,
+#else
+  -1,
 #endif
 #ifdef SIGPWR
-signal_map[33] = SIGPWR;
+  SIGPWR,
+#else
+  -1,
 #endif
 #ifdef SIGINFO
-signal_map[34] = SIGINFO;
+  SIGINFO,
+#else
+  -1,
 #endif
 #ifdef SIGLOST
-signal_map[35] = SIGLOST;
+  SIGLOST,
+#else
+  -1,
 #endif
 #ifdef SIGWINCH
-signal_map[36] = SIGWINCH;
+  SIGWINCH,
+#else
+  -1,
 #endif
 #ifdef SIGUNUSED
-signal_map[37] = SIGUNUSED;
+  SIGUNUSED,
+#else
+  -1,
 #endif

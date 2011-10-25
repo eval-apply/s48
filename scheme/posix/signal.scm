@@ -110,42 +110,22 @@
 	      (else
 	       (loop (+ i 1)))))))
 
-;----------------
-; Code to produce a C include file that checks whether each signal is defined.
-; The output file looks like:
-;
-; signal_count_is(<number of signals>);
-; #ifdef SIGABRT
-; signal_map[0] = SIGABRT;
-; #endif
-; #ifdef SIGALRM
-; signal_map[1] = SIGALRM;
-; #endif
-; ...
-
+; Write the contents of the C array mapping canonical signal numbers
+; to os signal numbers.
 (define (write-c-signal-include-file filename)
   (call-with-output-file filename
     (lambda (out)
-      (display (string-append "signal_count_is("
-			      (number->string (vector-length named-signals))
-			      ");"
-			      newline-string)
-	       out)
       (do ((i 0 (+ i 1)))
 	  ((= i (vector-length named-signals)))
 	(let ((name (symbol->string
 		     (named-signal-name
 		      (vector-ref named-signals i)))))
-	  (display (string-append "#ifdef SIG" (string-upcase name)
-				  newline-string
-				  "signal_map["
-				  (number->string i)
-				  "] = SIG"
-				  (string-upcase name)
-				  ";"
-				  newline-string
-				  "#endif"
-				  newline-string)
+	  (display (string-append
+		    "#ifdef SIG" (string-upcase name) newline-string
+		    "  SIG" (string-upcase name) "," newline-string
+		    "#else" newline-string
+		    "  -1," newline-string
+		    "#endif" newline-string)
 		   out))))))
 
 (define newline-string (list->string '(#\newline)))
