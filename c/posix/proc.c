@@ -37,46 +37,18 @@ extern void		s48_init_posix_proc(void),
 static s48_ref_t	posix_fork(s48_call_t call),
 			posix_exec(s48_call_t call, s48_ref_t program, s48_ref_t lookup_p,
 				   s48_ref_t env, s48_ref_t args),
-  			posix_enter_pid(s48_call_t call, s48_ref_t pid),
   			posix_waitpid(s48_call_t call),
       posix_create_wait_uid(s48_call_t call),
       posix_note_wait_uid(s48_call_t call, s48_ref_t wait_uid),
       posix_unregister_wait_uid(s48_call_t call, s48_ref_t wait_uid),
-			posix_integer_to_signal(s48_call_t call, s48_ref_t sig_int),
 			posix_initialize_named_signals(s48_call_t call),
 			posix_request_interrupts(s48_call_t call, s48_ref_t int_number),  
 			posix_cancel_interrupt_request(s48_call_t call, s48_ref_t sch_signal),
   			posix_kill(s48_call_t call, s48_ref_t sch_pid, s48_ref_t sch_signal);
 
-static s48_ref_t	enter_signal(s48_call_t call, int signal);
-static int		extract_signal(s48_call_t call, s48_ref_t sch_signal);
 static void		cancel_interrupt_requests(void);
 
-static char		**enter_byte_vector_array(s48_call_t call, s48_ref_t strings),
-			*add_dot_slash(char *name);
-
-/*
- * Two lists, one with all the child process ids and the other with all the
- * unnamed signals.  Each CAR is a weak pointer to the actual object.
- *
- * We also have a handy procedure for lookup up values in the lists.
- *
- * These are in C instead of Scheme to prevent them from being written out in
- * images.
- */
-
-static s48_ref_t child_pids;
-static s48_ref_t unnamed_signals;
-
-s48_ref_t s48_lookup_record(s48_call_t call, s48_ref_t *list_loc, int offset, s48_ref_t key);
-
-/*
- * Record types imported from Scheme.
- */
-
-static s48_ref_t 	posix_process_id_type_binding;
-static s48_ref_t	posix_named_signal_type_binding;
-static s48_ref_t	posix_unnamed_signal_type_binding;
+static char		**enter_byte_vector_array(s48_call_t call, s48_ref_t strings);
 
 /*
  * Vector of Scheme signal objects imported from Scheme, and a marker that
@@ -84,7 +56,6 @@ static s48_ref_t	posix_unnamed_signal_type_binding;
  */
 
 static s48_ref_t	posix_signals_vector_binding;
-static s48_ref_t	posix_unnamed_signal_marker_binding;
 
 /*
  * Queue of received interrupts that need to be passed on to Scheme.
@@ -99,34 +70,17 @@ s48_init_posix_proc(void)
 {
   S48_EXPORT_FUNCTION(posix_fork);
   S48_EXPORT_FUNCTION(posix_exec);
-  S48_EXPORT_FUNCTION(posix_enter_pid);
   S48_EXPORT_FUNCTION(posix_waitpid);
   S48_EXPORT_FUNCTION(posix_create_wait_uid);
   S48_EXPORT_FUNCTION(posix_note_wait_uid);
   S48_EXPORT_FUNCTION(posix_unregister_wait_uid);
-  S48_EXPORT_FUNCTION(posix_integer_to_signal);
   S48_EXPORT_FUNCTION(posix_initialize_named_signals);
   S48_EXPORT_FUNCTION(posix_request_interrupts);
   S48_EXPORT_FUNCTION(posix_cancel_interrupt_request);
   S48_EXPORT_FUNCTION(posix_kill);
 
-  posix_process_id_type_binding =
-    s48_get_imported_binding_2("posix-process-id-type");
-
-  posix_named_signal_type_binding =
-    s48_get_imported_binding_2("posix-named-signal-type");
-
-  posix_unnamed_signal_type_binding =
-    s48_get_imported_binding_2("posix-unnamed-signal-type");
-
   posix_signals_vector_binding =
     s48_get_imported_binding_2("posix-signals-vector");
-
-  posix_unnamed_signal_marker_binding =
-    s48_get_imported_binding_2("posix-unnamed-signal-marker");
-
-  child_pids = s48_make_global_ref(_s48_value_null);
-  unnamed_signals = s48_make_global_ref(_s48_value_null);
 }
 
 void
@@ -137,167 +91,38 @@ s48_uninit_posix_proc(void)
 }
 
 /*
- * Box a process id in a Scheme record.
- */
-
-static s48_ref_t
-make_pid(s48_call_t call, pid_t c_pid)
-{
-  s48_ref_t weak, temp;
-  s48_ref_t sch_pid = s48_make_record_2(call, posix_process_id_type_binding);
-
-  s48_unsafe_record_set_2(call, sch_pid, 0, s48_enter_long_2(call, c_pid));
-  s48_unsafe_record_set_2(call, sch_pid, 1, s48_false_2(call));	/* return status */
-  s48_unsafe_record_set_2(call, sch_pid, 2, s48_false_2(call));	/* terminating signal */
-  s48_unsafe_record_set_2(call, sch_pid, 3, s48_false_2(call));	/* placeholder for waiting threads */
-
-  weak = s48_make_weak_pointer_2(call, sch_pid);
-
-  temp = child_pids;
-
-  child_pids = s48_local_to_global_ref(s48_cons_2(call, weak, child_pids));
-
-  s48_free_global_ref(temp);
-
-  return sch_pid;
-}
-
-/*
- * Lookup a pid in the list of same.  We clear out any dropped weak pointers
- * on the way.
- */
-
-static s48_ref_t
-lookup_pid(s48_call_t call, pid_t c_pid)
-{
-  return s48_lookup_record(call, &child_pids, 0, s48_enter_long_2(call, c_pid));
-}
-
-/*
- * Lookup a record on a list of weak pointers to same.  We get a value and
- * the record offset at which to look for the value.  Any dropped pointers
- * are cleared out along the way.  If any have been seen we walk the entire
- * list to clear them all out.
- *
- * This is too much C code!  It should all be done in Scheme.
- */
-
-s48_ref_t
-s48_lookup_record(s48_call_t call, s48_ref_t *the_list_loc, int offset, s48_ref_t key)
-{
-  int		cleanup_p = 0;
-  s48_ref_t	the_list = *the_list_loc;
-
-  /* Clear out initial dropped weaks */
-  while (!s48_null_p_2(call, the_list) &&
-	 s48_false_p_2(call,
-		       s48_unsafe_weak_pointer_ref_2(call, s48_unsafe_car_2(call, the_list))))
-    the_list = s48_unsafe_cdr_2(call, the_list);
-
-  if (the_list != *the_list_loc) {
-    s48_free_global_ref(*the_list_loc);
-    the_list = s48_local_to_global_ref(the_list);
-    *the_list_loc = the_list;
-    cleanup_p = 1; }
-
-  if (s48_null_p_2(call, the_list))
-    return s48_false_2(call);			/* Nothing */
-
-  {
-    s48_ref_t first = s48_unsafe_weak_pointer_ref_2(call, s48_unsafe_car_2(call, the_list));
-
-    if (s48_eq_p_2(call, key, s48_unsafe_record_ref_2(call, first, offset)))
-      /* Found it first thing.  We skip the cleanup, but so what. */
-      return first;
-
-    {
-      /* Loop down. */
-      s48_ref_t	found = s48_false_2(call);
-      s48_ref_t prev = the_list;
-      s48_ref_t next = s48_unsafe_cdr_2(call, prev);
-      for(; !s48_null_p_2(call, next) && s48_false_p_2(call, found);
-	  next = s48_unsafe_cdr_2(call, prev)) {
-	s48_ref_t first = s48_unsafe_weak_pointer_ref_2(call, s48_unsafe_car_2(call, next));
-	if (s48_false_p_2(call, first)) {
-	  s48_unsafe_set_cdr_2(call, prev, s48_unsafe_cdr_2(call, next));
-	  cleanup_p = 1; }
-	else if (s48_eq_p_2(call, key, s48_unsafe_record_ref_2(call, first, offset)))
-	  found = first;
-	else
-	  prev = next; }
-    
-      /* If we found any empty weaks we check the entire list for them. */
-    
-      if (cleanup_p) {
-	
-	for(; !s48_null_p_2(call, next); next = s48_unsafe_cdr_2(call, next)) {
-	  s48_ref_t first = s48_unsafe_weak_pointer_ref_2(call, s48_unsafe_car_2(call, next));
-	  if (s48_false_p_2(call, first))
-	    s48_unsafe_set_cdr_2(call, prev, s48_unsafe_cdr_2(call, next)); } }
-      
-      return found; } }
-}
-
-/*
- * If we already have this process, return it, else make a new one.
- */
-
-s48_ref_t
-s48_enter_pid(s48_call_t call, pid_t c_pid)
-{
-  s48_ref_t sch_pid = lookup_pid(call, c_pid);
-  return s48_false_p_2(call, sch_pid) ? make_pid(call, c_pid) : sch_pid;
-}
-
-/*
- * Version of above for calling from Scheme.
- */
-
-static s48_ref_t
-posix_enter_pid(s48_call_t call, s48_ref_t sch_pid)
-{
-  return s48_enter_pid(call, s48_extract_long_2(call, sch_pid));
-}
-
-/*
  * Waiting for children.  We get finished pid's until we reach one for which
  * there is a Scheme pid record.  The exit status or terminating signal is
  * saved in the record which is then returned.
  *
  * This does not looked for stopped children, only terminated ones.
  */
-
 static s48_ref_t
 posix_waitpid(s48_call_t call)
 {
-  while(1==1) {
-    int stat;
-    pid_t c_pid = waitpid(-1, &stat, WNOHANG);
-    if (c_pid == -1) {
-      if (errno == ECHILD)		/* no one left to wait for */
-	return s48_false_2(call);
-      else if (errno != EINTR)
-	s48_os_error_2(call, "posix_waitpid", errno, 0);
-    }
-    else if (c_pid == 0) {      /* there are children, but no statuses available */
-      return s48_false_2(call);
-    }
-    else {
-      s48_ref_t sch_pid = lookup_pid(call, c_pid);
-      s48_ref_t temp = s48_unspecific_2(call);
+  int status;
+  pid_t pid;
+  s48_ref_t result;
 
-      if (!s48_false_p_2(call, sch_pid)) {
-	if (WIFEXITED(stat))
-	  s48_unsafe_record_set_2(call, sch_pid, 1, s48_enter_long_2(call, WEXITSTATUS(stat)));
-	else {
-	  temp = enter_signal(call, WTERMSIG(stat));
-	  s48_unsafe_record_set_2(call, sch_pid, 2, temp);
-	}
-
-	return sch_pid;
-      }
-    }
+ retry:
+  pid = waitpid(-1, &status, WNOHANG);
+  if (pid < 0) {
+    if (errno == EINTR) goto retry;
+    else if (errno == ECHILD) return s48_false_2(call);
+    else s48_os_error_2(call, "posix_waitpid", errno, 0);
+  } else if (pid == 0) {
+    return s48_false_2(call); /* no statuses available now */
   }
+
+  result = s48_make_vector_2(call, 3, s48_false_2(call));
+  s48_unsafe_vector_set_2(call, result, 0, s48_enter_long_2(call, pid));
+  if (WIFEXITED(status))
+    s48_unsafe_vector_set_2(call, result, 1,
+			    s48_enter_long_2(call, WEXITSTATUS(status)));
+  else
+    s48_unsafe_vector_set_2(call, result, 2,
+			    s48_enter_long_2(call, WTERMSIG(status)));
+  return result;
 }
 
 static s48_ref_t
@@ -325,15 +150,10 @@ posix_unregister_wait_uid(s48_call_t call, s48_ref_t wait_uid) {
 static s48_ref_t
 posix_fork(s48_call_t call)
 {
-  pid_t child_pid = fork();
-
-  if (child_pid < 0)
+  pid_t pid = fork();
+  if (pid < 0)
     s48_os_error_2(call, "posix_fork", errno, 0);
-
-  if (child_pid == 0)
-    return s48_false_2(call);
-  else
-    return make_pid(call, child_pid);
+  return s48_enter_long_2(call, pid);
 }
 
 #ifndef HAVE_EXECVPE
@@ -391,7 +211,7 @@ posix_exec(s48_call_t call, s48_ref_t program, s48_ref_t lookup_p,
 	   s48_ref_t env, s48_ref_t args)
 {
   char **c_args = enter_byte_vector_array(call, args);
-  char *c_program, *real_c_program;
+  char *c_program;
   int status;
 
   c_program = s48_extract_byte_vector_readonly_2(call, program);
@@ -459,33 +279,15 @@ enter_byte_vector_array(s48_call_t call, s48_ref_t vectors)
  */
 
 s48_ref_t
-posix_kill(s48_call_t call, s48_ref_t sch_pid, s48_ref_t sch_signal)
+posix_kill(s48_call_t call, s48_ref_t pid, s48_ref_t signal)
 {
   int status;
 
-  s48_check_record_type_2(call, sch_pid, posix_process_id_type_binding);
-
   RETRY_OR_RAISE_NEG(status,
-		     kill(s48_extract_long_2(call, s48_unsafe_record_ref_2(call, sch_pid, 0)),
-			  extract_signal(call, sch_signal)));
+		     kill(s48_extract_long_2(call, pid),
+			  s48_extract_long_2(call, signal)));
 
   return s48_unspecific_2(call);
-}
-
-/*
- * Converts from an OS signal to a canonical signal number.
- * We return -1 if there is no matching named signal.
- */
-
-static int
-lookup_signal(int c_signal) {
-  int i = 0;
-
-  for (i = 0; i < (sizeof signal_map/sizeof(int)); i++)
-    if (signal_map[i] == c_signal)
-      return i;
-
-  return -1;
 }
 
 /*
@@ -521,107 +323,6 @@ posix_initialize_named_signals(s48_call_t call)
     s48_unsafe_record_set_2(call, signal, 2, scm_signal); }
 
   return s48_unspecific_2(call);
-}
-
-/*
- * Make a new unnamed signal containing `fx_signal' and add it to the weak
- * list of unnamed signals.
- */
-
-static s48_ref_t
-make_unnamed_signal(s48_call_t call, s48_ref_t fx_signal)
-{
-  s48_ref_t weak, temp;
-  s48_ref_t unnamed = s48_make_record_2(call, posix_unnamed_signal_type_binding);
-
-  s48_unsafe_record_set_2(call,
-			  unnamed,
-			  0,
-			  s48_unsafe_shared_binding_ref_2(call,
-			      posix_unnamed_signal_marker_binding));
-  s48_unsafe_record_set_2(call, unnamed, 1, fx_signal);
-  s48_unsafe_record_set_2(call, unnamed, 2, s48_null_2(call));	/* No queues */
-
-  weak = s48_make_weak_pointer_2(call, unnamed);
-
-  temp = unnamed_signals;
-
-  unnamed_signals = s48_local_to_global_ref(s48_cons_2(call, weak, unnamed_signals));
-
-  s48_free_global_ref(temp);
-
-  return unnamed;
-}
-
-/*
- * Returns a signal record for `signal'.  Unnamed signals are looked up in
- * the weak list of same; if none is found we make one.  Scheme records for
- * named signals are retrieved from a vector sent down by the Scheme code.
- */
-
-static s48_ref_t
-enter_signal(s48_call_t call, int c_signal)
-{
-  int canonical = lookup_signal(c_signal);
-
-  if (canonical == -1) {
-    s48_ref_t fx_signal = s48_enter_long_2(call, c_signal);
-    s48_ref_t unnamed = s48_lookup_record(call, &unnamed_signals, 1, fx_signal);
-    
-    if (!s48_false_p_2(call, unnamed))
-      return unnamed;
-    else
-      return make_unnamed_signal(call, fx_signal); }
-  else
-    return s48_vector_ref_2(call,
-			    s48_shared_binding_ref_2(call, posix_signals_vector_binding),
-			    canonical);
-}
-
-/*
- * Wrapper for enter_signal() for calling from Scheme.
- */
-
-static s48_ref_t
-posix_integer_to_signal(s48_call_t call, s48_ref_t signal_int)
-{
-  if (s48_fixnum_p_2(call, signal_int))
-    return enter_signal(call, s48_extract_long_2(call, signal_int));
-  else
-    /* really should do an integer? test here */
-    return s48_false_2(call);
-}
-
-/*
- * Go from a signal back to the local integer.  For named signals we extract
- * the canonical signal to use as an index into the signal map.  Unnamed signals
- * contain the local signal already.
- */
-
-static int
-extract_signal(s48_call_t call, s48_ref_t sch_signal)
-{
-  s48_ref_t type;
-
-  if (! s48_record_p_2(call, sch_signal))
-    s48_assertion_violation_2(call, NULL, "not a record", 1, sch_signal);
-
-  type = s48_unsafe_record_type_2(call, sch_signal);
-
-  if (s48_eq_p_2(call, type, s48_unsafe_shared_binding_ref_2(call, posix_named_signal_type_binding))) {
-    int canonical = s48_extract_long_2(call, s48_unsafe_record_ref_2(call, sch_signal, 1));
-    if ((0 <= canonical) && (canonical < (sizeof signal_map/sizeof(int)))
-	&& signal_map[canonical] != -1)
-      return signal_map[canonical];
-    else
-      s48_assertion_violation_2(call, NULL, "not a valid signal index", 1, sch_signal); }
-
-  else if (s48_eq_p_2(call, type,
-		      s48_unsafe_shared_binding_ref_2(call, posix_unnamed_signal_type_binding)))
-    return s48_extract_long_2(call, s48_unsafe_record_ref_2(call, sch_signal, 1));
-
-  else
-    s48_assertion_violation_2(call, NULL, "not a signal", 1, sch_signal);
 }
 
 /*
