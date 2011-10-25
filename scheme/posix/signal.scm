@@ -24,7 +24,7 @@
 ; saved in images.
 
 (define-record-type unnamed-signal :unnamed-signal
-  (unnamed-signals-are-made-by-c-code)
+  (make-unnamed-signal resume-value os-number queues)
   unnamed-signal?
   (resume-value unnamed-signal-resume-value)
   (os-number    unnamed-signal-os-number)
@@ -38,6 +38,8 @@
 ; same meaning on the OS on which we are resumed).
 
 (define-record-resumer :unnamed-signal #f)
+
+(define *unnamed-signals* #f)
 
 (define-finite-type signal :named-signal
   (queues)
@@ -109,6 +111,26 @@
 	       (vector-ref named-signals i))
 	      (else
 	       (loop (+ i 1)))))))
+
+(define (get-unnamed-signal signum)
+  (call-with-current-continuation
+   (lambda (return)
+     (walk-population
+      (lambda (sig)
+	(if (= signum (unnamed-signal-os-number sig)) (return sig)))
+      *unnamed-signals*)
+     (let ((sig (make-unnamed-signal 'nonportable-signal signum '())))
+       (add-to-population! sig *unnamed-signals*)
+       sig))))
+
+(define (integer->signal signum)
+  (let loop ((i 0))
+    (if (= i (vector-length named-signals))
+	(get-unnamed-signal signum)
+	(let ((s (vector-ref named-signals i)))
+	  (if (= signum (named-signal-os-number s))
+	      s
+	      (loop (+ i 1)))))))
 
 ; Write the contents of the C array mapping canonical signal numbers
 ; to os signal numbers.
@@ -197,12 +219,8 @@
 ;----------------
 ; What we contribute to and receive from the C layer.
 
-(define-exported-binding "posix-signals-vector"        named-signals)
-(define-exported-binding "posix-named-signal-type"     :named-signal)
-(define-exported-binding "posix-unnamed-signal-type"   :unnamed-signal)
-(define-exported-binding "posix-unnamed-signal-marker" 'nonportable-signal)
+(define-exported-binding "posix-signals-vector" named-signals)
 
-(import-lambda-definition-2 integer->signal (int) "posix_integer_to_signal")
 (import-lambda-definition-2 initialize-named-signals ()
 			  "posix_initialize_named_signals")
 (import-lambda-definition-2 request-interrupts! (os-number)
@@ -219,6 +237,7 @@
 ; Initializing the above vector.
 
 (define (initialize-signals)
+  (set! *unnamed-signals* (make-population))
   (let ((ints (set-enabled-interrupts! no-interrupts)))
     (initialize-named-signals)
     (let* ((named (vector->list named-signals))
@@ -268,7 +287,10 @@
 ;----------------
 ; Sending a signal to a process.
 
-(import-lambda-definition-2 signal-process (pid signal) "posix_kill")
+(import-lambda-definition-2 posix-kill (pid signal) "posix_kill")
+
+(define (signal-process pid signal)
+  (posix-kill (process-id->integer pid) (signal-os-number signal)))
 
 ;----------------
 ; Handling signals sent to the current process.  Runs with interrupts disabled.

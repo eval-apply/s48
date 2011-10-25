@@ -11,10 +11,10 @@
 ; 4.1 Process Identification
 
 (define (get-process-id)
-  (call-imported-binding-2 posix-get-pid #f))
+  (integer->process-id (posix-get-pid #f)))
 
 (define (get-parent-process-id)
-  (call-imported-binding-2 posix-get-pid #t))
+  (integer->process-id (posix-get-pid #t)))
 
 ;----------------
 ; 4.2 User Identification and 4.3 Process Groups
@@ -43,7 +43,7 @@
 (define (set-effective-group-id! group-id)
   (call-imported-binding-2 posix-set-id! #f #f group-id))
 
-(import-definition posix-get-pid)
+(import-lambda-definition-2 posix-get-pid (parent?))
 (import-definition posix-get-id)
 (import-definition posix-set-id! "posix_set_id")
 
