@@ -111,9 +111,10 @@
 						  (regexp-ignore-case? regexp)
 						  (regexp-submatches? regexp)
 						  (regexp-newline? regexp))))
-	      (error 'regexo.compiled
+	      (error 'regexp.compiled
 		     (if message
-			 (string-append "Posix regexp: " message)
+			 (string-append "Posix regexp: " (os-string->string
+                                        (byte-vector->os-string message)))
 			 "inconsistent results from Posix regexp compiler")
 		     regexp))))))
 
