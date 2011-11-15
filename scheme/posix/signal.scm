@@ -24,7 +24,7 @@
 ; saved in images.
 
 (define-record-type unnamed-signal :unnamed-signal
-  (unnamed-signals-are-made-by-c-code)
+  (make-unnamed-signal resume-value os-number queues)
   unnamed-signal?
   (resume-value unnamed-signal-resume-value)
   (os-number    unnamed-signal-os-number)
@@ -38,6 +38,8 @@
 ; same meaning on the OS on which we are resumed).
 
 (define-record-resumer :unnamed-signal #f)
+
+(define *unnamed-signals* #f)
 
 (define-finite-type signal :named-signal
   (queues)
@@ -110,42 +112,42 @@
 	      (else
 	       (loop (+ i 1)))))))
 
-;----------------
-; Code to produce a C include file that checks whether each signal is defined.
-; The output file looks like:
-;
-; signal_count_is(<number of signals>);
-; #ifdef SIGABRT
-; signal_map[0] = SIGABRT;
-; #endif
-; #ifdef SIGALRM
-; signal_map[1] = SIGALRM;
-; #endif
-; ...
+(define (get-unnamed-signal signum)
+  (call-with-current-continuation
+   (lambda (return)
+     (walk-population
+      (lambda (sig)
+	(if (= signum (unnamed-signal-os-number sig)) (return sig)))
+      *unnamed-signals*)
+     (let ((sig (make-unnamed-signal 'nonportable-signal signum '())))
+       (add-to-population! sig *unnamed-signals*)
+       sig))))
 
+(define (integer->signal signum)
+  (let loop ((i 0))
+    (if (= i (vector-length named-signals))
+	(get-unnamed-signal signum)
+	(let ((s (vector-ref named-signals i)))
+	  (if (= signum (named-signal-os-number s))
+	      s
+	      (loop (+ i 1)))))))
+
+; Write the contents of the C array mapping canonical signal numbers
+; to os signal numbers.
 (define (write-c-signal-include-file filename)
   (call-with-output-file filename
     (lambda (out)
-      (display (string-append "signal_count_is("
-			      (number->string (vector-length named-signals))
-			      ");"
-			      newline-string)
-	       out)
       (do ((i 0 (+ i 1)))
 	  ((= i (vector-length named-signals)))
 	(let ((name (symbol->string
 		     (named-signal-name
 		      (vector-ref named-signals i)))))
-	  (display (string-append "#ifdef SIG" (string-upcase name)
-				  newline-string
-				  "signal_map["
-				  (number->string i)
-				  "] = SIG"
-				  (string-upcase name)
-				  ";"
-				  newline-string
-				  "#endif"
-				  newline-string)
+	  (display (string-append
+		    "#ifdef SIG" (string-upcase name) newline-string
+		    "  SIG" (string-upcase name) "," newline-string
+		    "#else" newline-string
+		    "  -1," newline-string
+		    "#endif" newline-string)
 		   out))))))
 
 (define newline-string (list->string '(#\newline)))
@@ -217,12 +219,8 @@
 ;----------------
 ; What we contribute to and receive from the C layer.
 
-(define-exported-binding "posix-signals-vector"        named-signals)
-(define-exported-binding "posix-named-signal-type"     :named-signal)
-(define-exported-binding "posix-unnamed-signal-type"   :unnamed-signal)
-(define-exported-binding "posix-unnamed-signal-marker" 'nonportable-signal)
+(define-exported-binding "posix-signals-vector" named-signals)
 
-(import-lambda-definition-2 integer->signal (int) "posix_integer_to_signal")
 (import-lambda-definition-2 initialize-named-signals ()
 			  "posix_initialize_named_signals")
 (import-lambda-definition-2 request-interrupts! (os-number)
@@ -239,6 +237,7 @@
 ; Initializing the above vector.
 
 (define (initialize-signals)
+  (set! *unnamed-signals* (make-population))
   (let ((ints (set-enabled-interrupts! no-interrupts)))
     (initialize-named-signals)
     (let* ((named (vector->list named-signals))
@@ -288,7 +287,10 @@
 ;----------------
 ; Sending a signal to a process.
 
-(import-lambda-definition-2 signal-process (pid signal) "posix_kill")
+(import-lambda-definition-2 posix-kill (pid signal) "posix_kill")
+
+(define (signal-process pid signal)
+  (posix-kill (process-id->integer pid) (signal-os-number signal)))
 
 ;----------------
 ; Handling signals sent to the current process.  Runs with interrupts disabled.

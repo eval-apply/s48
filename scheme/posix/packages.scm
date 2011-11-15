@@ -385,7 +385,8 @@
 	(subset unicode-char-maps (string-upcase string-foldcase))
 	session-data
 	interrupts
-	reinitializers)
+	reinitializers
+	weak)
   (files errno))
 
 (define-structure posix-syslog posix-syslog-interface

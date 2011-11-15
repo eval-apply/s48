@@ -1,238 +1,395 @@
-errno_count_is(79);
 #ifdef E2BIG
-errno_map[0] = E2BIG;
+  E2BIG,
+#else
+  -1,
 #endif
 #ifdef EACCES
-errno_map[1] = EACCES;
+  EACCES,
+#else
+  -1,
 #endif
 #ifdef EADDRINUSE
-errno_map[2] = EADDRINUSE;
+  EADDRINUSE,
+#else
+  -1,
 #endif
 #ifdef EADDRNOTAVAIL
-errno_map[3] = EADDRNOTAVAIL;
+  EADDRNOTAVAIL,
+#else
+  -1,
 #endif
 #ifdef EAFNOSUPPORT
-errno_map[4] = EAFNOSUPPORT;
+  EAFNOSUPPORT,
+#else
+  -1,
 #endif
 #ifdef EAGAIN
-errno_map[5] = EAGAIN;
+  EAGAIN,
+#else
+  -1,
 #endif
 #ifdef EALREADY
-errno_map[6] = EALREADY;
+  EALREADY,
+#else
+  -1,
 #endif
 #ifdef EBADF
-errno_map[7] = EBADF;
+  EBADF,
+#else
+  -1,
 #endif
 #ifdef EBADMSG
-errno_map[8] = EBADMSG;
+  EBADMSG,
+#else
+  -1,
 #endif
 #ifdef EBUSY
-errno_map[9] = EBUSY;
+  EBUSY,
+#else
+  -1,
 #endif
 #ifdef ECANCELED
-errno_map[10] = ECANCELED;
+  ECANCELED,
+#else
+  -1,
 #endif
 #ifdef ECHILD
-errno_map[11] = ECHILD;
+  ECHILD,
+#else
+  -1,
 #endif
 #ifdef ECONNABORTED
-errno_map[12] = ECONNABORTED;
+  ECONNABORTED,
+#else
+  -1,
 #endif
 #ifdef ECONNREFUSED
-errno_map[13] = ECONNREFUSED;
+  ECONNREFUSED,
+#else
+  -1,
 #endif
 #ifdef ECONNRESET
-errno_map[14] = ECONNRESET;
+  ECONNRESET,
+#else
+  -1,
 #endif
 #ifdef EDEADLK
-errno_map[15] = EDEADLK;
+  EDEADLK,
+#else
+  -1,
 #endif
 #ifdef EDESTADDRREQ
-errno_map[16] = EDESTADDRREQ;
+  EDESTADDRREQ,
+#else
+  -1,
 #endif
 #ifdef EDOM
-errno_map[17] = EDOM;
+  EDOM,
+#else
+  -1,
 #endif
 #ifdef EDQUOT
-errno_map[18] = EDQUOT;
+  EDQUOT,
+#else
+  -1,
 #endif
 #ifdef EEXIST
-errno_map[19] = EEXIST;
+  EEXIST,
+#else
+  -1,
 #endif
 #ifdef EFAULT
-errno_map[20] = EFAULT;
+  EFAULT,
+#else
+  -1,
 #endif
 #ifdef EFBIG
-errno_map[21] = EFBIG;
+  EFBIG,
+#else
+  -1,
 #endif
 #ifdef EHOSTUNREACH
-errno_map[22] = EHOSTUNREACH;
+  EHOSTUNREACH,
+#else
+  -1,
 #endif
 #ifdef EIDRM
-errno_map[23] = EIDRM;
+  EIDRM,
+#else
+  -1,
 #endif
 #ifdef EILSEQ
-errno_map[24] = EILSEQ;
+  EILSEQ,
+#else
+  -1,
 #endif
 #ifdef EINPROGRESS
-errno_map[25] = EINPROGRESS;
+  EINPROGRESS,
+#else
+  -1,
 #endif
 #ifdef EINTR
-errno_map[26] = EINTR;
+  EINTR,
+#else
+  -1,
 #endif
 #ifdef EINVAL
-errno_map[27] = EINVAL;
+  EINVAL,
+#else
+  -1,
 #endif
 #ifdef EIO
-errno_map[28] = EIO;
+  EIO,
+#else
+  -1,
 #endif
 #ifdef EISCONN
-errno_map[29] = EISCONN;
+  EISCONN,
+#else
+  -1,
 #endif
 #ifdef EISDIR
-errno_map[30] = EISDIR;
+  EISDIR,
+#else
+  -1,
 #endif
 #ifdef ELOOP
-errno_map[31] = ELOOP;
+  ELOOP,
+#else
+  -1,
 #endif
 #ifdef EMFILE
-errno_map[32] = EMFILE;
+  EMFILE,
+#else
+  -1,
 #endif
 #ifdef EMLINK
-errno_map[33] = EMLINK;
+  EMLINK,
+#else
+  -1,
 #endif
 #ifdef EMSGSIZE
-errno_map[34] = EMSGSIZE;
+  EMSGSIZE,
+#else
+  -1,
 #endif
 #ifdef EMULTIHOP
-errno_map[35] = EMULTIHOP;
+  EMULTIHOP,
+#else
+  -1,
 #endif
 #ifdef ENAMETOOLONG
-errno_map[36] = ENAMETOOLONG;
+  ENAMETOOLONG,
+#else
+  -1,
 #endif
 #ifdef ENETDOWN
-errno_map[37] = ENETDOWN;
+  ENETDOWN,
+#else
+  -1,
 #endif
 #ifdef ENETRESET
-errno_map[38] = ENETRESET;
+  ENETRESET,
+#else
+  -1,
 #endif
 #ifdef ENETUNREACH
-errno_map[39] = ENETUNREACH;
+  ENETUNREACH,
+#else
+  -1,
 #endif
 #ifdef ENFILE
-errno_map[40] = ENFILE;
+  ENFILE,
+#else
+  -1,
 #endif
 #ifdef ENOBUFS
-errno_map[41] = ENOBUFS;
+  ENOBUFS,
+#else
+  -1,
 #endif
 #ifdef ENODATA
-errno_map[42] = ENODATA;
+  ENODATA,
+#else
+  -1,
 #endif
 #ifdef ENODEV
-errno_map[43] = ENODEV;
+  ENODEV,
+#else
+  -1,
 #endif
 #ifdef ENOENT
-errno_map[44] = ENOENT;
+  ENOENT,
+#else
+  -1,
 #endif
 #ifdef ENOEXEC
-errno_map[45] = ENOEXEC;
+  ENOEXEC,
+#else
+  -1,
 #endif
 #ifdef ENOLCK
-errno_map[46] = ENOLCK;
+  ENOLCK,
+#else
+  -1,
 #endif
 #ifdef ENOLINK
-errno_map[47] = ENOLINK;
+  ENOLINK,
+#else
+  -1,
 #endif
 #ifdef ENOMEM
-errno_map[48] = ENOMEM;
+  ENOMEM,
+#else
+  -1,
 #endif
 #ifdef ENOMSG
-errno_map[49] = ENOMSG;
+  ENOMSG,
+#else
+  -1,
 #endif
 #ifdef ENOPROTOOPT
-errno_map[50] = ENOPROTOOPT;
+  ENOPROTOOPT,
+#else
+  -1,
 #endif
 #ifdef ENOSPC
-errno_map[51] = ENOSPC;
+  ENOSPC,
+#else
+  -1,
 #endif
 #ifdef ENOSR
-errno_map[52] = ENOSR;
+  ENOSR,
+#else
+  -1,
 #endif
 #ifdef ENOSTR
-errno_map[53] = ENOSTR;
+  ENOSTR,
+#else
+  -1,
 #endif
 #ifdef ENOSYS
-errno_map[54] = ENOSYS;
+  ENOSYS,
+#else
+  -1,
 #endif
 #ifdef ENOTCONN
-errno_map[55] = ENOTCONN;
+  ENOTCONN,
+#else
+  -1,
 #endif
 #ifdef ENOTDIR
-errno_map[56] = ENOTDIR;
+  ENOTDIR,
+#else
+  -1,
 #endif
 #ifdef ENOTEMPTY
-errno_map[57] = ENOTEMPTY;
+  ENOTEMPTY,
+#else
+  -1,
 #endif
 #ifdef ENOTSOCK
-errno_map[58] = ENOTSOCK;
+  ENOTSOCK,
+#else
+  -1,
 #endif
 #ifdef ENOTSUP
-errno_map[59] = ENOTSUP;
+  ENOTSUP,
+#else
+  -1,
 #endif
 #ifdef ENOTTY
-errno_map[60] = ENOTTY;
+  ENOTTY,
+#else
+  -1,
 #endif
 #ifdef ENXIO
-errno_map[61] = ENXIO;
+  ENXIO,
+#else
+  -1,
 #endif
 #ifdef EOPNOTSUPP
-errno_map[62] = EOPNOTSUPP;
+  EOPNOTSUPP,
+#else
+  -1,
 #endif
 #ifdef EOVERFLOW
-errno_map[63] = EOVERFLOW;
+  EOVERFLOW,
+#else
+  -1,
 #endif
 #ifdef EPERM
-errno_map[64] = EPERM;
+  EPERM,
+#else
+  -1,
 #endif
 #ifdef EPIPE
-errno_map[65] = EPIPE;
+  EPIPE,
+#else
+  -1,
 #endif
 #ifdef EPROTO
-errno_map[66] = EPROTO;
+  EPROTO,
+#else
+  -1,
 #endif
 #ifdef EPROTONOSUPPORT
-errno_map[67] = EPROTONOSUPPORT;
+  EPROTONOSUPPORT,
+#else
+  -1,
 #endif
 #ifdef EPROTOTYPE
-errno_map[68] = EPROTOTYPE;
+  EPROTOTYPE,
+#else
+  -1,
 #endif
 #ifdef ERANGE
-errno_map[69] = ERANGE;
+  ERANGE,
+#else
+  -1,
 #endif
 #ifdef EROFS
-errno_map[70] = EROFS;
+  EROFS,
+#else
+  -1,
 #endif
 #ifdef ESPIPE
-errno_map[71] = ESPIPE;
+  ESPIPE,
+#else
+  -1,
 #endif
 #ifdef ESRCH
-errno_map[72] = ESRCH;
+  ESRCH,
+#else
+  -1,
 #endif
 #ifdef ESTALE
-errno_map[73] = ESTALE;
+  ESTALE,
+#else
+  -1,
 #endif
 #ifdef ETIME
-errno_map[74] = ETIME;
+  ETIME,
+#else
+  -1,
 #endif
 #ifdef ETIMEDOUT
-errno_map[75] = ETIMEDOUT;
+  ETIMEDOUT,
+#else
+  -1,
 #endif
 #ifdef ETXTBSY
-errno_map[76] = ETXTBSY;
+  ETXTBSY,
+#else
+  -1,
 #endif
 #ifdef EWOULDBLOCK
-errno_map[77] = EWOULDBLOCK;
+  EWOULDBLOCK,
+#else
+  -1,
 #endif
 #ifdef EXDEV
-errno_map[78] = EXDEV;
+  EXDEV,
+#else
+  -1,
 #endif
