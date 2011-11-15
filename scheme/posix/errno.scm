@@ -5,7 +5,7 @@
 (import-dynamic-externals "=scheme48external/posix")
 
 (define-record-type unnamed-errno :unnamed-errno
-  (unnamed-errnos-are-made-by-c-code)
+  (make-unnamed-errno resume-value os-number)
   unnamed-errno?
   (resume-value unnamed-errno-resume-value)
   (os-number    unnamed-errno-os-number))
@@ -18,6 +18,8 @@
 ; same meaning on the OS on which we are resumed).
 
 (define-record-resumer :unnamed-errno #f)
+
+(define *unnamed-errnos* #f)
 
 (define-finite-type errno :named-errno ()
   named-errno?
@@ -126,51 +128,47 @@
 	      (else
 	       (loop (+ i 1)))))))
 
-;----------------
-; Code to produce a C include file that checks whether each errno is defined.
-; The output file looks like:
-;
-; errno_count_is(<number of errnos>);
-; #ifdef E2BIG
-; errno_map[0] = E2BIG;
-; #endif
-; #ifdef EACCESS
-; errno_map[1] = EACCESS;
-; #endif
-; ...
+(define (get-unnamed-errno num)
+  (call-with-current-continuation
+   (lambda (return)
+     (walk-population
+      (lambda (e)
+	(if (= num (unnamed-errno-os-number e)) (return e)))
+      *unnamed-errnos*)
+     (let ((e (make-unnamed-errno 'nonportable-signal num)))
+       (add-to-population! e *unnamed-errnos*)
+       e))))
 
+(define (integer->errno num)
+  (let loop ((i 0))
+    (if (= i (vector-length named-errnos))
+	(get-unnamed-errno num)
+	(let ((e (vector-ref named-errnos i)))
+	  (if (= num (named-errno-os-number e))
+	      e
+	      (loop (+ i 1)))))))
+
+; Write the contents of the C array mapping canonical error numbers
+; to os error numbers.
 (define (write-c-errno-include-file filename)
   (call-with-output-file filename
     (lambda (out)
-      (display (string-append "errno_count_is("
-			      (number->string (vector-length named-errnos))
-			      ");"
-			      newline-string)
-	       out)
       (do ((i 0 (+ i 1)))
 	  ((= i (vector-length named-errnos)))
 	(let* ((name (named-errno-name
 		      (vector-ref named-errnos i)))
 	       (posix-name (if (eq? name 'toobig)
-			       "2BIG" ; argl
+			       "2BIG"
 			       (symbol->string name))))
-	  (display (string-append "#ifdef E" (string-upcase posix-name)
-				  newline-string
-				  "errno_map["
-				  (number->string i)
-				  "] = E"
-				  (string-upcase posix-name)
-				  ";"
-				  newline-string
-				  "#endif"
-				  newline-string)
+	  (display (string-append
+		    "#ifdef E" (string-upcase posix-name) newline-string
+		    "  E" (string-upcase posix-name) "," newline-string
+		    "#else" newline-string
+		    "  -1," newline-string
+		    "#endif" newline-string)
 		   out))))))
 
 (define newline-string (list->string '(#\newline)))
-
-(define (string-map proc)
-  (lambda (list)
-    (list->string (map proc (string->list list)))))
 
 ;----------------
 ; Dispatching on the two kinds of errnos.
@@ -210,11 +208,7 @@
 ; What we contribute to and receive from the C layer.
 
 (define-exported-binding "posix-errnos-vector"        named-errnos)
-(define-exported-binding "posix-named-errno-type"     :named-errno)
-(define-exported-binding "posix-unnamed-errno-type"   :unnamed-errno)
-(define-exported-binding "posix-unnamed-errno-marker" 'nonportable-errno)
 
-(import-lambda-definition-2 integer->errno (int) "posix_integer_to_errno")
 (import-lambda-definition-2 initialize-named-errnos ()
 			  "posix_initialize_named_errnos")
 
@@ -227,6 +221,7 @@
 ; Initializing the above vector.
 
 (define (initialize-errnos)
+  (set! *unnamed-errnos* (make-population))
   (let ((ints (set-enabled-interrupts! no-interrupts)))
     (initialize-named-errnos)
     (let* ((named (vector->list named-errnos))
