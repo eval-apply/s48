@@ -206,7 +206,10 @@
 	  config
 	  config-package-is
 	  undefine
-	  set-reader))
+	  set-reader
+	  show-known-packages
+	  show-interface
+	  show-default-package))
 
 (define-interface debug-commands-interface
   (export translate
@@ -234,7 +237,8 @@
 	  forget
 	  bound?
 	  expand
-	  expand-once))
+	  expand-once
+	  show-default-package))
 
 (define-interface usual-commands-interface
   (compound-interface

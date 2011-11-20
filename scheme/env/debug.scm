@@ -671,6 +671,17 @@ Kind should be one of: names maps files source tabulate"
 	     (cons (cons filename (make-weak-pointer env))
 		   envs))))))
 
+;; prints the default package of the given file if found
+(define-command-syntax 'show-default-package "<filename>" 
+  "shows the default package of the given file" '(filename))
+
+(define (show-default-package . name)
+  (if (null? name)
+      '?
+      (begin 
+        (write (get-file-environment (car name)))
+        (newline))))
+
 ; Temporary hack until we get default values for unhandled upcalls.
 
 ; This gets called during the building of, say scheme48.image, while

@@ -372,3 +372,48 @@
 ;
 ;(define-method &evaluate (form (env :package))
 ;  ((package-evaluator env) form env))
+
+
+; Show information about packages
+
+;; prints known packages
+(define-command-syntax 'show-known-packages "" 
+  "shows all known packages" '())
+
+(define (show-known-packages)
+  (for-each (lambda (entry)
+              (write entry)
+              (display " ")) 
+            (filter symbol? (table->entry-list package-name-table)))
+  (newline))
+
+;; prints exported names
+(define-command-syntax 'show-interface "<struct> ..." 
+  "shows exported names of the given structures" '(&rest form))
+
+(define (show-interface . structs)
+  (if (null? structs)
+      '?
+      (let ((names '()))
+        (for-each 
+	 (lambda (struct)
+	   (let ((probe (and (package-lookup (config-package) struct)
+			     (eval struct (config-package)))))
+	     (if (structure? probe)
+		 (begin
+		   (for-each-declaration
+		    (lambda (name package-name type)
+		      (if (not (memq name names))  ; compound signatures...
+			  (set! names (cons name names))))
+		    (structure-interface probe))
+		   (for-each (lambda (name)
+			       (write name)
+			       (write-char #\space))
+			     names))
+		 (begin 
+		   (display "[")
+		   (write struct) 
+		   (display " not found]")
+		   (write-char #\space)))))
+	 structs)
+	(newline))))
