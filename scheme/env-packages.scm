@@ -146,6 +146,7 @@
 	i/o			; force-output, current-error-port, silently
 	exceptions
 	util			; every
+	tables			; table->entry-list
 	os-strings
         fluids)
   (files (env pacman)))
