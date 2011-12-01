@@ -113,7 +113,7 @@
 	       (lookup env-of-use name)))
 	 (lambda (name type . rest)
 	   (assertion-violation 'bind-aliases "no definitions allowed" name))
-	 #f
+	 (comp-env-macro-eval env-of-use)
 	 #f)
 	env-of-use)))
 
