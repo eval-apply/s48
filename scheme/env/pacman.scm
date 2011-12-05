@@ -383,9 +383,8 @@
 (define (show-known-packages)
   (for-each (lambda (entry)
               (write entry)
-              (display " ")) 
-            (filter symbol? (table->entry-list package-name-table)))
-  (newline))
+              (newline)) 
+            (filter symbol? (table->entry-list package-name-table))))
 
 ;; prints exported names
 (define-command-syntax 'show-interface "<struct> ..." 
@@ -402,18 +401,35 @@
 	     (if (structure? probe)
 		 (begin
 		   (for-each-declaration
-		    (lambda (name package-name type)
-		      (if (not (memq name names))  ; compound signatures...
-			  (set! names (cons name names))))
-		    (structure-interface probe))
-		   (for-each (lambda (name)
-			       (write name)
-			       (write-char #\space))
+		     (lambda (name package-name type)
+		       (if (not (assq name names))  ; compound signatures...
+			   (set! names (cons (cons name type) 
+                                             names))))
+		     (structure-interface probe))
+		   (for-each (lambda (pair)
+                               (let ((name (car pair))
+                                     (type (cdr pair)))
+			         (write name)
+			         (write-char #\space)
+                                 (write (careful-type->sexp type))
+                                 (newline)))
 			     names))
 		 (begin 
 		   (display "[")
 		   (write struct) 
 		   (display " not found]")
-		   (write-char #\space)))))
-	 structs)
-	(newline))))
+		   (write-char #\space)
+                   (newline)))))
+	 structs))))
+
+(define (careful-type->sexp thing)
+  (cond ((not thing) 'undefined)
+	((or (symbol? thing)
+	     (null? thing)
+	     (number? thing))
+	 thing)     ;?
+	((pair? thing)    ;e.g. (variable #{Type :value})
+	 (cons (careful-type->sexp (car thing))
+	       (careful-type->sexp (cdr thing))))
+	(else
+	 (type->sexp thing #t))))
