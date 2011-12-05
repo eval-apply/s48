@@ -147,6 +147,7 @@
 	exceptions
 	util			; every
 	tables			; table->entry-list
+        meta-types              ; type->sexp
 	os-strings
         fluids)
   (files (env pacman)))
