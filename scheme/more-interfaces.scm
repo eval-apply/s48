@@ -208,8 +208,7 @@
 	  undefine
 	  set-reader
 	  show-known-packages
-	  show-interface
-	  show-default-package))
+	  show-interface))
 
 (define-interface debug-commands-interface
   (export translate
