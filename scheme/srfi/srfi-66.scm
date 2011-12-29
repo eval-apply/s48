@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber, Robert Ransom
+
 ; SRFI 66: Octet vectors
 
 (define (make-u8vector k fill)

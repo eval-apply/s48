@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; Bindings: used to store bindings in packages.
 
 ; Representation is type place operator-or-transform-or-#f.

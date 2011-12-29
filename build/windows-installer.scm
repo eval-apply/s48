@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; This produces the auto-generated part of the Windows installer
 ; source code.
 

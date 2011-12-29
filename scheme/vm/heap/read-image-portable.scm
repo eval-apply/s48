@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: David Frese, Mike Sperber, Norbert Freudemann
+
 ;; Image reader that works for both GCs
 
 ;; Local Values of the temporary heap-image-object (to read in the image)

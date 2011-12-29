@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; Byte-code assembler (Richard's version)
 ;
 ; This assembler can assemble the output of the disassembler (as long as you

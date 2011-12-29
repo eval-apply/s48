@@ -1,4 +1,6 @@
-; Part of Scheme 48 1.9.  See file COPYING for notices and license. 
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey
 
 (define (simplify-letrec1 call)
   (let* ((cont (call-arg call 0))

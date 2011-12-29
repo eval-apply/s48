@@ -1,6 +1,8 @@
 ; -*- Mode: Scheme; -*-
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ;  ,exec ,load misc/load-static.scm
 ;  (do-it 100000 "debug/little.image" "debug/little-heap.c")
 

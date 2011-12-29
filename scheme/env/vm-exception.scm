@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; More precise conditions for VM exceptions.
 
 ; GLOBAL and SET-GLOBAL! are in shadow.scm.

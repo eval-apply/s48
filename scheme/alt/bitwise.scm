@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ; Bitwise operators written in vanilla Scheme.
 ; Written for clarity and simplicity, not for speed.
 

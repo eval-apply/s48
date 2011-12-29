@@ -1,5 +1,8 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: David Frese
+ */
 
 /* The Boehm collector also has a link to the next entry in ascending
    order. This is used for sweeping etc.. I don't think we need

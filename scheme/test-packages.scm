@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber, Marcus Crestani, Robert Ransom, Michael Zabka
+
 ; Package definitions for various test suites.
 
 (define-structure base-test (export base-tests)

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Robert Ransom, Marcel Turino
+
 ; Various data structures used by the compiler, module system, etc.
 
 ; Type system

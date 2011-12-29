@@ -1,5 +1,8 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Marcel Turino,
+; Marcus Crestani, Robert Ransom, Martin Gasbichler
+
 ; Packages for the programming environment: the command processor, inspector,
 ; and disassembler and assembler.
 

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 (define-structure unicode-data (export create-unicode-tables)
   (open scheme
 	finite-types destructuring define-record-types bitwise tables

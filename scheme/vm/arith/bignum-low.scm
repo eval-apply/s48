@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Marcus Crestani
+
 ; fixnum-as-bignum-length - the maximum bignum digits required to hold a fixnum
 ; From struct.scm:
 ;   bignum-length - usual length operator, gives number of bytes

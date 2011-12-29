@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber
+
 ; Code to handle the calling and return protocols.
 
 ; *VAL* is the procedure, the arguments are on stack, and the next byte

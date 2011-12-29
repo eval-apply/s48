@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, David Frese, Mike Sperber
+
 ; Allocation
 ;  s48-*hp* is the heap pointer and s48-*limit* is the limit beyond which no
 ;  storage should be allocated.  Both of these are addresses (not

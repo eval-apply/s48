@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, David Frese, Mike Sperber, Norbert Freudemann
+
 ; Steps:
 ;   1. Trace everything reachable from RESUME-PROC and from the exported
 ;      bindings (which we must assume are reachable because we cannot trace

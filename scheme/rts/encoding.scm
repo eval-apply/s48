@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; Character/string encodings
 
 ; We abstract over the primitive encode-char/decode-char characters to

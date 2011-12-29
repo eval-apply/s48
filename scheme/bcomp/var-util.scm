@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 (define (number-of-required-args formals)
   (do ((l formals (cdr l))
        (i 0 (+ i 1)))

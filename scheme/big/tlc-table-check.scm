@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Marcus Crestani, Robert Ransom
+
 (define-test-suite tlc-table-tests)
 (define-test-suite tlc-table-weak-tests)
 (define-test-suite tlc-table-string-tests)

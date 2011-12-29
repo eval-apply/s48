@@ -1,6 +1,8 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, David Frese, Mike Sperber
+
 ; String hash tables for managing three tables:
 ;  the symbol table : string -> symbol
 ;  exported-bindings : string -> shared-binding

@@ -1,4 +1,6 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Mike Sperber
 ; Copyright (c) 2005-2006 by Basis Technology Corporation. 
 
 ; Code-point classification

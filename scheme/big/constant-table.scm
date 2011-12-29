@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; Looking up in an eq? table that's known in advance.
 
 ; Keys can't be #f.

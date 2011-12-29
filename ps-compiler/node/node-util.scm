@@ -1,5 +1,7 @@
  
-; Part of Scheme 48 1.9.  See file COPYING for notices and license. 
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Mike Sperber
 
 ; This file contains miscellaneous utilities for accessing and modifying the
 ; node tree.

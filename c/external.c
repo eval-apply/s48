@@ -1,5 +1,9 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani, Mike Sperber,
+ * Robert Ransom, Harald Glab-Phlak
+ */
 
 #include <stdlib.h>
 #include <stdio.h>

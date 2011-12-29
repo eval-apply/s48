@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; System entry and exit
 
 ; Entry point from OS executive.  Procedures returned by USUAL-RESUMER

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Mike Sperber
+
 ; These define the format for compiled SYNTAX-RULES patterns and templates,
 ; which are the shared data between the compilation and expansion phases.
 

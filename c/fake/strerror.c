@@ -1,4 +1,10 @@
 /*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees
+ */
+
+/*
  * If the system doesn't have a strerror procedure, we provide our own.
  * Note, this depends on sys_nerr and sys_errlist being provided.
  * If your system doesn't provide that either, you can replace this

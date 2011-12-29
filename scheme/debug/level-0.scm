@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 
 ; Redefinitions of some usual Scheme things so as to make the new
 ; exception system kick in when it needs to.

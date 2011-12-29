@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Michael Zabka
+
 
 (import-lambda-definition-2 current-utc-time () "s48_get_current_time")
 (import-lambda-definition-2 timezone-offset () "s48_get_timezone")

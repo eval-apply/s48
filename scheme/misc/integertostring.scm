@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 
 ;Date: Mon, 24 Jan 94 15:10:30 -0500
 ;To: jar@ai.mit.edu

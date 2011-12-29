@@ -1,3 +1,9 @@
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees
+ */
+
 signal_count_is(38);
 #ifdef SIGABRT
 signal_map[0] = SIGABRT;

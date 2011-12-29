@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; What the VM knows about the layout of records and record types.
 ; Needs to be synchronized with scheme/rts/record.scm
 

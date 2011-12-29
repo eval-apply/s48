@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Martin Gasbichler, Mike Sperber
+
 ; To use libscheme48, do this from a vanilla command prompt:
 
 ; ,open libscheme48

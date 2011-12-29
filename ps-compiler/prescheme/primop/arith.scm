@@ -1,4 +1,6 @@
-; Part of Scheme 48 1.9.  See file COPYING for notices and license. 
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Mike Sperber
 
 (define (put-literal-first call)
   (if (and (not (literal-node? (call-arg call 0)))

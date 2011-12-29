@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber, Robert Ransom
+
 ; Type lattice.
 ; Sorry this is so hairy, but before it was written, type checking 
 ; consumed 15% of compile time.

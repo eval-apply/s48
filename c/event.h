@@ -1,3 +1,9 @@
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+ */
+
 /* must be synchronized with EVENTS enumeration in ps-channel.scm and s48-channel.scm */
 enum event_enum { KEYBOARD_INTERRUPT_EVENT, IO_COMPLETION_EVENT, IO_ERROR_EVENT,
 		  ALARM_EVENT, OS_SIGNAL_EVENT, ERROR_EVENT, EXTERNAL_EVENT, NO_EVENT };

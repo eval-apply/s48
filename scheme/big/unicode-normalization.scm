@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; returns index of value (must be number) in vector
 (define (binary-search vec val)
   (let ((size (vector-length vec)))

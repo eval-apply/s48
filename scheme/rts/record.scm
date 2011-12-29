@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ;;;; Records
 
 ; Every record in the image is assumed to be made either by MAKE-RECORD-TYPE

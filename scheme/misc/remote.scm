@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 
 ; This is a small mock-up of the Cornell mobile robot system.
 ; It is not intended as a remote procedure call mechanism.

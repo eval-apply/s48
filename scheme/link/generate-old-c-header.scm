@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ; This for compatibility with pre-0.53 code.
 
 ; [This is a kludge.  Richard is loathe to include it in the

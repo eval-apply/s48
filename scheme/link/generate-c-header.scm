@@ -1,5 +1,8 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Marcus Crestani,
+; Harald Glab-Phlak
+
 ; [This is a kludge.  Richard is loathe to include it in the
 ; distribution.  But now the system itself uses it, so we're stuck.]
 

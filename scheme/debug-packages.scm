@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 
 ; Handy things for debugging the run-time system, byte code compiler,
 ; and linker.

@@ -1,4 +1,6 @@
-; Part of Scheme 48 1.9.  See file COPYING for notices and license. 
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey
 
 ; Move nested procedures out to top level.  We move them all out, then merge
 ; as many as possible back together (see merge.scm), and finally check to

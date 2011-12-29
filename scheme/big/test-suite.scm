@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber, Eric Knauel, Robert Ransom
+
 ; Support for writing and running test suites
 
 (define-record-type test-suite :test-suite

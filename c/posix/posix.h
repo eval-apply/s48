@@ -1,3 +1,8 @@
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani
+ */
 
 extern mode_t		s48_extract_mode(s48_call_t call, s48_ref_t sch_mode);
 extern int		s48_extract_file_options(s48_call_t call, s48_ref_t sch_file_options);

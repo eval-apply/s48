@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ;; The following tests are not very extensive but should cover all
 ;; operations. See the structure test-bignum in debug-package.scm
 ;; for a bigger test suite, which, however, requires a full Scheme

@@ -1,4 +1,6 @@
-; Part of Scheme 48 1.9.  See file COPYING for notices and license. 
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey
 
 (define (byte-vector-endianess)
   (if (eq? byte-vector-word-ref high-byte-vector-word-ref)

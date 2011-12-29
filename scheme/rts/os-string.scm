@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber, Robert Ransom
+
 ; You may think that file names / environment variables / user names
 ; etc. are just text, but on most platforms, that assumption is wrong:
 ; They are usually NUL-terminated byte strings in some format.  The

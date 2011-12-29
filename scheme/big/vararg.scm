@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; Library functionality for writing procedures with variable number of arguments.
 
 ; This has the same interface as the OPT-LAMBDA in PLT Scheme's etc.ss

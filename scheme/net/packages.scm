@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 (define-structure external-enum-types
   (export (define-external-enum-type-with-unknowns :syntax))
   (open scheme

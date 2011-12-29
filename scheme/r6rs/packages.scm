@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber, Marcus Crestani, Harald Glab-Plhak, Robert Ransom
+
 (define-interface r6rs-base-comparisons-interface
   (export symbol=? boolean=?
 	  char=? char<? char>? char<=? char>=?

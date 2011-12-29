@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; The new LOW-EXCEPTIONS in terms of the old SIGNALS
 
 (define signals:error error)

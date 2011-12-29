@@ -1,5 +1,8 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Mike Sperber, Marcus Crestani
+ */
 
 #ifndef __NET_ADDRESS_H__
 #define __NET_ADDRESS_H__

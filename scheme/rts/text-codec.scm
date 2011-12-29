@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; Encoders/decoders from text to bytes and vice versa, for use by the
 ; the ports subsystem.
 

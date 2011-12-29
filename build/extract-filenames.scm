@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Michael Sperber, Marcus Crestani, Robert Ransom
+
 ; Generate filenames.make from *-packages.scm.
 
 ; Define DEFINE-STRUCTURE and friends

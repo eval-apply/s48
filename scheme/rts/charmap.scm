@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; Character maps, ASCII-only version
 
 ; Enable us to change the semantics afterwards (see the bottom of this file)

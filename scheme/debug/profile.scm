@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ; This was a fun hack, but I didn't get much useful information out of
 ; it -- a profiler that only samples at points allowed by the VM's
 ; interrupt mechanism doesn't tell you what you want to know.  The

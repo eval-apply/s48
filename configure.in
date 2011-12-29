@@ -1,3 +1,8 @@
+dnl Part of Scheme 48 1.9.  See file COPYING for notices and license.
+dnl
+dnl Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Marcus
+dnl Crestani, Eric Knauel, David Frese, Ivan Shmakov, Taylor Campbell
+dnl
 dnl Process this file with autoconf >= 2.60 to produce a configure script.
 dnl To do this, run:
 dnl   env ACLOCAL="aclocal -I m4" autoreconf -v -i

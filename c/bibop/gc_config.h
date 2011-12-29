@@ -1,5 +1,8 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: David Frese, Christos Freris
+ */
 
 #ifndef __S48_GC_CONFIG
 #define __S48_GC_CONFIG

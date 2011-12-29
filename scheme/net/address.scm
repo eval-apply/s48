@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber, Marcus Crestani
+
 ; We still need IDNA support.
 
 (define-external-enum-type-with-unknowns address-family

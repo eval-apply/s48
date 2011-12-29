@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; All regular expressions are records of the following type.
 ;
 ; type     - a symbol indicating which type of regular expression this is.

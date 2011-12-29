@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Marcus Crestani
+
 
 ; Static linker.  Doesn't work very well this way (debug info is
 ; screwed up), so it's probably better to continue using linker.image

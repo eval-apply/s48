@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 (define-record-type :record-type-data
   (make-record-type-data uid sealed? opaque? field-specs immutable?)
   record-type-data?

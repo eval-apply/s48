@@ -1,4 +1,6 @@
-; Part of Scheme 48 1.9.  See file COPYING for notices and license. 
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Jonathan Rees, David Frese, Marcus Crestani, Mike Sperber
 
 (config '(load "../scheme/vm/macro-package-defs.scm"))
 (load-package 'vm-architecture)

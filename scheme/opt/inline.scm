@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Robert Ransom
+
 ; Once we know that we want something to be inlined, the following things
 ; actually make use of the fact.  For procedures for which all
 ; arguments can be substituted unconditionally, we make a transform
