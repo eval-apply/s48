@@ -37,6 +37,11 @@ POSSIBILITY OF SUCH DAMAGE.
 
 /* License changed to modified BSD by cph on 2004-11-08.  */
 
+/*
+ * Modifications for Scheme 48 by Martin Gasbichler, Mike Sperber,
+ * Marcus Crestani, Harald Glab-Phlak
+ */
+
 /* Changes for Scheme 48:
  *  - Converted to ANSI.
  *  - Added bitwise operations.

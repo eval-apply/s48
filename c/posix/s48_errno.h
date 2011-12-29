@@ -1,3 +1,9 @@
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Mike Sperber, Will Noble
+ */
+
 #ifdef E2BIG
   E2BIG,
 #else

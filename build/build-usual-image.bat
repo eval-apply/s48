@@ -1,5 +1,10 @@
 @echo off
 
+rem Part of Scheme 48 1.9.  See file COPYING for notices and license.
+rem
+rem Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Marcus Crestani
+rem
+
 set srcdir=%1
 set srcdir_cooked=%~f1
 set srcdir_cooked=%srcdir_cooked:\=\\%

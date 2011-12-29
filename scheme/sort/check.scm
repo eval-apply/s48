@@ -1,5 +1,14 @@
 ;;; Little test harness, 'cause I'm paraoid about tricky code.
 
+;;; This code is
+;;;     Copyright (c) 1998 by Olin Shivers.
+;;; The terms are: You may do as you please with this code, as long as
+;;; you do not delete this notice or hold me responsible for any outcome
+;;; related to its use.
+;;;
+;;; Blah blah blah. Don't you think source files should contain more lines
+;;; of code than copyright notice?
+
 (define-test-suite sort-tests)
 
 ;; Three-way comparison for numbers

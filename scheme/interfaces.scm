@@ -1,5 +1,7 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Marcus Crestani,
+; Robert Ransom, Marcel Turino, Ivan Shmakov, Harald Glab-Phlak
 
 ; Some interfaces.  Order of presentation is a bit random.
 

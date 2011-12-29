@@ -1,5 +1,7 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
-; Copyright (c) 2005-2006 by Basis Technology Corporation.  See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Mike Sperber
+; Copyright (c) 2005-2006 by Basis Technology Corporation. 
 
 ; Parse UnicodeData.txt and various other files from the Unicode
 ; consortium, and generate character classification and conversion

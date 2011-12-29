@@ -1,4 +1,7 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani, David Frese,
+; Martin Gasbichler, Mike Sperber
 
 ; These are used to compile the VM separately from the GC.  It has new
 ; definitions of the heap and GC structures with all of the values defined

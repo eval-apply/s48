@@ -1,4 +1,6 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
 
 ; LU Decomposition (a rewriting of a Pascal program from `Numerical Recipes
 ; in Pascal'; look there for a detailed description of what is going on).

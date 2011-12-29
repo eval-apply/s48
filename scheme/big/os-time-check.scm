@@ -1,3 +1,7 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Michael Zabka
+
 ; ,config ,load scheme/big/os-time-check.scm
 ; (define-test-suite all-tests (os-time-tests))
 ; (run-test-suite all-tests)

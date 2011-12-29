@@ -1,3 +1,7 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Martin Gasbichler,
+; David Frese, Marcus Crestani
 
 ; Called when returning off of the end of the stack.
 
