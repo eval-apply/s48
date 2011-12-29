@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 
 ; This is for version 0.28
 ; We define these two because they aren't reified:

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber
+
 ; This is the main entry point to the compiler.  It returns a template
 ; that will execute the forms (each of which is a node).
 ;

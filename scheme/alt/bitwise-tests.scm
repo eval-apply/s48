@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 
 ; Lost: (ARITHMETIC-SHIFT 5 27) => -402653184 [wanted 671088640.]
 ; Lost: (ARITHMETIC-SHIFT 5 28) => 268435456 [wanted 1342177280.]

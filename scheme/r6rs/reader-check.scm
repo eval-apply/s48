@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 (define-test-suite r6rs-reader-tests)
 
 (define-test-case tokens r6rs-reader-tests

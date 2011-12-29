@@ -1,4 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Mike Sperber, Olin Shivers
+
 ; SRFI 14 test suite
 
 ;; adapted from Olin's test suite

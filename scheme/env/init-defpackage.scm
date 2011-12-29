@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 
 ; This file has to be loaded into the initial-image before any use of
 ; DEFINE-STRUCTURE.  Compare with alt/init-defpackage.scm.

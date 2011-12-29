@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 (define make-record-type   #'scheme-translator::make-record-type)
 (define record-constructor #'scheme-translator::record-constructor)
 (define record-accessor    #'scheme-translator::record-accessor)

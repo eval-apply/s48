@@ -1,6 +1,8 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani, Mike Sperber
+
 ; This manages external roots that can be registered and unregistered in a
 ; stack-like fashion.  It also provides the GC interface for the C FFI.
 

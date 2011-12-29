@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ; Finite types (i.e. record types with a fixed set of elements).
 ;
 ; An enumeration is really a special case of a finite type.

@@ -1,5 +1,8 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Roderic Morris,
+; Eric Knauel, Martin Gasbichler
+
 (define-interface posix-files-interface
   (export directory-stream?
 	  open-directory-stream		; name -> directory

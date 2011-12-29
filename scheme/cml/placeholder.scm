@@ -1,4 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Mike Sperber
+
 ; Placeholders (single-assignment cells for use with threads)
 ; these are equivalent to ID-90 I-structures
 

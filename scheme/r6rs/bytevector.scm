@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Harald Glab-Phlak, Mike Sperber, Will Clinger
+
 ; This is taken from the R6RS reference implementation by Mike
 ; Sperber, modified by Will Clinger.
 

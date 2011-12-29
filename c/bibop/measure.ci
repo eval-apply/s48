@@ -1,5 +1,8 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: David Frese, Christos Freris, Eric Knauel
+ */
 
 /* This file needs to be included from generation_gc.c, because for
    reasons of simplicity we use static variables from there directly

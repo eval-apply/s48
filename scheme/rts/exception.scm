@@ -1,6 +1,8 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ;;;; Raising and handling of exceptions
 
 ; A condition is a run-time system structure describing an unusual situation.

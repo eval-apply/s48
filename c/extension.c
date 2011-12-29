@@ -1,5 +1,8 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+ */
 
 /* Implementation of the vm-extension opcode.  This is completely
    optional; nothing in the standard system uses these features.

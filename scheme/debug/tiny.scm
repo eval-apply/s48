@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; Tiny image and simple I/O test system
 
 (define (start arg in in-encoding out out-encoding error-out error-out-encoding resumer-records)

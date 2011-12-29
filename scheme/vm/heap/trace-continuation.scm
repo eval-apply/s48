@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, David Frese, Mike Sperber
+
 ; Code shared by both GCs for the GC package.
 
 ; We can't put it in a separate package because of circular

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber
+
 ; Integer-only primitive operations
 
 ; These predicates are used to characterize the numeric representations that

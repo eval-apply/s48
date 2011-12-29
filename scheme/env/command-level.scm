@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; Command levels for the command processor
 ;
 ; Each command level has its own threads and scheduling queues.  Only one

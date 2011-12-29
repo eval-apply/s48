@@ -1,5 +1,10 @@
 @echo off
 
+rem Part of Scheme 48 1.9.  See file COPYING for notices and license.
+rem
+rem Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+rem
+
 set runnable="%~1"
 
 echo ,bench > generate-c-header.input

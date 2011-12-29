@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Mike Sperber
+
 ; Returns the a list of compiled rules and a list of the names that are
 ; free in the templates.  'ellipsis?' is a predicate that matches ellipses.
 ; Both values are #F if an error is found.

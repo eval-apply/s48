@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: David Frese, Mike Sperber
+
 ;; Packages for BIBOP GC
 ;----------------------------------------------------------------
 ; Memory management

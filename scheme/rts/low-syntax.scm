@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; Low-level support for different kinds of syntax transformers
 
 ; We just use a vector with a tag in slot 0.  (Can't be a pair,

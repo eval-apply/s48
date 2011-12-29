@@ -1,4 +1,9 @@
 #!/bin/sh
+# Part of Scheme 48 1.9.  See file COPYING for notices and license.
+#
+# Authors: Mike Sperber
+#
+
 # Build file list for the Windows installer WiX script
 # Mike doesn't know how to do this using only Windows batch files.
 # Run this in the source directory, under Cygwin or something.

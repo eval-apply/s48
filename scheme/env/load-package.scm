@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 (define (ensure-loaded . structs)
   (force-output (current-output-port))		; avoid interleaved output
   (let ((out (current-noise-port)))

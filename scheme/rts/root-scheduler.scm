@@ -1,5 +1,8 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, 
+; Suresh Jagannathan, Henry Ceijtin
+
 ; The root scheduler.
 ;
 ; This uses RUN-THREADS-WITH-HOUSEKEEPER from the round-robin scheduler.

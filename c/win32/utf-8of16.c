@@ -1,5 +1,7 @@
 /* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+ *
+ * Authors: Mike Sperber, Robert Ransom
+ */
 
 /*
  * This file defines functions for dealing with a synthetic text

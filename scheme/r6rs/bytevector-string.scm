@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Harald Glab-Phlak, Mike Sperber
+
 (define (string->utf8 string)
   (enc:string->utf-8 string))
 

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ; Start up a system that has reified packages.
 ; COMMAND-PROCESSOR might be either the miniature one or the real one.
 

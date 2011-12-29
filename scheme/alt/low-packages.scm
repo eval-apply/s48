@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; Alternate implementations of the low-structures.
 ; Cf. low-structures-interface in ../packages.scm and ../alt-structures.scm.
 

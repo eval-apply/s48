@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: David Frese, Mike Sperber
+
 ;; Image reader that reads images into the BIBOP GC
 
 (define (really-read-image format reverse-byte-order? port)

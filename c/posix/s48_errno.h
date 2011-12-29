@@ -1,3 +1,9 @@
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Mike Sperber
+ */
+
 errno_count_is(79);
 #ifdef E2BIG
 errno_map[0] = E2BIG;

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber
+
 ; These need to operate on both bignums and fixnums.
 ;bignum-add
 ;bignum-subtract

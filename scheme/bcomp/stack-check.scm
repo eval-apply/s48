@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; This determines the maximum stack depth needed by a code vector.
 
 (define (maximum-stack-use code-vector)

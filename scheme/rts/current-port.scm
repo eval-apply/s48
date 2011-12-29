@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; Current input, output, error, and noise ports.
 
 ; These two ports are needed by the VM for the READ-BYTE and WRITE-BYTE

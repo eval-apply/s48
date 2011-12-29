@@ -1,6 +1,6 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
-; Author: Harald Glab-Plhak
+; Authors: Harald Glab-Plhak
 
 (import-dynamic-externals "=scheme48external/ffi-test")
 

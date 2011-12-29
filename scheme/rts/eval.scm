@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Ivan Shmakov, Mike Sperber
+
 
 ; This file contains things that tie together the compiler and the
 ; run-time system.

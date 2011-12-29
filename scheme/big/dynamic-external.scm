@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber, Robert Ransom
+
 ;; More high-level interface to dynamic loading:
 
 ;; This automatically initializes an external shared object, keeps

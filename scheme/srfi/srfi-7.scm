@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber
+
 
 ; A command for loading SRFI-7 programs.  This is a user command because
 ; it gets loaded after the command processor is built.

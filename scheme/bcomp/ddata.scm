@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 
 ; Stuff moved from segment.scm  6/5/93
 ; Some of that stuff moved to state.scm 4/28/95

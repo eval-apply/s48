@@ -1,5 +1,9 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Robert Ransom,
+; Marcel Turino, Manuel Dietrich, Marcus Crestani, Eric Knauel, 
+; Martin Gasbichler, Harald Glab-Phlak
+
 
 ; Interfaces for packages that can get loaded after the initial.image
 ; starts up.

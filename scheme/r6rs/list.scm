@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; The (rnrs lists (6)) library.
 
 (define (assert-procedure who obj)

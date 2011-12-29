@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 (define length-procedures
   (do ((i (- stob-count 1) (- i 1))
        (l '() (cons (eval `(lap *length ()

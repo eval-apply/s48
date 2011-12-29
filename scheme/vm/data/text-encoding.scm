@@ -1,6 +1,8 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 (define (encode-scalar-value encoding value buffer count)
   (let-syntax ((encode
 		(syntax-rules ()

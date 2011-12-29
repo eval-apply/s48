@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; A record type whose only purpose is to run some code when we start up an
 ; image.
 

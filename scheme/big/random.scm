@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 
 ; Random number generator, extracted from T sources.  Original
 ; probably by Richard Kelsey.

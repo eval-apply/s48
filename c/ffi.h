@@ -1,5 +1,8 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Marcus Crestani, Harald Glab-Phlak
+ */
 
 /* Modelled on Jim Blandy's foreign function interface that he put in
    his Scheme implementation called Minor. */

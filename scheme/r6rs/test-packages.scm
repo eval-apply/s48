@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber, Marcus Crestani, Robert Ransom, Harald Glab-Plhak
+
 (define-structure r6rs-records-procedural-test (export r6rs-records-procedural-tests)
   (open scheme test-suites
 	r6rs-records-procedural)

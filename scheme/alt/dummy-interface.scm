@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ; Interfaces are ignored.  Only dependencies are significant.
 
 (define (make-indirect-interface name thunk)

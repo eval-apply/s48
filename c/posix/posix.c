@@ -1,5 +1,9 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Mike Sperber
+ */
+
 
 extern void s48_init_posix_time(void);
 extern void s48_init_posix_dir(void);

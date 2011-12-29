@@ -1,5 +1,7 @@
 /* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+ *
+ * Authors: Michael Zabka, Marcus Crestani
+ */
 
 #include <sys/time.h>
 #include <time.h>

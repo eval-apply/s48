@@ -18,6 +18,11 @@
  * with the software or the use or other dealings in the software.
  */
 
+/*
+ * Modifications for Scheme 48 by Mike Sperber, Eric Knauel,
+ * David Frese, Taylor Campbell
+ */
+
 #include <stdio.h>
 #include <string.h>
 

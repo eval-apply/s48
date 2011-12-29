@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: David Frese, Marcus Crestani, Mike Sperber
+
 ; Interface to the VM for allocation
 
 ;; Everything else is defined via bibop-gc-external

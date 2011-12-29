@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, David Frese
+
 (define-structure write-image (export s48-write-image)
   (open prescheme)
   (begin

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Ivan Shmakov
+
 ; Scheme analogues of Posix popen() and pclose() library calls.
 
 ; Create a pipe and exec COMMAND to talk to one end of the pipe while

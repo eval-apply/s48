@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: David Frese
+
 ;; Debugging code
 
 ;; To activate/deactivate it, the flag 'debug-mode?' must be set.

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Mike Sperber
+
 (define-usual-macro 'syntax-rules
   (make-explicit-renaming-transformer/4
    (lambda (exp name? r c)

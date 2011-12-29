@@ -1,5 +1,8 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Marcus Crestani,
+; David Frese, Martin Gasbichler
+
 ; The VM
 
 (define-structure vm vm-interface

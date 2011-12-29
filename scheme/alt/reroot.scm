@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 
 ; A state space is a tree with the state at the root.  Each node other
 ; than the root is a triple <before, after, parent>, represented in

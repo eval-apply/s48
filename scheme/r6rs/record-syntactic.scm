@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 (define-syntax define-record-type
   (let ((uid-count 0))
     (lambda (e r c)

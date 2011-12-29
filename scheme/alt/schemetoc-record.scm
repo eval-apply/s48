@@ -1,6 +1,8 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 
 ; This is file schemetoc-record.scm.
 ; Synchronize any changes with the other *record.scm files.

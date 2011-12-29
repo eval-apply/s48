@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber
+
 ; schemify
 
 ; This is only used for producing error and warning messages.

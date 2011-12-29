@@ -1,6 +1,9 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani, David Frese, 
+; Mike Sperber, Martin Gasbichler
+
 ; This is file struct.scm.
 
 ; This file defines a level of abstraction for storage somewhat higher

@@ -1,5 +1,8 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani, David Frese,
+; Mike Sperber, Martin Gasbichler
+
 ; Pre-Allocation
 ;
 ; Preallocation and keys are used to ensure that for every call to MAKE-STOB

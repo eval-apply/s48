@@ -1,5 +1,8 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Harald Glab-Phlag, Mike Sperber
+ */
 
 /* this file includes procedures to write a double to a byte - vector and read it
    out of the vect */

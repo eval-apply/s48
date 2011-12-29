@@ -35,6 +35,10 @@ The distribution includes a number of contributions by permission:
   c/bignum.c, c/bignum.h, c/bignumint.h) obtained from MIT Scheme.
   See the file contents for license information.
 
+- This distribution contains code for printing floating-point numbers
+  by Robert G. Burger, in file c/free.c.  See the file contents for
+  license information.
+
 - This distribution includes files 'configure', 'aclocal.m4',
   'config.sub', 'sysdep.h.in' which are output of the 'autoconf' program.  
   The Free Software Foundation gives unlimited permission to copy,
@@ -51,9 +55,17 @@ The distribution includes a number of contributions by permission:
   contents for license information.
 
 - This distribution includes code from SRFI reference implementations
-  in directory scheme/srfi, all under the public domain or available
-  under open-source licenses; see the individual files from this
-  directory for license information.
+  in directory scheme/srfi and in file c/srfi-27.c, all under the
+  public domain or available under open-source licenses; see the 
+  individual files from this directory for license information.
 
 - This distribution includes code for sorting in directory scheme/sort
   by Olin Shivers, under the public domain.
+
+- This distribution includes code for processing Unicode text 
+  contributed by Basis Technology Corporation, otherwise distributed
+  under the license above.
+
+- This distributes includes code from the tex2page distribution by
+  Dorai Sitaram.  See the files doc/src/css.t2p and doc/src/manual.t2p
+  for license information.

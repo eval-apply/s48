@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber
+
 ; Getting usage counts and doing a topological sort (so that definitions
 ; will be seen before uses, where possible).
 ;

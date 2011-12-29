@@ -1,6 +1,9 @@
 # Scheme 48 Makefile
 # Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+# Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani,
+# Robert Ransom, Michael Zabka, Harald Glab-Phlak, David Frese
+
 # Documentation in files INSTALL and doc/install.txt
 
 SHELL = /bin/sh

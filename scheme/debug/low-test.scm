@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Martin Gasbichler
+
 ; Tests for many of the primitives, both inlined and close-compiled.
 
 ; This prints `Hello' three times and then the first command argument, if any,

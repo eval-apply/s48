@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, David Frese, Mike Sperber
+
 ; These are used to compile the GC separately from the VM.  It has new
 ; definitions of the VM structures that the GC uses, with all of the values
 ; defined as externals.  We only need to define those values that the GC

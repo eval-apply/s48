@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Mike Sperber
+
 ; Say <srcdir> is the Scheme 48 source directory.
 ; cd <srcdir>, then start DrScheme like so:
 ; env PLTCOLLECTS=:<srcdir>/scheme drscheme

@@ -1,6 +1,9 @@
 ; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees, David Frese, Mike Sperber,
+; Martin Gasbichler, Marcus Crestani
+
 ; Collector
 
 ; (S48-TRACE-LOCATIONS! start end)	; trace all roots

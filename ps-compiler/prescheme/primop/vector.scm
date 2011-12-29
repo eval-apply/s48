@@ -1,4 +1,6 @@
-; Part of Scheme 48 1.9.  See file COPYING for notices and license. 
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Mike Sperber
 
 (define-polymorphic-scheme-primop make-vector allocate
   (lambda (call)

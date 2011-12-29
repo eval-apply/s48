@@ -1,5 +1,8 @@
-/* Part of Scheme 48 1.9.  See file COPYING for notices and license.
-   */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Mike Sperber, Marcus Crestani
+ */
 
 #ifndef __NET_SOCKET_H__
 #define __NET_SOCKET_H__

@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Marcel Turino, Manuel Dietrich, Taylor Campbell
+
 ;;;;;; Rudimentary Scheme48 profiler                     -*- Scheme -*-
 
 ;;; Taylor Campbell wrote parts of the original code; he has placed them in the public domain.

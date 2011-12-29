@@ -1,15 +1,21 @@
 Scheme 48 includes code by many contributors.  Their work is
 gratefully acknowledged:
 
+Alan Bawden
 Panagiotis Christopoulos
 Taylor Campbell
 Henry Ceijtin
+Will Clinger
 Olivier Danvy
 Matthew Dempsky
 Manuel Dietrich
+Sebastian Egner
+Christos Freris
 David Frese
+Norbert Freudemann
 Harald Glab-Plhak
 Chris Hanson
+David van Horn
 Timo Harter
 Suresh Jagannathan
 C. R. Kirkwood-Watts
@@ -18,12 +24,19 @@ Andrew Lentvorski
 Emilio Lopes
 Artem Mironov
 Roderic Morris
+Will Noble
 Bryan O'Sullivan
+John Ramsdell
 Robert Ransom
+Mark Reinhold
 Olin Shivers
 Ivan Shmakov
 Marcel Turino
 Michael Zabka
+
+In addition, the Scheme 48 includes code from the reference
+implementation of various SRFIs.  The work of their authors is also
+gratefully acknowledged.
 
 Details on who contributed what can be found in doc/news.txt, in the
 version-control archives on s48.org, and in the individual files.

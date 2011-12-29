@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ; Code to print out module dependencies in a format readable by the
 ; graph layout program AT&T DOT Release 1.0. (for information on DOT call
 ; the AT&T Software Technology Center Common Support Hotline (908) 582-7009)

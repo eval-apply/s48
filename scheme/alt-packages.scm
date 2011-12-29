@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Mike Sperber
+
 
 ; This configuration file provides alternative implementations of the
 ; low, run-time, and run-time-internals structures.  Cf. the interface

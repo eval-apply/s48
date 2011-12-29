@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Jonathan Rees
+
 ; Christopher P. Haynes and Daniel P. Friedman.
 ; Engines build process abstractions.
 ; 1984 ACM Symposium on Lisp and Functional Programming, pages 18-24.

@@ -2,6 +2,8 @@
 
 <!-- Part of Scheme 48 1.9.  See file COPYING for notices and license. -->
 
+<!-- Authors: Mike Sperber -->
+
 <!-- WiX 3.0 source file for building a Windows .msi installer for Scheme 48 -->
 
 <!-- To build, fire up Cygwin, cd to the source directory, and do:

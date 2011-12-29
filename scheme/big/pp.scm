@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: John Ramsdell, Richard Kelsey, Jonathan Rees
+
 ;;;; A pretty-printer
 
 ; This isn't exactly in the spirit of the rest of the Scheme 48

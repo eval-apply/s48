@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Olivier Danvy, Richard Kelsey, Jonathan Rees
+
 ; ,open signals escapes
 
 ; Changes by jar:

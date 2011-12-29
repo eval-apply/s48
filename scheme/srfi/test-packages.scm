@@ -1,4 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Jonathan Rees, Mike Sperber, Michael Zabka, Marcus Crestani
+
 (define-structure srfi-13-test (export srfi-13-tests)
   (open (modify scheme
 		(hide string-fill! string->list string-copy))

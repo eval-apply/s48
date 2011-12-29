@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: Richard Kelsey, Mike Sperber
+
 ; We compile each rule into a pattern and template which are then used at
 ; expansion time.  The compiler performs error checking, replaces pattern
 ; variables and ellipses with markers, and lists the introduced variables.

@@ -1,4 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: David van Horn, Mike Sperber, Marcus Crestani
+
 ;;; "sort.scm" defines: sorted?, merge, merge!, sort, sort!
 
 (define (sorted? seq less? . opt-key)

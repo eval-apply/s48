@@ -1,5 +1,7 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+; Authors: David Frese, Mike Sperber
+
 ; Variables shared by various parts of the BIBOP code
 
 (define *max-heap-size* 0)
