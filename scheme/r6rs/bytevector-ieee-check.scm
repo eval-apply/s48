@@ -1,4 +1,4 @@
-; Adapted from the R6RS reference implementation, which is:
+; Adapted from the R6RS reference implementation by Harald Glab-Phlak, which is:
 
 ; Copyright 2007 William D Clinger.
 

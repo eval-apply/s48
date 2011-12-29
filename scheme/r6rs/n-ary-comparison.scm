@@ -1,4 +1,6 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Mike Sperber, Robert Ransom
 
 ; Tricky business, as we want to typecheck all arguments, and avoid
 ; redundant normalizations.

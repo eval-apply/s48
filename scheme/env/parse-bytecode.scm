@@ -1,3 +1,7 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Martin Gasbichler, Mike Sperber
+
 ;; Generic byte code parser
 
 (define-record-type attribution :attribution

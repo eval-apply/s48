@@ -31,6 +31,9 @@ Recent changes to Scheme 48.
   Robert Ransom)
 - The unquote and unquote-splicing were generalized to several
   operands, in line with R6RS.
+- Most source files now carry author information.
+- A document =doc/deriving.txt= was added that clarifies how works
+  derived from Scheme 48 should be labelled.
 ** Changes
 - The BIBOP GC was heavily debugged and is now considered stable - it
   is enabled by default.
@@ -48,6 +51,7 @@ Recent changes to Scheme 48.
 - The Makefile now builds the documentation upon `make install'.
   (This requires a working LaTeX installation and tex2page.)  A target
   `install-no-doc' is available that does not.
+- The license information was clarified.
 ** Bug fixes
 - Many.
 

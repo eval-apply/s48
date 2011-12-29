@@ -1,3 +1,6 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber
 
 ; A frame contains information about a procedure's current stack frame.  It
 ; also has a list of the literals that will go in the procedure's template

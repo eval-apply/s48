@@ -1,5 +1,10 @@
 #! /bin/sh 
 
+# Part of Scheme 48 1.9.  See file COPYING for notices and license.
+#
+# Authors: Martin Gasbichler, Marcus Crestani
+#
+
 echo "This script requires an installed scheme48 executable in the path."
 echo "The executable should be Scheme 48 1.6 or later." &&
 sleep 3 &&

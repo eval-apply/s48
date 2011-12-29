@@ -1,3 +1,7 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Will Fitzgerald, John Clements, Emilio Lopes
+
 ;;; Test suite for SRFI-19
 ;; tests by Will Fitzgerald, augmented by John Clements -- 2004-08-16
 ;; port to Scheme 48 by Emilio Lopes -- 2006-12-29

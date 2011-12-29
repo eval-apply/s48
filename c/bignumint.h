@@ -36,6 +36,11 @@ POSSIBILITY OF SUCH DAMAGE.
 
 /* License changed to modified BSD by cph on 2004-11-08.  */
 
+/*
+ * Modifications for Scheme 48 by Martin Gasbichler, Mike Sperber,
+ * Marcus Crestani, David Frese, Taylor Campbell, Harald Glab-Phlak
+ */
+
 /* Internal Interface to Bignum Code */
 #undef BIGNUM_ZERO_P
 #undef BIGNUM_NEGATIVE_P

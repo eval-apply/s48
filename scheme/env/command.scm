@@ -1,4 +1,6 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Jonathan Rees, Robert Ransom
 
 ; Interpreting commands.
 
@@ -626,7 +628,7 @@
         (begin (write-char #\space port)
                (display info port)))
     (newline port)
-    (write-line "Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees."
+    (write-line "See http://s48.org/ for more information."
 		port)
     (write-line "Please report bugs to scheme-48-bugs@s48.org."
                 port)
