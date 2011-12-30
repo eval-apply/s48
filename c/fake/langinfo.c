@@ -1,4 +1,10 @@
 /*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Mike Sperber
+ */
+
+/*
  * If the system doesn't have an nl_langinfo procedure, we provide our
  * own dummy version.
  */

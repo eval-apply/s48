@@ -1,4 +1,6 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Jonathan Rees, Robert Ransom
 
 ; Red-Black binary search trees as described in Introduction to Algorithms
 ; by Cormen, Leiserson, and Rivest.  Look there if you want to understand

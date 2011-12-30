@@ -1,6 +1,6 @@
-; Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees. See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
-; Author: Harald Glab-Plhak
+; Authors: Harald Glab-Plhak, Marcus Crestani
 
 ;;test package definition for the ffi tests
 (define-structure ffi-funcs 

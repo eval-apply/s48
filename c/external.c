@@ -1,5 +1,9 @@
-/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
-   See file COPYING. */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani, Mike Sperber,
+ * Robert Ransom, Harald Glab-Phlak, Marcel Turino
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -397,6 +401,8 @@ s48_external_ecall(s48_call_t call,
 
   int throw_reason;
 
+  s48_ref_t sbt = NULL;
+
   s48_setref(current_procedure, name);
 
   S48_CHECK_VALUE(sch_proc);
@@ -532,7 +538,6 @@ s48_external_ecall(s48_call_t call,
     result = S48_UNSPECIFIC;
 
   /* Check to see if a thread is waiting to return to the next block down. */
-  s48_ref_t sbt = NULL;
   if (!s48_false_p_2(call, current_stack_block) &&
       !s48_false_p_2(call, sbt = STACK_BLOCK_THREAD_2(call, current_stack_block))) {
 #ifdef DEBUG_FFI

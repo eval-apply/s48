@@ -1,4 +1,10 @@
 /*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees, Martin Gasbichler, Mike Sperber
+ */
+
+/*
  * Phony versions of native-code helper routines for use on architectures for
  * which we have no native code.
  */
