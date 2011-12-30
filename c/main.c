@@ -1,3 +1,8 @@
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani, Mike Sperber
+ */
 
 extern long s48_initialize(int *argc, char ***argv);
 

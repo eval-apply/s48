@@ -1,5 +1,8 @@
-/* Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
-   See file COPYING. */
+/*
+ * Part of Scheme 48 1.9.  See file COPYING for notices and license.
+ *
+ * Authors: David Frese, Marcus Crestani
+ */
 
 #ifndef __S48_MEMORY_MAP_H
 #define __S48_MEMORY_MAP_H

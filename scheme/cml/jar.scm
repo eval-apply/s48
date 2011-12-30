@@ -1,3 +1,7 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Mike Sperber
+
 ; Jars (multiple-assignment cells for use with threads)
 ; these are equivalent to ID-90 M-structures
 

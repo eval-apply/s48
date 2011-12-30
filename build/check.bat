@@ -1,5 +1,10 @@
 @echo off
 
+rem Part of Scheme 48 1.9.  See file COPYING for notices and license.
+rem
+rem Authors: Mike Sperber, Marcus Crestani
+rem
+
 set runnable="%~1"
 
 echo ,batch > check.input

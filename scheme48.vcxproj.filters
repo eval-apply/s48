@@ -1,0 +1,230 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{bc18003b-9533-4f81-8919-24d625912a6b}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{c6ea7e0a-95dd-4ae8-9fab-6d48dbd45410}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{94a397fe-d673-47dc-8e45-ada27bfb1895}</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="c\net\address.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\area_roots.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\areas.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bignum.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\check_heap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\double_to_string.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\dynlink.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\event.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\extension.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\external-init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\external-lib.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\external.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\fd-io.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\ffi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\find_all.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\free.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\generation_gc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\fake\glue.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\io.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\main_win32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\memory_map.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\misc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\net\net.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\page_alloc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\remset.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\scheme48-bibop-heap-32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\scheme48vm-32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\net\socket.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\sysexits.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\time.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\win32\utf-8of16.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="c\bibop\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="build\scheme48.rc">
+      <Filter>Source Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="c\net\address.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\area_roots.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\areas.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\bibop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bignum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bignumint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\c-mods.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\check_heap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\event.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\fd-io.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\ffi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\find_all.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\gc_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\generation_gc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\io.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\measure.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\memory_map.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\page_alloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\page_constants.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\prescheme.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\remset.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\scheme48.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\win32\scheme48arch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\scheme48heap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\scheme48image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\scheme48vm-prelude.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\scheme48vm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\scheme48write-barrier.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\net\socket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c\bibop\utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="c\bibop\measure.ci">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="build\scheme48.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="ReadMe.txt" />
+  </ItemGroup>
+</Project>

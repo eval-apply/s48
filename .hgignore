@@ -47,7 +47,8 @@ syntax: regexp
 ^generate-c-header\.input$
 ^ps-compiler/.*\.input$
 ^go\.bat$
-^scheme48\.(bat|ncb|res|suo|(sln|vcproj)\..*)$
+^scheme48\.(bat|ncb|res|suo|opensdf|wixpdb|sln\..*)$
+^scheme48vm\.(bsc|pdb)$
 ^srfi-27\.(dll|exp|ilk|lib|pdb|vcproj\..*)$
 ^r6rs\.(dll|exp|ilk|lib|pdb|vcproj\..*)$
 ^ffi-test\.(dll|exp|ilk|lib|pdb|vcproj\..*)$

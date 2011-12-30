@@ -1,4 +1,6 @@
-; Copyright (c) 1993-2008 by Richard Kelsey.  See file COPYING.
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Richard Kelsey, Mark Reinhold
 
 ;;; Find immediate dominators in a directed graph
 ;;; Mark Reinhold (mbr@research.nj.nec.com)/3 February 1995

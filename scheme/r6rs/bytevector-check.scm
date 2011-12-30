@@ -1,3 +1,7 @@
+; Part of Scheme 48 1.9.  See file COPYING for notices and license.
+
+; Authors: Harald Glab-Plhak, Mike Sperber
+
 ; These are the examples from the R6RS document.
 
 (define-test-suite basic-bytevectors-tests)
