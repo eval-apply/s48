@@ -23,7 +23,7 @@ Building Scheme 48 from source
 ------------------------------
 
 The Scheme 48 developers build the VM using Microsoft Visual C++
-2008 Express Edition, which can be downloaded for free from the
+2010 Express Edition, which can be downloaded for free from the
 Microsoft web site.
 
 In order to build Scheme 48 from scratch, the following steps are
