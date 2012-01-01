@@ -329,6 +329,29 @@
                                                (list sigusr1))))
       (terminate-thread! catch-thread))))
 
+(define (fork-spawn thunk)
+  (or (fork)
+      (begin (thunk)
+             (exit 0))))
+
+(define-syntax fork-and-run
+  (syntax-rules ()
+    ((fork-and-run body ...)
+     (fork-spawn (lambda () body ...)))))
+
+(define-test-case wait-for-child-process posix-core-tests
+  (let* ((n-waiters 50)
+         (waiter-results (make-vector n-waiters #f))
+         (child-pid (fork-and-run (sleep 5000)))
+         (waiter-threads
+          (map (lambda (i)
+                 (spawn (lambda ()
+                          (wait-for-child-process child-pid)
+                          (vector-set! waiter-results i #t))))
+               (srfi-1:iota n-waiters))))
+    (sleep 10000)
+    (check waiter-results => (make-vector n-waiters #t))))
+
 ; This should be last, because it removes the directory.
 
 (define-test-case rmdir posix-core-tests
