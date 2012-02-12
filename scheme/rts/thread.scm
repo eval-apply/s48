@@ -45,7 +45,7 @@
 (define-record-type thread :thread
   (really-make-thread dynamic-env dynamic-point proposal
 		      continuation scheduler
-		      cell arguments
+		      cell deadlock? arguments
 		      events current-task uid name)
   thread?
 
@@ -71,6 +71,10 @@
   ; Used by schedulers
   (data           thread-data             set-thread-data!)
   (cell           thread-cell             set-thread-cell!)
+  ; relevant if thread-cell is set (i.e. the thread is blocked); in
+  ; that case, it's #t if the thread contributed to deadlock, #f if it
+  ; doesn't
+  (deadlock?      thread-deadlock?	  set-thread-deadlock?!)
 
   ; For debugging
   (uid            thread-uid)       ; (also used as a cheap weak pointer)
@@ -95,6 +99,7 @@
 				     (thread-top-level thunk))
 				    #f 		     ; scheduler
 				    #f               ; cell
+				    #t               ; thread contributes to deadlock
 				    '()              ; arguments
 				    #f               ; events
 				    #f               ; current-task
@@ -457,16 +462,30 @@
 (define (block)
   (suspend (enum event-type blocked) '()))
 
+; Threads that are blocked, but are waiting for something that's not
+; another thread, but instead a signal, external event or some such.
+; Note that these threads must be made ready before they can be GCed.
+(define threads-not-deadlocked-count 0)
+
 ; Block if the current proposal succeeds.  Returns true if successful and false
 ; if the commit fails.  The cell becomes the thread's cell.  It will be cleared
 ; if the thread is killed.
 
-(define (maybe-commit-and-block cell)
+; The optional deadlock? argument (defaults to #t) says whether the
+; thread contributes to deadlock.
+
+(define (maybe-commit-and-block cell . maybe-deadlock?)
   (disable-interrupts!)
   (cond ((maybe-commit)
-	 (set-thread-cell! (current-thread) cell)
-	 (suspend-to (thread-scheduler (current-thread))
-		     (list (enum event-type blocked)))
+	 (let ((thread (current-thread)))
+	   (if (not (or (null? maybe-deadlock?)
+			(car maybe-deadlock?)))
+	       (begin
+		 (set-thread-deadlock?! thread #f)
+		 (set! threads-not-deadlocked-count (+ 1 threads-not-deadlocked-count))))
+	   (set-thread-cell! thread cell)
+	   (suspend-to (thread-scheduler thread)
+		       (list (enum event-type blocked))))
 	 #t)
 	(else
 	 (enable-interrupts!)
@@ -474,10 +493,10 @@
 
 ; Utility procedure for the common case of blocking on a queue.
 
-(define (maybe-commit-and-block-on-queue queue)
+(define (maybe-commit-and-block-on-queue queue . maybe-deadlock?)
   (let ((cell (make-cell (current-thread))))
     (enqueue! queue cell)
-    (maybe-commit-and-block cell)))
+    (apply maybe-commit-and-block cell maybe-deadlock?)))
 
 ; Send the upcall to the current scheduler and check the return value(s)
 ; to see if it was handled properly.
@@ -647,6 +666,10 @@
 (define (make-ready thread . args)
   (if (thread-cell thread)
       (begin
+	(if (not (thread-deadlock? thread))
+	    (begin
+	      (set! threads-not-deadlocked-count (- threads-not-deadlocked-count 1))
+	      (set-thread-deadlock?! thread #t)))
 	(clear-thread-cell! thread)
 	(set-thread-arguments! thread args)
 	(if (thread-scheduler thread)

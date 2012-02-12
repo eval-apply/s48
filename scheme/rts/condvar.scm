@@ -32,8 +32,8 @@
 			   #f
 			   (car id-option))))
 
-(define (maybe-commit-and-wait-for-condvar condvar)
-  (maybe-commit-and-block-on-queue (condvar-queue condvar)))
+(define (maybe-commit-and-wait-for-condvar condvar . maybe-deadlock?)
+  (apply maybe-commit-and-block-on-queue (condvar-queue condvar) maybe-deadlock?))
 
 (define (maybe-commit-and-set-condvar! condvar value)
   (set-condvar-value! condvar value)

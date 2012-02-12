@@ -9,12 +9,6 @@
   (set-interrupt-handler! (enum interrupt external-event)
 			  external-event-handler))
 
-; Exported procedure
-
-(define (waiting-for-external-events?)
-  (zap-condvar-orphans!)
-  (not (null? (external-event-condvars))))
-
 ;----------------
 
 ; A session slot contains an alist mapping external-event uids to
@@ -63,7 +57,7 @@
   (let ((ints (disable-interrupts!))
         (condvar (get-external-event-condvar! uid)))
     (with-new-proposal (lose)
-      (maybe-commit-and-wait-for-condvar condvar))
+      (maybe-commit-and-wait-for-condvar condvar #f))
     (set-enabled-interrupts! ints)))
 
 ; This just deletes from the alist.
@@ -85,18 +79,17 @@
 		   (else
 		    (loop (cdr condvars) condvars))))))))
 
-; Zap the condvars that no longer have waiters.
+; Zap the condvars that no longer have waiters.  This assumes disabled
+; interrupts.  The root scheduler typically calls this.
 
-(define (zap-condvar-orphans!)
-  (with-interrupts-inhibited
-   (lambda ()
-     (let loop ((condvars (external-event-condvars)) (okay '()))
-       (if (null? condvars)
-	   (set-external-event-condvars! okay)
-	   (let ((condvar (cdar condvars)))
-	     (loop (cdr condvars)
-		   (if (condvar-has-waiters? condvar)
-		       (cons (car condvars) okay)
-		       (begin
-			 (notify-external-event-condvar! condvar)
-			 okay)))))))))
+(define (zap-external-event-orphans!)
+  (let loop ((condvars (external-event-condvars)) (okay '()))
+    (if (null? condvars)
+	(set-external-event-condvars! okay)
+	(let ((condvar (cdar condvars)))
+	  (loop (cdr condvars)
+		(if (condvar-has-waiters? condvar)
+		    (cons (car condvars) okay)
+		    (begin
+		      (notify-external-event-condvar! condvar)
+		      okay)))))))

@@ -736,8 +736,7 @@
 	  channel-write
 
 	  initialize-channel-i/o!       ;scheduler
-	  waiting-for-i/o?              ;scheduler
-	  abort-unwanted-reads!		;scheduler
+	  zap-i/o-orphans!              ;root-scheduler
 
 	  ; call this with interrupts disabled
 	  wait-for-channel))		;big/socket.scm
@@ -787,6 +786,7 @@
 	  maybe-commit-and-block-on-queue
 	  maybe-commit-and-make-ready
 	  maybe-commit-no-interrupts
+	  threads-not-deadlocked-count
 	  spawn-on-scheduler spawn-on-root
 	  wait-for-event
 	  upcall propogate-upcall
@@ -890,7 +890,7 @@
 
 (define-interface external-events-interface
   (export initialize-external-events!	;init.scm
-	  waiting-for-external-events?  ;root-scheduler.scm
+	  zap-external-event-orphans!  ;root-scheduler.scm
 	  wait-for-external-event))
 
 (define-interface writing-interface

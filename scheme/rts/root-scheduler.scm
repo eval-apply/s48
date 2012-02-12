@@ -19,7 +19,8 @@
 					 quantum
 					 abort)
 				      (lambda ()
-					(abort-unwanted-reads!)
+					(zap-i/o-orphans!)
+					(zap-external-event-orphans!)
 					(spawn-output-forcers #t)
 					(wake-some-threads))
 				      housekeeping-quantum)
@@ -110,8 +111,7 @@
 	      (set-enabled-interrupts! all-interrupts)
 	      #t)
 	     ((or time-until-wakeup
-		  (waiting-for-i/o?)
-		  (waiting-for-external-events?))
+		  (> threads-not-deadlocked-count 0))
 	      (do-some-waiting time-until-wakeup)
 	      (set-enabled-interrupts! all-interrupts)
 	      (root-wait))

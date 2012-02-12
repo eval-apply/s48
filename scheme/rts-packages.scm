@@ -423,9 +423,9 @@
 	(subset interrupts      (with-interrupts-inhibited
 				 all-interrupts
 				 set-enabled-interrupts!))
-	(subset external-events (waiting-for-external-events?))
+	(subset external-events (zap-external-event-orphans!))
 	(subset wind            (call-with-current-continuation))
-	(subset channel-i/o	(waiting-for-i/o?
+	(subset channel-i/o	(zap-i/o-orphans!
 				 initialize-channel-i/o!
 				 abort-unwanted-reads!))
 	(modify primitives      (expose wait unspecific)))

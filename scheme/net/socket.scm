@@ -124,7 +124,7 @@
 	       (let ((condvar (make-condvar)))
 		 (wait-for-channel channel condvar)
 		 (with-new-proposal (lose)
-		   (maybe-commit-and-wait-for-condvar condvar))
+		   (maybe-commit-and-wait-for-condvar condvar #f))
 		 (enable-interrupts!)
 		 (loop #t))))))))
 
@@ -161,7 +161,7 @@
 	    (else
 	     (wait-for-channel channel condvar)
 	     (with-new-proposal (lose)
-	       (maybe-commit-and-wait-for-condvar condvar))
+	       (maybe-commit-and-wait-for-condvar condvar #f))
 	     (enable-interrupts!)
 	     (loop #t))))))
 
