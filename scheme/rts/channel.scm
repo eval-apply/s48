@@ -42,7 +42,7 @@
 	 (add-channel-condvar! channel condvar)
 	 (if wait?
 	     (with-new-proposal (lose)
-	       (maybe-commit-and-wait-for-condvar condvar))))
+	       (maybe-commit-and-wait-for-condvar condvar #f))))
 	((cell? got)
 	 (note-channel-result! condvar 
 			       (make-read/write-i/o-error 'channel-maybe-write
@@ -81,7 +81,7 @@
 	  (let ((condvar (make-condvar)))
 	    (add-channel-condvar! channel condvar)
             (with-new-proposal (lose)
-              (or (maybe-commit-and-wait-for-condvar condvar)
+              (or (maybe-commit-and-wait-for-condvar condvar #f)
                   (lose)))
 	    (set-enabled-interrupts! ints)
 	    (condvar-value condvar))))))
@@ -136,9 +136,8 @@
 				  
 
 ; Exported procedure
-; This should check the list for condvars which have no waiters.
 
-(define (waiting-for-i/o?)
+(define (zap-i/o-orphans!)
   (abort-unwanted-reads!)
   (not (null? (channel-condvars))))
 

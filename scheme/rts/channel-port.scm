@@ -81,7 +81,7 @@
 					      (+ (provisional-port-limit port) result))))
 	       (maybe-commit)))
 	    (wait?
-	     (maybe-commit-and-wait-for-condvar condvar))
+	     (maybe-commit-and-wait-for-condvar condvar #f))
 	    (else
 	     (maybe-commit))))))
 
@@ -175,7 +175,7 @@
 			 (set-channel-cell-in-use?! cell #f)
 			 (maybe-commit)))))))
 	  (necessary?
-	   (maybe-commit-and-wait-for-condvar condvar))
+	   (maybe-commit-and-wait-for-condvar condvar #f))
 	  (else
 	   (maybe-commit)))))
 
