@@ -282,6 +282,8 @@
   (lookup-shared-binding 2)
   (undefine-shared-binding 2)
   (find-undefined-imported-bindings)
+  (new-external-event-uid 1)
+  (unregister-external-event-uid! 1)
   (time 2)
   (system-parameter 1)
   (vm-extension 2)		; access to extensions of the virtual machine

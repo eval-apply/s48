@@ -568,8 +568,6 @@ get_addrinfo_result(s48_call_t call, struct getaddrinfo_handshake *handshake)
   struct addrinfo *p;
   int i, addrinfo_count;
 
-  s48_unregister_external_event_uid(handshake->event_uid);
-
   if (handshake->status != 0)
     {
       int status = handshake->status;
@@ -628,7 +626,9 @@ DECLARE_THREAD_PROC(getaddrinfo_thread, void_handshake)
 #endif
 
 static s48_ref_t
-s48_getaddrinfo(s48_call_t call, s48_ref_t sch_nodename, s48_ref_t sch_servname,
+s48_getaddrinfo(s48_call_t call, 
+		s48_ref_t sch_event_uid,
+		s48_ref_t sch_nodename, s48_ref_t sch_servname,
 		s48_ref_t sch_hint_flags, s48_ref_t sch_hint_family,
 		s48_ref_t sch_hint_socktype, s48_ref_t sch_hint_protocol)
 {
@@ -676,7 +676,7 @@ s48_getaddrinfo(s48_call_t call, s48_ref_t sch_nodename, s48_ref_t sch_servname,
   handshake->hints.ai_addr = NULL;
   handshake->hints.ai_next = NULL;
 
-  handshake->event_uid = s48_external_event_uid();
+  handshake->event_uid = s48_extract_long_2(call, sch_event_uid);
 
 #ifdef HAVE_THREADS
   if (START_THREAD(t, getaddrinfo_thread, handshake))
@@ -690,17 +690,8 @@ s48_getaddrinfo(s48_call_t call, s48_ref_t sch_nodename, s48_ref_t sch_servname,
 #ifdef HAVE_THREADS
   else
     {
-      s48_ref_t sch_event_uid;
-      s48_ref_t sch_handshake;
-      s48_ref_t sch_result;
-
       DETACH_THREAD(t);
-
-      sch_event_uid = s48_enter_long_2(call, handshake->event_uid);
-      sch_handshake = s48_enter_pointer_2(call, handshake);
-
-      sch_result = s48_cons_2(call, sch_event_uid, sch_handshake);
-      return sch_result;
+      return s48_enter_pointer_2(call, handshake);
     }
 #endif
 }
@@ -744,8 +735,6 @@ getnameinfo_result(s48_call_t call, struct getnameinfo_handshake* handshake)
 {
   s48_ref_t sch_result;
 
-  s48_unregister_external_event_uid(handshake->event_uid);
-
   if (handshake->status != 0)
     {
       int status = handshake->status;
@@ -787,7 +776,7 @@ DECLARE_THREAD_PROC(getnameinfo_thread, void_handshake)
 
 
 static s48_ref_t
-s48_getnameinfo(s48_call_t call, s48_ref_t sch_saddr, s48_ref_t sch_flags)
+s48_getnameinfo(s48_call_t call, s48_ref_t sch_event_uid, s48_ref_t sch_saddr, s48_ref_t sch_flags)
 {
   const struct sockaddr *sa
     = s48_extract_value_pointer_2(call, sch_saddr, const struct sockaddr);
@@ -807,7 +796,7 @@ s48_getnameinfo(s48_call_t call, s48_ref_t sch_saddr, s48_ref_t sch_flags)
 
   handshake->flags = extract_ni_flags(call, sch_flags);
 
-  handshake->event_uid = s48_external_event_uid();
+  handshake->event_uid = s48_extract_long_2(call, sch_event_uid);
 
 #ifdef HAVE_THREADS
   if (START_THREAD(t, getnameinfo_thread, handshake))
@@ -823,17 +812,8 @@ s48_getnameinfo(s48_call_t call, s48_ref_t sch_saddr, s48_ref_t sch_flags)
 #ifdef HAVE_THREADS
   else
     {
-      s48_ref_t sch_event_uid;
-      s48_ref_t sch_handshake;
-      s48_ref_t sch_result;
-
       DETACH_THREAD(t);
-
-      sch_event_uid = s48_enter_long_2(call, handshake->event_uid);
-      sch_handshake = s48_enter_pointer_2(call, handshake);
-
-      sch_result = s48_cons_2(call, sch_event_uid, sch_handshake);
-      return sch_result;
+      return s48_enter_pointer_2(call, handshake);
     }
 #endif
 }

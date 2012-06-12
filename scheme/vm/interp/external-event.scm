@@ -135,7 +135,7 @@
    (else -1)))
 
 ; return an unused event-type uid; for temporary use
-(define (s48-external-event-uid)
+(define (external-event-uid)
   (let ((uid (unused-event-type-uid)))
     (if (= -1 uid)
 	uid
@@ -144,9 +144,8 @@
 	  uid))))
   
 ; return an unused event-type uid; for permanent use
-(define (s48-permanent-external-event-uid name)
-  (let* ((binding (get-imported-binding name))
-	 (uid-val (shared-binding-ref binding)))
+(define (permanent-external-event-uid binding)
+  (let* ((uid-val (shared-binding-ref binding)))
 
     (define (indeed uid)
       (shared-binding-set! binding (enter-fixnum uid))
@@ -168,7 +167,7 @@
 	      (indeed uid))))))
 
 ; unregister an external-event type registered via `s48-external-event-uid'
-(define (s48-unregister-external-event-uid index)
+(define (unregister-external-event-uid! index)
  
   (define (lose/invalid)
     (write-error-string "trying to unregister invalid external event: ")
