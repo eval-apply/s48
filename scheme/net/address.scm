@@ -364,17 +364,17 @@
 		     (vector-ref raw 3)
 		     (raw->socket-address (vector-ref raw 4))))
 
-(define (get-xxx-info retval get-result)
-  (if (pair? retval)
-      (let ((result #f))
+(define (get-xxx-info event-uid retval get-result)
+  (if (vector? retval)
+      retval
+      (begin
 	(dynamic-wind ; we need to release the uid in case the thread gets killed
 	    values
 	    (lambda ()
-	      (wait-for-external-event (car retval)))
+	      (wait-for-external-event event-uid))
 	    (lambda ()
-	      (set! result (get-result (cdr retval)))))
-	result)
-      retval))
+	      (unregister-external-event-uid! event-uid)))
+	(get-result retval))))
 
 (define get-address-info
   (opt-lambda (node
@@ -383,26 +383,30 @@
 	       (hint-family (address-family unspec))
 	       (hint-socket-type #f)
 	       (hint-protocol #f))
-    (cond
-     ((get-xxx-info
-       (external-getaddrinfo
-	node server
-	(enum-set->integer hint-flags)
-	(address-family->raw hint-family)
-	(and hint-socket-type
-	     (socket-type->raw hint-socket-type))
-	(and hint-protocol
-	     (ip-protocol->raw hint-protocol)))
-       external-getaddrinfo-result)
-      => (lambda (result)
-	   (map raw->address-info
-		(vector->list result))))
-     (else #f))))
+    (let ((event-uid (new-external-event-uid #f)))
+      (cond
+       ((get-xxx-info
+	 event-uid
+	 (external-getaddrinfo
+	  event-uid
+	  node server
+	  (enum-set->integer hint-flags)
+	  (address-family->raw hint-family)
+	  (and hint-socket-type
+	       (socket-type->raw hint-socket-type))
+	  (and hint-protocol
+	       (ip-protocol->raw hint-protocol)))
+	 external-getaddrinfo-result)
+	=> (lambda (result)
+	     (map raw->address-info
+		  (vector->list result))))
+       (else #f)))))
 
-(import-lambda-definition-2 external-getaddrinfo (nodename
-						servname
-						hint-flags hint-family
-						hint-socktype hint-protocol)
+(import-lambda-definition-2 external-getaddrinfo (event-uid
+						  nodename
+						  servname
+						  hint-flags hint-family
+						  hint-socktype hint-protocol)
 			  "s48_getaddrinfo")
 (import-lambda-definition-2 external-getaddrinfo-result (handshake)
 			  "s48_getaddrinfo_result")
@@ -413,14 +417,17 @@
 
 (define get-name-info
   (opt-lambda (socket-address (flags (name-info-flags)))
-    (let ((p (get-xxx-info
-	      (external-getnameinfo
-	       (socket-address-raw socket-address)
-	       (enum-set->integer flags))
-	      external-getnameinfo-result)))
+    (let* ((event-uid (new-external-event-uid #f))
+	   (p (get-xxx-info
+	       event-uid
+	       (external-getnameinfo
+		event-uid
+		(socket-address-raw socket-address)
+		(enum-set->integer flags))
+	       external-getnameinfo-result)))
       (values (vector-ref p 0) (vector-ref p 1)))))
 
-(import-lambda-definition-2 external-getnameinfo (sock-address flags)
+(import-lambda-definition-2 external-getnameinfo (event-uid sock-address flags)
 			  "s48_getnameinfo")
 (import-lambda-definition-2 external-getnameinfo-result (handshake)
 			  "s48_getnameinfo_result")

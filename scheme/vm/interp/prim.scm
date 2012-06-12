@@ -579,6 +579,22 @@
     (shared-set! *session-data* state))
   return-unspecific)
 
+; arg is either shared-binding name (for permanent event type) or #f
+(define-primitive new-external-event-uid (any->)
+  (lambda (arg)
+    (cond
+     ((shared-binding? arg)
+      (goto return-fixnum (permanent-external-event-uid arg)))
+     ((false? arg)
+      (goto return-fixnum (external-event-uid)))
+     (else
+      (raise-exception wrong-type-argument 0 arg)))))
+
+(define-primitive unregister-external-event-uid! (fixnum->)
+  (lambda (uid)
+    (unregister-external-event-uid! uid))
+  return-unspecific)
+
 ; Unnecessary primitives
 
 (define-primitive record-type<=? (record-type-> record-type->) record-type<=? return-boolean)

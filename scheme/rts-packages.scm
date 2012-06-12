@@ -361,7 +361,9 @@
 	enumerated
 	condvars condvars-internal proposals
 	session-data
-	interrupts)
+	interrupts
+	(subset primitives (new-external-event-uid
+			    unregister-external-event-uid!)))
   (files (rts external-event)))
 
 (define-structures ((threads threads-interface)

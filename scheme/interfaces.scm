@@ -74,6 +74,8 @@
 	  extended-number-ref
 	  extended-number-set!
 	  extended-number?
+	  new-external-event-uid
+	  unregister-external-event-uid!
 	  find-all			;externals, command-levels
 	  find-all-records		;threads
 	  immutable?
@@ -891,7 +893,9 @@
 (define-interface external-events-interface
   (export initialize-external-events!	;init.scm
 	  zap-external-event-orphans!  ;root-scheduler.scm
-	  wait-for-external-event))
+	  wait-for-external-event
+	  new-external-event-uid
+	  unregister-external-event-uid!))
 
 (define-interface writing-interface
   (export write
