@@ -88,16 +88,13 @@
 ; list of existing ones.
 
 (define-record-type process-id :process-id
-  (make-process-id uid exit-status terminating-signal wait-queue)
+  (make-process-id uid exit-status terminating-signal placeholder)
   process-id?
   (uid process-id->integer)		; the Unix PID
   ; The rest are initially #F and are set as events warrant.
   (exit-status process-id-exit-status set-process-id-exit-status!)
   (terminating-signal process-id-terminating-signal set-process-id-terminating-signal!)
-  ;; When a thread waits on this process id, it'll add its uid to this queue, and keep a
-  ;; reference. When the event comes in, the event handler will note all the uids in the queue. When
-  ;; each waiting thread wakes up, it'll unregister its uid.
-  (wait-queue process-id-wait-queue set-process-id-wait-queue!))
+  (placeholder process-id-placeholder))
 
 (define-record-discloser :process-id
   (lambda (process-id)
@@ -119,7 +116,7 @@
       (assertion-violation 'process-id=? "argument type error" p1 p2)))
 
 (define (enter-pid num)
-  (let ((pid (make-process-id num #f #f #f)))
+  (let ((pid (make-process-id num #f #f (make-placeholder))))
     (add-to-population! pid *process-ids*)
     pid))
 
@@ -141,71 +138,33 @@
 ; pid_t waitpid(pid_t pid, int *stat_loc, int options)
 ; void _exit(int status);         Need to do this.
 
-; Wait for a child process.  If the child isn't already known to have terminated
-; we process any waiting, terminated children and try again.  If it still hasn't
-; finished we created an external event uid for it and block.
+; Wait for a child process.
 
 (define (wait-for-child-process pid)
-  (if (not (process-id? pid))
-      (assertion-violation wait-for-child-process "not a process id" pid))
-  (or (process-id-exit-status pid)
-      (process-id-terminating-signal pid)
-      (begin
-        (process-terminated-children pid)
-        (disable-interrupts!)
-        (or (process-id-exit-status pid)
-            (process-id-terminating-signal pid)
-            (really-wait-for-child-process pid))
-        (enable-interrupts!)))
+  (placeholder-value (process-id-placeholder pid) #f)
   (values))
 
-(define (really-wait-for-child-process pid)
-  (let ((wait-queue (or (process-id-wait-queue pid)
-                        (let ((new-queue (make-queue)))
-                          (set-process-id-wait-queue! pid new-queue)
-                          new-queue)))
-        (wait-uid (posix-create-wait-uid)))
-    (enqueue! wait-queue wait-uid)
-    (wait-for-external-event wait-uid)
-    (posix-unregister-wait-uid wait-uid)))
-
-; Wait for a process we know about, if any. Before returning the PID,
-; fill in the exit status/terminating signal learned from
-; POSIX-WAITPID.
-
-(define (wait/lookup-pid)
-  (let ((next (posix-waitpid)))
-    (and next
-	 (let ((pid (lookup-pid (vector-ref next 0))))
-	   (if pid
-	       (begin
-		 (set-process-id-exit-status! pid (vector-ref next 1))
-		 (set-process-id-terminating-signal!
-		  pid
-		  (and (vector-ref next 2)
-		       (integer->signal (vector-ref next 2))))
-		 pid)
-	       (wait/lookup-pid))))))
-					       
 ; Waiting for children.  We go through the terminated child processes
-; until we find the one we are looking for or we run out.  This needs
-; to be called by the SIGCHLD handler.
+; until we we run out.  This needs to be called by the SIGCHLD
+; handler.
 
-(define (process-terminated-children . maybe-pid)
-  (let ((pid (and (pair? maybe-pid) (car maybe-pid)))
-	(next (wait/lookup-pid)))
-    (if next
-	(begin
-	  (let ((queue (process-id-wait-queue next)))
-	    (if queue
-		(begin (for-each posix-note-wait-uid (queue->list queue))
-		       (set-process-id-wait-queue! next #f))))
-	  (if (not (eq? next pid)) (process-terminated-children pid))))))
+(define (process-terminated-children)
+  (let loop ()
+    (cond
+     ((posix-waitpid)
+      => (lambda (next)
+	   (cond
+	    ((lookup-pid (vector-ref next 0))
+	     => (lambda (pid)
+		  (set-process-id-exit-status! pid (vector-ref next 1))
+		  (set-process-id-terminating-signal!
+		   pid
+		   (and (vector-ref next 2)
+			(integer->signal (vector-ref next 2))))
+		  (placeholder-set! (process-id-placeholder pid) #t))))
+	   (loop))))))
 
 (import-lambda-definition-2 posix-waitpid ())
-(import-lambda-definition-2 posix-create-wait-uid ())
-(import-lambda-definition-2 posix-note-wait-uid (wait-uid))
-(import-lambda-definition-2 posix-unregister-wait-uid (wait-uid))
 
 (define (exit status)
   (force-channel-output-ports!)
