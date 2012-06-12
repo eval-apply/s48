@@ -24,11 +24,11 @@
 			   (make-queue)
 			   (if (null? id-option) #f (car id-option))))
 
-(define (placeholder-value placeholder)
+(define (placeholder-value placeholder . maybe-deadlock?)
   (with-new-proposal (lose)
     (let ((queue (placeholder-queue placeholder)))
       (if queue
-	  (or (maybe-commit-and-block-on-queue queue)
+	  (or (apply maybe-commit-and-block-on-queue queue maybe-deadlock?)
 	      (lose)))))
   (placeholder-real-value placeholder))
 
