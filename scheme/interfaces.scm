@@ -893,8 +893,10 @@
 (define-interface external-events-interface
   (export initialize-external-events!	;init.scm
 	  zap-external-event-orphans!  ;root-scheduler.scm
+	  register-condvar-for-external-event!
 	  wait-for-external-event
 	  new-external-event-uid
+	  new-external-event
 	  unregister-external-event-uid!))
 
 (define-interface writing-interface
