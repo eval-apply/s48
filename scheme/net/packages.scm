@@ -80,7 +80,7 @@
 		    (net-addresses-internal net-addresses-internal-interface))
   (open scheme
 	variable-argument-lists
-	external-calls external-events
+	external-calls external-events condvars
 	define-record-types
 	bitwise byte-vectors
 	os-strings

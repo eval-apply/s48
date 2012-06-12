@@ -24,24 +24,9 @@
 (define (set-external-event-condvars! condvars)
   (session-data-set! external-events-wait-condvars-slot condvars))
 
-;; Return the condition variable for the specified external event UID,
-;; adding a new one to the list if necessary.
-;;
-;; This function must be called with interrupts disabled.
-(define (get-external-event-condvar! uid)
-  (let loop ((condvars (external-event-condvars)))
-    (cond
-     ((null? condvars)
-      ;; No condvar for this event yet -- create one.
-      (let ((condvar (make-condvar)))
-        (set-external-event-condvars! (cons (cons uid condvar)
-				      (external-event-condvars)))
-        condvar))
-     ((= (caar condvars) uid)
-      ;; Found an existing condvar for this event.
-      (cdar condvars))
-     (else
-      (loop (cdr condvars))))))
+(define (add-external-event-condvar! uid condvar)
+  (set-external-event-condvars! (cons (cons uid condvar)
+				      (external-event-condvars))))
 
 (define (notify-external-event-condvar! condvar)
   (with-new-proposal (lose)
@@ -53,12 +38,26 @@
    ((fetch-external-event-condvar! uid)
     => notify-external-event-condvar!)))
 
-(define (wait-for-external-event uid)
-  (let ((ints (disable-interrupts!))
-        (condvar (get-external-event-condvar! uid)))
-    (with-new-proposal (lose)
-      (maybe-commit-and-wait-for-condvar condvar #f))
+; the condvar will be set when the event occurs
+(define (register-condvar-for-external-event! uid condvar)
+  (let ((ints (disable-interrupts!)))
+    (add-external-event-condvar! uid condvar)
     (set-enabled-interrupts! ints)))
+
+; make a new temporary event type and a condvar for it; return uid and condvar
+(define (new-external-event)
+  (let ((event-uid (new-external-event-uid #f))
+	(condvar (make-condvar)))
+    (register-condvar-for-external-event! event-uid condvar)
+    (values event-uid condvar)))
+
+; actually wait for the event
+(define (wait-for-external-event condvar)
+  (with-new-proposal (lose)
+    (or (if (condvar-has-value? condvar)
+	    (maybe-commit)
+	    (maybe-commit-and-wait-for-condvar condvar #f))
+	(lose))))
 
 ; This just deletes from the alist.
 

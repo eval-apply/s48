@@ -364,14 +364,14 @@
 		     (vector-ref raw 3)
 		     (raw->socket-address (vector-ref raw 4))))
 
-(define (get-xxx-info event-uid retval get-result)
+(define (get-xxx-info event-uid retval condvar get-result)
   (if (vector? retval)
       retval
       (begin
 	(dynamic-wind ; we need to release the uid in case the thread gets killed
 	    values
 	    (lambda ()
-	      (wait-for-external-event event-uid))
+	      (wait-for-external-event condvar))
 	    (lambda ()
 	      (unregister-external-event-uid! event-uid)))
 	(get-result retval))))
@@ -383,24 +383,27 @@
 	       (hint-family (address-family unspec))
 	       (hint-socket-type #f)
 	       (hint-protocol #f))
-    (let ((event-uid (new-external-event-uid #f)))
-      (cond
-       ((get-xxx-info
-	 event-uid
-	 (external-getaddrinfo
-	  event-uid
-	  node server
-	  (enum-set->integer hint-flags)
-	  (address-family->raw hint-family)
-	  (and hint-socket-type
-	       (socket-type->raw hint-socket-type))
-	  (and hint-protocol
-	       (ip-protocol->raw hint-protocol)))
-	 external-getaddrinfo-result)
-	=> (lambda (result)
-	     (map raw->address-info
-		  (vector->list result))))
-       (else #f)))))
+    (call-with-values
+	(lambda () (new-external-event))
+      (lambda (event-uid condvar)
+	(cond
+	 ((get-xxx-info
+	   event-uid
+	   (external-getaddrinfo
+	    event-uid
+	    node server
+	    (enum-set->integer hint-flags)
+	    (address-family->raw hint-family)
+	    (and hint-socket-type
+		 (socket-type->raw hint-socket-type))
+	    (and hint-protocol
+		 (ip-protocol->raw hint-protocol)))
+	   condvar
+	   external-getaddrinfo-result)
+	  => (lambda (result)
+	       (map raw->address-info
+		    (vector->list result))))
+	 (else #f))))))
 
 (import-lambda-definition-2 external-getaddrinfo (event-uid
 						  nodename
@@ -417,15 +420,18 @@
 
 (define get-name-info
   (opt-lambda (socket-address (flags (name-info-flags)))
-    (let* ((event-uid (new-external-event-uid #f))
-	   (p (get-xxx-info
-	       event-uid
-	       (external-getnameinfo
-		event-uid
-		(socket-address-raw socket-address)
-		(enum-set->integer flags))
-	       external-getnameinfo-result)))
-      (values (vector-ref p 0) (vector-ref p 1)))))
+    (call-with-values
+	(lambda () (new-external-event))
+      (lambda (event-uid condvar)
+	(let ((p (get-xxx-info
+		  event-uid
+		  (external-getnameinfo
+		   event-uid
+		   (socket-address-raw socket-address)
+		   (enum-set->integer flags))
+		  condvar
+		  external-getnameinfo-result)))
+	  (values (vector-ref p 0) (vector-ref p 1)))))))
 
 (import-lambda-definition-2 external-getnameinfo (event-uid sock-address flags)
 			  "s48_getnameinfo")
