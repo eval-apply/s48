@@ -94,7 +94,7 @@ programmer from having to think about garbage collector interactions
 in the common case.
 
 This interface does not give external code direct access to Scheme
-objects.  It introduces one level of indiretion as external code never
+objects.  It introduces one level of indirection as external code never
 accepts or returns Scheme values directly.  Instead, external code
 accepts or returns \emph{reference objects} of type \code{s48\_ref\_t}
 that refer to Scheme values (their C type is defined to be
@@ -167,7 +167,7 @@ in section~\ref{sec:global-references}.
 
 Section~\ref{sec:gcprotect-conversion-recipe} gives a recipe how to
 convert external code from the old GCPROTECT-style interface to the
-new JIN-style interface.
+new JNI-style interface.
 
 
 \section{Shared bindings}
@@ -184,6 +184,7 @@ This is necessary because C initialization code may be run before or after
  the resumed image or is run in the current session.
 
 \subsection{Exporting Scheme values to C}
+\label{sec:export-scheme-to-c}
 
 \begin{protos}
 \proto{define-exported-binding}{ name value}{shared-binding}
@@ -523,7 +524,7 @@ These have the disadvantage of only having a limited range, but
 \cproto{long \ \ \ \ \ S48\_MIN\_FIXNUM\_VALUE}
 \end{protos}
 
-\noindent An error is signalled if the argument to
+\noindent An error is signaled if the argument to
  \code{s48\_enter\_fixnum} is less than \code{S48\_MIN\_FIXNUM\_VALUE}
  or greater than \code{S48\_MAX\_FIXNUM\_VALUE} ($-2^{29}$ and
  $2^{29}-1$ on a 32-bits architecture and $-2^{61}$ and $2^{62}-1$ on 
@@ -750,7 +751,7 @@ Global object references need to be created and freed explicitly for
 
 Additionally, the interface provides \emph{local buffers} that are malloc'd regions
  of memory valid for the duration of a function call and are freed automatically upon
- return from the external code.  This reliefes the programmer from explicitly freeing
+ return from the external code.  This relieves the programmer from explicitly freeing
  locally allocated memory.  See section~\ref{sec:local-bufs} for details.
 
 The interface treats byte vectors in a special way, since the garbage
@@ -1189,10 +1190,10 @@ These never return.
 \cproto{s48\_out\_of\_memory\_error\_2(s48\_call\_t, )}
 \end{protos}
 
-\noindent{}An assertion violation signalled via
+\noindent{}An assertion violation signaled via
 \code{s48\_assertion\_violation\_2} typically means that an invalid
 argument (or invalid number of arguments) has been passed.  An error
-signalled via \code{s48\_error\_2} means that an environmental error
+signaled via \code{s48\_error\_2} means that an environmental error
 (like an I/O error) has occurred.  In both cases, \code{who} indicates
 the location of the error, typically the name of the function it
 occurred in.  It may be \code{NULL}, in which the system guesses a
@@ -1225,67 +1226,76 @@ error if its argument is neither \code{\#t} or \code{\#f}.
 
 \section{External events}
 
-External code can register external events and push the occurance of
-external events into the main Scheme~48 event loop and Scheme code can
-wait and act on external events.
+External code can push the occurrence of external events into the main
+Scheme~48 event loop and Scheme code can wait and act on external
+events.
 
-The following prototypes build the interface on the external side:
+On the Scheme side, the external events functionality consists of the
+following functions from the structure \code{primitives}:
 
 \begin{protos}
-\cproto{long s48\_external\_event\_uid(void)}
-\cproto{long s48\_permanent\_external\_event\_uid(char *)}
+\proto{new-external-event-uid}{ shared-binding-or-\#f}{ uid}
+\protonoresult{unregister-external-event-uid!}{ uid}
+\end{protos}
+
+\noindent{}And the following functions from the structure
+\code{external-events}:
+
+\begin{protos}
+\protonoresult{register-condvar-for-external-event!}{ uid condvar}
+\protonoresult{wait-for-external-event}{ condvar}
+\proto{new-external-event}{}{ uid condvar}
+\end{protos}
+
+\noindent{}The function \code{new-external-event-uid} returns a fresh
+event identifier on every call.  When called with a shared binding
+instead of \code{\#f}, \code{new-external-event-uid} returns a named
+event identifier for permanent use.  The function
+\code{unregister-external-event-uid} unregisters the given event
+identifier.
+
+External events use condition variables to synchronize the occurrence
+of events, see section~\ref{sec:condition-variables} for more
+information on condition variables.  The function
+\code{register-condvar-for-external-event} registers a condition
+variable with an event identifier.  For convenience, the function
+\code{new-external-event} combines \code{new-external-event-uid} and
+\code{register-condvar-for-external-event} and returns a fresh event
+identifier and the corresponding condition variable.
+
+The function \code{wait-for-external-event} blocks the caller (on the
+condition variable) until the Scheme main event loop receives an event
+notification (by \code{s48\_note\_external\_event}) of the event
+identifier that is registered with the given condition variable (with
+\code{register-condvar-for-external-event}).  There is no guarantee
+that the caller of \code{wait-for-external-event} is unblocked on
+every event notification, therefore the caller has to be prepared to
+handle multiple external events that have occurred and external code
+has to be prepared to store multiple external events.
+
+The following prototype is the interface on the external side:
+
+\begin{protos}
 \cproto{void s48\_note\_external\_event(long)}
-\cproto{void s48\_unregister\_external\_event\_uid(long)}
 \end{protos}
 
-The \code{s48\_external\_event\_uid} function returns a fresh event
-identifier on every call, \code{s48\_permanent\_external\_event\_uid}
-names an external event.  It returns the event identifier of the named
-external event or creates a fresh one if the name is used for the
-first time.  External event identifiers should be shared with Scheme,
-since Scheme code needs the event identifier to be able to wait on
-specific external events, i.e.  the result of
-\code{s48\_external\_event\_uid} and
-\code{s48\_permanent\_external\_event\_uid} should be assigned to a
-global variable and made accessible by an external function that is
-exportet to the Scheme side.  That function returns the external
-event identifier as a Scheme object.  Typically, Scheme code only
-calls this function once and assigns its result to a global variable
-(during initialization).  See section~\ref{sec:export-c-to-scheme} on
-how to export C values to Scheme.
-
-External code then has to collect external events and can use
+\noindent{}External code has to collect external events and can use
 \code{s48\_note\_external\_event} to signal the occurrence of an
-external event to the main event loop.  Since the main event loop does
-not guarantee that every call to \code{s48\_note\_external\_event}
-causes the just occurred event to get handled immediately, external
-code has to make sure that it can collect multiple external events
-(i.e. keep them in an appropriate data structure).  It is safe for
-external code to call \code{s48\_note\_external\_event} on every
-collected external event, though, even if older events have not been
-handled yet.
+external event to the main event loop.  The argument to
+\code{s48\_note\_external\_event} is an event identifier that was
+previously registered on the Scheme side.  Thus, external code has to
+obtain the event identifier from the Scheme side, either by passing
+the event identifier as an argument to the external function that
+calls \code{s48\_note\_external\_event} or by exporting the Scheme
+value to C (see section~\ref{sec:export-scheme-to-c}).
 
-After external code is done with an external event source, it has to
-unregister the event identifier with
-\code{s48\_unregister\_external\_event\_uid}.
-
-The Scheme side waits on the occurrence of an external event with the
-following function of the structure \code{external-events}:
-
-\begin{protos}
-\protonoresult{wait-for-external-event}{ uid}
-\end{protos}
-
-The function \code{wait-for-external-event} blocks the caller until
-the Scheme main event loop receives an event notification (by
-\code{s48\_note\_external\_event}) of the given event source uid
-(which was registered by \code{s48\_external\_event\_uid} or
-\code{s48\_permanent\_external\_event\_uid} on the C side and obtained
-from the C side).  There is no guarantee that the caller of
-\code{wait-for-external-event} is unblocked on every event
-notification, therefore the caller has to be prepared to handle
-multiple external events that have occurred and external code has to
-be prepared to store multiple external events.
+Since the main event loop does not guarantee that every call to
+\code{s48\_note\_external\_event} causes the just occurred event to
+get handled immediately, external code has to make sure that it can
+collect multiple external events (i.e. keep them in an appropriate
+data structure).  It is safe for external code to call
+\code{s48\_note\_external\_event} on every collected external event,
+though, even if older events have not been handled yet.
 
 \subsection{Collecting external events in external code}
 
@@ -1319,40 +1329,77 @@ If the sole occurrence of an event does not suffice for the program,
 the Scheme side has to pull the information that is associated with an
 event from the C side.  Then, the Scheme side can handle the event
 data.  For example, a typical event loop on the Scheme side that waits
-on external events may look like this:
+on external events of an permanent event type that an long-running
+external thread produces may look like this:
 
 \begin{verbatim}
+(define *external-event-uid* 
+  (new-external-event-uid (lookup-imported-binding "my-event")))
+
+(spawn-external-thread *external-event-uid*)
+
 (let loop ()
-  (wait-for-external-event *external-event-uid*)
-  (process-external-events! (get-external-events))
-  (loop))
+  (let ((condvar (make-condvar)))
+    (register-condvar-for-external-event! *external-event-uid* condvar)
+    (wait-for-external-event condvar)
+    (process-external-events! (get-external-events))
+    (loop)))
 \end{verbatim}
 
-Note, that \code{wait-for-external-event} is the only predefined
-function of the above example, all other variables and functions need
-to be defined by the user.  In the above example, the variable
-\code{*external-event-uid*} contains an external event identifier and
-is obtained from external code (there it was obtained by calling
-either \code{s48\_external\_event\_uid} or
-\code{s48\_permanent\_external\_event\_uid}).  An example definition
-of \code{*external-event-uid*} could look like this:
+\noindent{}In the above example, the variable
+\code{*external-event-uid*} is defined as a permanent event
+identifier.  On every pass through the loop, a fresh condition
+variable is registered with the event identifier, then
+\code{wait-for-external-event} blocks on the condition variable until
+external code signals the occurrence of a matching event.  Note that
+\code{process-external-events!} and \code{get-external-events} need to
+be defined by the user.  The user-written function
+\code{get-external-events} returns all the events that the external
+code has collected since the last time \code{get-external-events} was
+called; the user-written function \code{process-external-events!}
+handles the events on the Scheme side.
+
+When the Scheme side only waits for one single event, there is no need
+for an event loop and an permanent event identifier.  Then,
+\code{new-external-event} is more convenient to use:
 
 \begin{verbatim}
-(define *external-event-uid* (get-external-event-uid))
+(call-with-values
+  (lambda () (new-external-event))
+  (lambda (uid condvar)
+    (spawn-external-thread uid)
+    (wait-for-external-event condvar)
+    (unregister-external-event-uid! uid)
+    ...))
 \end{verbatim}
 
-In the above example maps \code{get-external-event-uid} to an external
-functions that returns the event identifier as an Scheme value.  The
-user-written function \code{process-external-events!} handles the
-events on the scheme side.  The function user-written
-\code{get-external-events} returns all the events that the external
-code collected since the last time \code{get-external-events} was
-called.
+\noindent{}Here, \code{new-external-event} returns a fresh event
+identifier and a fresh condition variable.  The event identifier is
+passed to \code{spawn-external-thread} and the condition variable is
+used to wait for the occurrence of the external event.
 
-The external code uses \code{s48\_note\_external\_event} to push the
-fact that an external event occurred into the main event loop, then
-the Scheme code needs to pull the actual event data from external code
-(in this example with \code{get-external-events}).
+External code uses \code{s48\_note\_external\_event} to push the fact
+that an external event occurred into the main event loop, then the
+Scheme code needs to pull the actual event data from external code (in
+this example with \code{get-external-events}).  The user-written
+function \code{spawn-external-thread} runs the external code that
+informs the Scheme side about the occurrence of external events.  The
+event identifier is passed as an argument.  The external-event-related
+parts of the implementation of \code{spawn-external-thread} in
+external code could look like this:
+
+\begin{verbatim}
+s48_ref_t
+spawn_external_thread(s48_call_t call, s48_ref_t sch_event_uid) {
+  ...
+  s48_note_external_event(s48_extract_long_2(call, sch_event_uid));
+  ...
+}
+\end{verbatim}
+
+\noindent{}The event identifier is extracted from its Scheme
+representation and used to inform the Scheme side about an occurrence
+of this specific event type.
 
 \section{Unsafe functions and macros}
 
