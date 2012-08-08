@@ -6,7 +6,7 @@
 #
 
 # Ensure that $MAKE is set.
-echo "${MAKE:=make}" >/dev/null
+: "${MAKE:=make}"
 
 echo "This script requires an installed scheme48 executable in the path."
 echo "The executable should be Scheme 48 1.6 or later."
