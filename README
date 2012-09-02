@@ -1,5 +1,14 @@
 ; Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
+This is 
+
+Scheme 48 1.9 "Tübingen Edition"
+
+a derivative of Scheme 48 0.58, put together by various volunteers
+around the Internet, with release management happening in Tübingen,
+Germany.  Scheme 48 0.58 was developed by Richard Kelsey and Jonathan
+Rees and incorporates PreScheme 0.5 by Richard Kelsey.
+
 Please report bugs to scheme-48-bugs@s48.org, and include
 the version number in your message.
 
@@ -10,6 +19,8 @@ A user's guide is in file doc/user-guide.txt.
 Recent changes are listed in file doc/news.txt.
 
 Known bugs and things to do in the future are listed in doc/todo.txt.
+
+The license conditions are explained in COPYING.
 
 Send mail to scheme-48-request@s48.org to be put on a
 mailing list for announcements, discussion, bug reports, and bug
@@ -36,6 +47,7 @@ listed here):
       todo.txt		list of improvements we hope to make someday
       news.txt		list of improvements we have already made
       io.txt		how the I/O system works
+      deriving.txt      how to create derived versions
     scheme/		scheme source files
       packages.scm	meta-module definitions
       interfaces.scm	system interface definitions

@@ -29,6 +29,10 @@ It is distributed under the following terms:
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+Scheme 48 1.9 derives from Scheme 48 0.58, which was developed by
+Richard Kelsey and Jonathan Rees and incorporates PreScheme 0.5 by
+Richard Kelsey.
+
 The distribution includes a number of contributions by permission:
 
 - This distribution includes a bignum arithmetic implementation (files
