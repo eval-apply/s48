@@ -650,7 +650,7 @@ tags:
 DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		configure configure.in config.sub config.guess 		\
 		Makefile.in 						\
-		scheme48.sln scheme48.vcproj				\
+		scheme48.sln scheme48.vcxproj				\
 		mkinstalldirs install-sh				\
 		doc/*.ps doc/*.pdf doc/*.txt 				\
 		doc/html/*.html doc/html/*.css doc/html/*.gif 		\
