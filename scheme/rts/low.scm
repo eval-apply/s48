@@ -6,9 +6,6 @@
 ; Low-level things that rely on the fact that we're running under the
 ; Scheme 48 VM.
 
-; Historical kludge; ASCII is a misnomer (as it covers only [0, 127])---
-; we really mean Latin-1.
-
 (define (char->ascii c)
   (let ((scalar-value (char->scalar-value c)))
     (if (>= scalar-value ascii-limit)
