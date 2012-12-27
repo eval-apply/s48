@@ -66,30 +66,30 @@
 
 ; Used by QUOTE to turn generated names back into symbols
 
-(define (desyntaxify thing)
-  (cond ((or (boolean? thing) (null? thing) (number? thing)
-	     (symbol? thing) (char? thing))
-	 thing)
-	((string? thing)
-	 (make-immutable! thing))
-	((generated? thing)
-	 (desyntaxify (generated-name thing)))
-	((pair? thing)
-	 (make-immutable!
-	  (cons (desyntaxify (car thing))
-		(desyntaxify (cdr thing)))))
-	((vector? thing)
-	 (make-immutable!
-	  (let ((new (make-vector (vector-length thing) #f)))
-	    (let loop ((i 0))
-	      (if (>= i (vector-length thing))
-		  new
-		  (begin
-		    (vector-set! new i (desyntaxify (vector-ref thing i)))
-		    (loop (+ i 1))))))))
-	(else
-	 (warning 'desyntaxify "invalid datum in quotation" thing)
-	 thing)))
+(define (desyntaxify thing0)
+  (let desyntaxify ((thing thing0))
+    (cond ((or (boolean? thing) (null? thing) (number? thing)
+	       (symbol? thing) (char? thing))
+	   thing)
+	  ((string? thing)
+	   (make-immutable! thing))
+	  ((generated? thing)
+	   (desyntaxify (generated-name thing)))
+	  ((pair? thing)
+	   (make-immutable!
+	    (cons (desyntaxify (car thing))
+		  (desyntaxify (cdr thing)))))
+	  ((vector? thing)
+	   (make-immutable!
+	    (let ((new (make-vector (vector-length thing) #f)))
+	      (let loop ((i 0))
+		(if (>= i (vector-length thing))
+		    new
+		    (begin
+		      (vector-set! new i (desyntaxify (vector-ref thing i)))
+		      (loop (+ i 1))))))))
+	  (else
+	   (syntax-violation 'quote "invalid datum in quotation" thing)))))
 
 ;----------------
 ; Qualified names
