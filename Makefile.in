@@ -672,14 +672,14 @@ DISTFILES = README COPYING.rtf COPYING INSTALL WINDOWS.txt		\
 		c/*.[ch] c/*/*.[ch] c/*/*.ci c/*.exp c/*.def		\
 		c/scheme48.h.in						\
 		c/scheme48write-barrier.h c/scheme48arch.h.in		\
+		c/sysdep.h.in						\
 		emacs/*.el gdbinit					\
 		scheme/*.scm scheme/*/*.scm scheme/vm/*/*.scm		\
 		ps-compiler/minor-version-number			\
 		ps-compiler/doc/node.txt ps-compiler/doc/todo.txt	\
 		ps-compiler/*.scm ps-compiler/*/*.scm			\
 		ps-compiler/prescheme/primop/*.scm			\
-		ps-compiler/prescheme/test/*.scm			\
-		c/sysdep.h.in
+		ps-compiler/prescheme/test/*.scm
 
 distname = scheme48-$(VERSION)
 
@@ -693,7 +693,7 @@ dist: build/initial.image-32 build/initial.image-64 c/scheme48.h
 		ln -s . $$distname &&					\
 		files='' &&						\
 		for i in $(DISTFILES); do				\
-			if [ "$$i" != "c/sysdep.h" ]; then		\
+			if [ "$$i" != "c/sysdep.h" -a "$$i" != "c/scheme48arch.h" ]; then \
 				files="$$files $$distname/$$i";		\
 			fi						\
 		done &&							\
