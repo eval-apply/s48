@@ -2,7 +2,7 @@
 
 Recent changes to Scheme 48.
 
-* 2010-10 (version 1.9)
+* 2012-12-31 (version 1.9)
 ** Additions
 - A new C FFI as added, thanks to Crestani, Harald Glab-Plhak.  The
   old one is still there but will eventually be phased out.
@@ -31,13 +31,18 @@ Recent changes to Scheme 48.
   Robert Ransom)
 - The unquote and unquote-splicing were generalized to several
   operands, in line with R6RS.
+- Commands ,show-known-packages, ,show-interface, and
+  ,show-default-package were added to support SDT (Marcus Crestani,
+  Sebastian Rheinecker).
+- `placeholder-value' now accepts a `deadlock?' argument that says
+  whether blocking on the placeholder contributes to deadlock.
 - Most source files now carry author information.
 - A document =doc/deriving.txt= was added that clarifies how works
   derived from Scheme 48 should be labelled.
 ** Changes
 - The BIBOP GC was heavily debugged and is now considered stable - it
   is enabled by default.
-- The system builds on Windows Visual Studio Express 2008 instead of
+- The system builds on Windows Visual Studio Express 2010 instead of
   Visual Studio 2005.
 - The BIBOP GC code was simplified significantly.
 - The `syntax-rules' implementation was rewritten by Richard Kelsey
@@ -52,6 +57,10 @@ Recent changes to Scheme 48.
   (This requires a working LaTeX installation and tex2page.)  A target
   `install-no-doc' is available that does not.
 - The license information was clarified.
+- The external-events API was changed to fix a design bug; it now
+  correctly accomodates "fire-once" applications such as
+  wait-`for-child-process' (with help from Robert Ransom, Roderic
+  Morris).
 ** Bug fixes
 - Many.
 
