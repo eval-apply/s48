@@ -2,7 +2,8 @@
 # Part of Scheme 48 1.9.  See file COPYING for notices and license.
 
 # Authors: Richard Kelsey, Jonathan Rees, Marcus Crestani,
-# Robert Ransom, Michael Zabka, Harald Glab-Phlak, David Frese
+# Robert Ransom, Michael Zabka, Harald Glab-Phlak, David Frese,
+# Thorsten Alteholz.
 
 # Documentation in files INSTALL and doc/install.txt
 
@@ -249,7 +250,7 @@ POSIX_OBJECTS = $(posix_dir)/user.o     $(posix_dir)/regexp.o	\
 		$(posix_dir)/errno.o	$(posix_dir)/syslog.o
 
 $(POSIX_EXTERNAL) : $(POSIX_OBJECTS)
-	$(LD) -o $@ $(POSIX_OBJECTS) $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE) 
+	$(LD) -o $@ $(POSIX_OBJECTS) $(DYNAMIC_EXTERNALS_LDFLAGS_IN_PLACE)
 
 
 # End of POSIX rules
@@ -362,7 +363,7 @@ c/bibop/remset.o: c/bibop/remset.h c/bibop/memory.h c/scheme48.h	       \
 # End of BIBOP GC rules
 
 $(VM): c/main.o $(LIBSCHEME48) c/scheme48.exp c/scheme48.def
-	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) -o $@ c/main.o	$(LIBSCHEME48) $(LIBS)
+	$(CC) $(LDFLAGS) $(LDFLAGS_VM) $(CFLAGS) $(CPPFLAGS) -o $@ c/main.o	$(LIBSCHEME48) $(LIBS)
 	# Cygwin
 	if test -x /usr/bin/dlltool; then \
 		dlltool --dllname $(VM).exe --output-lib $(VM).a --def $(srcdir)/c/scheme48.def; \
@@ -374,7 +375,7 @@ $(LIBSCHEME48): $(OBJS) $(GC_OBJS) $(UNIX_OBJS) $(LIBOBJS) $(EXTERNAL_OBJECTS)
 	ranlib $@
 
 script-interpreter: c/script-interpreter.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ c/script-interpreter.o
+	$(CC) $(LDFLAGS) $(CFLAGS) $(CPPFLAGS) -o $@ c/script-interpreter.o
 
 c/main.o: c/main.c c/scheme48vm.h c/scheme48heap.h
 	$(CC) -c $(CFLAGS) -o $@ \
@@ -525,8 +526,8 @@ install-no-doc: enough dirs
 	    -e 's,@libdir\@,$(libdir),g'				\
 	    -e 's,@CC\@,$(CC),g'					\
 	    -e 's,@LD\@,$(LD),g'					\
-	    -e 's,@DYNAMIC_EXTERNALS_CFLAGS\@,$(DYNAMIC_EXTERNALS_CFLAGS),g' \
-	    -e 's,@DYNAMIC_EXTERNALS_LDFLAGS\@,$(DYNAMIC_EXTERNALS_LDFLAGS),g' \
+	    -e 's?@DYNAMIC_EXTERNALS_CFLAGS\@?$(DYNAMIC_EXTERNALS_CFLAGS)?g' \
+	    -e 's?@DYNAMIC_EXTERNALS_LDFLAGS\@?$(DYNAMIC_EXTERNALS_LDFLAGS)?g' \
 	< $(srcdir)/build/$(CONFIG_SCRIPT).in > $$config_script &&	\
 	chmod +x $$config_script
 # install the external modules
