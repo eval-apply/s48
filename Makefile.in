@@ -534,13 +534,13 @@ install-no-doc: enough dirs
 	$(INSTALL_PROGRAM) $(EXTERNALS) $(DESTDIR)$(LIB)/
 # install the documentation
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(docdir)
-	$(INSTALL_DATA) $(srcdir)/COPYING $(docdir)
+	$(INSTALL_DATA) $(srcdir)/COPYING $(DESTDIR)$(docdir)
 
 install-doc: dirs doc
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(docdir)
-	$(INSTALL_DATA) $(srcdir)/COPYING $(docdir)
-	$(INSTALL_DATA) $(srcdir)/doc/manual.pdf $(docdir)
-	$(INSTALL_DATA) $(srcdir)/doc/manual.ps $(docdir)
+	$(INSTALL_DATA) $(srcdir)/COPYING $(DESTDIR)$(docdir)
+	$(INSTALL_DATA) $(srcdir)/doc/manual.pdf $(DESTDIR)$(docdir)
+	$(INSTALL_DATA) $(srcdir)/doc/manual.ps $(DESTDIR)$(docdir)
 	for f in $(srcdir)/doc/html/*; do \
 		$(INSTALL_DATA) $$f $(DESTDIR)$(docdir) || exit 1; \
 	done
