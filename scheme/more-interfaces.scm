@@ -211,7 +211,7 @@
 	  config-package-is
 	  undefine
 	  set-reader
-	  show-known-packages
+	  show-structures-in-config-package
 	  show-interface))
 
 (define-interface debug-commands-interface

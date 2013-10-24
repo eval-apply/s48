@@ -377,13 +377,13 @@
 ;  ((package-evaluator env) form env))
 
 
-; Show information about packages
+; Show information about structures, interfaces, and packages
 
 ;; prints known packages
-(define-command-syntax 'show-known-packages "" 
-  "shows all known packages" '())
+(define-command-syntax 'show-structures-in-config-package "" 
+  "shows all structures in the config package" '())
 
-(define (show-known-packages)
+(define (show-structures-in-config-package)
   (for-each (lambda (entry)
               (write entry)
               (newline)) 
