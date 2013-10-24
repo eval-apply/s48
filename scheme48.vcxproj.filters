@@ -154,7 +154,7 @@
     <ClInclude Include="c\fd-io.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="c\ffi.h">
+    <ClInclude Include="c\scheme48ffi.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="c\bibop\find_all.h">

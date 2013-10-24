@@ -10,7 +10,7 @@
 #include "scheme48vm.h"
 #include "scheme48heap.h"
 #include "scheme48image.h"
-#include "ffi.h"
+#include "scheme48ffi.h"
 
 extern long s48_get_file_size(unsigned char *);
 

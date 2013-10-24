@@ -15,7 +15,7 @@
 #include "scheme48.h"
 #include "scheme48vm.h"
 #include "bignum.h"
-#include "ffi.h"
+#include "scheme48ffi.h"
 
 /*
  * The Joy of C

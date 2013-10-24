@@ -14,7 +14,7 @@
 #include "scheme48.h"
 #include "scheme48vm.h"
 #include "scheme48heap.h"
-#include "ffi.h"
+#include "scheme48ffi.h"
 
 /* structs */
 
