@@ -380,7 +380,7 @@
     <ClInclude Include="c\bibop\data.h" />
     <ClInclude Include="c\event.h" />
     <ClInclude Include="c\fd-io.h" />
-    <ClInclude Include="c\ffi.h" />
+    <ClInclude Include="c\scheme48ffi.h" />
     <ClInclude Include="c\bibop\find_all.h" />
     <ClInclude Include="c\bibop\gc_config.h" />
     <ClInclude Include="c\bibop\generation_gc.h" />
