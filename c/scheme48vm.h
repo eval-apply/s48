@@ -13,6 +13,7 @@
 
 /* initializing */
 extern void		s48_init(void);
+extern long		s48_initialize(int *argc, char ***argv);
 extern void		s48_initialize_vm(char *, long);
 
 /* running */
