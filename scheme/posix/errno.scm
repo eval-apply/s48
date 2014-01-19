@@ -145,8 +145,9 @@
   (let loop ((i 0))
     (if (= i (vector-length named-errnos))
 	(get-unnamed-errno num)
-	(let ((e (vector-ref named-errnos i)))
-	  (if (= num (named-errno-os-number e))
+	(let* ((e (vector-ref named-errnos i))
+	       (errno-number (named-errno-os-number e)))
+	  (if (and errno-number (= num errno-number))
 	      e
 	      (loop (+ i 1)))))))
 
