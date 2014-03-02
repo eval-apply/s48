@@ -38,22 +38,21 @@
 
 (define-c-generator ashl #t
   (lambda (call port indent)
-    (generate-shift call port indent "LEFT" "<<" #f)))
+    (generate-shift call port indent "LEFT" #f)))
 
 (define-c-generator ashr #t
   (lambda (call port indent)
-    (generate-shift call port indent "RIGHT" ">>" #f)))
+    (generate-shift call port indent "RIGHT" #f)))
 
 (define-c-generator lshr #t
   (lambda (call port indent)
-    (generate-shift call port indent "RIGHT_LOGICAL" ">>" #t)))
+    (generate-shift call port indent "RIGHT_LOGICAL" #t)))
 
-(define (generate-shift call port indent macro c-op logical?)
+(define (generate-shift call port indent macro logical?)
   (cond ((= 1 (call-exits call))
 	 ; PS_SHIFT_??? is a C macro that handles overshifting even if C doesn't
 	 (indent-to port indent)
 	 (format port "PS_SHIFT_~A(" macro)
-	 (if logical? (format port "(unsigned long)"))
 	 (c-value (call-arg call 1) port)
 	 (format port ", ")
 	 (c-value (call-arg call 2) port)
@@ -64,11 +63,9 @@
 	      (>= (literal-value (call-arg call 1)) pre-scheme-integer-size))
 	 (format port "0L"))
 	(else
-	 (if logical?
-	     (format port "(long)(((unsigned long)")
-	     (format port "(("))
+	 (format port "PS_SHIFT_~A_INLINE(" macro)
 	 (c-value (call-arg call 0) port)
-	 (format port ")~A" c-op)
+	 (format port ", ")
 	 (c-value (call-arg call 1) port)
 	 (format port ")"))))
     
