@@ -61,25 +61,41 @@ RESULT = ps_read_integer(PORT,&EOFP,&STATUS);
 }
 
 
-/* C shifts may not work if the amount is greater than the machine word size */
-/* Patched by JAR 6/6/93 */
+/* 
+ * C shifts may not work if the amount is greater than the machine word size.
+ * Also, undefined for negative values.
+ */
+
+#define PS_SHIFT_LEFT_INLINE(X, Y) ((X)*(1L<<(Y)))
+
+static long
+PS_SHIFT_RIGHT_INLINE(long x, long y) {
+  if (x < 0 && y > 0)
+    return x >> y | ~(~0U >> y);
+  else
+    return x >> y;
+}
 
 #define PS_SHIFT_RIGHT(X,Y,RESULT)   \
 {                                    \
   long TTx = X,  TTy = Y;            \
-  RESULT = TTy >= BITS_PER_CELL ? (TTx < 0 ? -1 : 0) : TTx >> TTy; \
-}  
+  if ((TTx < 0) && (TTy > 0))        \
+    RESULT = (unsigned long)TTx >> TTy | ~(~0LU >> TTy);	\
+  else                               \
+    RESULT = TTx >> TTy;	     \
+}
 
 #define PS_SHIFT_LEFT(X,Y,RESULT)    \
 {                                    \
-  long TTy = Y;                      \
-  RESULT = TTy >= BITS_PER_CELL ? 0 : X << TTy; \
+  RESULT = ((X)*(1L<<(Y)));           \
 }  
 
 #define PS_SHIFT_RIGHT_LOGICAL(X,Y,RESULT) \
 {                                          \
   RESULT = ((unsigned long) X) >> Y;	   \
 }
+
+#define PS_SHIFT_RIGHT_LOGICAL_INLINE(X,Y) ((long)(unsigned long)(((unsigned long) (X)) >> (Y)))
 
 extern double ps_pos_infinity(void), ps_neg_infinity(void), ps_not_a_number(void);
 #define PS_POS_INF ps_pos_infinity()
