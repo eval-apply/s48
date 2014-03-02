@@ -50,13 +50,18 @@
 
 (define stob-overhead 1)  ; header uses up one descriptor
 
-(define (address-after-header stob)
+(define (offset-after-header stob)
   (assert (stob? stob))
-  (integer->address (remove-stob-tag stob)))
+  (remove-stob-tag stob))
 
+(define (address-after-header stob)
+  (integer->address (offset-after-header stob)))
+
+; Note that first converting to an address and then doing arithmetic
+; will result in C undefined behavior when the target address is NULL.
 (define (address-at-header stob)
-  (address- (address-after-header stob)
-	    (cells->a-units 1)))
+  (integer->address (- (offset-after-header stob)
+		       (cells->bytes 1))))
 
 (define (stob-header stob)
   (fetch (address-at-header stob)))
