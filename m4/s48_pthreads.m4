@@ -7,11 +7,11 @@ AC_DEFUN([S48_PTHREADS], [dnl
        AC_CHECK_HEADERS([pthread.h],[dnl
          pthreads_done="no"
          AC_MSG_CHECKING([Pthreads support])
-	 S48_PTHREAD_TRY_FLAGS([-mt])
 	 S48_PTHREAD_TRY_FLAGS([-pthread])
 	 S48_PTHREAD_TRY_FLAGS([-pthreads])
 	 S48_PTHREAD_TRY_FLAGS([-mthreads])
 	 S48_PTHREAD_TRY_FLAGS([-thread])
+	 S48_PTHREAD_TRY_FLAGS([-mt])
  	])
        ])
 ### s48_pthreads.m4 ends here
