@@ -25,7 +25,7 @@ do {								\
     if (STATUS != NULL)						\
       break;							\
     else if (errno != EINTR)					\
-      s48_os_error(NULL, errno, 0); }				\
+      s48_os_error_2(call, NULL, errno, 0); }			\
  } while (0)
 
 #define RETRY_OR_RAISE_NEG(STATUS, CALL)			\
@@ -35,7 +35,7 @@ do {								\
     if (STATUS >= 0)						\
       break;							\
     else if (errno != EINTR)					\
-      s48_os_error(NULL, errno, 0); }				\
+      s48_os_error_2(call, NULL, errno, 0); }			\
  } while (0)
 
 

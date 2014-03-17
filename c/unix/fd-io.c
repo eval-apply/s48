@@ -323,21 +323,6 @@ ps_abort_fd_op(long fd_as_long)
  * one.
  */
 
-s48_value
-s48_add_channel(s48_value mode, s48_value id, long fd)
-{
-  if (mode == S48_CHANNEL_STATUS_OUTPUT
-      && fd != 1
-      && fd != 2) {
-    int flags;
-    RETRY_OR_RAISE_NEG(flags, fcntl(fd, F_GETFL));
-    if ((flags & O_NONBLOCK) == 0)
-      fprintf(stderr,
-        "Warning: output channel file descriptor %d is not non-blocking\n",
-	      (int) fd); }
-  return s48_really_add_channel(mode, id, fd);
-}
-
 s48_ref_t
 s48_add_channel_2(s48_call_t call, s48_ref_t mode, s48_ref_t id, long fd)
 {
