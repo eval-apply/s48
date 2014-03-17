@@ -1211,13 +1211,6 @@ ps_abort_fd_op(long fd_as_long)
  * one.
  */
 
-s48_value
-s48_add_channel(s48_value mode, s48_value id, long fd)
-{
-  /* back to the VM */
-  return s48_really_add_channel(mode, id, fd);
-}
-
 s48_ref_t
 s48_add_channel_2(s48_call_t call, s48_ref_t mode, s48_ref_t id, long fd)
 {
