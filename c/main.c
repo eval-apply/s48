@@ -5,6 +5,7 @@
  */
 
 extern long s48_initialize(int *argc, char ***argv);
+extern long s48_call_startup_procedure(char **, long);
 
 int
 main(int argc, char **argv)

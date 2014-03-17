@@ -9,6 +9,7 @@
  * Scheme 48/POSIX process environment interface
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
