@@ -273,6 +273,7 @@ s48_recvfrom(s48_call_t call, s48_ref_t sch_channel,
 		    &from_len);
   
   if (0 <= status)
+    {
     if (want_sender_p)
       {
 	s48_ref_t sch_count, sch_saddr;
@@ -284,6 +285,7 @@ s48_recvfrom(s48_call_t call, s48_ref_t sch_channel,
       }
     else
       return s48_enter_unsigned_long_2(call, status);
+    }
   
   /*
    * Check for errors.  If we need to retry we mark the socket as pending
