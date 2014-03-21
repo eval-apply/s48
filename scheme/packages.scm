@@ -480,6 +480,7 @@
 	    receiving
 	    reduce
 	    search-trees
+	    functional-search-trees functional-search-trees-internal
 	    signals
 	    sockets
 	    unicode-char-maps
