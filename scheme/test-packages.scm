@@ -34,6 +34,13 @@
 	(subset i/o-internal (open-input-port? eof-object)))
   (files (big check)))
 
+(define-structure functional-search-trees-test (export functional-search-trees-tests)
+  (open scheme
+	test-suites matchers
+	srfi-27
+	functional-search-trees functional-search-trees-internal)
+  (files (big functional-search-tree-check)))
+
 (define-structure inversion-lists-test (export inversion-lists-tests)
   (open scheme test-suites matchers
 	inversion-lists)
@@ -70,6 +77,7 @@
 (define-structure big-test (export big-tests)
   (open scheme test-suites
 	misc-big-test
+	functional-search-trees-test
         inversion-lists-test
         constant-tables-test
         matchers-test
@@ -77,6 +85,7 @@
   (begin
     (define-test-suite big-tests
       (misc-big-tests
+       functional-search-trees-tests
        inversion-lists-tests
        constant-tables-tests
        matchers-tests

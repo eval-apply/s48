@@ -697,6 +697,16 @@
           search-tree-min pop-search-tree-min!
           walk-search-tree))
 
+(define-interface functional-search-trees-interface
+  (export make-search-tree search-tree?
+	  search-tree-insert search-tree-ref
+	  search-tree-delete
+	  search-tree-walk))
+
+; for testing
+(define-interface functional-search-trees-internal-interface
+  (export invalid-search-tree))
+
 (define-interface sparse-vectors-interface
   (export make-sparse-vector
 	  sparse-vector-ref sparse-vector-set!

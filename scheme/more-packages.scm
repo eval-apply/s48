@@ -510,6 +510,13 @@
   (optimize auto-integrate)
   (files (big search-tree)))
 
+(define-structures ((functional-search-trees functional-search-trees-interface)
+		    (functional-search-trees-internal functional-search-trees-internal-interface))
+  (open scheme-level-2
+	exceptions
+	define-record-types)
+  (files (big functional-search-tree)))
+
 ; vectors that grow as large as they need to
 
 (define-structure sparse-vectors sparse-vectors-interface
