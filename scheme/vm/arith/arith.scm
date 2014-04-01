@@ -115,7 +115,7 @@
     (if (<= count 0)
 	(goto succ (arithmetic-shift-right value (- 0 count)))
 	(let ((result (shift-left value count)))
-	  (if (and (> result value)
+	  (if (and (< count bits-per-fixnum)
 		   (= value (arithmetic-shift-right result count))
 		   (if (>= value 0)
 		       (>= result 0)
