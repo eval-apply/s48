@@ -71,7 +71,7 @@ RESULT = ps_read_integer(PORT,&EOFP,&STATUS);
 static long
 PS_SHIFT_RIGHT_INLINE(long x, long y) {
   if (x < 0 && y > 0)
-    return x >> y | ~(~0U >> y);
+    return x >> y | ~(~0LU >> y);
   else
     return x >> y;
 }
