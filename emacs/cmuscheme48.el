@@ -58,7 +58,7 @@
    (let ((end (point)))
      (beginning-of-defun)
      (if losep
-	 (let ((loser "/tmp/s48lose.tmp"))
+	 (let ((loser (make-temp-file "s48lose")))
 	   (write-region (point) end loser)
 	   (scheme48-load-file loser))
 	 (scheme48-send-region (point) end)))))
